@@ -1,0 +1,398 @@
+@font-face {
+  font-family: "B2 Poppins";
+  src: url("/fonts/poppins-600.ttf") format("truetype");
+  font-weight: 600;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "B2 Syne";
+  src: url("/fonts/syne-600.ttf") format("truetype");
+  font-weight: 600;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "B2 Montserrat";
+  src: url("/fonts/montserrat-600.ttf") format("truetype");
+  font-weight: 600;
+  font-display: swap;
+}
+
+.page {
+  min-height: 100vh;
+  min-height: 100svh;
+  background-color: #10223f;
+  background-image: linear-gradient(90deg, rgba(8, 20, 43, 0.63), rgba(8, 20, 43, 0.63)), url("/auth/industrial-background.png");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  color: #151922;
+  position: relative;
+  isolation: isolate;
+}
+
+.content {
+  width: min(1194px, calc(100% - 48px));
+  min-height: 100vh;
+  min-height: 100svh;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 805px) minmax(0, 1fr);
+  align-items: center;
+  column-gap: 60px;
+  padding: 158px 0 0;
+}
+
+.card {
+  width: 100%;
+  min-height: 808px;
+  border-radius: 35px;
+  background: rgba(248, 249, 252, 0.8);
+  box-shadow: inset -5px -10px 4px rgba(0, 0, 0, 0.25);
+  padding: 28px 68px 22px 46px;
+  backdrop-filter: blur(2px);
+}
+
+.title {
+  margin: 0 0 17px;
+  font: 600 48px/1.5 "B2 Poppins", sans-serif;
+  letter-spacing: -0.04em;
+}
+
+.subtitle {
+  margin: 0;
+  color: #505d6f;
+  font: 600 18px/1.4 "B2 Montserrat", sans-serif;
+}
+
+.form {
+  margin-top: 47px;
+}
+
+.form .field:first-child label {
+  margin-bottom: 20px;
+}
+
+.field + .field {
+  margin-top: 28px;
+}
+
+.field label {
+  display: block;
+  margin: 0 0 13px 17px;
+  font: 600 24px/1.2 "B2 Syne", sans-serif;
+}
+
+.field input {
+  display: block;
+  width: 100%;
+  height: 77px;
+  border: 1px solid rgba(80, 93, 111, 0.1);
+  border-radius: 35px;
+  outline: 0;
+  background: #f8f9fc;
+  box-shadow: inset -5px -9px 4px rgba(0, 0, 0, 0.2);
+  padding: 0 27px;
+  color: #151922;
+  font: 600 20px/1.2 "B2 Montserrat", sans-serif;
+}
+
+.field input:focus-visible {
+  outline: 3px solid #3b6ff5;
+  outline-offset: 3px;
+}
+
+.passwordField {
+  position: relative;
+}
+
+.passwordField input {
+  padding-right: 82px;
+}
+
+.visibilityButton {
+  position: absolute;
+  top: 50%;
+  right: 18px;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #151922;
+  cursor: pointer;
+}
+
+.visibilityButton:focus-visible,
+.submitButton:focus-visible,
+.accountLink:focus-visible {
+  outline: 3px solid #151922;
+  outline-offset: 3px;
+}
+
+.submitButton {
+  display: block;
+  width: calc(100% - 74px);
+  min-height: 67px;
+  margin: 53px auto 0;
+  border: 0;
+  border-radius: 20px;
+  background: #3b6ff5;
+  color: #fff;
+  font: 600 24px/1.2 "B2 Montserrat", sans-serif;
+  cursor: pointer;
+}
+
+.submitButton:hover {
+  background: #295ada;
+}
+
+.submitButton:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.accountSwitch {
+  margin: 5px 0 0;
+  text-align: center;
+  color: #505d6f;
+  font: 600 24px/1.2 "B2 Syne", sans-serif;
+}
+
+.accountLink {
+  color: #151922;
+  text-decoration: none;
+}
+
+.accountLink:hover {
+  text-decoration: underline;
+}
+
+.accountNote {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 101px;
+  margin: 67px 0 0 23px;
+  padding: 19px 18px;
+  border-radius: 35px;
+  background: #f8f9fc;
+  box-shadow: inset -5px -9px 4px rgba(0, 0, 0, 0.2);
+  color: #505d6f;
+  font: 600 17px/1.3 "B2 Montserrat", sans-serif;
+}
+
+.accountNote strong {
+  color: #3b6ff5;
+  font-size: 20px;
+}
+
+.formError {
+  margin: 18px 0 0;
+  color: #a83342;
+  font: 600 16px/1.4 "B2 Montserrat", sans-serif;
+}
+
+.brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: #f8f9fc;
+  text-align: center;
+  font: 600 48px/1.6 "B2 Poppins", sans-serif;
+  white-space: nowrap;
+  transform: translateY(-89px);
+}
+
+.toast {
+  position: fixed;
+  z-index: 10;
+  top: 24px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: min(500px, calc(100% - 48px));
+  border-radius: 14px;
+  padding: 14px 20px;
+  color: #fff;
+  box-shadow: 0 14px 35px rgba(12, 20, 38, 0.25);
+  font: 600 18px/1.3 "B2 Montserrat", sans-serif;
+}
+
+.errorToast {
+  background: #dc3651;
+}
+
+.successToast {
+  background: #159565;
+}
+
+.toastIcon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #f8f9fc;
+  color: #dc3651;
+  font-size: 26px;
+  line-height: 1;
+}
+
+.successToast .toastIcon {
+  color: #159565;
+}
+
+.registerContent {
+  width: min(1444px, calc(100% - 48px));
+  align-items: start;
+  padding: 40px 0 30px;
+}
+
+.registerCard {
+  min-height: 1041px;
+  padding: 32px 70px 25px 49px;
+}
+
+.registerEyebrow {
+  margin: 0;
+  font: 600 24px/1.2 "B2 Syne", sans-serif;
+}
+
+.registerTitle {
+  margin: -19px 0 0;
+  font: 600 48px/1.5 "B2 Poppins", sans-serif;
+  letter-spacing: -0.04em;
+  white-space: nowrap;
+}
+
+.registerForm {
+  margin-top: 24px;
+}
+
+.registerForm .field + .field {
+  margin-top: 25px;
+}
+
+.registerForm .submitButton {
+  margin-top: 100px;
+}
+
+@media (max-width: 1100px) {
+  .content {
+    grid-template-columns: minmax(0, 1fr) 280px;
+    gap: 28px;
+  }
+
+  .brand {
+    font-size: 32px;
+  }
+}
+
+@media (max-width: 800px) {
+  .content {
+    display: flex;
+    flex-direction: column-reverse;
+    justify-content: center;
+    gap: 24px;
+    padding: 24px 0;
+  }
+
+  .card {
+    min-height: 0;
+    padding: 30px 26px;
+  }
+
+  .brand {
+    font-size: clamp(22px, 5vw, 32px);
+    line-height: 1.25;
+    transform: none;
+  }
+
+  .accountNote {
+    margin: 44px 0 0;
+  }
+
+  .registerContent {
+    display: block;
+  }
+
+  .registerTitle {
+    font-size: clamp(28px, 5vw, 48px);
+    margin-top: 0;
+    white-space: normal;
+  }
+
+  .registerForm .submitButton {
+    margin-top: 50px;
+  }
+}
+
+@media (max-width: 480px) {
+  .content,
+  .registerContent {
+    width: min(100% - 24px, 430px);
+  }
+
+  .card {
+    border-radius: 24px;
+    padding: 26px 20px;
+  }
+
+  .title {
+    font-size: 33px;
+    line-height: 1.2;
+  }
+
+  .subtitle {
+    font-size: 13px;
+  }
+
+  .form {
+    margin-top: 28px;
+  }
+
+  .field label,
+  .registerEyebrow {
+    font-size: 17px;
+  }
+
+  .field input {
+    height: 58px;
+    font-size: 16px;
+  }
+
+  .submitButton {
+    width: 100%;
+    min-height: 55px;
+    margin-top: 35px;
+    font-size: 17px;
+  }
+
+  .accountSwitch {
+    font-size: 16px;
+  }
+
+  .accountNote {
+    min-height: 0;
+    font-size: 13px;
+  }
+
+  .accountNote strong {
+    font-size: 16px;
+  }
+
+  .registerTitle {
+    font-size: 28px;
+  }
+
+  .registerForm .submitButton {
+    margin-top: 45px;
+  }
+}
