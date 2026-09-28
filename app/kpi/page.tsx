@@ -1,8 +1,5 @@
-import { KpiScreen } from "@/modules/d4/kpi/KpiScreen";
+import { redirect } from "next/navigation";
 
-export default async function KpiPage({ searchParams }: {
-  searchParams: Promise<{ employeeId?: string; period?: string }>;
-}) {
-  const { employeeId, period } = await searchParams;
-  return <KpiScreen initialEmployeeId={employeeId} initialPeriod={period} />;
+export default function Page() {
+  redirect("/live?module=kpi");
 }

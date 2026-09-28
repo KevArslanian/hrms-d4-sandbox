@@ -1,5 +1,5 @@
-import { PerformanceDetailScreen } from "@/modules/d4/performance/PerformanceDetailScreen";
+import { redirect } from "next/navigation";
 
-export default function PerformanceDetailPage() {
-  return <PerformanceDetailScreen />;
+export default function Page() {
+  redirect("/live?module=performance");
 }

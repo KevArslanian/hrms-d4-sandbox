@@ -1,8 +1,5 @@
-import { DashboardScreen } from "@/modules/d4/dashboard/DashboardScreen";
+import { redirect } from "next/navigation";
 
-export default async function DashboardPage({ searchParams }: {
-  searchParams: Promise<{ employeeId?: string; period?: string }>;
-}) {
-  const { employeeId, period } = await searchParams;
-  return <DashboardScreen initialEmployeeId={employeeId} initialPeriod={period} />;
+export default function Page() {
+  redirect("/live?module=dashboard");
 }

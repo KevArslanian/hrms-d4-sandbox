@@ -1,8 +1,5 @@
-import { DevelopmentScreen } from "@/modules/d4/development/DevelopmentScreen";
+import { redirect } from "next/navigation";
 
-export default async function DevelopmentPage({ searchParams }: {
-  searchParams: Promise<{ employeeId?: string; sourceType?: string; sourceRef?: string }>;
-}) {
-  const { employeeId, sourceType, sourceRef } = await searchParams;
-  return <DevelopmentScreen initialEmployeeId={employeeId} initialSourceType={sourceType} initialSourceRef={sourceRef} />;
+export default function Page() {
+  redirect("/live?module=development");
 }
