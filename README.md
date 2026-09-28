@@ -15,7 +15,7 @@ Scaffold ini mengikuti konfigurasi dan dependensi `PISD-X-ANDIMA/Andima-HRMS` pa
 | FR-D4-005 | `/training` | Aktivitas terkait development need dan riwayat revisi |
 | FR-D4-006 | `/dashboard`, `/employee/[id]` | Ringkasan dari layanan fitur dan drilldown |
 
-Setiap fitur dikerjakan pada branch `feature/FR-D4-*` sendiri dan digabungkan ke `main` sandbox. Definisi KPI V5.1 baru terpetakan untuk posisi fixture Finance & Administration dan Sales & Marketing karena nama posisi lain pada fixture tidak sama dengan workbook. Target Finance berasal dari contoh workbook; target Sales harus diisi untuk periode yang dinilai. Tidak ada ambang pencapaian atau keputusan HR otomatis.
+Setiap fitur dikerjakan pada branch `feature/FR-D4-*` sendiri dan digabungkan ke `main` sandbox. Definisi KPI V5.1 dipetakan untuk posisi fixture Finance Staff dan Sales Staff sebagai contoh dari kategori Finance & Administration dan Sales & Marketing dalam workbook. Posisi lain belum memiliki pemetaan KPI yang disetujui. Target Finance berasal dari contoh workbook; target Sales harus diisi untuk periode yang dinilai. Tidak ada ambang pencapaian atau keputusan HR otomatis.
 
 ## Fondasi D4
 

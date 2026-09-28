@@ -1,6 +1,6 @@
 import type { KpiDefinition, KpiLineInput } from "./types";
 
-/** Exact workbook V5.1 templates for the two verified matching position titles. */
+/** Workbook V5.1 templates assigned to the Finance Staff and Sales Staff demo positions. */
 export const kpiDefinitions: readonly KpiDefinition[] = [
   { id: "FIN-01", positionId: "d4000000-0000-4000-8000-000000000008", version: "V5.1", name: "Kecepatan Penerbitan Invoice (SLA < 24 jam)", weight: 25, targetExample: "100% SLA < 24 Jam" },
   { id: "FIN-02", positionId: "d4000000-0000-4000-8000-000000000008", version: "V5.1", name: "Akurasi Pembukuan Sistem & Krishand GL", weight: 25, targetExample: "100% Akurat" },
@@ -18,10 +18,10 @@ export function definitionsForPosition(positionId: string): readonly KpiDefiniti
   return kpiDefinitions.filter((item) => item.positionId === positionId);
 }
 
-/** A live UUID is not a fixture UUID; only exact workbook titles are mapped. */
+/** A live UUID is not a fixture UUID; only these explicit demo position titles are mapped. */
 export function definitionsForPositionTitle(title: string): readonly KpiDefinition[] {
-  const fixtureId = title === "Finance & Administration" ? "d4000000-0000-4000-8000-000000000008"
-    : title === "Sales & Marketing" ? "d4000000-0000-4000-8000-000000000017" : null;
+  const fixtureId = title === "Finance Staff" ? "d4000000-0000-4000-8000-000000000008"
+    : title === "Sales Staff" ? "d4000000-0000-4000-8000-000000000017" : null;
   return fixtureId ? definitionsForPosition(fixtureId) : [];
 }
 

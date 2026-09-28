@@ -105,7 +105,7 @@ export function KpiScreen({ initialEmployeeId, initialPeriod }: { initialEmploye
       </div>
 
       <div className="mb-5 rounded-lg border border-[#cde5f7] bg-[#f2f9ff] px-4 py-3 text-xs text-[#326285]">
-        Data employee dan scorecard di halaman ini adalah fixture lokal. Definisi lima KPI serta bobot Finance & Administration dan Sales & Marketing mengacu pada V5.1. Hanya target Finance yang memiliki contoh di workbook.
+        Data employee dan scorecard di halaman ini adalah fixture lokal. Definisi lima KPI serta bobot Finance Staff dan Sales Staff mengacu pada kategori Finance & Administration dan Sales & Marketing di V5.1. Hanya target Finance yang memiliki contoh di workbook.
       </div>
 
       <section className="mb-5 grid gap-4 rounded-xl border border-[#e3e8f0] bg-white p-5 shadow-[0_1px_4px_rgba(19,44,80,.05)] md:grid-cols-[1fr_1fr_180px]">
@@ -126,7 +126,7 @@ export function KpiScreen({ initialEmployeeId, initialPeriod }: { initialEmploye
         <section className="rounded-xl border border-dashed border-[#ccd7e7] bg-[#fafcff] px-6 py-12 text-center">
           <Target className="mx-auto mb-3 text-[#89a0bf]" size={30} />
           <h2 className="font-semibold">Definisi KPI posisi belum tersedia</h2>
-          <p className="mt-2 text-sm text-[#7586a0]">Definisi V5.1 tersedia untuk Finance & Administration dan Sales & Marketing. Posisi lain belum dipetakan ke nama posisi resmi pada workbook.</p>
+          <p className="mt-2 text-sm text-[#7586a0]">Definisi V5.1 baru dipetakan ke Finance Staff dan Sales Staff dalam fixture. Posisi lain belum memiliki pemetaan KPI yang disetujui.</p>
         </section>
       ) : (
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_260px]">
