@@ -31,7 +31,8 @@ const links = [
 export function D4Shell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
-  const current = links.find((link) => pathname.startsWith(link.href));
+  const current = links.find((link) => pathname.startsWith(link.href)) ??
+    (pathname.startsWith("/employee/") ? { label: "View Employee" } : undefined);
 
   return (
     <div className="min-h-screen bg-white text-[#192b4c]">
