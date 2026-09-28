@@ -10,6 +10,11 @@ export const d4ReferenceFixture: ReferenceDataSnapshot = {
       code: "FIX-D4-DEPT",
       name: "Departemen Demo D4",
     },
+    {
+      id: "d4000000-0000-4000-8000-000000000007",
+      code: "FIX-D4-FIN",
+      name: "Finance & Administration",
+    },
   ],
   positions: [
     {
@@ -17,6 +22,12 @@ export const d4ReferenceFixture: ReferenceDataSnapshot = {
       code: "FIX-D4-POS",
       title: "Staf Demo D4",
       departmentId: "d4000000-0000-4000-8000-000000000001",
+    },
+    {
+      id: "d4000000-0000-4000-8000-000000000008",
+      code: "FIX-D4-FIN-STAFF",
+      title: "Finance & Administration",
+      departmentId: "d4000000-0000-4000-8000-000000000007",
     },
   ],
   employees: [
@@ -26,6 +37,13 @@ export const d4ReferenceFixture: ReferenceDataSnapshot = {
       fullName: "Pegawai Demo D4",
       positionId: "d4000000-0000-4000-8000-000000000002",
       departmentId: "d4000000-0000-4000-8000-000000000001",
+    },
+    {
+      id: "d4000000-0000-4000-8000-000000000009",
+      employeeId: "FIX-D4-EMP-002",
+      fullName: "Nadin Amizah",
+      positionId: "d4000000-0000-4000-8000-000000000008",
+      departmentId: "d4000000-0000-4000-8000-000000000007",
     },
   ],
   competencies: [
