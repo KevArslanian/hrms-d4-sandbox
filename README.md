@@ -2,7 +2,7 @@
 
 Repository private untuk pengembangan modul D4 sebelum integrasi per fitur ke Andima-HRMS.
 
-Scaffold ini mengikuti konfigurasi dan dependensi `PISD-X-ANDIMA/Andima-HRMS` pada commit `0d4486f1ecf349781462ca3556c668901face4d9` (`main`). Fondasi bersama dan enam fitur D4 untuk STEP 5 tersedia. Integrasi Supabase STEP 6 berada pada branch `integration/D4-supabase` sandbox.
+Scaffold ini mengikuti konfigurasi dan dependensi `PISD-X-ANDIMA/Andima-HRMS` pada commit `0d4486f1ecf349781462ca3556c668901face4d9` (`main`). Halaman utama membuka mode live yang membaca data proyek Supabase `PISD x Andima Transportindo`.
 
 ## Fitur STEP 5
 
@@ -29,13 +29,13 @@ modules/d4/shared/fixtures/ Data fiktif yang dipilih eksplisit saat pengembangan
 
 `employees.id` adalah UUID relasi yang stabil. `employees.employee_id` hanya kode tampilan. Tipe di folder `types` adalah model untuk D4, bukan tipe database yang digenerate. Adapter Supabase membaca master bersama, tanpa menduplikasi employee atau position.
 
-Fixture memakai kode `FIX-D4-*` dan `source: "fixture"`. Layanan fitur pada STEP 5 memakai fixture serta `localStorage` browser untuk demo. Data ini tidak mewakili data HR produksi. Mode Supabase pada `/live` memakai repository tersendiri dan tidak menyisipkan fixture ke hasil database.
+Fixture memakai kode `FIX-D4-*` dan `source: "fixture"`. Halaman lama seperti `/performance` masih memakai fixture serta `localStorage` browser untuk pengembangan visual. Halaman utama dan `/live` memakai repository Supabase tersendiri dan tidak menyisipkan fixture ke hasil database.
 
 ## Integrasi Supabase STEP 6
 
-Migrasi [`supabase/migrations/20260928052350_d4_performance_development.sql`](supabase/migrations/20260928052350_d4_performance_development.sql) sudah diterapkan pada proyek `PISD x Andima Transportindo` sebagai migrasi remote `20260928052350`. Migrasi menambah tujuh tabel D4, RLS, relasi ke master bersama, catatan aktor dan waktu, serta riwayat yang hanya ditambah. Tabel master yang sudah ada tidak diubah. Tabel `employee_kpi` lama berskala 0-100 tidak dipakai untuk KPI D4 yang berskala 1-5.
+Mode live menggunakan `d3_employee` dan `d3_departments` sebagai master, serta enam tabel D4 untuk evaluasi, kompetensi, development, dan training. KPI demo memakai tabel `employee_kpi` D3 dengan skala 0-100. Skor evaluasi D4 memakai skala 1-5; keduanya ditampilkan dengan satuan masing-masing. File migrasi lama [`supabase/migrations/20260928052350_d4_performance_development.sql`](supabase/migrations/20260928052350_d4_performance_development.sql) menggambarkan skema lain dan tidak boleh dijalankan pada proyek bersama tanpa rekonsiliasi.
 
-Untuk mode data langsung, isi `.env.local` dengan URL proyek dan **publishable key**, lalu set `NEXT_PUBLIC_D4_DATA_MODE=supabase`. Buka `/live`, masuk menggunakan akun proyek yang memiliki pemetaan `d3_user_access`. Jangan masukkan service role key ke browser atau Git. Peran HR/MANAGER dapat menambah catatan; employee dapat membaca catatan miliknya sesuai RLS. Halaman demo tetap tersedia untuk pengembangan visual.
+Untuk mode data langsung, buka `/live` dan masuk menggunakan akun Auth proyek yang memiliki pemetaan `d3_user_access`. URL dan publishable key proyek demo adalah konfigurasi publik bawaan; variabel lingkungan `NEXT_PUBLIC_SUPABASE_URL` dan `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` dapat menggantinya. Jangan masukkan service role key ke browser atau Git. Peran HR/MANAGER dapat menambah catatan; employee dapat membaca catatan miliknya sesuai RLS. Penulisan KPI V5.1 belum tersedia di skema bersama, sehingga bagian KPI live hanya menampilkan nilai D3.
 
 Data master saat integrasi diperiksa berisi 4 employee, 2 posisi, tetapi `position_requirements` dan `employee_skills` masih kosong. Kedua posisi belum cocok dengan dua template KPI V5.1 yang diverifikasi. Karena itu, KPI dan assessment kompetensi menampilkan alasan data belum siap dan tidak menyimpan data fiktif. Development dari performance dapat digunakan setelah evaluasi completed dibuat oleh akun berizin; training membutuhkan development need terkait. Akun login dan operasi tulis belum dicoba dalam STEP 6 karena kredensial pengguna tidak disediakan.
 
