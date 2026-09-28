@@ -3,8 +3,6 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import { compareCompetencies } from "../competency/service";
 import type { DevelopmentSourceOption, DevelopmentSourceType, DevelopmentStatus } from "../development/types";
-import { definitionsForPositionTitle } from "../kpi/templates";
-import type { KpiLineInput } from "../kpi/types";
 import type { EvaluationAspect, EvaluationInput } from "../performance/types";
 import type { TrainingStatus } from "../training/types";
 import { SupabaseD4Repository } from "./repository";
@@ -49,7 +47,7 @@ function Dashboard({ snapshot }: { snapshot: D4LiveSnapshot }) {
   const development = latestDevelopment(snapshot);
   const training = latestTraining(snapshot);
   const cards = [
-    ["Employee", snapshot.reference.employees.length], ["KPI scorecard", snapshot.kpi.length],
+    ["Employee", snapshot.reference.employees.length], ["Catatan KPI", snapshot.kpi.length],
     ["Evaluasi", snapshot.performance.length], ["Assessment", snapshot.competency.length],
     ["Development need", development.length], ["Training", training.length],
   ] as const;
@@ -58,26 +56,14 @@ function Dashboard({ snapshot }: { snapshot: D4LiveSnapshot }) {
     const kpi = snapshot.kpi.find((item) => item.employeeId === employee.id);
     const performance = snapshot.performance.find((item) => item.employeeId === employee.id);
     const gap = employee.positionId ? compareCompetencies(employee.id, employee.positionId, snapshot.reference).findings.filter((item) => item.status === "Gap").length : 0;
-    return <Row key={employee.id} columns={[<strong key="name">{employee.fullName}</strong>, position?.title ?? "Belum ada posisi", `KPI ${kpi?.totalScore ?? "-"} · Performance ${performance?.overallScore ?? "-"}`, `Gap ${gap} · Development ${development.filter((item) => item.employeeId === employee.id).length}`]} />;
+    return <Row key={employee.id} columns={[<strong key="name">{employee.fullName}</strong>, position?.title ?? "Belum ada posisi", `KPI ${kpi ? `${kpi.score}/100` : "-"} · Performance ${performance?.overallScore ?? "-"}`, `Gap ${gap} · Development ${development.filter((item) => item.employeeId === employee.id).length}`]} />;
   }) : <Empty>Belum ada employee yang dapat dilihat oleh akun ini.</Empty>}</Panel></div>;
 }
 
-function Kpi({ snapshot, busy, runWrite }: Props) {
+function Kpi({ snapshot }: { snapshot: D4LiveSnapshot }) {
   const [employeeId, setEmployeeId] = useState("");
-  const employee = snapshot.reference.employees.find((item) => item.id === employeeId);
-  const position = snapshot.reference.positions.find((item) => item.id === employee?.positionId);
-  const definitions = position ? definitionsForPositionTitle(position.title) : [];
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const lines: KpiLineInput[] = definitions.map((definition) => ({
-      definitionId: definition.id, target: String(form.get(`${definition.id}-target`) ?? ""),
-      realization: String(form.get(`${definition.id}-realization`) ?? ""),
-      rawScore: Number(form.get(`${definition.id}-score`)) || null,
-    }));
-    await runWrite((repo, data) => repo.saveKpi({ employeeId, period: String(form.get("period") ?? ""), lines }, data.reference), "KPI tersimpan sebagai scorecard baru.");
-  }
-  return <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(340px,.9fr)]"><Panel title="KPI V5.1"><div className="mb-4"><EmployeeSelect snapshot={snapshot} value={employeeId} onChange={setEmployeeId} /></div>{!employee ? <Empty>Pilih employee untuk melihat template KPI.</Empty> : definitions.length !== 5 ? <Empty>Template KPI V5.1 belum dipetakan ke posisi {position?.title ?? "ini"}. Posisi master tidak diubah, scorecard belum dapat disimpan.</Empty> : <form onSubmit={submit} className="space-y-3"><label className="block text-xs font-semibold text-[#536c89]">Periode<input name="period" type="month" defaultValue={monthNow()} required className={field} /></label>{definitions.map((definition) => <div key={definition.id} className="rounded-md border border-[#e1e9f2] p-3"><strong className="text-xs text-[#31547f]">{definition.name} · {definition.weight}%</strong><p className="mt-1 text-[11px] text-[#8192a9]">Contoh target: {definition.targetExample || "Tidak ditetapkan"}</p><div className="mt-2 grid gap-2 sm:grid-cols-3"><input name={`${definition.id}-target`} placeholder="Target" required className={field} /><input name={`${definition.id}-realization`} placeholder="Realisasi" required className={field} /><input name={`${definition.id}-score`} aria-label={`Skor ${definition.name}`} type="number" min="1" max="5" step="1" placeholder="Skor manual 1-5" required className={field} /></div></div>)}<button disabled={busy || !canWrite(snapshot)} className={primary}>Simpan KPI</button></form>}</Panel><Panel title="Riwayat scorecard">{snapshot.kpi.length ? snapshot.kpi.map((item) => <Row key={item.id} columns={[<Person key="name" snapshot={snapshot} id={item.employeeId} />, item.period, `${item.totalScore.toFixed(2)} / 5`, new Date(item.createdAt).toLocaleDateString("id-ID")]} />) : <Empty>Belum ada scorecard dari Supabase.</Empty>}</Panel></div>;
+  const records = employeeId ? snapshot.kpi.filter((item) => item.employeeId === employeeId) : snapshot.kpi;
+  return <div className="space-y-5"><Panel title="KPI employee D3 (skala 0-100)"><EmployeeSelect snapshot={snapshot} value={employeeId} onChange={setEmployeeId} /><p className="mt-3 text-xs text-[#7387a2]">Nilai KPI berasal dari master D3. Penilaian kinerja D4 memakai skala 1-5 dan ditampilkan terpisah.</p></Panel><Panel title="Riwayat KPI">{records.length ? records.map((item) => <Row key={item.id} columns={[<Person key="name" snapshot={snapshot} id={item.employeeId} />, item.period, `${item.score.toFixed(0)} / 100`, item.notes || "-"]} />) : <Empty>Belum ada data KPI untuk employee ini.</Empty>}</Panel></div>;
 }
 
 function Performance({ snapshot, busy, runWrite }: Props) {
