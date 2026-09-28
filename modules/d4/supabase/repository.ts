@@ -85,6 +85,9 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
       this.client.from("d4_training_records").select("id,employee_id,development_need_id,activity,activity_date"),
       this.client.from("d4_training_versions").select("id,training_id,revision,status,result,notes,actor_employee_id,created_at").order("created_at", { ascending: false }),
     ]);
+    if (accessResult.error?.code === "PGRST116") {
+      throw new Error("Akun berhasil masuk, tetapi belum diberi akses HRMS. Hubungi pengelola proyek untuk pemetaan employee dan role.");
+    }
     const access = take(accessResult, "Hak akses") as { app_role: D4AppRole; employee_id: string };
     const kpiRows = take(kpiResult, "KPI") as RawKpi[];
     const performanceRows = take(performanceResult, "Performance") as RawPerformance[];
