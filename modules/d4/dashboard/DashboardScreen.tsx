@@ -20,7 +20,7 @@ function Metric({ label, value, detail, icon: Icon }: { label: string; value: st
   return <div className="rounded-xl border border-[#e2eaf3] bg-white p-4 shadow-[0_2px_8px_rgba(21,48,88,.05)]"><div className="flex items-center justify-between text-[#6b7e9d]"><span className="text-xs font-semibold">{label}</span><Icon size={17} /></div><strong className="mt-3 block text-2xl text-[#213d68]">{value}</strong><span className="mt-1 block text-[11px] text-[#8b9bb0]">{detail}</span></div>;
 }
 
-function sourceLabel(source: "fixture" | "local-demo") { return source === "fixture" ? "Fixture demo" : "Simpan lokal"; }
+function sourceLabel(source: "fixture" | "local-demo" | "supabase") { return source === "fixture" ? "Fixture demo" : source === "supabase" ? "Supabase" : "Simpan lokal"; }
 
 export function EmployeeDetail({ row, showFullLink = true }: { row: DashboardRow; showFullLink?: boolean }) {
   const id = encodeURIComponent(row.employee.id);
@@ -51,7 +51,7 @@ export function DashboardScreen({ initialEmployeeId, initialPeriod }: { initialE
     try { return { rows: buildDashboardRows(period, snapshots), error: "" }; }
     catch (cause) { return { rows: [] as DashboardRow[], error: cause instanceof Error ? cause.message : "Data dashboard gagal dimuat." }; }
   }, [period, snapshots]);
-  const visible = result.rows.filter((row) => (!positionFilter || row.position?.id === positionFilter) && (!query || `${row.employee.fullName} ${row.employee.employeeId} ${row.position?.title ?? ""}`.toLowerCase().includes(query.toLowerCase())));
+  const visible = result.rows.filter((row) => row.employee.employeeId !== "FIX-D4-EMP-001" && (!positionFilter || row.position?.id === positionFilter) && (!query || `${row.employee.fullName} ${row.employee.employeeId} ${row.position?.title ?? ""}`.toLowerCase().includes(query.toLowerCase())));
   const selected = visible.find((row) => row.employee.id === selectedEmployeeId) ?? visible[0];
   const kpiCount = visible.filter((row) => row.kpi).length;
   const performanceCount = visible.filter((row) => row.performance).length;

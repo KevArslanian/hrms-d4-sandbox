@@ -14,7 +14,7 @@ export interface CompetencyFinding {
 
 export interface CompetencyAssessment {
   readonly id: string;
-  readonly source: "local-demo";
+  readonly source: "local-demo" | "supabase";
   readonly employeeId: string;
   /** Position snapshot at assessment time; does not update employee master. */
   readonly positionId: string;

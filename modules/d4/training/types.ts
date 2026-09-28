@@ -4,7 +4,7 @@ export interface TrainingVersion {
   readonly id: string;
   readonly trainingId: string;
   readonly revision: number;
-  readonly source: "fixture" | "local-demo";
+  readonly source: "fixture" | "local-demo" | "supabase";
   readonly employeeId: string;
   readonly developmentNeedId: string;
   readonly activity: string;

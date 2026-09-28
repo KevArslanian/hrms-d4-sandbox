@@ -11,7 +11,7 @@ export interface PositionReference {
   readonly id: string;
   readonly code: string;
   readonly title: string;
-  readonly departmentId: string;
+  readonly departmentId: string | null;
 }
 
 export interface EmployeeReference {

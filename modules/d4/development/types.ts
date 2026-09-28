@@ -12,7 +12,7 @@ export interface DevelopmentNeedVersion {
   readonly id: string;
   readonly needId: string;
   readonly revision: number;
-  readonly source: "fixture" | "local-demo";
+  readonly source: "fixture" | "local-demo" | "supabase";
   readonly employeeId: string;
   readonly sourceType: DevelopmentSourceType;
   readonly sourceRef: string;

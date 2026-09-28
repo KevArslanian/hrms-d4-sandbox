@@ -24,7 +24,7 @@ export interface KpiLineSnapshot extends KpiLineInput {
 
 export interface KpiRecord {
   readonly id: string;
-  readonly source: "fixture" | "local-demo";
+  readonly source: "fixture" | "local-demo" | "supabase";
   readonly employeeId: string;
   readonly positionId: string;
   readonly period: string;

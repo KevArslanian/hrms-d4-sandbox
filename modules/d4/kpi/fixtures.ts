@@ -1,21 +1,6 @@
-import type { KpiDefinition, KpiRecord } from "./types";
-
-const financePositionId = "d4000000-0000-4000-8000-000000000008";
-const salesPositionId = "d4000000-0000-4000-8000-000000000017";
-
-/** Exact five KPI names and weights for matching fixture positions from KPI Scorecard V5.1. */
-export const kpiDefinitions: readonly KpiDefinition[] = [
-  { id: "FIN-01", positionId: financePositionId, version: "V5.1", name: "Kecepatan Penerbitan Invoice (SLA < 24 jam)", weight: 25, targetExample: "100% SLA < 24 Jam" },
-  { id: "FIN-02", positionId: financePositionId, version: "V5.1", name: "Akurasi Pembukuan Sistem & Krishand GL", weight: 25, targetExample: "100% Akurat" },
-  { id: "FIN-03", positionId: financePositionId, version: "V5.1", name: "Ketepatan Waktu Pembayaran & Reimbursement", weight: 20, targetExample: "H+1 dari Approval" },
-  { id: "FIN-04", positionId: financePositionId, version: "V5.1", name: "Efektivitas Collection/Penagihan Piutang", weight: 15, targetExample: "Piutang Macet < 5%" },
-  { id: "FIN-05", positionId: financePositionId, version: "V5.1", name: "Kerapian Arsip Keuangan & Kepatuhan Pajak", weight: 15, targetExample: "Zero Denda, Arsip Rapi" },
-  { id: "SAL-01", positionId: salesPositionId, version: "V5.1", name: "Pencapaian Target Volume Penjualan", weight: 35, targetExample: "" },
-  { id: "SAL-02", positionId: salesPositionId, version: "V5.1", name: "Akuisisi Klien Baru", weight: 25, targetExample: "" },
-  { id: "SAL-03", positionId: salesPositionId, version: "V5.1", name: "Akurasi Pemberian Quotation/Penawaran Harga", weight: 15, targetExample: "" },
-  { id: "SAL-04", positionId: salesPositionId, version: "V5.1", name: "Win Rate dari Total Quotation", weight: 15, targetExample: "" },
-  { id: "SAL-05", positionId: salesPositionId, version: "V5.1", name: "Kualitas Serah Terima Order ke Operasional", weight: 10, targetExample: "" },
-];
+import type { KpiRecord } from "./types";
+import { kpiDefinitions } from "./templates";
+export { kpiDefinitions } from "./templates";
 
 /** Entirely fictional record for visual development. Scores happen to match the workbook sample. */
 export const kpiFixtureRecords: readonly KpiRecord[] = [
@@ -23,7 +8,7 @@ export const kpiFixtureRecords: readonly KpiRecord[] = [
     id: "FIX-D4-KPI-001",
     source: "fixture",
     employeeId: "d4000000-0000-4000-8000-000000000009",
-    positionId: financePositionId,
+    positionId: "d4000000-0000-4000-8000-000000000008",
     period: "2026-09",
     definitionVersion: "V5.1",
     lines: [

@@ -1,19 +1,20 @@
 import { d4ReferenceFixture } from "../shared/fixtures";
+import type { ReferenceDataSnapshot } from "../shared/types";
 import type { CompetencyAssessment, CompetencyFinding, CompetencyOverallStatus } from "./types";
 
 const storageKey = "hrms-d4-competency-assessments-v1";
 const changeEvent = "hrms-d4-competency-changed";
 
-export function compareCompetencies(employeeId: string, positionId: string): {
+export function compareCompetencies(employeeId: string, positionId: string, reference: ReferenceDataSnapshot = d4ReferenceFixture): {
   findings: CompetencyFinding[];
   overallStatus: CompetencyOverallStatus;
 } {
-  if (!d4ReferenceFixture.employees.some((item) => item.id === employeeId)) throw new Error("Employee tidak ditemukan pada data demo.");
-  if (!d4ReferenceFixture.positions.some((item) => item.id === positionId)) throw new Error("Posisi tidak ditemukan pada data demo.");
-  const requirements = d4ReferenceFixture.positionRequirements.filter((item) => item.positionId === positionId);
+  if (!reference.employees.some((item) => item.id === employeeId)) throw new Error("Employee tidak ditemukan.");
+  if (!reference.positions.some((item) => item.id === positionId)) throw new Error("Posisi tidak ditemukan.");
+  const requirements = reference.positionRequirements.filter((item) => item.positionId === positionId);
   const findings = requirements.map((requirement): CompetencyFinding => {
-    const competency = d4ReferenceFixture.competencies.find((item) => item.id === requirement.competencyId);
-    const skill = d4ReferenceFixture.employeeSkills.find((item) => item.employeeId === employeeId && item.competencyId === requirement.competencyId);
+    const competency = reference.competencies.find((item) => item.id === requirement.competencyId);
+    const skill = reference.employeeSkills.find((item) => item.employeeId === employeeId && item.competencyId === requirement.competencyId);
     const hasEvidence = Boolean(skill?.evidenceNotes?.trim());
     const status = !skill || !hasEvidence ? "Bukti Belum Cukup" :
       skill.proficiencyLevel < requirement.minProficiencyLevel ? "Gap" : "Terpenuhi";
