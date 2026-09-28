@@ -2,14 +2,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { compareCompetencies } from "../competency/service";
 import type { CompetencyAssessment, CompetencyFinding, CompetencyOverallStatus } from "../competency/types";
 import type { DevelopmentNeedVersion, DevelopmentPriority, DevelopmentSourceType, DevelopmentStatus } from "../development/types";
-import { definitionsForPositionTitle, prepareKpiLinesForDefinitions } from "../kpi/templates";
-import type { KpiLineInput, KpiLineSnapshot, KpiRecord } from "../kpi/types";
 import type { EvaluationAspect, EvaluationInput, PerformanceEvaluation } from "../performance/types";
 import { validatePerformanceInput } from "../performance/validation";
 import type { ReferenceDataRepository } from "../shared/services";
 import type { ReferenceDataSnapshot } from "../shared/types";
 import type { TrainingStatus, TrainingVersion } from "../training/types";
-import type { D4AppRole, D4LiveSnapshot } from "./types";
+import type { D3KpiRecord, D4AppRole, D4LiveSnapshot } from "./types";
 
 type QueryResult<T> = { data: T | null; error: { message: string } | null };
 function take<T>(result: QueryResult<T>, label: string): T {
@@ -24,7 +22,7 @@ interface RawEmployee { id: string; employee_id: string; full_name: string; posi
 interface RawCompetency { id: string; code: string; name: string; category: string | null }
 interface RawRequirement { id: string; position_id: string; competency_id: string; min_proficiency_level: number; is_mandatory: boolean | null }
 interface RawSkill { id: string; employee_id: string; competency_id: string; proficiency_level: number; evidence_notes: string | null }
-interface RawKpi { id: string; employee_id: string; position_id: string; period: string; definition_version: "V5.1"; lines: unknown; actor_employee_id: string; created_at: string }
+interface RawKpi { id: string; employee_id: string; period: string; kpi_score: number; notes: string | null; created_at: string }
 interface RawPerformance { id: string; employee_id: string; period: string; evaluation_date: string | null; evaluator_name_snapshot: string; status: "draft" | "completed"; review_status: PerformanceEvaluation["reviewStatus"]; overall_score: number | null; aspects: unknown; general_notes: string; evidence_reference: string | null; actor_employee_id: string; created_at: string }
 interface RawAssessment { id: string; employee_id: string; position_id: string; effective_date: string; context: CompetencyAssessment["context"]; overall_status: CompetencyOverallStatus; findings: unknown; actor_employee_id: string; created_at: string }
 interface RawDevelopment { id: string; employee_id: string; source_type: DevelopmentSourceType; position_requirement_id: string | null; competency_assessment_id: string | null; performance_evaluation_id: string | null; objective: string; priority: DevelopmentPriority }
@@ -48,9 +46,9 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
   async loadReferenceData(): Promise<ReferenceDataSnapshot> {
     await this.requireUser();
     const [departmentsResult, positionsResult, employeesResult, competenciesResult, requirementsResult, skillsResult] = await Promise.all([
-      this.client.from("departments").select("id,code,name"),
+      this.client.from("d3_departments").select("id,code,name"),
       this.client.from("positions").select("id,code,title,department_id"),
-      this.client.from("employees").select("id,employee_id,full_name,position_id,department_id"),
+      this.client.from("d3_employee").select("id,employee_id,full_name,position_id,department_id"),
       this.client.from("competencies").select("id,code,name,category"),
       this.client.from("position_requirements").select("id,position_id,competency_id,min_proficiency_level,is_mandatory"),
       this.client.from("employee_skills").select("id,employee_id,competency_id,proficiency_level,evidence_notes"),
@@ -77,7 +75,7 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
     const reference = await this.loadReferenceData();
     const [accessResult, kpiResult, performanceResult, assessmentResult, developmentResult, developmentVersionResult, trainingResult, trainingVersionResult] = await Promise.all([
       this.client.from("d3_user_access").select("app_role,employee_id").eq("auth_user_id", user.id).single(),
-      this.client.from("d4_kpi_scorecards").select("id,employee_id,position_id,period,definition_version,lines,actor_employee_id,created_at").order("created_at", { ascending: false }),
+      this.client.from("employee_kpi").select("id,employee_id,period,kpi_score,notes,created_at").order("period", { ascending: false }),
       this.client.from("d4_performance_evaluations").select("id,employee_id,period,evaluation_date,evaluator_name_snapshot,status,review_status,overall_score,aspects,general_notes,evidence_reference,actor_employee_id,created_at").order("created_at", { ascending: false }),
       this.client.from("d4_competency_assessments").select("id,employee_id,position_id,effective_date,context,overall_status,findings,actor_employee_id,created_at").order("created_at", { ascending: false }),
       this.client.from("d4_development_needs").select("id,employee_id,source_type,position_requirement_id,competency_assessment_id,performance_evaluation_id,objective,priority"),
@@ -94,18 +92,15 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
     const trainingRows = take(trainingResult, "Training") as RawTraining[];
     const trainingVersionRows = take(trainingVersionResult, "Training history") as RawTrainingVersion[];
 
-    const kpi: KpiRecord[] = kpiRows.map((row) => {
-      if (!Array.isArray(row.lines)) throw new Error("Format baris KPI dari database tidak valid.");
-      const lines = row.lines as KpiLineSnapshot[];
-      return { id: row.id, source: "supabase", employeeId: row.employee_id, positionId: row.position_id,
-        period: row.period, definitionVersion: row.definition_version, lines,
-        totalScore: Number(lines.reduce((sum, line) => sum + Number(line.weightedScore), 0).toFixed(2)),
-        createdAt: row.created_at, actor: actorName(reference, row.actor_employee_id) };
-    });
+    const kpi: D3KpiRecord[] = kpiRows.map((row) => ({
+      id: row.id, employeeId: row.employee_id, period: row.period,
+      score: Number(row.kpi_score), notes: row.notes ?? "", createdAt: row.created_at,
+    }));
     const performance: PerformanceEvaluation[] = performanceRows.map((row) => ({
       id: row.id, source: "supabase", employeeId: row.employee_id, period: row.period,
       evaluationDate: row.evaluation_date ?? "", evaluator: row.evaluator_name_snapshot,
-      status: row.status, reviewStatus: row.review_status, overallScore: row.overall_score,
+      status: row.status, reviewStatus: row.review_status,
+      overallScore: row.overall_score === null ? null : Number(row.overall_score),
       aspects: Array.isArray(row.aspects) ? row.aspects as EvaluationAspect[] : [],
       generalNotes: row.general_notes, evidenceReference: row.evidence_reference,
       createdAt: row.created_at, actor: actorName(reference, row.actor_employee_id),
@@ -138,20 +133,6 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
     });
     return { reference, role: access.app_role, actorEmployeeId: access.employee_id,
       kpi, performance, competency, developmentVersions, trainingVersions };
-  }
-
-  async saveKpi(input: { employeeId: string; period: string; lines: readonly KpiLineInput[] }, reference: ReferenceDataSnapshot): Promise<string> {
-    await this.requireUser();
-    const employee = reference.employees.find((item) => item.id === input.employeeId);
-    const position = reference.positions.find((item) => item.id === employee?.positionId);
-    if (!position) throw new Error("Posisi employee tidak tersedia.");
-    if (!/^[0-9]{4}-(0[1-9]|1[0-2])$/.test(input.period)) throw new Error("Periode KPI tidak valid.");
-    const lines = prepareKpiLinesForDefinitions(definitionsForPositionTitle(position.title), input.lines);
-    const result = await this.client.from("d4_kpi_scorecards").insert({
-      employee_id: employee!.id, position_id: position.id, position_title_snapshot: position.title,
-      period: input.period, definition_version: "V5.1", lines,
-    }).select("id").single();
-    return take(result, "Simpan KPI").id;
   }
 
   async savePerformance(input: EvaluationInput, reference: ReferenceDataSnapshot): Promise<string> {
