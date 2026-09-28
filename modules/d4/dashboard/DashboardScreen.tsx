@@ -51,7 +51,7 @@ export function DashboardScreen({ initialEmployeeId, initialPeriod }: { initialE
     try { return { rows: buildDashboardRows(period, snapshots), error: "" }; }
     catch (cause) { return { rows: [] as DashboardRow[], error: cause instanceof Error ? cause.message : "Data dashboard gagal dimuat." }; }
   }, [period, snapshots]);
-  const visible = result.rows.filter((row) => (!positionFilter || row.position?.id === positionFilter) && (!query || `${row.employee.fullName} ${row.employee.employeeId} ${row.position?.title ?? ""}`.toLowerCase().includes(query.toLowerCase())));
+  const visible = result.rows.filter((row) => row.employee.employeeId !== "FIX-D4-EMP-001" && (!positionFilter || row.position?.id === positionFilter) && (!query || `${row.employee.fullName} ${row.employee.employeeId} ${row.position?.title ?? ""}`.toLowerCase().includes(query.toLowerCase())));
   const selected = visible.find((row) => row.employee.id === selectedEmployeeId) ?? visible[0];
   const kpiCount = visible.filter((row) => row.kpi).length;
   const performanceCount = visible.filter((row) => row.performance).length;

@@ -18,7 +18,7 @@ export interface PerformanceEvaluation {
   readonly status: EvaluationStatus;
   /** Manual review label. No automatic HR decision is inferred from a score. */
   readonly reviewStatus: ReviewStatus;
-  /** Entered by the evaluator. No official formula is assumed. */
+  /** May be entered manually by a live evaluator or previewed from weighted aspects in the local form. */
   readonly overallScore: number | null;
   readonly aspects: readonly EvaluationAspect[];
   readonly generalNotes: string;
