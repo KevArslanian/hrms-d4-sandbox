@@ -20,7 +20,7 @@ function Metric({ label, value, detail, icon: Icon }: { label: string; value: st
   return <div className="rounded-xl border border-[#e2eaf3] bg-white p-4 shadow-[0_2px_8px_rgba(21,48,88,.05)]"><div className="flex items-center justify-between text-[#6b7e9d]"><span className="text-xs font-semibold">{label}</span><Icon size={17} /></div><strong className="mt-3 block text-2xl text-[#213d68]">{value}</strong><span className="mt-1 block text-[11px] text-[#8b9bb0]">{detail}</span></div>;
 }
 
-function sourceLabel(source: "fixture" | "local-demo") { return source === "fixture" ? "Fixture demo" : "Simpan lokal"; }
+function sourceLabel(source: "fixture" | "local-demo" | "supabase") { return source === "fixture" ? "Fixture demo" : source === "supabase" ? "Supabase" : "Simpan lokal"; }
 
 export function EmployeeDetail({ row, showFullLink = true }: { row: DashboardRow; showFullLink?: boolean }) {
   const id = encodeURIComponent(row.employee.id);

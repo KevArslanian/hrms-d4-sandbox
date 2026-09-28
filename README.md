@@ -2,7 +2,7 @@
 
 Repository private untuk pengembangan modul D4 sebelum integrasi per fitur ke Andima-HRMS.
 
-Scaffold ini mengikuti konfigurasi dan dependensi `PISD-X-ANDIMA/Andima-HRMS` pada commit `0d4486f1ecf349781462ca3556c668901face4d9` (`main`). Fondasi bersama dan enam fitur D4 untuk STEP 5 sudah tersedia. Koneksi database belum dijalankan.
+Scaffold ini mengikuti konfigurasi dan dependensi `PISD-X-ANDIMA/Andima-HRMS` pada commit `0d4486f1ecf349781462ca3556c668901face4d9` (`main`). Fondasi bersama dan enam fitur D4 untuk STEP 5 tersedia. Integrasi Supabase STEP 6 berada pada branch `integration/D4-supabase` sandbox.
 
 ## Fitur STEP 5
 
@@ -27,9 +27,17 @@ modules/d4/shared/services/ Kontrak repository dan pembacaan konteks employee
 modules/d4/shared/fixtures/ Data fiktif yang dipilih eksplisit saat pengembangan
 ```
 
-`employees.id` adalah UUID relasi yang stabil. `employees.employee_id` hanya kode tampilan. Tipe di folder `types` adalah model untuk D4, bukan tipe database yang digenerate. Adapter ke tabel Supabase dibuat pada STEP 6, tanpa menduplikasi master employee atau position.
+`employees.id` adalah UUID relasi yang stabil. `employees.employee_id` hanya kode tampilan. Tipe di folder `types` adalah model untuk D4, bukan tipe database yang digenerate. Adapter Supabase membaca master bersama, tanpa menduplikasi employee atau position.
 
-Fixture memakai kode `FIX-D4-*` dan `source: "fixture"`. Layanan fitur pada STEP 5 memakai fixture serta `localStorage` browser untuk demo. Data ini belum terhubung ke Supabase dan tidak mewakili data HR produksi. Adapter Supabase akan mengganti sumber data pada STEP 6.
+Fixture memakai kode `FIX-D4-*` dan `source: "fixture"`. Layanan fitur pada STEP 5 memakai fixture serta `localStorage` browser untuk demo. Data ini tidak mewakili data HR produksi. Mode Supabase pada `/live` memakai repository tersendiri dan tidak menyisipkan fixture ke hasil database.
+
+## Integrasi Supabase STEP 6
+
+Migrasi [`supabase/migrations/20260928052350_d4_performance_development.sql`](supabase/migrations/20260928052350_d4_performance_development.sql) sudah diterapkan pada proyek `PISD x Andima Transportindo` sebagai migrasi remote `20260928052350`. Migrasi menambah tujuh tabel D4, RLS, relasi ke master bersama, catatan aktor dan waktu, serta riwayat yang hanya ditambah. Tabel master yang sudah ada tidak diubah. Tabel `employee_kpi` lama berskala 0-100 tidak dipakai untuk KPI D4 yang berskala 1-5.
+
+Untuk mode data langsung, isi `.env.local` dengan URL proyek dan **publishable key**, lalu set `NEXT_PUBLIC_D4_DATA_MODE=supabase`. Buka `/live`, masuk menggunakan akun proyek yang memiliki pemetaan `d3_user_access`. Jangan masukkan service role key ke browser atau Git. Peran HR/MANAGER dapat menambah catatan; employee dapat membaca catatan miliknya sesuai RLS. Halaman demo tetap tersedia untuk pengembangan visual.
+
+Data master saat integrasi diperiksa berisi 4 employee, 2 posisi, tetapi `position_requirements` dan `employee_skills` masih kosong. Kedua posisi belum cocok dengan dua template KPI V5.1 yang diverifikasi. Karena itu, KPI dan assessment kompetensi menampilkan alasan data belum siap dan tidak menyimpan data fiktif. Development dari performance dapat digunakan setelah evaluasi completed dibuat oleh akun berizin; training membutuhkan development need terkait. Akun login dan operasi tulis belum dicoba dalam STEP 6 karena kredensial pengguna tidak disediakan.
 
 Komponen di `components/` disalin dari repo resmi agar kode fitur dapat memakai API komponen yang sama. Perubahan lokal terbatas pada tipe `CustomTable` untuk menghapus `any` dan dua variabel tidak terpakai agar lint bersih. Saat integrasi ke repo resmi, gunakan komponen resmi yang masih berlaku dan evaluasi penyesuaian tersebut.
 
@@ -43,7 +51,7 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Isi `.env.local` hanya di lingkungan lokal saat integrasi Supabase dikerjakan. File tersebut diabaikan Git.
+Isi `.env.local` hanya di lingkungan lokal. File tersebut diabaikan Git.
 
 Opsi `--legacy-peer-deps` diperlukan karena lockfile repo resmi mengunci `@supabase/supabase-js` 2.109.0, sedangkan `@supabase/ssr` 0.12.7 meminta peer `@supabase/supabase-js` minimal 2.114.0. Versi paket tetap mengikuti lockfile resmi; konflik ini perlu diselesaikan bersama saat integrasi.
 

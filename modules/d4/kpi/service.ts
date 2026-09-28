@@ -1,13 +1,11 @@
 import { d4ReferenceFixture } from "../shared/fixtures";
-import { kpiDefinitions, kpiFixtureRecords } from "./fixtures";
-import type { KpiDefinition, KpiLineInput, KpiRecord } from "./types";
+import { kpiFixtureRecords } from "./fixtures";
+import { prepareKpiLines } from "./templates";
+export { definitionsForPosition, definitionsForPositionTitle, prepareKpiLines, prepareKpiLinesForDefinitions } from "./templates";
+import type { KpiLineInput, KpiRecord } from "./types";
 
 const storageKey = "hrms-d4-kpi-records-v1";
 const changeEvent = "hrms-d4-kpi-records-changed";
-
-export function definitionsForPosition(positionId: string): readonly KpiDefinition[] {
-  return kpiDefinitions.filter((item) => item.positionId === positionId);
-}
 
 export function getKpiStoredSnapshot(): string {
   if (typeof window === "undefined") return "";
@@ -51,29 +49,7 @@ export function saveKpiRecord(input: {
   if (!employee?.positionId) throw new Error("Employee atau posisi tidak ditemukan pada data demo.");
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(input.period)) throw new Error("Periode penilaian wajib dipilih.");
 
-  const definitions = definitionsForPosition(employee.positionId);
-  if (definitions.length !== 5 || definitions.reduce((sum, item) => sum + item.weight, 0) !== 100) {
-    throw new Error("Definisi KPI posisi belum lengkap atau bobot bukan 100%.");
-  }
-
-  const lines = definitions.map((definition) => {
-    const item = input.lines.find((line) => line.definitionId === definition.id);
-    if (!item || !item.target.trim() || !item.realization.trim()) {
-      throw new Error(`Target dan realisasi ${definition.name} wajib diisi.`);
-    }
-    if (item.rawScore === null || !Number.isInteger(item.rawScore) || item.rawScore < 1 || item.rawScore > 5) {
-      throw new Error(`Skor mentah ${definition.name} harus bilangan 1 sampai 5.`);
-    }
-    return {
-      definitionId: definition.id,
-      name: definition.name,
-      weight: definition.weight,
-      target: item.target.trim(),
-      realization: item.realization.trim(),
-      rawScore: item.rawScore,
-      weightedScore: (definition.weight / 100) * item.rawScore,
-    };
-  });
+  const lines = prepareKpiLines(employee.positionId, input.lines);
 
   const record: KpiRecord = {
     id: window.crypto.randomUUID(),
@@ -81,7 +57,7 @@ export function saveKpiRecord(input: {
     employeeId: employee.id,
     positionId: employee.positionId,
     period: input.period,
-    definitionVersion: definitions[0].version,
+    definitionVersion: "V5.1",
     lines,
     totalScore: Number(lines.reduce((sum, line) => sum + line.weightedScore, 0).toFixed(2)),
     createdAt: new Date().toISOString(),

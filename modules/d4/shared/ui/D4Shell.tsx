@@ -28,10 +28,10 @@ const links = [
   { href: "/dashboard", label: "People Dashboard", icon: Users },
 ];
 
-export function D4Shell({ children }: { children: ReactNode }) {
+export function D4Shell({ children, live = false }: { children: ReactNode; live?: boolean }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
-  const current = links.find((link) => pathname.startsWith(link.href)) ??
+  const current = live ? { label: "Data Supabase" } : links.find((link) => pathname.startsWith(link.href)) ??
     (pathname.startsWith("/employee/") ? { label: "View Employee" } : undefined);
 
   return (
@@ -48,7 +48,7 @@ export function D4Shell({ children }: { children: ReactNode }) {
         className={`fixed inset-y-0 left-0 z-40 flex w-[264px] flex-col bg-[#0d2142] text-white transition-transform lg:translate-x-0 ${menuOpen ? "translate-x-0" : "-translate-x-full"}`}
       >
         <div className="flex h-16 items-center justify-between gap-3 px-5">
-          <Link href="/" className="flex items-center gap-3" onClick={() => setMenuOpen(false)}>
+          <Link href={live ? "/live" : "/"} className="flex items-center gap-3" onClick={() => setMenuOpen(false)}>
             <span className="flex size-9 items-center justify-center rounded-lg bg-[#08a99d] text-sm font-extrabold">A</span>
             <span className="leading-tight">
               <strong className="block text-sm tracking-wide">ANDIMA</strong>
@@ -69,13 +69,14 @@ export function D4Shell({ children }: { children: ReactNode }) {
           </div>
           <div className="ml-4 space-y-1 border-l border-[#31476b] pl-2 pt-1">
             {links.map(({ href, label, icon: Icon }) => {
+              const destination = live ? `/live?module=${href.slice(1)}` : href;
               const active = pathname.startsWith(href);
               return (
                 <Link
                   key={href}
-                  href={href}
+                  href={destination}
                   onClick={() => setMenuOpen(false)}
-                  className={`flex items-center gap-2 rounded-md px-3 py-2 text-[12px] transition-colors ${active ? "bg-[#d6f5f3] font-semibold text-[#087b7a]" : "text-[#b7c7df] hover:bg-[#1a345a] hover:text-white"}`}
+                  className={`flex items-center gap-2 rounded-md px-3 py-2 text-[12px] transition-colors ${active && !live ? "bg-[#d6f5f3] font-semibold text-[#087b7a]" : "text-[#b7c7df] hover:bg-[#1a345a] hover:text-white"}`}
                   aria-current={active ? "page" : undefined}
                 >
                   <Icon size={13} /> {label}
@@ -88,7 +89,7 @@ export function D4Shell({ children }: { children: ReactNode }) {
         <div className="space-y-3 border-t border-[#2b4266] px-4 py-4 text-[11px]">
           <div className="flex items-center gap-2 rounded-md bg-[#1a3559] px-3 py-2"><Headset size={16} /><span>Customer Support<br /><small className="text-[#9eb3d0]">24/7 Operations Line</small></span><span className="ml-auto size-2 rounded-full bg-[#54d7a6]" /></div>
           <div className="flex items-center gap-2 px-2 text-[#b7c7df]"><Settings size={15} /> Settings</div>
-          <div className="flex items-center gap-2 border-t border-[#2b4266] pt-3"><span className="flex size-7 items-center justify-center rounded-full bg-[#187a79]">BS</span><span>Budi Santoso<br /><small className="text-[#9eb3d0]">Akun demo</small></span></div>
+          <div className="flex items-center gap-2 border-t border-[#2b4266] pt-3"><span className="flex size-7 items-center justify-center rounded-full bg-[#187a79]">{live ? "D4" : "BS"}</span><span>{live ? "Data Supabase" : "Budi Santoso"}<br /><small className="text-[#9eb3d0]">{live ? "Sesuai hak akses akun" : "Akun demo"}</small></span></div>
         </div>
       </aside>
 
@@ -99,7 +100,7 @@ export function D4Shell({ children }: { children: ReactNode }) {
             <strong className="text-[#152544]">ANDIMA HRMS</strong><span className="text-[#b8c3d8]">|</span>
             <span className="hidden text-[#586782] sm:inline">HRMS&nbsp; / &nbsp;{current?.label ?? "D4"}</span>
           </div>
-          <div className="flex items-center gap-3 text-[#697b99]"><Bell size={17} /><span className="flex size-7 items-center justify-center rounded-full bg-[#dff2eb] text-[10px] font-bold text-[#1e756d]">BS</span></div>
+          <div className="flex items-center gap-3 text-[#697b99]"><Bell size={17} /><span className="flex size-7 items-center justify-center rounded-full bg-[#dff2eb] text-[10px] font-bold text-[#1e756d]">{live ? "D4" : "BS"}</span></div>
         </header>
         <main className="w-full px-4 py-6 sm:px-6 lg:px-7 lg:py-7">{children}</main>
       </div>

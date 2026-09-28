@@ -10,7 +10,7 @@ export interface EvaluationAspect {
 
 export interface PerformanceEvaluation {
   readonly id: string;
-  readonly source: "fixture" | "local-demo";
+  readonly source: "fixture" | "local-demo" | "supabase";
   readonly employeeId: string;
   readonly period: string;
   readonly evaluationDate: string;
