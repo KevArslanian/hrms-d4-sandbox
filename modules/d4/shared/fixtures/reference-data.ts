@@ -29,6 +29,11 @@ export const d4ReferenceFixture: ReferenceDataSnapshot = {
       title: "Finance & Administration",
       departmentId: "d4000000-0000-4000-8000-000000000007",
     },
+    { id: "d4000000-0000-4000-8000-000000000017", code: "FIX-D4-SALES", title: "Sales & Marketing", departmentId: "d4000000-0000-4000-8000-000000000001" },
+    { id: "d4000000-0000-4000-8000-000000000018", code: "FIX-D4-OPS", title: "Operations Staff", departmentId: "d4000000-0000-4000-8000-000000000001" },
+    { id: "d4000000-0000-4000-8000-000000000019", code: "FIX-D4-HR", title: "HR Staff", departmentId: "d4000000-0000-4000-8000-000000000001" },
+    { id: "d4000000-0000-4000-8000-000000000020", code: "FIX-D4-SALES-ADMIN", title: "Sales Admin", departmentId: "d4000000-0000-4000-8000-000000000001" },
+    { id: "d4000000-0000-4000-8000-000000000021", code: "FIX-D4-FIN-STAFF-2", title: "Finance Staff", departmentId: "d4000000-0000-4000-8000-000000000007" },
   ],
   employees: [
     {
@@ -45,6 +50,13 @@ export const d4ReferenceFixture: ReferenceDataSnapshot = {
       positionId: "d4000000-0000-4000-8000-000000000008",
       departmentId: "d4000000-0000-4000-8000-000000000007",
     },
+    { id: "d4000000-0000-4000-8000-000000000010", employeeId: "FIX-D4-EMP-003", fullName: "Olivia Rodrigo", positionId: "d4000000-0000-4000-8000-000000000017", departmentId: "d4000000-0000-4000-8000-000000000001" },
+    { id: "d4000000-0000-4000-8000-000000000011", employeeId: "FIX-D4-EMP-004", fullName: "Louis Partridge", positionId: "d4000000-0000-4000-8000-000000000018", departmentId: "d4000000-0000-4000-8000-000000000001" },
+    { id: "d4000000-0000-4000-8000-000000000012", employeeId: "FIX-D4-EMP-005", fullName: "Christy Gardena", positionId: "d4000000-0000-4000-8000-000000000019", departmentId: "d4000000-0000-4000-8000-000000000001" },
+    { id: "d4000000-0000-4000-8000-000000000013", employeeId: "FIX-D4-EMP-006", fullName: "Shazfa Adesya", positionId: "d4000000-0000-4000-8000-000000000020", departmentId: "d4000000-0000-4000-8000-000000000001" },
+    { id: "d4000000-0000-4000-8000-000000000014", employeeId: "FIX-D4-EMP-007", fullName: "Angga Yauanda", positionId: "d4000000-0000-4000-8000-000000000021", departmentId: "d4000000-0000-4000-8000-000000000007" },
+    { id: "d4000000-0000-4000-8000-000000000015", employeeId: "FIX-D4-EMP-008", fullName: "Shenina Cinnamon", positionId: "d4000000-0000-4000-8000-000000000018", departmentId: "d4000000-0000-4000-8000-000000000001" },
+    { id: "d4000000-0000-4000-8000-000000000016", employeeId: "FIX-D4-EMP-009", fullName: "Nicholas Saputra", positionId: "d4000000-0000-4000-8000-000000000008", departmentId: "d4000000-0000-4000-8000-000000000007" },
   ],
   competencies: [
     {
