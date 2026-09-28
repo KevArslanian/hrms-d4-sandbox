@@ -27,8 +27,10 @@ function dateLabel(value: string) {
   return new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeZone: "Asia/Jakarta" }).format(new Date(value));
 }
 
-export function KpiScreen() {
-  const [employeeId, setEmployeeId] = useState(defaultEmployeeId);
+export function KpiScreen({ initialEmployeeId }: { initialEmployeeId?: string }) {
+  const [employeeId, setEmployeeId] = useState(
+    d4ReferenceFixture.employees.some((item) => item.id === initialEmployeeId) ? initialEmployeeId! : defaultEmployeeId,
+  );
   const [period, setPeriod] = useState("2026-09");
   const storedSnapshot = useSyncExternalStore(subscribeKpiRecords, getKpiStoredSnapshot, () => "");
   const records = useMemo(() => listKpiRecords(storedSnapshot), [storedSnapshot]);

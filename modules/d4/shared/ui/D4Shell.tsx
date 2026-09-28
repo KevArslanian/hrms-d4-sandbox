@@ -100,7 +100,7 @@ export function D4Shell({ children }: { children: ReactNode }) {
           </div>
           <div className="flex items-center gap-3 text-[#697b99]"><Bell size={17} /><span className="flex size-7 items-center justify-center rounded-full bg-[#dff2eb] text-[10px] font-bold text-[#1e756d]">BS</span></div>
         </header>
-        <main className="mx-auto max-w-[1540px] px-4 py-6 sm:px-6 lg:px-7 lg:py-7">{children}</main>
+        <main className="w-full px-4 py-6 sm:px-6 lg:px-7 lg:py-7">{children}</main>
       </div>
     </div>
   );
