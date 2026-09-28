@@ -47,11 +47,11 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
     await this.requireUser();
     const [departmentsResult, positionsResult, employeesResult, competenciesResult, requirementsResult, skillsResult] = await Promise.all([
       this.client.from("d3_departments").select("id,code,name"),
-      this.client.from("positions").select("id,code,title,department_id"),
+      this.client.from("d3_positions").select("id,code,title,department_id"),
       this.client.from("d3_employee").select("id,employee_id,full_name,position_id,department_id"),
-      this.client.from("competencies").select("id,code,name,category"),
+      this.client.from("d3_competencies").select("id,code,name,category"),
       this.client.from("position_requirements").select("id,position_id,competency_id,min_proficiency_level,is_mandatory"),
-      this.client.from("employee_skills").select("id,employee_id,competency_id,proficiency_level,evidence_notes"),
+      this.client.from("d3_employee_skills").select("id,employee_id,competency_id,proficiency_level,evidence_notes"),
     ]);
     const departments = take(departmentsResult, "Departments") as RawDepartment[];
     const positions = take(positionsResult, "Positions") as RawPosition[];
