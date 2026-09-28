@@ -7,7 +7,7 @@ import { validatePerformanceInput } from "../performance/validation";
 import type { ReferenceDataRepository } from "../shared/services";
 import type { ReferenceDataSnapshot } from "../shared/types";
 import type { TrainingStatus, TrainingVersion } from "../training/types";
-import type { D3KpiRecord, D4AppRole, D4LiveSnapshot } from "./types";
+import type { D3KpiRecord, D4LiveSnapshot } from "./types";
 
 type QueryResult<T> = { data: T | null; error: { message: string } | null };
 function take<T>(result: QueryResult<T>, label: string): T {
@@ -72,9 +72,12 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
 
   async loadSnapshot(): Promise<D4LiveSnapshot> {
     const user = await this.requireUser();
+    const { data: access, error: accessError } = await this.client.from("d3_user_access")
+      .select("app_role,employee_id").eq("auth_user_id", user.id).maybeSingle();
+    if (accessError) throw new Error(`Hak akses: ${accessError.message}`);
+    if (!access) throw new Error("Akun sudah masuk, tetapi belum diberi akses data HRMS. Hubungi admin HRMS untuk mengaktifkan peran Anda.");
     const reference = await this.loadReferenceData();
-    const [accessResult, kpiResult, performanceResult, assessmentResult, developmentResult, developmentVersionResult, trainingResult, trainingVersionResult] = await Promise.all([
-      this.client.from("d3_user_access").select("app_role,employee_id").eq("auth_user_id", user.id).single(),
+    const [kpiResult, performanceResult, assessmentResult, developmentResult, developmentVersionResult, trainingResult, trainingVersionResult] = await Promise.all([
       this.client.from("employee_kpi").select("id,employee_id,period,kpi_score,notes,created_at").order("period", { ascending: false }),
       this.client.from("d4_performance_evaluations").select("id,employee_id,period,evaluation_date,evaluator_name_snapshot,status,review_status,overall_score,aspects,general_notes,evidence_reference,actor_employee_id,created_at").order("created_at", { ascending: false }),
       this.client.from("d4_competency_assessments").select("id,employee_id,position_id,effective_date,context,overall_status,findings,actor_employee_id,created_at").order("created_at", { ascending: false }),
@@ -83,7 +86,6 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
       this.client.from("d4_training_records").select("id,employee_id,development_need_id,activity,activity_date"),
       this.client.from("d4_training_versions").select("id,training_id,revision,status,result,notes,actor_employee_id,created_at").order("created_at", { ascending: false }),
     ]);
-    const access = take(accessResult, "Hak akses") as { app_role: D4AppRole; employee_id: string };
     const kpiRows = take(kpiResult, "KPI") as RawKpi[];
     const performanceRows = take(performanceResult, "Performance") as RawPerformance[];
     const assessmentRows = take(assessmentResult, "Competency") as RawAssessment[];
