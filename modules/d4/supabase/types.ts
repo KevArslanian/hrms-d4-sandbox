@@ -1,17 +1,25 @@
 import type { CompetencyAssessment } from "../competency/types";
 import type { DevelopmentNeedVersion } from "../development/types";
-import type { KpiRecord } from "../kpi/types";
 import type { PerformanceEvaluation } from "../performance/types";
 import type { ReferenceDataSnapshot } from "../shared/types";
 import type { TrainingVersion } from "../training/types";
 
 export type D4AppRole = "EMPLOYEE" | "HR" | "MANAGER";
 
+export interface D3KpiRecord {
+  readonly id: string;
+  readonly employeeId: string;
+  readonly period: string;
+  readonly score: number;
+  readonly notes: string;
+  readonly createdAt: string;
+}
+
 export interface D4LiveSnapshot {
   readonly reference: ReferenceDataSnapshot;
   readonly role: D4AppRole;
   readonly actorEmployeeId: string;
-  readonly kpi: readonly KpiRecord[];
+  readonly kpi: readonly D3KpiRecord[];
   readonly performance: readonly PerformanceEvaluation[];
   readonly competency: readonly CompetencyAssessment[];
   readonly developmentVersions: readonly DevelopmentNeedVersion[];
