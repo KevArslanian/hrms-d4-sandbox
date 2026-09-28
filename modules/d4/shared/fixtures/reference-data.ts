@@ -65,6 +65,11 @@ export const d4ReferenceFixture: ReferenceDataSnapshot = {
       name: "Komunikasi Demo",
       category: "Soft skill",
     },
+    { id: "d4000000-0000-4000-8000-000000000022", code: "FIX-D4-COMP-002", name: "Akurasi Administrasi", category: "Technical" },
+    { id: "d4000000-0000-4000-8000-000000000023", code: "FIX-D4-COMP-003", name: "Pengelolaan Arsip", category: "Technical" },
+    { id: "d4000000-0000-4000-8000-000000000024", code: "FIX-D4-COMP-004", name: "Keselamatan Operasi", category: "Technical" },
+    { id: "d4000000-0000-4000-8000-000000000025", code: "FIX-D4-COMP-005", name: "Dokumentasi HR", category: "Technical" },
+    { id: "d4000000-0000-4000-8000-000000000026", code: "FIX-D4-COMP-006", name: "Penjualan & Negosiasi", category: "Technical" },
   ],
   positionRequirements: [
     {
@@ -74,6 +79,14 @@ export const d4ReferenceFixture: ReferenceDataSnapshot = {
       minProficiencyLevel: 3,
       isMandatory: true,
     },
+    { id: "d4000000-0000-4000-8000-000000000027", positionId: "d4000000-0000-4000-8000-000000000008", competencyId: "d4000000-0000-4000-8000-000000000004", minProficiencyLevel: 3, isMandatory: true },
+    { id: "d4000000-0000-4000-8000-000000000028", positionId: "d4000000-0000-4000-8000-000000000008", competencyId: "d4000000-0000-4000-8000-000000000022", minProficiencyLevel: 4, isMandatory: true },
+    { id: "d4000000-0000-4000-8000-000000000029", positionId: "d4000000-0000-4000-8000-000000000008", competencyId: "d4000000-0000-4000-8000-000000000023", minProficiencyLevel: 3, isMandatory: true },
+    { id: "d4000000-0000-4000-8000-000000000030", positionId: "d4000000-0000-4000-8000-000000000017", competencyId: "d4000000-0000-4000-8000-000000000026", minProficiencyLevel: 3, isMandatory: true },
+    { id: "d4000000-0000-4000-8000-000000000031", positionId: "d4000000-0000-4000-8000-000000000018", competencyId: "d4000000-0000-4000-8000-000000000024", minProficiencyLevel: 3, isMandatory: true },
+    { id: "d4000000-0000-4000-8000-000000000032", positionId: "d4000000-0000-4000-8000-000000000019", competencyId: "d4000000-0000-4000-8000-000000000025", minProficiencyLevel: 3, isMandatory: true },
+    { id: "d4000000-0000-4000-8000-000000000033", positionId: "d4000000-0000-4000-8000-000000000020", competencyId: "d4000000-0000-4000-8000-000000000022", minProficiencyLevel: 3, isMandatory: true },
+    { id: "d4000000-0000-4000-8000-000000000043", positionId: "d4000000-0000-4000-8000-000000000021", competencyId: "d4000000-0000-4000-8000-000000000022", minProficiencyLevel: 4, isMandatory: true },
   ],
   employeeSkills: [
     {
@@ -83,6 +96,15 @@ export const d4ReferenceFixture: ReferenceDataSnapshot = {
       proficiencyLevel: 2,
       evidenceNotes: "Data fiktif untuk pengembangan UI.",
     },
+    { id: "d4000000-0000-4000-8000-000000000034", employeeId: "d4000000-0000-4000-8000-000000000009", competencyId: "d4000000-0000-4000-8000-000000000004", proficiencyLevel: 4, evidenceNotes: "Bukti komunikasi fixture." },
+    { id: "d4000000-0000-4000-8000-000000000035", employeeId: "d4000000-0000-4000-8000-000000000009", competencyId: "d4000000-0000-4000-8000-000000000022", proficiencyLevel: 2, evidenceNotes: "Berkas administrasi fixture." },
+    { id: "d4000000-0000-4000-8000-000000000036", employeeId: "d4000000-0000-4000-8000-000000000010", competencyId: "d4000000-0000-4000-8000-000000000026", proficiencyLevel: 4, evidenceNotes: "Simulasi negosiasi fixture." },
+    { id: "d4000000-0000-4000-8000-000000000037", employeeId: "d4000000-0000-4000-8000-000000000011", competencyId: "d4000000-0000-4000-8000-000000000024", proficiencyLevel: 2, evidenceNotes: "Catatan keselamatan fixture." },
+    { id: "d4000000-0000-4000-8000-000000000038", employeeId: "d4000000-0000-4000-8000-000000000013", competencyId: "d4000000-0000-4000-8000-000000000022", proficiencyLevel: 3, evidenceNotes: "Dokumen administrasi fixture." },
+    { id: "d4000000-0000-4000-8000-000000000039", employeeId: "d4000000-0000-4000-8000-000000000014", competencyId: "d4000000-0000-4000-8000-000000000022", proficiencyLevel: 2, evidenceNotes: "Rekonsiliasi contoh fixture." },
+    { id: "d4000000-0000-4000-8000-000000000040", employeeId: "d4000000-0000-4000-8000-000000000015", competencyId: "d4000000-0000-4000-8000-000000000024", proficiencyLevel: 3, evidenceNotes: "Checklist keselamatan fixture." },
+    { id: "d4000000-0000-4000-8000-000000000041", employeeId: "d4000000-0000-4000-8000-000000000016", competencyId: "d4000000-0000-4000-8000-000000000022", proficiencyLevel: 4, evidenceNotes: "Arsip keuangan fixture." },
+    { id: "d4000000-0000-4000-8000-000000000042", employeeId: "d4000000-0000-4000-8000-000000000016", competencyId: "d4000000-0000-4000-8000-000000000023", proficiencyLevel: 3, evidenceNotes: null },
   ],
 };
 
