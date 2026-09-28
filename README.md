@@ -29,7 +29,7 @@ modules/d4/shared/fixtures/ Data fiktif yang dipilih eksplisit saat pengembangan
 
 `employees.id` adalah UUID relasi yang stabil. `employees.employee_id` hanya kode tampilan. Tipe di folder `types` adalah model untuk D4, bukan tipe database yang digenerate. Adapter Supabase membaca master bersama, tanpa menduplikasi employee atau position.
 
-Fixture memakai kode `FIX-D4-*` dan `source: "fixture"`. Halaman lama seperti `/performance` masih memakai fixture serta `localStorage` browser untuk pengembangan visual. Halaman utama dan `/live` memakai repository Supabase tersendiri dan tidak menyisipkan fixture ke hasil database.
+Fixture memakai kode `FIX-D4-*` dan `source: "fixture"` di modul lama untuk pengembangan visual. Semua rute aplikasi D4 sekarang mengarah ke `/live` dengan modul yang sesuai. Repository Supabase tidak menyisipkan fixture ke hasil database.
 
 ## Integrasi Supabase STEP 6
 
