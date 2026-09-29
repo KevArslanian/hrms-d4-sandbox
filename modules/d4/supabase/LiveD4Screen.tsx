@@ -18,6 +18,7 @@ type ScreenProps = {
   initialView?: string;
   employeeId?: string;
   evaluationId?: string;
+  kpiAssessmentId?: string;
   trainingId?: string;
   sourceRef?: string;
 };
@@ -57,7 +58,7 @@ function ErrorState({ error, onRetry, onSignOut }: { error: string; onRetry: () 
   </section>;
 }
 
-export function LiveD4Screen({ initialModule, initialView, employeeId, evaluationId, trainingId, sourceRef }: ScreenProps) {
+export function LiveD4Screen({ initialModule, initialView, employeeId, evaluationId, kpiAssessmentId, trainingId, sourceRef }: ScreenProps) {
   const router = useRouter();
   const configured = hasSupabaseConfig();
   const client = useMemo(() => configured ? createD4BrowserClient() : null, [configured]);
@@ -144,7 +145,7 @@ export function LiveD4Screen({ initialModule, initialView, employeeId, evaluatio
     <div className="mx-auto max-w-[1604px]">
       {status === "loading" ? <LoadingState /> : status === "error" ? <ErrorState error={error} onRetry={() => { setStatus("loading"); setRetryKey((key) => key + 1); }} onSignOut={() => { void signOut(); }} /> : snapshot ? <>
         {currentModule === "performance" && view === "roles" && <RoleKpiCatalog />}
-        {(currentModule === "performance" && view !== "roles" || (currentModule === "kpi" && view === "scorecard")) && <PerformancePages {...shared} view={view as "list" | "add" | "edit" | "detail" | "history" | "scorecard"} employeeId={employeeId} evaluationId={evaluationId} />}
+        {(currentModule === "performance" && view !== "roles" || (currentModule === "kpi" && view === "scorecard")) && <PerformancePages {...shared} view={view as "list" | "add" | "edit" | "detail" | "history" | "scorecard"} employeeId={employeeId} evaluationId={evaluationId} kpiAssessmentId={kpiAssessmentId} />}
         {(currentModule === "dashboard" || (currentModule === "competency" && view === "competency")) && <PeoplePages {...shared} view={currentModule === "competency" ? "competency" : "dashboard"} />}
         {(currentModule === "training" || (currentModule === "development" && view === "development-new")) && <TrainingPages {...shared} view={view as "list" | "add" | "progress" | "history" | "development-new"} employeeId={employeeId} trainingId={trainingId} sourceRef={sourceRef} />}
         {currentModule === "competency" && view === "assessment" && <LiveModuleContent {...shared} module="competency" />}
