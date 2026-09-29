@@ -25,17 +25,17 @@ Route per kartu:
 
 ## 3. Komentar di kartu UI/UX
 
-> **Figma D4 V2:** https://www.figma.com/design/bpUIPDcmpjGbYzg0JuZnPH (page `D4`). Foundations dan komponen sudah dibuat sebagai variable, text style, dan component set. Frame layar mengikuti format D3 `NN HRMS D4 - <Layar> (<Role>)`, 1440×1024. Node untuk kartu ini: `<isi setelah frame dibangun>`.
+> **Figma D4 V2:** https://www.figma.com/design/blDVBM6m8VC02A7PvouX4F (page `D4`). Foundations dan komponen sudah dibuat sebagai variable, text style, dan component set. Frame layar mengikuti format D3 `NN HRMS D4 - <Layar> (<Role>)`, 1440×1024. Frame pertama untuk kartu ini: lihat kolom *Node* di tabel berikut.
 
 Frame per kartu:
 
-| Kartu | Frame |
-|---|---|
-| Design Performance Evaluation & KPI Scorecard | 01–12 |
-| Design Competency Gap & Development Requirement | 13–20 |
-| Design Training | 21–25 |
-| Design Dashboard | 26–29 |
-| UI Consistency / Handoff | 00 Foundations & Components, 30–34 |
+| Kartu | Frame | Node |
+|---|---|---|
+| Design Performance Evaluation & KPI Scorecard | 01–12 | [4:3](https://www.figma.com/design/blDVBM6m8VC02A7PvouX4F?node-id=4-3) |
+| Design Competency Gap & Development Requirement | 13–20 | [7:1556](https://www.figma.com/design/blDVBM6m8VC02A7PvouX4F?node-id=7-1556) |
+| Design Training | 21–25 | [9:2512](https://www.figma.com/design/blDVBM6m8VC02A7PvouX4F?node-id=9-2512) |
+| Design Dashboard | 26–29 | [11:3686](https://www.figma.com/design/blDVBM6m8VC02A7PvouX4F?node-id=11-3686) |
+| UI Consistency / Handoff | 00 Foundations & Components, 30–34 | [2:2](https://www.figma.com/design/blDVBM6m8VC02A7PvouX4F?node-id=2-2) |
 
 ## 4. Kartu baru (opsional, untuk To Do List QA)
 
