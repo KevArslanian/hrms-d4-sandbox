@@ -1,7 +1,13 @@
 # Development Requirement, FR-D4-004
 
-Sumber kebutuhan: Docmost `FR-D4-004` (`0wzA4bRIaF`). Figma D4 menampilkan alur kebutuhan pengembangan dalam gambar komposit node `1370:2179`; tidak ada frame Development editable terpisah.
+Sumber kebutuhan: Docmost `FR-D4-004` (`0wzA4bRIaF`). Relasi dengan FR-D4-003: `docs/d4/drafts/docmost/02-fr-d4-004-relasi-fr-d4-003.md`.
 
-Kebutuhan hanya dibuat dari referensi gap kompetensi, snapshot perubahan peran, atau evaluasi selesai milik employee yang sama. Objective wajib diisi. Priority, status, dan catatan dipilih manual. Setiap pembaruan status menambah revisi, mempertahankan histori dan referensi sumber awal. Pembuatan berkala dan pemilihan training otomatis tidak diimplementasikan karena tidak didukung requirement.
+| Bagian | Lokasi |
+|---|---|
+| Tipe domain | `types.ts` |
+| Data preview (fiktif) | `fixtures.ts` |
+| Halaman list, detail, history | `modules/d4/web/features/development/DevelopmentPages.tsx` |
+| Modal Add dan Update Status | `modules/d4/web/features/development/DevelopmentModals.tsx` |
+| API | `modules/d4/server/development-needs/index.ts` |
 
-Data saat ini adalah fixture dan `localStorage`. Integrasi Supabase, identitas aktor, dan pemeriksaan FK dilakukan pada STEP 6.
+Requirement hanya dibuat dari salah satu source milik employee yang sama: requirement kompetensi berstatus Gap, assessment role change, atau evaluasi Completed. Objective wajib diisi. Priority, status, dan catatan dipilih manual. Setiap perubahan status menambah revisi (`POST …/:id/versions`), sehingga histori dan referensi source awal tetap ada. Tidak ada pembuatan berkala atau pemilihan training otomatis.
