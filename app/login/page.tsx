@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Eye } from "lucide-react";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import styles from "@/components/auth/auth.module.css";
-import { createD4BrowserClient } from "@/modules/d4/supabase/client";
+import { createD4BrowserClient, hasSupabaseConfig } from "@/modules/d4/supabase/client";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,11 +15,13 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const configError = hasSupabaseConfig() ? "" : "Konfigurasi Supabase belum tersedia. Isi .env.local sesuai .env.example.";
 
   useEffect(() => {
     let active = true;
+    if (!hasSupabaseConfig()) return;
     void createD4BrowserClient().auth.getUser().then(({ data }) => {
-      if (active && data.user) router.replace("/live");
+      if (active && data.user) router.replace("/dashboard");
     });
     return () => { active = false; };
   }, [router]);
@@ -38,7 +40,7 @@ export default function LoginPage() {
         return;
       }
       setPassword("");
-      router.replace("/live");
+      router.replace("/dashboard");
       router.refresh();
     } catch {
       setError("Login belum dapat diproses. Coba lagi nanti.");
@@ -67,7 +69,7 @@ export default function LoginPage() {
         </div>
         <button className={styles.submitButton} type="submit" disabled={busy}>{busy ? "MEMPROSES..." : "LOGIN"}</button>
       </form>
-      {error && <p className={styles.formError} role="alert">{error}</p>}
+      {(error || configError) && <p className={styles.formError} role="alert">{error || configError}</p>}
       <p className={styles.accountSwitch}>Belum punya akses? Hubungi admin HRMS.</p>
       <div className={styles.accountNote}>
         <strong>Akses HRMS</strong>

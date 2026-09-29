@@ -2,11 +2,18 @@ import { createServerClient } from "@supabase/ssr";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://ufjbbwqaztgkqmpdmcyv.supabase.co";
-const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "sb_publishable_0GFbshHOM6k80Wxde_iZVQ_v6DpVj1D";
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "";
+// Local preview with fictional data (never active in production builds).
+const fixturePreview = process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_D4_DATA_MODE === "fixture";
 
 export async function proxy(request: NextRequest) {
-  if (process.env.NODE_ENV === "development" && request.nextUrl.pathname === "/qa-preview") return NextResponse.next({ request });
+  if (fixturePreview) return NextResponse.next({ request });
+  // Without Supabase configuration only the login page (which explains the problem) and API errors are served.
+  if (!supabaseUrl || !publishableKey) {
+    if (request.nextUrl.pathname === "/login" || request.nextUrl.pathname.startsWith("/api/")) return NextResponse.next({ request });
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
   let response = NextResponse.next({ request });
   const supabase = createServerClient(supabaseUrl, publishableKey, {
     cookies: {
@@ -29,7 +36,7 @@ export async function proxy(request: NextRequest) {
     return redirect;
   }
   if (user && isLogin) {
-    const redirect = NextResponse.redirect(new URL("/live", request.url));
+    const redirect = NextResponse.redirect(new URL("/dashboard", request.url));
     response.cookies.getAll().forEach(({ name, value, ...options }) => redirect.cookies.set(name, value, options));
     return redirect;
   }
