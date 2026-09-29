@@ -1,13 +1,13 @@
 "use client";
 
 import { CheckCircle2, CircleAlert } from "lucide-react";
-import { useMemo, useState, type FormEvent } from "react";
-import { indicatorsFor, roleForPositionTitle, rolesOf } from "../../../kpi/catalog";
+import { useState, type FormEvent } from "react";
+import { indicatorsFor, roleForPositionTitle } from "../../../kpi/catalog";
 import type { KpiAssessmentLine } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { employeeById, positionOf, thisMonth, today, visibleEmployees } from "../../data/selectors";
-import { FormError, FormModal, ModalActions, SelectField, TextAreaField, TextField } from "../../ui/forms";
-import { Button, cx } from "../../ui/primitives";
+import { departmentOf, employeeById, positionOf, SCORE_LABELS, thisMonth, today, visibleEmployees } from "../../data/selectors";
+import { FormError, FormModal, ModalActions, ReadOnlyField, SelectField, TextAreaField, TextField } from "../../ui/forms";
+import { cx } from "../../ui/primitives";
 
 const validScore = (value: number | null) => value !== null && Number.isInteger(value) && value >= 1 && value <= 5;
 
@@ -19,7 +19,6 @@ export function weighted(line: Pick<KpiAssessmentLine, "weight_percent" | "raw_s
 export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: string; onClose: () => void; onSaved?: (id: string) => void }) {
   const snapshot = useSnapshot();
   const { catalog, run, busy } = useD4();
-  const roles = useMemo(() => catalog ? rolesOf(catalog) : [], [catalog]);
   const actor = employeeById(snapshot, snapshot.actorEmployeeId);
   const suggest = (id: string) => catalog ? roleForPositionTitle(catalog, positionOf(snapshot, employeeById(snapshot, id))?.title) : 0;
   const linesFor = (roleOrder: number): KpiAssessmentLine[] => catalog ? indicatorsFor(catalog, roleOrder).map((row) => ({
@@ -39,26 +38,28 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
   const totalWeight = lines.reduce((sum, line) => sum + line.weight_percent, 0);
   const allScored = lines.length === 5 && lines.every((line) => validScore(line.raw_score));
   const total = allScored ? Math.round(lines.reduce((sum, line) => sum + (weighted(line) ?? 0), 0) * 100) / 100 : null;
-  const position = positionOf(snapshot, employeeById(snapshot, employee));
+  const selected = employeeById(snapshot, employee);
+  const position = positionOf(snapshot, selected);
+  const roleName = roleOrder && catalog ? indicatorsFor(catalog, roleOrder)[0]?.role_name : undefined;
 
   function chooseEmployee(id: string) { setEmployee(id); const role = suggest(id); setRoleOrder(role); setLines(linesFor(role)); }
-  function chooseRole(order: number) { setRoleOrder(order); setLines(linesFor(order)); }
   function setLine(index: number, patch: Partial<KpiAssessmentLine>) { setLines((items) => items.map((line, at) => at === index ? { ...line, ...patch } : line)); }
 
-  async function save(status: "draft" | "completed") {
+  // FR-02.1/FR-02.11: the KPI set follows the employee's position; HR cannot pick another position's KPI.
+  async function submit(event: FormEvent) {
+    event.preventDefault();
     setTouched(true);
-    if (!employee || !roleOrder || lines.length !== 5 || totalWeight !== 100) { setError("Pilih employee dan jabatan KPI dengan lima indikator dan total bobot 100%."); return; }
-    if (status === "completed" && (!allScored || !date || !evaluator.trim())) { setError("Lengkapi tanggal, penilai, dan skor 1–5 untuk kelima KPI sebelum menyelesaikan scorecard."); return; }
+    if (!employee) { setError("Pilih employee terlebih dahulu."); return; }
+    if (!roleOrder || lines.length !== 5 || totalWeight !== 100) { setError("KPI untuk position ini belum tersedia di KPI Scorecard; scorecard tidak dapat disimpan."); return; }
+    if (!allScored || !period || !date || !evaluator.trim()) { setError("Lengkapi periode, tanggal penilaian, penilai, dan skor 1–5 untuk kelima KPI."); return; }
     setError("");
-    const result = await run((source) => source.createKpiAssessment({ employeeId: employee, roleOrder, period, evaluationDate: date, evaluatorName: evaluator, status, lines, generalNotes: notes }),
-      status === "draft" ? "Draft KPI scorecard tersimpan." : "KPI scorecard tersimpan.");
+    const result = await run((source) => source.createKpiAssessment({ employeeId: employee, roleOrder, period, evaluationDate: date, evaluatorName: evaluator, status: "completed", lines, generalNotes: notes }),
+      "KPI scorecard tersimpan.");
     if (result.ok) { onSaved?.(result.value); onClose(); } else setError(result.error);
   }
 
-  function submit(event: FormEvent) { event.preventDefault(); void save("completed"); }
-
   return <FormModal size="lg" title="KPI Scorecard" description={`Lima Core KPI dan bobot mengikuti KPI Scorecard ${catalog?.version ?? ""} sesuai position employee.`} onClose={onClose}
-    footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Complete Scorecard" secondary={<Button variant="ghost" disabled={busy} onClick={() => void save("draft")}>Save Draft</Button>} />}>
+    footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Scorecard" />}>
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />
       <div className="grid gap-4 sm:grid-cols-3">
@@ -66,15 +67,12 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
           <option value="">Select employee</option>
           {visibleEmployees(snapshot).map((item) => <option key={item.id} value={item.id}>{item.fullName} · {item.employeeId}</option>)}
         </SelectField>
-        <TextField label="Period" required type="month" value={period} onChange={(event) => setPeriod(event.target.value)} />
-        <SelectField label="KPI role" required value={roleOrder} onChange={(event) => chooseRole(Number(event.target.value))} className="sm:col-span-2"
-          helper={position ? `Position HR: ${position.title}${roleOrder && suggest(employee) === roleOrder ? " (dipetakan otomatis)" : ""}` : undefined}
-          error={touched && !roleOrder ? "Jabatan KPI wajib dipilih." : undefined}>
-          <option value={0}>Select KPI role</option>
-          {roles.map((role) => <option key={role.order} value={role.order}>{role.name}</option>)}
-        </SelectField>
-        <TextField label="Evaluation date" required type="date" value={date} onChange={(event) => setDate(event.target.value)} />
-        <TextField label="Evaluator" required value={evaluator} onChange={(event) => setEvaluator(event.target.value)} className="sm:col-span-3" />
+        <TextField label="Period" required type="month" value={period} onChange={(event) => setPeriod(event.target.value)} error={touched && !period ? "Periode wajib dipilih." : undefined} />
+        <ReadOnlyField label="Position" value={position?.title ?? "—"} />
+        <ReadOnlyField label="Department" value={departmentOf(snapshot, selected)?.name ?? "—"} />
+        <ReadOnlyField label="KPI jabatan" value={!employee ? "—" : roleName ?? "Belum tersedia untuk position ini"} />
+        <TextField label="Tanggal penilaian" required type="date" value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? "Tanggal wajib diisi." : undefined} />
+        <TextField label="Penilai" required value={evaluator} onChange={(event) => setEvaluator(event.target.value)} error={touched && !evaluator.trim() ? "Penilai wajib diisi." : undefined} className="sm:col-span-2" />
       </div>
 
       <div className="overflow-x-auto rounded-2xl border border-line">
@@ -96,12 +94,12 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
           <tfoot className="border-t border-line bg-app">
             <tr><td colSpan={2} className="px-3 py-3 font-semibold">Total</td>
               <td className="px-3 py-3"><span className={cx("inline-flex items-center gap-1 text-xs font-semibold", totalWeight === 100 ? "text-success" : "text-danger")}>{totalWeight === 100 ? <CheckCircle2 className="size-3.5" /> : <CircleAlert className="size-3.5" />}{lines.length ? `${totalWeight}%` : "—"}</span></td>
-              <td colSpan={3} className="px-3 py-3 text-xs text-ink-3">{lines.length ? (totalWeight === 100 ? "Total bobot 100%" : "Total bobot harus 100%") : "Pilih jabatan KPI untuk menampilkan indikator."}</td>
+              <td colSpan={3} className="px-3 py-3 text-xs text-ink-3">{lines.length ? (totalWeight === 100 ? "Total bobot 100%" : "Total bobot harus 100%") : employee ? "KPI untuk position ini belum tersedia." : "Pilih employee untuk menampilkan KPI position-nya."}</td>
               <td className="px-3 py-3 text-right font-display text-base tabular-nums">{total === null ? "—" : `${total.toFixed(2)} / 5`}</td></tr>
           </tfoot>
         </table>
       </div>
-      <p className="text-xs text-ink-3">Skala: 1 Sangat Kurang · 2 Kurang · 3 Cukup · 4 Baik · 5 Sangat Baik. Skor mentah diisi penilai; sistem tidak mengonversi realisasi menjadi skor dan tidak memberi label tercapai/tidak tercapai.</p>
+      <p className="text-xs text-ink-3">Kriteria skor: {[1, 2, 3, 4, 5].map((value) => `${value} ${SCORE_LABELS[value]}`).join(" · ")}. Skor mentah diisi penilai; sistem tidak mengonversi realisasi menjadi skor dan tidak memberi label tercapai/tidak tercapai.</p>
       <TextAreaField label="Catatan / rekomendasi atasan" value={notes} onChange={(event) => setNotes(event.target.value)} />
     </form>
   </FormModal>;

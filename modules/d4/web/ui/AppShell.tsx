@@ -17,7 +17,7 @@ export const D4_MENU = [
   { href: "/dashboard", label: "People Dashboard" },
 ] as const;
 
-const roleLabel: Record<string, string> = { HR: "HR Manager", MANAGER: "Manager", EMPLOYEE: "Employee" };
+const roleLabel: Record<string, string> = { HR: "HR", MANAGER: "Manager", EMPLOYEE: "Employee" };
 
 function Sidebar({ onNavigate }: { onNavigate: () => void }) {
   const pathname = usePathname();

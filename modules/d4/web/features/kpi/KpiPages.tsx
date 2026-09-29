@@ -1,8 +1,8 @@
 "use client";
 
-import { ClipboardCheck, Eye, History, ListChecks, Plus } from "lucide-react";
+import { ClipboardCheck, Eye, History, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
-import { ACTIVE_KPI_VERSION, indicatorsFor, rolesOf } from "../../../kpi/catalog";
+import { ACTIVE_KPI_VERSION } from "../../../kpi/catalog";
 import type { EmployeeReference } from "../../../shared/types";
 import type { KpiAssessment } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
@@ -29,6 +29,7 @@ export function KpiListPage() {
   const writer = canWrite(snapshot);
   const [search, setSearch] = useState("");
   const [position, setPosition] = useState("");
+  const [department, setDepartment] = useState("");
   const [period, setPeriod] = useState("");
   const [status, setStatus] = useState("");
   const [modalFor, setModalFor] = useState<string | null>(null);
@@ -37,18 +38,19 @@ export function KpiListPage() {
     employee, position: positionOf(snapshot, employee)?.title ?? "—",
     scorecard: period ? scorecardsOf(snapshot, employee.id).find((item) => item.period === period) : latestScorecard(snapshot, employee.id),
   })).filter((row) => includesText(`${row.employee.fullName} ${row.employee.employeeId}`, search)
-    && (!position || row.employee.positionId === position) && (!status || scorecardStatus(row.scorecard) === status))
-    .sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName)), [snapshot, search, position, period, status]);
+    && (!position || row.employee.positionId === position) && (!department || row.employee.departmentId === department) && (!status || scorecardStatus(row.scorecard) === status))
+    .sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName)), [snapshot, search, position, department, period, status]);
 
   return <>
     <PageHeader title="KPI Scorecard" subtitle="Lima Core KPI per position dan periode, dengan bobot 100% dan total skor terbobot (FR-D4-002)."
-      actions={<><ButtonLink href="/kpi/catalog" icon={<ListChecks className="size-4" />}>KPI per Position</ButtonLink>{writer && <Button icon={<Plus className="size-4" />} onClick={() => setModalFor("")}>Add Scorecard</Button>}</>} />
+      actions={writer && <Button icon={<Plus className="size-4" />} onClick={() => setModalFor("")}>Add Scorecard</Button>} />
     <CatalogNotice />
-    <FilterBar canReset={Boolean(search || position || period || status)} onReset={() => { setSearch(""); setPosition(""); setPeriod(""); setStatus(""); }}>
+    <FilterBar canReset={Boolean(search || position || department || period || status)} onReset={() => { setSearch(""); setPosition(""); setDepartment(""); setPeriod(""); setStatus(""); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Search employee name or ID" />
       <SelectFilter label="All positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />
+      <SelectFilter label="All departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />
       <SelectFilter label="Latest period" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
-      <SelectFilter label="All status" value={status} onChange={setStatus} options={["Completed", "Draft", "Not Evaluated"].map((item) => ({ value: item, label: item }))} />
+      <SelectFilter label="All status" value={status} onChange={setStatus} options={["Completed", "Not Evaluated"].map((item) => ({ value: item, label: item }))} />
     </FilterBar>
     <DataTable<Row> rows={rows} noun="employees" rowKey={(row) => row.employee.id}
       emptyTitle="Tidak ada employee yang cocok" emptyText="Ubah kata kunci atau reset filter."
@@ -133,26 +135,5 @@ export function KpiHistoryPage({ employeeId }: { employeeId: string }) {
       }))} />
     </Card>
     {adding && <KpiFormModal employeeId={employee.id} onClose={() => setAdding(false)} />}
-  </>;
-}
-
-export function KpiCatalogPage() {
-  const { catalog } = useD4();
-  const roles = useMemo(() => catalog ? rolesOf(catalog) : [], [catalog]);
-  const [role, setRole] = useState(0);
-  const selected = role || roles[0]?.order || 0;
-  const rows = catalog ? indicatorsFor(catalog, selected) : [];
-  return <>
-    <DetailHeader crumbs={[{ label: "HRMS" }, { label: "KPI Scorecard", href: "/kpi" }, { label: "KPI per Position" }]} backHref="/kpi"
-      name="KPI per Position" meta={[`KPI Scorecard ${catalog?.version ?? ""}`, `${roles.length} jabatan`, "5 Core KPI per jabatan"]} />
-    <CatalogNotice />
-    <FilterBar><SelectFilter label="Pilih jabatan" value={String(selected || "")} onChange={(value) => setRole(Number(value))} options={roles.map((item) => ({ value: String(item.order), label: item.name }))} /></FilterBar>
-    <Card padded={false}>
-      <table className="w-full text-left text-sm">
-        <thead className="bg-app text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3"><tr><th className="w-14 px-5 py-2.5">No</th><th className="px-5 py-2.5">Core KPI</th><th className="w-28 px-5 py-2.5 text-right">Bobot</th></tr></thead>
-        <tbody>{rows.map((row) => <tr key={row.indicator_order} className="border-t border-line"><td className="px-5 py-3 text-ink-3">{row.indicator_order}</td><td className="px-5 py-3 font-semibold">{row.kpi_name}</td><td className="px-5 py-3 text-right tabular-nums">{row.weight_percent}%</td></tr>)}</tbody>
-        <tfoot className="border-t border-line bg-app"><tr><td colSpan={2} className="px-5 py-3 font-semibold">Total bobot</td><td className="px-5 py-3 text-right font-semibold">{rows.reduce((sum, row) => sum + row.weight_percent, 0)}%</td></tr></tfoot>
-      </table>
-    </Card>
   </>;
 }

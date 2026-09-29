@@ -1,6 +1,7 @@
 import { EmployeeProfilePage } from "@/modules/d4/web/features/dashboard/DashboardPages";
 
-export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+export default async function Page({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ period?: string }> }) {
   const { id } = await params;
-  return <EmployeeProfilePage employeeId={id} />;
+  const { period } = await searchParams;
+  return <EmployeeProfilePage employeeId={id} initialPeriod={typeof period === "string" && /^\d{4}-\d{2}$/.test(period) ? period : ""} />;
 }

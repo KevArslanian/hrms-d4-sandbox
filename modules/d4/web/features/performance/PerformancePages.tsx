@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import type { PerformanceEvaluation } from "../../../performance/types";
 import type { EmployeeReference } from "../../../shared/types";
 import { useSnapshot } from "../../data/D4DataProvider";
-import { canWrite, departmentOf, describeSource, developmentNeeds, employeeById, evaluationsOf, formatDate, formatPeriod, formatScore, includesText, latestEvaluation, positionOf, scorecardsOf, visibleEmployees } from "../../data/selectors";
+import { canWrite, departmentOf, describeSource, developmentNeeds, employeeById, evaluationsOf, formatDate, formatPeriod, formatScore, includesText, latestEvaluation, positionOf, SCORE_LABELS, scorecardsOf, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
@@ -51,8 +51,8 @@ export function PerformanceListPage() {
         { key: "employee", header: "Employee", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
         { key: "position", header: "Position", wrap: true, cell: (row) => row.position },
         { key: "period", header: "Period", cell: (row) => formatPeriod(row.evaluation?.period) },
-        { key: "score", header: "Score", className: "tabular-nums", cell: (row) => formatScore(row.evaluation?.overallScore) },
-        { key: "review", header: "Review", cell: (row) => row.evaluation ? <StatusBadge status={row.evaluation.reviewStatus} /> : "—" },
+        { key: "score", header: "Hasil", className: "tabular-nums", cell: (row) => formatScore(row.evaluation?.overallScore) },
+        { key: "evaluator", header: "Evaluator", cell: (row) => row.evaluation?.evaluator || "—" },
         { key: "status", header: "Status", cell: (row) => <StatusBadge status={evaluationStatus(row.evaluation)} /> },
       ]}
       actions={(row) => <RowActionMenu label={`Aksi untuk ${row.employee.fullName}`} actions={[
@@ -89,23 +89,16 @@ export function PerformanceDetailPage({ id }: { id: string }) {
           { label: "Period", value: formatPeriod(evaluation.period) },
           { label: "Evaluation date", value: formatDate(evaluation.evaluationDate) },
           { label: "Evaluator", value: evaluation.evaluator || "—" },
-          { label: "Overall score", value: <strong className="font-display text-lg">{formatScore(evaluation.overallScore)}</strong> },
-          { label: "Review status", value: <StatusBadge status={evaluation.reviewStatus} /> },
+          { label: "Hasil evaluasi", value: <strong className="font-display text-lg">{formatScore(evaluation.overallScore)}</strong> },
+          { label: "Kriteria", value: evaluation.overallScore ? SCORE_LABELS[Math.round(evaluation.overallScore)] ?? "—" : "—" },
           { label: "Department", value: departmentOf(snapshot, employee)?.name ?? "—" },
         ]} />
-        <h3 className="mb-3 mt-8 text-sm font-semibold text-ink-2">Aspek penilaian</h3>
-        <div className="overflow-x-auto rounded-xl border border-line">
-          <table className="w-full min-w-[520px] text-left text-sm">
-            <thead className="bg-app text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3"><tr><th className="px-4 py-2.5">Aspect</th><th className="px-4 py-2.5">Weight</th><th className="px-4 py-2.5">Score</th><th className="px-4 py-2.5">Notes</th></tr></thead>
-            <tbody>{evaluation.aspects.map((aspect) => <tr key={aspect.name} className="border-t border-line"><td className="px-4 py-3 font-semibold">{aspect.name}</td><td className="px-4 py-3">{aspect.weight}%</td><td className="px-4 py-3 tabular-nums">{aspect.score ?? "—"}</td><td className="px-4 py-3 text-ink-2">{aspect.notes || "—"}</td></tr>)}</tbody>
-          </table>
-          {!evaluation.aspects.length && <p className="px-4 py-6 text-center text-sm text-ink-3">Belum ada aspek tercatat.</p>}
-        </div>
+        <h3 className="mb-2 mt-8 text-sm font-semibold text-ink-2">Catatan evaluasi</h3>
+        <p className="whitespace-pre-wrap text-sm text-ink-2">{evaluation.generalNotes || "Belum ada catatan evaluasi."}</p>
       </Card>
       <div className="space-y-6">
-        <Card title="Notes & evidence">
-          <p className="whitespace-pre-wrap text-sm text-ink-2">{evaluation.generalNotes || "Belum ada catatan evaluasi."}</p>
-          <p className="mt-4 text-xs text-ink-3">Evidence: {evaluation.evidenceReference || "—"}</p>
+        <Card title="Evidence">
+          <p className="text-sm text-ink-2">{evaluation.evidenceReference || "Belum ada evidence/reference."}</p>
           <p className="mt-1 text-xs text-ink-3">Dicatat oleh {evaluation.actor} · {formatDate(evaluation.createdAt)}</p>
         </Card>
         <Card title="Related records">
@@ -135,7 +128,7 @@ export function PerformanceHistoryPage({ employeeId }: { employeeId: string }) {
         id: item.id, date: `${formatPeriod(item.period)} · ${formatDate(item.evaluationDate || item.createdAt)}`,
         title: `Evaluasi ${formatPeriod(item.period)} — ${formatScore(item.overallScore)}`,
         status: evaluationStatus(item), actor: item.actor, href: `/performance/${item.id}`,
-        body: <>Review: {item.reviewStatus} · Evaluator: {item.evaluator || "—"}</>,
+        body: <>Evaluator: {item.evaluator || "—"}{item.generalNotes ? ` · ${item.generalNotes}` : ""}</>,
       }))} />
     </Card>
     {developmentNeeds(snapshot).filter((need) => need.employeeId === employee.id && need.sourceType === "performance_context").length > 0 && <Card title="Development linked to evaluations">

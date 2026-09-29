@@ -1,6 +1,6 @@
 import { compareCompetencies } from "../../competency/service";
 import { developmentFixtureVersions } from "../../development/fixtures";
-import { indicatorsFor, KPI_V51_CATALOG, selectCatalog } from "../../kpi/catalog";
+import { indicatorsFor, KPI_V51_CATALOG, roleForPositionTitle, selectCatalog } from "../../kpi/catalog";
 import { performanceFixtureRecords } from "../../performance/fixtures";
 import { validatePerformanceInput } from "../../performance/validation";
 import { d4ReferenceFixture } from "../../shared/fixtures";
@@ -13,8 +13,8 @@ import type { D4DataSource } from "./source";
 // records are fictional; writes live in memory and disappear on reload. The rules below
 // mirror the server so the UI behaves the same as in live mode.
 const HR_ACTOR = "d4000000-0000-4000-8000-000000000012";
-const NADIN = "d4000000-0000-4000-8000-000000000009";
-// NEXT_PUBLIC_D4_FIXTURE_ROLE=EMPLOYEE previews the self-service view as Nadin (read-only).
+const ALFA = "d4000000-0000-4000-8000-000000000009";
+// NEXT_PUBLIC_D4_FIXTURE_ROLE=EMPLOYEE previews the self-service view as Alfa (read-only).
 const FIXTURE_ROLE = process.env.NEXT_PUBLIC_D4_FIXTURE_ROLE === "EMPLOYEE" ? "EMPLOYEE" : process.env.NEXT_PUBLIC_D4_FIXTURE_ROLE === "MANAGER" ? "MANAGER" : "HR";
 const catalog = selectCatalog(KPI_V51_CATALOG);
 
@@ -34,30 +34,29 @@ function assessment(id: string, employeeId: string, roleOrder: number, period: s
   const lines = kpiLines(roleOrder, scores, ["98% SLA", "100% akurat", "H+1", "Piutang 6%", "Zero denda"]);
   return {
     id, definitionVersion: catalog.version, employeeId, roleOrder, roleName: indicatorsFor(catalog, roleOrder)[0].role_name,
-    period, evaluationDate: `${period}-25`, evaluatorName: "Christy Gardena", status, lines, overallScore: total(lines),
-    generalNotes: status === "completed" ? "Contoh scorecard fixture (sampel FR-D4-002, total 4.10)." : "", createdAt: `${period}-25T08:00:00.000Z`, actor: "Christy Gardena",
+    period, evaluationDate: `${period}-25`, evaluatorName: "Mercury", status, lines, overallScore: total(lines),
+    generalNotes: status === "completed" ? "Contoh scorecard fixture untuk pratinjau lokal." : "", createdAt: `${period}-25T08:00:00.000Z`, actor: "Mercury",
   };
 }
 
 function initialSnapshot(): D4LiveSnapshot {
-  const nadin = NADIN;
+  const alfa = ALFA;
   const finance = "d4000000-0000-4000-8000-000000000008";
-  const comparison = compareCompetencies(nadin, finance, d4ReferenceFixture);
+  const comparison = compareCompetencies(alfa, finance, d4ReferenceFixture);
   return {
     reference: d4ReferenceFixture,
     role: FIXTURE_ROLE,
-    actorEmployeeId: FIXTURE_ROLE === "EMPLOYEE" ? NADIN : HR_ACTOR,
+    actorEmployeeId: FIXTURE_ROLE === "EMPLOYEE" ? ALFA : HR_ACTOR,
     kpi: [],
     kpiAssessments: [
-      assessment("FIX-D4-KPI-001", nadin, 10, "2026-09", [4, 5, 4, 3, 4], "completed"),
-      assessment("FIX-D4-KPI-002", nadin, 10, "2026-06", [3, 4, 4, 3, 3], "completed"),
-      assessment("FIX-D4-KPI-003", "d4000000-0000-4000-8000-000000000016", 10, "2026-09", [4, 4, null, null, null], "draft"),
+      assessment("FIX-D4-KPI-001", alfa, 10, "2026-09", [4, 5, 4, 3, 4], "completed"),
+      assessment("FIX-D4-KPI-002", alfa, 10, "2026-06", [3, 4, 4, 3, 3], "completed"),
     ],
     performance: performanceFixtureRecords,
     competency: [{
-      id: "FIX-D4-COMP-ASSESS-001", source: "local-demo", employeeId: nadin, positionId: finance, effectiveDate: "2026-09-21",
+      id: "FIX-D4-COMP-ASSESS-001", source: "local-demo", employeeId: alfa, positionId: finance, effectiveDate: "2026-09-21",
       context: "current-position", findings: comparison.findings, overallStatus: comparison.overallStatus,
-      createdAt: "2026-09-21T09:00:00.000Z", actor: "Christy Gardena",
+      createdAt: "2026-09-21T09:00:00.000Z", actor: "Mercury",
     }],
     developmentVersions: developmentFixtureVersions,
     trainingVersions: trainingFixtureVersions,
@@ -88,6 +87,9 @@ export function createFixtureSource(): D4DataSource {
       assertWriter();
       const indicators = indicatorsFor(catalog, input.roleOrder);
       if (indicators.length !== 5) throw new Error("Jabatan KPI tidak ditemukan pada katalog.");
+      const employee = state.reference.employees.find((item) => item.id === input.employeeId);
+      const positionTitle = state.reference.positions.find((item) => item.id === employee?.positionId)?.title;
+      if (roleForPositionTitle(catalog, positionTitle) !== input.roleOrder) throw new Error("KPI yang dipilih bukan KPI untuk position employee ini.");
       if (input.status === "completed" && input.lines.some((line) => line.raw_score === null)) throw new Error("Seluruh lima indikator harus dinilai sebelum diselesaikan.");
       const id = newId("FIX-D4-KPI");
       update({ kpiAssessments: [{ ...input, id, definitionVersion: catalog.version, roleName: indicators[0].role_name, overallScore: total(input.lines), createdAt: now(), actor: actorName() }, ...(state.kpiAssessments ?? [])] });

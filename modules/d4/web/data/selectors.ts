@@ -86,6 +86,9 @@ export function formatScore(value: number | null | undefined, scale = 5): string
   return value === null || value === undefined ? "—" : `${value.toFixed(2)} / ${scale}`;
 }
 
+/** Raw-score criteria from KPI Scorecard V3.1/V5.1 sheet "KPI Scoring Card"; shared by KPI and evaluation results. */
+export const SCORE_LABELS: Record<number, string> = { 1: "Sangat Kurang", 2: "Kurang", 3: "Cukup", 4: "Baik", 5: "Sangat Baik" };
+
 export const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("");
 
 export const today = () => new Date().toISOString().slice(0, 10);

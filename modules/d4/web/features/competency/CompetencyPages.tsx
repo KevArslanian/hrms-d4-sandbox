@@ -10,7 +10,7 @@ import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, FormError, FormModal, ModalActions, SearchInput, SelectField, SelectFilter, TextField } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
-import { Button, ButtonLink, Card, MetricCard, Notice, SourceChip, statusLabel, StatusBadge } from "../../ui/primitives";
+import { Button, ButtonLink, Card, Notice, SourceChip, statusLabel, StatusBadge } from "../../ui/primitives";
 import { DevelopmentFormModal } from "../development/DevelopmentModals";
 
 type Row = { employee: EmployeeReference; position: string; status: CompetencyOverallStatus | "Belum Ada Posisi"; findings: CompetencyFinding[]; lastAssessed?: string };
@@ -31,17 +31,9 @@ export function CompetencyListPage() {
   }).filter((row) => includesText(`${row.employee.fullName} ${row.employee.employeeId}`, search)
     && (!position || row.employee.positionId === position) && (!status || statusLabel(row.status) === status))
     .sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName)), [snapshot, search, position, status]);
-  const all = visibleEmployees(snapshot).map((employee) => currentGap(snapshot, employee));
-  const count = (value: string) => all.filter((item) => item && statusLabel(item.overallStatus) === value).length;
 
   return <>
     <PageHeader title="Competency Gap" subtitle="Bandingkan capability/evidence employee dengan requirement position aktif (FR-D4-003)." />
-    <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(200px,1fr))]">
-      <MetricCard label="Terpenuhi" value={String(count("Terpenuhi"))} helper="Semua requirement terpenuhi" />
-      <MetricCard label="Gap" value={String(count("Gap"))} helper="Ada level di bawah requirement" />
-      <MetricCard label="Data belum cukup" value={String(count("Data Belum Cukup"))} helper="Evidence belum lengkap — bukan otomatis gap" />
-      <MetricCard label="Open development" value={String(developmentNeeds(snapshot).filter((item) => item.status !== "Completed").length)} helper="Kebutuhan development aktif" href="/development" />
-    </div>
     <FilterBar canReset={Boolean(search || position || status)} onReset={() => { setSearch(""); setPosition(""); setStatus(""); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Search employee name or ID" />
       <SelectFilter label="All positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />
@@ -127,7 +119,7 @@ export function CompetencyDetailPage({ employeeId }: { employeeId: string }) {
               <td className="max-w-[280px] px-5 py-3 text-ink-2">{finding.evidenceNotes?.trim() || "Belum ada evidence"}</td>
               <td className="px-5 py-3"><StatusBadge status={finding.status} /></td>
               <td className="px-5 py-3 text-right">{linked ? <SourceChip label="Development" reference={linked.status} href={`/development/${linked.needId}`} />
-                : finding.status === "Gap" && writer ? <Button variant="ghost" className="h-9" icon={<FilePlus2 className="size-4" />} onClick={() => setDevRef(finding.requirementId)}>Create Requirement</Button> : "—"}</td>
+                : finding.status === "Gap" && writer ? <Button variant="ghost" className="h-9" icon={<FilePlus2 className="size-4" />} onClick={() => setDevRef(finding.requirementId)}>Create Development Requirement</Button> : "—"}</td>
             </tr>;
           })}</tbody>
         </table>

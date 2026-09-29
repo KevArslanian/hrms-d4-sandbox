@@ -87,7 +87,7 @@ export function indicatorsFor(catalog: KpiCatalog, roleOrder: number): RoleKpiRo
 
 const normalise = (value: string) => value.toLocaleLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
-/** Maps an HR position title to a KPI role. Exact title first, then a keyword match; 0 means HR must choose. */
+/** Maps an HR position title to a KPI role. Exact title first, then a keyword match; 0 means the position has no KPI in the catalog (FR-02.11). */
 export function roleForPositionTitle(catalog: KpiCatalog, title: string | undefined): number {
   if (!title) return 0;
   const target = normalise(title);
@@ -95,7 +95,7 @@ export function roleForPositionTitle(catalog: KpiCatalog, title: string | undefi
   const exact = roles.find((role) => normalise(role.name) === target);
   if (exact) return exact.order;
   const keywords: [RegExp, RegExp][] = [
-    [/finance|accounting|admin/, /finance/], [/sales|marketing/, /sales/], [/customs|ppjk/, /customs/],
+    [/sales|marketing/, /sales/], [/finance|accounting|admin/, /finance/], [/customs|ppjk/, /customs/],
     [/warehouse|logistic/, /warehous/], [/airfreight|seafreight|freight/, /freight/], [/implant|edi|manifest/, /implant/],
     [/branch/, /branch/], [/operations director/, /operations director/], [/ceo|vice president/, /ceo/], [/^director/, /^director/],
   ];

@@ -1,31 +1,15 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
-import type { EvaluationAspect, ReviewStatus } from "../../../performance/types";
+import { useState, type FormEvent } from "react";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { employeeById, positionOf, thisMonth, today, visibleEmployees } from "../../data/selectors";
+import { departmentOf, employeeById, positionOf, SCORE_LABELS, thisMonth, today, visibleEmployees } from "../../data/selectors";
 import { FormError, FormModal, ModalActions, ReadOnlyField, SelectField, TextAreaField, TextField } from "../../ui/forms";
-import { Button } from "../../ui/primitives";
 
-const DEFAULT_ASPECTS: readonly EvaluationAspect[] = [
-  { name: "Work Quality", weight: 20, score: null, notes: "" },
-  { name: "Productivity", weight: 15, score: null, notes: "" },
-  { name: "Accuracy", weight: 15, score: null, notes: "" },
-  { name: "Team Collaboration", weight: 15, score: null, notes: "" },
-  { name: "Initiative & Growth", weight: 10, score: null, notes: "" },
-  { name: "Discipline", weight: 15, score: null, notes: "" },
-  { name: "Attendance", weight: 10, score: null, notes: "" },
-];
-
-const REVIEW: ReviewStatus[] = ["Needs Review", "On Track", "Needs Attention"];
-
-/** Weighted mean of the aspect scores (aspect weights are part of this form, not a KPI formula). */
-function overall(aspects: readonly EvaluationAspect[]): number | null {
-  if (aspects.some((item) => item.score === null)) return null;
-  const weight = aspects.reduce((sum, item) => sum + item.weight, 0);
-  return weight ? Math.round(aspects.reduce((sum, item) => sum + item.weight * (item.score ?? 0), 0) / weight * 100) / 100 : null;
-}
-
+/**
+ * FR-01.2: employee, period, result or notes, date, evaluator, optional evidence. The result is the
+ * evaluator's own 1–5 score (same scale as the KPI scorecard); the form adds no aspects, weights or
+ * review labels because FR-D4-001 defines none.
+ */
 export function EvaluationFormModal({ employeeId, onClose, onSaved }: { employeeId?: string; onClose: () => void; onSaved?: (id: string) => void }) {
   const snapshot = useSnapshot();
   const { run, busy } = useD4();
@@ -34,35 +18,28 @@ export function EvaluationFormModal({ employeeId, onClose, onSaved }: { employee
   const [period, setPeriod] = useState(thisMonth());
   const [date, setDate] = useState(today());
   const [evaluator, setEvaluator] = useState(actor?.fullName ?? "");
-  const [review, setReview] = useState<ReviewStatus>("Needs Review");
-  const [aspects, setAspects] = useState<EvaluationAspect[]>(DEFAULT_ASPECTS.map((item) => ({ ...item })));
+  const [score, setScore] = useState<number | null>(null);
   const [notes, setNotes] = useState("");
   const [evidence, setEvidence] = useState("");
   const [error, setError] = useState("");
   const [touched, setTouched] = useState(false);
-  const score = useMemo(() => overall(aspects), [aspects]);
-  const position = positionOf(snapshot, employeeById(snapshot, employee));
+  const selected = employeeById(snapshot, employee);
+  const missing = [!employee && "employee", !period && "periode", !date && "tanggal", !evaluator.trim() && "evaluator", score === null && "hasil evaluasi", !notes.trim() && "catatan evaluasi"].filter(Boolean);
 
-  function setAspect(index: number, patch: Partial<EvaluationAspect>) {
-    setAspects((items) => items.map((item, at) => at === index ? { ...item, ...patch } : item));
-  }
-
-  async function save(status: "draft" | "completed") {
+  async function submit(event: FormEvent) {
+    event.preventDefault();
     setTouched(true);
-    if (!employee) { setError("Pilih employee yang dievaluasi."); return; }
-    if (status === "completed" && (score === null || !date || !evaluator.trim())) { setError("Lengkapi tanggal, evaluator, dan skor 1–5 untuk semua aspek sebelum menyimpan evaluasi final."); return; }
+    if (missing.length) { setError(`Lengkapi ${missing.join(", ")} sebelum menyimpan.`); return; }
     setError("");
     const result = await run((source) => source.createEvaluation({
-      employeeId: employee, period, evaluationDate: date, evaluator, status, reviewStatus: review,
-      overallScore: score, aspects, generalNotes: notes, evidenceReference: evidence.trim() || null,
-    }), status === "draft" ? "Draft evaluasi tersimpan." : "Evaluasi kinerja tersimpan.");
+      employeeId: employee, period, evaluationDate: date, evaluator, status: "completed", reviewStatus: "Needs Review",
+      overallScore: score, aspects: [], generalNotes: notes, evidenceReference: evidence.trim() || null,
+    }), "Evaluasi kinerja tersimpan.");
     if (result.ok) { onSaved?.(result.value); onClose(); } else setError(result.error);
   }
 
-  function submit(event: FormEvent) { event.preventDefault(); void save("completed"); }
-
   return <FormModal title="Add Evaluation" description="Evaluasi baru disimpan sebagai riwayat periode; evaluasi periode sebelumnya tidak ditimpa." onClose={onClose}
-    footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Evaluation" secondary={<Button variant="ghost" disabled={busy} onClick={() => void save("draft")}>Save Draft</Button>} />}>
+    footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Evaluation" />}>
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />
       <div className="grid gap-4 sm:grid-cols-2">
@@ -70,31 +47,19 @@ export function EvaluationFormModal({ employeeId, onClose, onSaved }: { employee
           <option value="">Select employee</option>
           {visibleEmployees(snapshot).map((item) => <option key={item.id} value={item.id}>{item.fullName} · {item.employeeId}</option>)}
         </SelectField>
-        <ReadOnlyField label="Position" value={position?.title ?? "—"} />
-        <TextField label="Period" required type="month" value={period} onChange={(event) => setPeriod(event.target.value)} />
-        <TextField label="Evaluation date" required type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+        <ReadOnlyField label="Position" value={positionOf(snapshot, selected)?.title ?? "—"} />
+        <ReadOnlyField label="Department" value={departmentOf(snapshot, selected)?.name ?? "—"} />
+        <TextField label="Period" required type="month" value={period} onChange={(event) => setPeriod(event.target.value)} error={touched && !period ? "Periode wajib dipilih." : undefined} />
+        <TextField label="Evaluation date" required type="date" value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? "Tanggal wajib diisi." : undefined} />
         <TextField label="Evaluator" required value={evaluator} onChange={(event) => setEvaluator(event.target.value)} error={touched && !evaluator.trim() ? "Evaluator wajib diisi." : undefined} />
-        <SelectField label="Review status" required value={review} onChange={(event) => setReview(event.target.value as ReviewStatus)} helper="Label tinjauan manual oleh evaluator — bukan keputusan HR otomatis." className="sm:col-span-2">
-          {REVIEW.map((item) => <option key={item}>{item}</option>)}
+        <SelectField label="Hasil evaluasi" required value={score ?? ""} onChange={(event) => setScore(event.target.value ? Number(event.target.value) : null)}
+          error={touched && score === null ? "Hasil evaluasi wajib dipilih." : undefined} helper="Diisi evaluator; tidak memicu keputusan HR otomatis.">
+          <option value="">Select result</option>
+          {[5, 4, 3, 2, 1].map((value) => <option key={value} value={value}>{value} · {SCORE_LABELS[value]}</option>)}
         </SelectField>
       </div>
-      <fieldset className="rounded-2xl border border-line">
-        <legend className="ml-4 px-1 text-sm font-semibold text-ink-2">Aspek penilaian (skor 1–5)</legend>
-        <div className="divide-y divide-line">
-          {aspects.map((aspect, index) => <div key={aspect.name} className="grid items-center gap-3 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_64px_96px_minmax(0,1.2fr)]">
-            <span className="text-sm font-semibold text-ink">{aspect.name}</span>
-            <span className="text-xs text-ink-3">{aspect.weight}%</span>
-            <label className="sr-only" htmlFor={`aspect-${index}`}>Skor {aspect.name}</label>
-            <select id={`aspect-${index}`} value={aspect.score ?? ""} onChange={(event) => setAspect(index, { score: event.target.value ? Number(event.target.value) : null })}
-              aria-invalid={touched && aspect.score === null} className="h-9 rounded-lg border border-line-strong bg-surface px-2 text-sm aria-[invalid=true]:border-danger">
-              <option value="">—</option>{[1, 2, 3, 4, 5].map((value) => <option key={value} value={value}>{value}</option>)}
-            </select>
-            <input aria-label={`Catatan ${aspect.name}`} value={aspect.notes} onChange={(event) => setAspect(index, { notes: event.target.value })} placeholder="Catatan (opsional)" className="h-9 rounded-lg border border-line-strong px-3 text-sm" />
-          </div>)}
-        </div>
-        <div className="flex items-center justify-between border-t border-line bg-app px-4 py-3 text-sm"><span className="font-semibold text-ink-2">Skor keseluruhan (rata-rata berbobot aspek)</span><strong className="font-display text-lg text-ink">{score === null ? "—" : `${score.toFixed(2)} / 5`}</strong></div>
-      </fieldset>
-      <TextAreaField label="Catatan evaluasi" value={notes} onChange={(event) => setNotes(event.target.value)} />
+      <TextAreaField label="Catatan evaluasi" required value={notes} onChange={(event) => setNotes(event.target.value)} error={touched && !notes.trim() ? "Catatan evaluasi wajib diisi." : undefined}
+        helper="Termasuk rekomendasi/rencana pelatihan bila ada — dapat dipakai sebagai konteks Development Requirement." />
       <TextField label="Evidence / reference" value={evidence} onChange={(event) => setEvidence(event.target.value)} helper="Opsional: nomor dokumen atau tautan bukti." />
     </form>
   </FormModal>;
