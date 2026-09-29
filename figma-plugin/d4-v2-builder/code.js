@@ -218,8 +218,8 @@ async function card(parent, title, o = {}) {
 
 async function person(name, code) {
   const row = box("HORIZONTAL", { name: "Person", gap: 10, align: "CENTER" });
-  const avatar = add(row, box("HORIZONTAL", { name: "Avatar", fill: "primary/100", r: 999, w: 32, h: 32, align: "CENTER", justify: "CENTER" }));
-  add(avatar, await T(name.split(" ").map((w) => w[0]).join("").slice(0, 2), "D4/Badge", "primary/700"));
+  const avatar = add(row, box("HORIZONTAL", { name: "Avatar", fill: "status/success", r: 999, w: 32, h: 32, align: "CENTER", justify: "CENTER" }));
+  add(avatar, await T(name.split(" ").map((w) => w[0]).join("").slice(0, 2), "D4/Badge", "bg/surface"));
   const text = add(row, box("VERTICAL", { gap: 0 }));
   add(text, await T(name, "D4/Heading/Sub"));
   add(text, await T(code, "D4/Body/SM", "text/muted"));
@@ -286,8 +286,8 @@ async function detailHeader(parent, crumb, name, meta, status, actions) {
   add(nav, await T(crumb, "D4/Body/SM", "text/secondary"));
   const head = add(parent, box("HORIZONTAL", { name: "Detail Header", r: 16, p: 24, gap: 20, align: "CENTER", shadow: SHADOW_CARD }), { fillW: true });
   head.fills = [{ type: "GRADIENT_LINEAR", gradientTransform: [[1, 0, 0], [0, 1, 0]], gradientStops: [{ position: 0, color: { r: 0.02, g: 0.31, b: 0.84, a: 1 } }, { position: 1, color: { r: 0.23, g: 0.44, b: 0.96, a: 1 } }] }];
-  const avatar = add(head, box("HORIZONTAL", { name: "Avatar", fill: "bg/surface", r: 999, w: 56, h: 56, align: "CENTER", justify: "CENTER" }));
-  add(avatar, await T(name.split(" ").map((w) => w[0]).join("").slice(0, 2), "D4/Heading/Section", "primary/700"));
+  const avatar = add(head, box("HORIZONTAL", { name: "Avatar", fill: "status/success", r: 999, w: 56, h: 56, align: "CENTER", justify: "CENTER" }));
+  add(avatar, await T(name.split(" ").map((w) => w[0]).join("").slice(0, 2), "D4/Heading/Section", "bg/surface"));
   const text = add(head, box("VERTICAL", { gap: 6 }), { grow: true });
   const title = add(text, box("HORIZONTAL", { gap: 12, align: "CENTER" }));
   add(title, await T(name, "D4/Heading/Section", "text/inverse"));

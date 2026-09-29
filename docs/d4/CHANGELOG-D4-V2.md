@@ -31,6 +31,7 @@ Tanggal: 29 Sep 2026 · Branch: `feature/d4-v2-d2-style`
 
 ## Diubah
 
+- Aksen hijau mengikuti D3: avatar inisial employee hijau `#16A37A` dengan teks putih, avatar user login di topbar mint `#B4F9CA` dengan teks `#0B6B4F`. D3 memakai `#2EAA68` 71% dan `#94F7B3` 70%; nilai D4 digelapkan agar inisial tetap terbaca.
 - Status database `Bukti Belum Cukup` ditampilkan sebagai **Data Belum Cukup** dengan warna netral.
 - Training Completed menampilkan catatan bahwa gap tidak otomatis tertutup.
 - Semua perubahan status Development dan Training disimpan sebagai revisi (`POST …/versions`), bukan menimpa record.
