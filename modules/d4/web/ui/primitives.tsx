@@ -82,7 +82,7 @@ export function InfoGrid({ items, columns = 2 }: { items: { label: string; value
 
 export function Avatar({ name, size = "md" }: { name: string; size?: "md" | "lg" }) {
   const letters = name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("");
-  return <span aria-hidden="true" className={cx("flex shrink-0 items-center justify-center rounded-full bg-primary-100 font-semibold text-primary-700", size === "lg" ? "size-16 text-xl" : "size-9 text-xs")}>{letters || "?"}</span>;
+  return <span aria-hidden="true" className={cx("flex shrink-0 items-center justify-center rounded-full bg-avatar font-semibold text-white", size === "lg" ? "size-16 text-xl" : "size-9 text-xs")}>{letters || "?"}</span>;
 }
 
 export function Notice({ tone = "info", children }: { tone?: "info" | "warning"; children: ReactNode }) {

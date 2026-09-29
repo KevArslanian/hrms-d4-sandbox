@@ -83,7 +83,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <span className="rounded-lg p-2 text-ink-2" title="Notifikasi"><Bell aria-hidden="true" className="size-5" /><span className="sr-only">Notifikasi</span></span>
         <span aria-hidden="true" className="h-8 w-px bg-line" />
         <div className="flex items-center gap-2.5">
-          <span aria-hidden="true" className="flex size-9 items-center justify-center rounded-full bg-success-bg text-xs font-semibold text-success">{name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("")}</span>
+          <span aria-hidden="true" className="flex size-9 items-center justify-center rounded-full bg-avatar-me-bg text-xs font-semibold text-avatar-me">{name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("")}</span>
           <span className="hidden sm:block"><strong className="block text-sm font-semibold leading-5 text-ink">{name}</strong><span className="block text-xs text-ink-2">{roleLabel[snapshot?.role ?? ""] ?? "—"}</span></span>
         </div>
       </header>
