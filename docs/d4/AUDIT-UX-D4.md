@@ -84,7 +84,23 @@ Development Requirement (FR-D4-004) adalah **jembatan** antara temuan dan tindak
 
 ## 5. Aturan centang Planka
 
-Item dicentang hanya bila ada bukti yang bisa dibuka (commit, route, frame Figma). Item yang butuh data asli, keputusan PO, atau proses tim (handoff formal, konfirmasi readiness ke PO/QA, "desain final") **tidak** dicentang. Daftar item yang dicentang dan buktinya ada di komentar kartu Planka bertanggal 30 Sep 2026.
+Item dicentang hanya bila ada bukti yang bisa dibuka (commit, route, frame Figma). Item yang butuh data asli, keputusan PO, atau proses tim **tidak** dicentang. Hasil 30 Sep 2026 (131 item):
+
+| Kartu | Dicentang | Sengaja dibiarkan terbuka |
+|---|---|---|
+| Implementasi Training | Filter requirement sumber | — |
+| Implementasi Dashboard | Search, filter position/periode, periode, total KPI, 5 Core KPI, empty state, validation state | — |
+| Implementasi Competency Gap & Development Requirement | History saat pindah position, list, source perubahan position, konteks evaluasi, history, filter | — |
+| Implementasi KPI Scorecard | 5 Core KPI sesuai position, bobot, KPI position lain tidak tampil | Position **pada periode** (O1), KPI definition reference (O2) |
+| Implementasi Performance Evaluation | Rencana training sebagai konteks, success state | DoD yang butuh QA di data asli |
+| Security | Credential/token tidak ada di source | — |
+| Design Performance Evaluation & KPI Scorecard | Search/filter, validasi bobot (frame 10), tanpa label achieved, cakupan field & state | — |
+| Design Dashboard KPI Orang | Seluruh 25 item (frame 26–29, 35, 36; loading/error memakai pola bersama frame 30/32) | — |
+| Design Training Completion Tracking | 20 item (frame 21–25, 31, 32, 34) | Validation state (belum ada frame validasi training) |
+| Design Competency Gap & Development Requirement | 28 item (frame 13–20) | "Empty, validation, success, error state" Development (belum ada frame validasi requirement) |
+| UI Consistency Review, Handoff & Final Design Validation | 33 item (audit ini, UI-D4-001, frame 00 dan 28–36) | Handoff formal ke Webdev, konfirmasi readiness ke PO/QA, "semua fitur P0 punya desain final" — butuh persetujuan orang, bukan bukti artefak |
+
+Label kartu tidak diubah; usulan Front End / Back End ada di `drafts/planka/01-label.md`.
 
 ## 6. Verifikasi
 
