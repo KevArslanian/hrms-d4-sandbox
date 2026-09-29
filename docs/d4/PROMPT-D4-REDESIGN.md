@@ -306,7 +306,7 @@ Prompt di atas adalah rencana awal. Bagian berikut mencatat keputusan yang berub
 
 | Rencana | Pelaksanaan | Alasan |
 |---|---|---|
-| Frame V2 ditambahkan di page `D4` file PISD (`L5k46NNy2gX6xOq8e1dczQ`) | Dibangun di file baru **PISD – D4 V2** (`bpUIPDcmpjGbYzg0JuZnPH`), page `D4`, lalu disalin ke PISD oleh pemilik edit | Akun hanya punya akses view ke PISD; user memilih "Build di file baru dulu" |
+| Frame V2 ditambahkan di page `D4` file PISD (`L5k46NNy2gX6xOq8e1dczQ`) | Dibangun di file baru **D4 V2** (`blDVBM6m8VC02A7PvouX4F`, tim student; file pertama `bpUIPDcmpjGbYzg0JuZnPH` tidak bisa diakses lagi), page `D4`, lalu disalin ke PISD oleh pemilik edit | Akun hanya punya akses view ke PISD; user memilih "Build di file baru dulu" |
 | Nama endpoint `evaluations`, `kpi-scorecards`, `competency-gaps`, `development-requirements`, `trainings` | `performance-evaluations`, `kpi-assessments`, `competency-assessments`, `development-needs`, `training-records` | Mengikuti nama tabel dan endpoint yang sudah ada di branch `feature/D4-api-endpoints`, agar tidak memecah klien lama. Pola folder resource → `index.ts` tetap dipakai |
 | PATCH untuk edit | Revisi ditambahkan lewat `POST …/:id/versions` (development, training) atau record baru (evaluasi, KPI, competency) | Skema D4 bersifat append-only; riwayat tidak boleh tertimpa |
 | Validasi dengan zod | Validator kecil `field.*` di `modules/d4/server/_lib/http.ts` | Tidak menambah dependensi baru di luar lockfile repo resmi |

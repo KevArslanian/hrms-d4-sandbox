@@ -27,6 +27,7 @@ Tanggal: 29 Sep 2026 · Branch: `feature/d4-v2-d2-style`
 - **Seeder** `npm run seed:d4` (dry run default, `--apply` untuk menulis, penanda `[seed-d4]`).
 - **Filter source requirement** di Training Tracking.
 - **Periode sumber** di bawah skor KPI dan Performance pada tabel People Dashboard.
+- **Figma**: 34 frame D4 V2 dan 9 prototype link di https://www.figma.com/design/blDVBM6m8VC02A7PvouX4F (page `D4`). Metric card dibagi rata per baris (6 kartu: 6 kolom di 1440, 3 + 3 di 1280/768), source chip yang lebih lebar dari kolomnya memotong referensinya dengan elipsis.
 - **Dokumentasi**: UI-D4-001, API-D4-001, brief redesign, draft Docmost/Planka.
 
 ## Diubah
@@ -49,7 +50,6 @@ Tanggal: 29 Sep 2026 · Branch: `feature/d4-v2-d2-style`
 
 | Item | Alasan | Langkah berikut |
 |---|---|---|
-| Frame Figma 01–34 | Kuota panggilan Figma MCP (plan Starter) habis | Jalankan plugin `figma-plugin/d4-v2-builder` di file D4 V2 |
 | Migrasi KPI V5.1 di Supabase bersama | Memengaruhi project bersama, perlu persetujuan | PO/Back End menyetujui, lalu terapkan migrasi |
 | KPI berdasarkan position **pada periode** | Butuh riwayat position per periode dari D3 | Open decision di FR-D4-002 |
 | QA di data asli | Mode live butuh akun HR/Manager dan data seed | `npm run seed:d4 -- --apply`, lalu skenario QA di `drafts/planka/03-…` |

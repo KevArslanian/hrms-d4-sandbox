@@ -1,6 +1,6 @@
 # D4 V2 Screen Builder (plugin Figma lokal)
 
-Membangun 34 frame layar D4 V2 berformat D3 (`NN HRMS D4 - <Layar> (<Role>)`, 1440 × 1024) di file **PISD – D4 V2** (https://www.figma.com/design/bpUIPDcmpjGbYzg0JuZnPH), memakai variable **D4 V2 Tokens**, text style `D4/*`, dan komponen di board **00 Foundations & Components**.
+Membangun 34 frame layar D4 V2 berformat D3 (`NN HRMS D4 - <Layar> (<Role>)`, 1440 × 1024) di file **D4 V2** (https://www.figma.com/design/blDVBM6m8VC02A7PvouX4F, tim student), memakai variable **D4 V2 Tokens**, text style `D4/*`, dan komponen di board **00 Foundations & Components**.
 
 Plugin ini dipakai karena kuota panggilan Figma MCP pada plan Starter habis sebelum frame selesai dibuat.
 
