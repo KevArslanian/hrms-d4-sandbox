@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type FormEvent, type MouseEvent, type ReactNode } from "react";
+import { X } from "lucide-react";
 import { compareCompetencies } from "../../competency/service";
 import type { DevelopmentPriority, DevelopmentSourceType } from "../../development/types";
 import type { TrainingStatus, TrainingVersion } from "../../training/types";
@@ -50,8 +51,8 @@ function url(view: View, params: Record<string, string | undefined> = {}) {
 function Title({ title, subtitle, actions, back }: { title: string; subtitle: string; actions?: ReactNode; back?: () => void }) {
   return <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
     <div>{back && <button type="button" onClick={back} className="mb-2 text-[13px] font-semibold text-[#64748b] hover:text-[#3b6ff5]">← Back</button>}
-      <h2 className="text-2xl font-bold tracking-[-0.6px] text-[#121b2e]">{title}</h2>
-      <p className="mt-1 text-sm text-[#4d5f81]">{subtitle}</p></div>
+      <h2 className="text-[25px] font-bold tracking-tight text-[#1d335b]">{title}</h2>
+      <p className="mt-1 text-xs text-[#7786a1]">{subtitle}</p></div>
     {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
   </div>;
 }
@@ -83,6 +84,7 @@ function Tracking({ snapshot, navigate, employeeId }: TrainingPagesProps) {
   const [selectedPeriod, setSelectedPeriod] = useState("");
   const [status, setStatus] = useState("");
   const [selectedId, setSelectedId] = useState("");
+  const [anchor, setAnchor] = useState<{ top: number; right: number; mobile: boolean } | null>(null);
   const periods = [...new Set(all.map((item) => item.date.slice(0, 7)))].sort().reverse();
   const filtered = all.filter((item) => {
     const employee = person(snapshot, item.employeeId);
@@ -93,6 +95,22 @@ function Tracking({ snapshot, navigate, employeeId }: TrainingPagesProps) {
       && (!status || item.status === status);
   });
   const selected = filtered.find((item) => item.trainingId === selectedId) ?? null;
+  useEffect(() => {
+    if (!selectedId) return;
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") setSelectedId(""); };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [selectedId]);
+  function toggleDetail(event: MouseEvent<HTMLButtonElement>, trainingId: string) {
+    if (selectedId === trainingId) { setSelectedId(""); return; }
+    const button = event.currentTarget.getBoundingClientRect();
+    const panelHeight = Math.min(420, window.innerHeight - 32);
+    const below = button.bottom + 8;
+    const top = below + panelHeight <= window.innerHeight - 16
+      ? below : Math.max(16, button.top - panelHeight - 8);
+    setAnchor({ top, right: Math.max(16, window.innerWidth - button.right), mobile: window.innerWidth < 640 });
+    setSelectedId(trainingId);
+  }
   return <div className="space-y-5">
     <Title title="Training Tracking" subtitle="Track training and development records from requirement to completion" actions={<>
       <button type="button" onClick={() => exportCsv(snapshot, filtered)} className={secondary}>Export CSV</button>
@@ -104,22 +122,26 @@ function Tracking({ snapshot, navigate, employeeId }: TrainingPagesProps) {
       <select aria-label="Filter period" value={selectedPeriod} onChange={(event) => setSelectedPeriod(event.target.value)} className={field.replace("mt-1 ", "")}><option value="">All Period</option>{periods.map((item) => <option key={item} value={item}>{item}</option>)}</select>
       <select aria-label="Filter status" value={status} onChange={(event) => setStatus(event.target.value)} className={field.replace("mt-1 ", "")}><option value="">All Status</option>{(["Planned", "In Progress", "Completed", "Cancelled"] as TrainingStatus[]).map((item) => <option key={item}>{item}</option>)}</select>
     </div>
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(280px,330px)]">
-      <div className={`${card} min-w-0 overflow-x-auto`}><table className="w-full min-w-[720px] text-left text-xs text-[#172033]"><thead className="bg-[#f1f3ff]/70 text-[11px] uppercase tracking-[0.5px] text-[#4d5f81]"><tr>{["Employees", "Training / development", "Source requirement", "Period", "Status", "Actions"].map((item) => <th key={item} className="px-3 py-3 font-semibold">{item}</th>)}</tr></thead><tbody>{filtered.map((item) => {
+    <section className={`${card} overflow-hidden`}>
+      <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-left text-xs text-[#172033]"><thead className="bg-[#f1f3ff]/70 text-[11px] uppercase tracking-[0.5px] text-[#4d5f81]"><tr>{["Employees", "Training / development", "Source requirement", "Period", "Status", "Actions"].map((item) => <th key={item} className="px-3 py-3 font-semibold">{item}</th>)}</tr></thead><tbody>{filtered.map((item) => {
         const employee = person(snapshot, item.employeeId); const need = source(snapshot, item);
         return <tr key={item.trainingId} className={`border-t border-[#edf0f5] ${selected?.trainingId === item.trainingId ? "bg-[#f8faff]" : "hover:bg-[#fafbff]"}`}>
           <td className="px-3 py-3"><strong className="block text-[#121b2e]">{employee?.fullName ?? "Employee tidak tersedia"}</strong><span className="text-[10px] text-[#64748b]">{employee?.employeeId ?? ""}</span></td>
           <td className="px-3 py-3">{item.activity}</td><td className="px-3 py-3">{need?.sourceRef || "-"}</td><td className="px-3 py-3">{period(item.date)}</td>
-          <td className="px-3 py-3"><Badge status={item.status} /></td><td className="px-3 py-3"><button type="button" aria-label={`Detail ${item.activity}`} onClick={() => setSelectedId(item.trainingId)} className="font-semibold text-[#3b6ff5] hover:underline">Detail</button></td>
+          <td className="px-3 py-3"><Badge status={item.status} /></td><td className="px-3 py-3"><button type="button" aria-label={`Detail ${item.activity}`} aria-expanded={selected?.trainingId === item.trainingId} aria-haspopup="dialog" onClick={(event) => toggleDetail(event, item.trainingId)} className="font-semibold text-[#3b6ff5] hover:underline">Detail</button></td>
         </tr>;
-      })}</tbody></table>{!filtered.length && <Empty>Belum ada training yang cocok dengan filter.</Empty>}<p className="border-t border-[#edf0f5] px-3 py-3 text-[11px] text-[#64748b]">Showing {filtered.length} of {all.length} training records</p></div>
-      <div className={`${card} h-fit p-5`}><p className="text-[11px] font-semibold text-[#64748b]">Training Detail</p>{selected ? <>
+      })}</tbody></table></div>{!filtered.length && <Empty>Belum ada training yang cocok dengan filter.</Empty>}<p className="border-t border-[#edf0f5] px-3 py-3 text-[11px] text-[#64748b]">Showing {filtered.length} of {all.length} training records</p>
+    </section>
+    {selected && <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:block sm:p-0">
+      <button type="button" aria-label="Tutup detail training" onClick={() => setSelectedId("")} className="absolute inset-0 bg-[#0d2142]/20 sm:bg-transparent" />
+      <section role="dialog" aria-label={`Training Detail ${selected.activity}`} style={anchor && !anchor.mobile ? { top: anchor.top, right: anchor.right } : undefined} className={`${card} relative z-10 max-h-[calc(100vh-2rem)] w-full max-w-[380px] overflow-y-auto p-5 shadow-[0_18px_50px_rgba(12,32,64,0.18)] sm:fixed`}>
+        <div className="flex items-center justify-between gap-3"><p className="text-[11px] font-semibold text-[#64748b]">Training Detail</p><button type="button" aria-label="Tutup" onClick={() => setSelectedId("")} className="rounded-md p-1 text-[#64748b] hover:bg-[#f1f3ff]"><X size={16} /></button></div>
         <h3 className="mt-3 text-base font-bold text-[#121b2e]">{selected.activity}</h3><p className="mt-1 text-xs text-[#64748b]">{person(snapshot, selected.employeeId)?.fullName ?? "Employee tidak tersedia"} · {person(snapshot, selected.employeeId)?.employeeId ?? ""}</p>
-        <dl className="mt-5 grid grid-cols-[110px_1fr] gap-y-4 text-xs"><dt className="text-[#64748b]">Source Requirement</dt><dd className="font-semibold text-[#172033]">{source(snapshot, selected)?.sourceRef || "-"}</dd><dt className="text-[#64748b]">Period</dt><dd>{prettyDate(selected.date)}</dd><dt className="text-[#64748b]">Status</dt><dd><Badge status={selected.status} /></dd><dt className="text-[#64748b]">Result</dt><dd>{selected.result || "Belum dicatat"}</dd></dl>
-        <p className="mt-5 text-[11px] text-[#64748b]">Persentase progres belum disimpan dalam data D4. Status dan catatan tersedia.</p>
+        <dl className="mt-5 grid grid-cols-[115px_1fr] gap-y-4 text-xs"><dt className="text-[#64748b]">Source Requirement</dt><dd className="break-words font-semibold text-[#172033]">{source(snapshot, selected)?.sourceRef || "-"}</dd><dt className="text-[#64748b]">Period</dt><dd>{prettyDate(selected.date)}</dd><dt className="text-[#64748b]">Status</dt><dd><Badge status={selected.status} /></dd><dt className="text-[#64748b]">Result</dt><dd>{selected.result || "Belum dicatat"}</dd></dl>
+        <p className="mt-5 rounded-md bg-[#f4f6fa] p-3 text-[11px] text-[#64748b]">Persentase progres belum disimpan dalam data D4. Status dan catatan tersedia.</p>
         <div className="mt-5 flex flex-wrap gap-2">{canWrite(snapshot) && <button type="button" onClick={() => navigate(url("progress", { trainingId: selected.trainingId }))} className={primary}>Update Progress</button>}<button type="button" onClick={() => navigate(url("history", { employeeId: selected.employeeId, trainingId: selected.trainingId }))} className={secondary}>View History</button></div>
-      </> : <Empty>Pilih training untuk melihat detail.</Empty>}</div>
-    </div>
+      </section>
+    </div>}
   </div>;
 }
 
