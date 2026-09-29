@@ -1,7 +1,13 @@
 # Competency Gap, FR-D4-003
 
-Sumber kebutuhan: Docmost `FR-D4-003` (`FGi95rfKIP`). Figma D4 menampilkan Competency Needs pada gambar komposit node `1370:2179`; layar ini bukan frame editable terpisah.
+Sumber kebutuhan: Docmost `FR-D4-003` (`FGi95rfKIP`).
 
-Perbandingan memakai requirement posisi dan skill employee dari fixture terpisah. Satu temuan adalah `Terpenuhi` jika level memenuhi syarat dan evidence ada, `Gap` jika level kurang dengan evidence, atau `Bukti Belum Cukup` jika skill/evidence tidak tersedia. Setiap temuan membawa referensi record requirement dan skill yang dipakai.
+| Bagian | Lokasi |
+|---|---|
+| Perbandingan requirement vs skill | `service.ts` (`compareCompetencies`) |
+| Halaman list, detail, history | `modules/d4/web/features/competency/CompetencyPages.tsx` |
+| API | `modules/d4/server/competency-assessments/index.ts` |
 
-Pengguna demo dapat memilih posisi pembanding dan menyimpan snapshot bertanggal. Snapshot lama tetap ada saat posisi pembanding berubah. Aksi tersebut tidak mengubah master employee. Integrasi dengan sumber Supabase dan histori posisi sebenarnya dilakukan pada STEP 6.
+Satu temuan bernilai `Terpenuhi` bila level memenuhi syarat dan evidence ada, `Gap` bila level kurang dan evidence ada, atau `Bukti Belum Cukup` bila skill atau evidence tidak tersedia. UI menampilkan status terakhir sebagai **Data Belum Cukup** dengan warna netral. Gap dihitung ulang di server saat assessment disimpan; nilai dari klien tidak dipakai.
+
+Assessment menyimpan snapshot position, sehingga riwayat tetap utuh saat employee pindah position. Assessment dengan konteks `role-change` dapat menjadi source Development Requirement. Training yang selesai tidak mengubah evidence atau menutup gap.
