@@ -10,12 +10,12 @@
 
 ## Figma
 
-File **PISD – D4 V2**: https://www.figma.com/design/bpUIPDcmpjGbYzg0JuZnPH
+File **D4 V2**: https://www.figma.com/design/blDVBM6m8VC02A7PvouX4F (tim student)
 
-Dibuat sebagai file baru karena file PISD tim hanya bisa dibaca oleh akun ini. Isi saat ini:
+Dibuat sebagai file baru karena file PISD tim hanya bisa dibaca oleh akun ini. File pertama (`bpUIPDcmpjGbYzg0JuZnPH`) tidak bisa diakses lagi, jadi semua isi dibangun ulang di file ini. Isi saat ini:
 
 - Variable collection **D4 V2 Tokens** (warna) dan text style `D4/*`.
 - Board **00 Foundations & Components** dengan component set Button, Status Badge, Source Chip, Row Action Trigger, Menu Item, Toast, Metric Card, Form Field, Sidebar (6 varian menu aktif), Topbar, dan Pagination.
-- Frame layar 01–34 dibangun dengan plugin lokal [`figma-plugin/d4-v2-builder`](../../figma-plugin/d4-v2-builder/README.md), karena kuota panggilan Figma MCP pada plan Starter sudah habis.
+- Frame layar 01–34 di page `D4`, 7 baris per fitur, dengan 9 prototype link (⋮ → menu → Detail/History/Create, Save → Success Toast). Kode pembangunnya ada di plugin lokal [`figma-plugin/d4-v2-builder`](../../figma-plugin/d4-v2-builder/README.md), jadi frame bisa dibangun ulang di file lain.
 
 Setelah frame selesai, file ini dapat disalin ke page `D4` di file PISD oleh anggota tim yang punya akses edit.

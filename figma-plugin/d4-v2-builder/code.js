@@ -148,6 +148,20 @@ function chip(source, reference) {
   return instance;
 }
 
+// Runs after layout: a chip wider than its column fills the column and ellipsizes the reference, so the source type stays readable.
+function fitChips(frame) {
+  for (const c of frame.findAll((n) => n.type === "INSTANCE" && n.name === "Source Chip")) {
+    const p = c.parent;
+    if (!p || p.layoutMode === "NONE" || c.width <= p.width - (p.paddingLeft || 0) - (p.paddingRight || 0) + 0.5) continue;
+    const ref = c.findOne((n) => n.type === "TEXT" && n.name === "Reference");
+    c.layoutSizingHorizontal = "FILL";
+    ref.textAutoResize = "HEIGHT";
+    ref.layoutSizingHorizontal = "FILL";
+    ref.maxLines = 1;
+    ref.textTruncation = "ENDING";
+  }
+}
+
 function field(label, value, o = {}) {
   const instance = inst("Form Field", { State: o.state || "Default", Type: o.select ? "Select" : "Input" }, { Label: label, Value: value, Helper: o.helper || " " });
   if (!o.helper) { const helper = instance.findOne((n) => n.name === "Helper"); if (helper) helper.visible = false; }
@@ -248,7 +262,7 @@ async function table(parent, columns, rows, o = {}) {
     const cell = add(head, box("HORIZONTAL", { name: "th - " + col.h, w: col.w || 120 }), { grow: col.grow });
     add(cell, await T(col.h, "D4/Label/Caps", "text/muted"));
   }
-  if (o.actions !== false) head.appendChild(box("HORIZONTAL", { name: "th - action", w: 36 }));
+  if (o.actions !== false) head.appendChild(box("HORIZONTAL", { name: "th - action", w: 36, h: 16 }));
   const triggers = [];
   for (const row of rows) {
     const r = add(c, box("HORIZONTAL", { name: "Row", fill: row.highlight ? "primary/50" : "bg/surface", p: [12, 20, 12, 20], gap: 16, align: "CENTER" }), { fillW: true });
@@ -256,7 +270,9 @@ async function table(parent, columns, rows, o = {}) {
     for (let i = 0; i < columns.length; i++) {
       const col = columns[i];
       const cell = add(r, box("HORIZONTAL", { name: "td - " + col.h, w: col.w || 120, align: "CENTER" }), { grow: col.grow });
-      cell.appendChild(await cellContent(row.cells[i], col.grow ? undefined : (col.w || 120)));
+      const content = cell.appendChild(await cellContent(row.cells[i], col.grow ? undefined : (col.w || 120)));
+      // refOnly: the header already names the source type, so the chip shows just the reference.
+      if (col.refOnly && content.findOne) { const label = content.findOne((n) => n.type === "TEXT" && n.name === "Label"); if (label) label.visible = false; }
     }
     if (o.actions !== false) triggers.push(add(r, inst("Row Action Trigger")));
   }
@@ -269,7 +285,9 @@ async function table(parent, columns, rows, o = {}) {
 }
 
 async function metrics(parent, items, contentWidth) {
-  const perRow = Math.max(1, Math.min(items.length, Math.floor((contentWidth + 16) / (200 + 16))));
+  // Min card width 160; when the cards don't fill whole rows, balance them (6 in 5 columns → 3 + 3) so no card sits alone.
+  const fit = Math.max(1, Math.min(items.length, Math.floor((contentWidth + 16) / (160 + 16))));
+  const perRow = Math.ceil(items.length / Math.ceil(items.length / fit));
   const width = Math.floor((contentWidth - 16 * (perRow - 1)) / perRow);
   const grid = add(parent, box("HORIZONTAL", { name: "Metric Grid", gap: 16, wrap: true }), { fillW: true });
   for (const [label, value, helper] of items) {
@@ -379,11 +397,11 @@ async function fieldGrid(parent, width, fields) {
 }
 
 async function menuAt(frame, trigger, labels) {
-  const menu = box("VERTICAL", { name: "Row Action Menu", fill: "bg/surface", r: 12, p: 6, gap: 2, stroke: "border/default", shadow: SHADOW_MODAL, w: 224 });
+  const menu = box("VERTICAL", { name: "Row Action Menu", fill: "bg/surface", r: 12, p: 6, gap: 2, stroke: "border/default", shadow: SHADOW_MODAL, w: 264 });
   for (const label of labels) { const item = inst("Menu Item", {}, { Label: label }); add(menu, item, { fillW: true }); }
   const t = trigger.absoluteBoundingBox;
   const f = frame.absoluteBoundingBox;
-  absolute(frame, menu, Math.round(t.x - f.x + t.width - 224), Math.round(t.y - f.y + t.height + 6));
+  absolute(frame, menu, Math.round(t.x - f.x + t.width - 264), Math.round(t.y - f.y + t.height + 6));
   return menu;
 }
 
@@ -657,7 +675,7 @@ async function trainingList(no, o = {}) {
   await pageHeader(s.content, "Training Tracking", "Aktivitas pengembangan yang terhubung ke Development Requirement (FR-D4-005).", "Add Training");
   await metrics(s.content, [["Planned", "2"], ["In Progress", "1"], ["Completed", "1", "Tidak otomatis menutup gap"], ["Cancelled", "1"]], s.contentWidth);
   await filterBar(s.content, "Search employee or activity", ["All status", "All source requirements"]);
-  const t = await table(s.content, [{ h: "Employee", w: 200 }, { h: "Activity", grow: true }, { h: "Source requirement", w: 230 }, { h: "Date", w: 110 }, { h: "Status", w: 130 }],
+  const t = await table(s.content, [{ h: "Employee", w: 200 }, { h: "Activity", grow: true }, { h: "Source requirement", w: 230, refOnly: true }, { h: "Date", w: 110 }, { h: "Status", w: 130 }],
     TRAIN_ROWS.map(([i, activity, source, date, status]) => ({ cells: [P_(i), { strong: activity }, { chip: source }, date, { badge: status }] })), { info: "Showing 1–5 of 5" });
   return Object.assign(s, t);
 }
@@ -753,14 +771,27 @@ async function stateScreen(no, title, kind) {
 
 // ---------- prototype ----------
 
-async function link(from, toNo) {
-  const target = FRAMES[toNo];
-  if (!from || !target) return;
-  try {
-    await from.setReactionsAsync([{ trigger: { type: "ON_CLICK" }, actions: [{ type: "NODE", destinationId: target.id, navigation: "NAVIGATE", transition: { type: "SMART_ANIMATE", easing: { type: "EASE_OUT" }, duration: 0.2 }, preserveScrollPosition: false }] }]);
-  } catch (error) {
-    console.warn("Prototype link skipped", error);
+// Links are resolved after every frame exists: a target built later in the same row (01 → 02) or in a
+// later row (14 → 18, 03 → 34) is not in FRAMES yet when the source is created.
+const LINKS = [];
+
+function link(from, toNo) {
+  if (from) LINKS.push([from, toNo]);
+}
+
+async function applyLinks(page) {
+  let applied = 0;
+  for (const [from, no] of LINKS) {
+    const target = FRAMES[no] || page.children.find((n) => n.type === "FRAME" && n.name.startsWith(no + " HRMS D4 - "));
+    if (!target || from.removed) continue;
+    try {
+      await from.setReactionsAsync([{ trigger: { type: "ON_CLICK" }, actions: [{ type: "NODE", destinationId: target.id, navigation: "NAVIGATE", transition: { type: "SMART_ANIMATE", easing: { type: "EASE_OUT" }, duration: 0.2 }, preserveScrollPosition: false }] }]);
+      applied++;
+    } catch (error) {
+      console.warn("Prototype link skipped", error);
+    }
   }
+  return applied;
 }
 
 // ---------- main ----------
@@ -791,10 +822,10 @@ async function main() {
   const rows = [
     ["Baris 1 · Performance Evaluation (FR-D4-001)", async () => {
       const list = await performanceList("01");
-      if (list.triggers[3]) await link(list.triggers[3], "02");
+      if (list.triggers[3]) link(list.triggers[3], "02");
       const open = await performanceList("02", { title: "Performance List - Action Menu Open", highlight: 3 });
       const menu = await menuAt(open.frame, open.triggers[3], ["View Detail", "View History", "Open KPI Scorecard", "Add Evaluation"]);
-      await link(menu.children[0], "05"); await link(menu.children[1], "06"); await link(menu.children[3], "03");
+      link(menu.children[0], "05"); link(menu.children[1], "06"); link(menu.children[3], "03");
       const add1 = await performanceList("03", { title: "Add Evaluation Modal" });
       await evaluationForm(add1.frame);
       const add2 = await performanceList("04", { title: "Add Evaluation - Validation Error" });
@@ -813,10 +844,10 @@ async function main() {
     }],
     ["Baris 3 · Competency Gap (FR-D4-003)", async () => {
       const list = await competencyList("13");
-      if (list.triggers[3]) await link(list.triggers[3], "14");
+      if (list.triggers[3]) link(list.triggers[3], "14");
       const open = await competencyList("14", { title: "Competency List - Action Menu Open", highlight: 3 });
       const menu = await menuAt(open.frame, open.triggers[3], ["View Detail", "View History", "Create Development Requirement"]);
-      await link(menu.children[0], "15"); await link(menu.children[2], "18");
+      link(menu.children[0], "15"); link(menu.children[2], "18");
       await competencyDetail("15");
       await competencyHistory("16");
     }],
@@ -854,7 +885,7 @@ async function main() {
     }],
     ["Baris 6 · People Dashboard (FR-D4-006)", async () => {
       const d = await dashboard("26");
-      if (d.triggers[3]) await link(d.triggers[3], "27");
+      if (d.triggers[3]) link(d.triggers[3], "27");
       await employeeProfile("27");
       await dashboard("28", { title: "People Dashboard - 1280", width: 1280 });
       await dashboard("29", { title: "People Dashboard - 768", width: 768 });
@@ -890,7 +921,9 @@ async function main() {
   }
 
   const footer = FRAMES["03"] && FRAMES["03"].findOne((n) => n.name === "Modal Footer");
-  if (footer) await link(footer.children[footer.children.length - 1], "34");
+  if (footer) link(footer.children[footer.children.length - 1], "34");
+  for (const frame of Object.values(FRAMES)) fitChips(frame);
+  await applyLinks(page);
   figma.viewport.scrollAndZoomIntoView(Object.values(FRAMES));
   return Object.keys(FRAMES).length;
 }
