@@ -63,7 +63,7 @@ export default function LoginPage() {
           <div className={styles.passwordField}>
             <input id="password" name="password" type={showPassword ? "text" : "password"} autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required />
             <button type="button" className={styles.visibilityButton} aria-label={showPassword ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"} aria-pressed={showPassword} onClick={() => setShowPassword((visible) => !visible)}>
-              {showPassword ? <Eye size={24} aria-hidden="true" /> : <Image src="/auth/visibility-off.svg" width={32} height={32} alt="" aria-hidden="true" />}
+              {showPassword ? <Eye size={20} aria-hidden="true" /> : <Image src="/auth/visibility-off.svg" width={24} height={24} alt="" aria-hidden="true" />}
             </button>
           </div>
         </div>
