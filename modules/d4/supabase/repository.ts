@@ -44,6 +44,20 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
     return data.user;
   }
 
+  /** Evaluator name comes from the signed-in account, never from form or API input. */
+  private async loginProfileName(): Promise<string> {
+    const user = await this.requireUser();
+    const { data: access } = await this.client.from("d3_user_access")
+      .select("employee_id").eq("auth_user_id", user.id).maybeSingle();
+    if (access?.employee_id) {
+      const { data: employee } = await this.client.from("d3_employee")
+        .select("full_name").eq("id", access.employee_id).maybeSingle();
+      if (employee?.full_name?.trim()) return employee.full_name.trim();
+    }
+    if (user.email) return user.email;
+    throw new Error("Nama penilai tidak ditemukan pada profil akun login.");
+  }
+
   async loadReferenceData(): Promise<ReferenceDataSnapshot> {
     await this.requireUser();
     const [departmentsResult, positionsResult, employeesResult, competenciesResult, requirementsResult, skillsResult] = await Promise.all([
@@ -148,26 +162,27 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
         result: version.result, notes: version.notes, createdAt: version.created_at,
         actor: actorName(reference, version.actor_employee_id) }];
     });
-    return { reference, role: access.app_role, actorEmployeeId: access.employee_id,
+    const actorProfile = reference.employees.find((item) => item.id === access.employee_id)?.fullName;
+    return { reference, role: access.app_role, actorEmployeeId: access.employee_id, actorName: actorProfile ?? user.email ?? "",
       kpi, kpiAssessments, performance, competency, developmentVersions, trainingVersions };
   }
 
   async saveKpiAssessment(input: KpiAssessmentInput): Promise<string> {
-    await this.requireUser();
+    const evaluatorName = await this.loginProfileName();
     if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(input.period)) throw new Error("Periode penilaian wajib dipilih.");
     if (input.lines.length !== 5) throw new Error("Penilaian harus memiliki lima indikator KPI.");
     const result = await this.client.from("d4_kpi_assessments").insert({
       definition_version: input.definitionVersion || ACTIVE_KPI_VERSION,
       employee_id: input.employeeId, role_order: input.roleOrder, role_name: input.roleName,
       period: input.period, evaluation_date: input.evaluationDate || null,
-      evaluator_name: input.evaluatorName.trim(), status: input.status,
+      evaluator_name: evaluatorName, status: input.status,
       lines: input.lines, general_notes: input.generalNotes.trim(),
     }).select("id").single();
     return take(result, "Simpan penilaian KPI").id;
   }
 
-  async savePerformance(input: EvaluationInput, reference: ReferenceDataSnapshot): Promise<string> {
-    await this.requireUser();
+  async savePerformance(evaluationInput: EvaluationInput, reference: ReferenceDataSnapshot): Promise<string> {
+    const input = { ...evaluationInput, evaluator: await this.loginProfileName() };
     const employee = reference.employees.find((item) => item.id === input.employeeId);
     const position = reference.positions.find((item) => item.id === employee?.positionId);
     if (!position) throw new Error("Posisi employee tidak tersedia.");
@@ -175,7 +190,7 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
     const result = await this.client.from("d4_performance_evaluations").insert({
       employee_id: employee!.id, position_id: position.id, position_title_snapshot: position.title,
       period: input.period, evaluation_date: input.evaluationDate || null,
-      evaluator_name_snapshot: input.evaluator.trim(), status: input.status,
+      evaluator_name_snapshot: input.evaluator, status: input.status,
       review_status: input.reviewStatus, overall_score: input.overallScore,
       aspects: input.aspects, general_notes: input.generalNotes.trim(),
       evidence_reference: input.evidenceReference?.trim() || null,

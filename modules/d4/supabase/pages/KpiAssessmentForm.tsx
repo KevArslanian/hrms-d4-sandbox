@@ -12,7 +12,7 @@ type Props = {
   employeeId?: string;
   busy: boolean;
   runWrite: (operation: (repo: SupabaseD4Repository, data: D4LiveSnapshot) => Promise<unknown>, success: string) => Promise<void>;
-  navigate: (url: string) => void;
+  navigate: (url: string, keepStatus?: boolean) => void;
 };
 
 const inputClass = "h-10 w-full rounded-lg border border-[#dce3ee] bg-white px-3 text-sm text-[#172033] outline-none focus:border-[#3b6ff5]";
@@ -40,7 +40,7 @@ export function KpiAssessmentForm({ snapshot, employeeId, busy, runWrite, naviga
   const [lines, setLines] = useState<KpiAssessmentLine[]>([]);
   const [period, setPeriod] = useState(new Date().toISOString().slice(0, 7));
   const [evaluationDate, setEvaluationDate] = useState(new Date().toISOString().slice(0, 10));
-  const [evaluatorName, setEvaluatorName] = useState(snapshot.reference.employees.find((item) => item.id === snapshot.actorEmployeeId)?.fullName ?? "");
+  const evaluatorName = snapshot.actorName;
   const [generalNotes, setGeneralNotes] = useState("");
   const [error, setError] = useState("");
 
@@ -97,7 +97,7 @@ export function KpiAssessmentForm({ snapshot, employeeId, busy, runWrite, naviga
     }
     if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(period)) { setError("Pilih periode penilaian."); return; }
     if (status === "completed" && (!allScored || !evaluationDate || !evaluatorName.trim())) {
-      setError("Lengkapi tanggal, penilai, dan skor 1 sampai 5 untuk semua indikator.");
+      setError(evaluatorName.trim() ? "Lengkapi tanggal dan skor 1 sampai 5 untuk semua indikator." : "Nama penilai tidak ditemukan pada profil akun login. Hubungi admin HRMS.");
       return;
     }
     setError("");
@@ -108,7 +108,7 @@ export function KpiAssessmentForm({ snapshot, employeeId, busy, runWrite, naviga
         evaluatorName, status, lines, generalNotes,
       });
     }, status === "draft" ? "Draft KPI tersimpan di Supabase." : "Penilaian KPI tersimpan di Supabase.");
-    if (savedId) navigate(`/live?${new URLSearchParams({ module: "performance", view: "scorecard", employee: selectedEmployee, assessment: savedId })}`);
+    if (savedId) navigate(`/live?${new URLSearchParams({ module: "performance", view: "scorecard", employee: selectedEmployee, assessment: savedId })}`, true);
   }
 
   return <div className="fixed inset-0 z-50 flex items-center justify-center p-3 lg:pl-[285px] lg:pr-6" role="presentation">
@@ -122,7 +122,7 @@ export function KpiAssessmentForm({ snapshot, employeeId, busy, runWrite, naviga
         <label className="text-xs font-semibold text-[#45556c]">Jabatan KPI *<select value={roleOrder} onChange={(event) => selectRole(Number(event.target.value))} disabled={catalogLoading || !!catalogError} className={`mt-2 ${inputClass}`}><option value={0}>Pilih jabatan dari Excel</option>{roles.map(([order, name]) => <option key={order} value={order}>{name}</option>)}</select></label>
         <label className="text-xs font-semibold text-[#45556c]">Periode *<input type="month" value={period} onChange={(event) => setPeriod(event.target.value)} className={`mt-2 ${inputClass}`} /></label>
         <label className="text-xs font-semibold text-[#45556c]">Tanggal penilaian *<input type="date" value={evaluationDate} onChange={(event) => setEvaluationDate(event.target.value)} className={`mt-2 ${inputClass}`} /></label>
-        <label className="text-xs font-semibold text-[#45556c]">Penilai *<input value={evaluatorName} onChange={(event) => setEvaluatorName(event.target.value)} className={`mt-2 ${inputClass}`} /></label>
+        <label className="text-xs font-semibold text-[#45556c]">Penilai<input value={evaluatorName || "-"} readOnly aria-readonly="true" className={`mt-2 ${inputClass} cursor-not-allowed bg-[#f4f6fa] text-[#45556c]`} /><span className="mt-1 block text-[11px] font-normal text-[#71829a]">Otomatis dari akun yang sedang login.</span></label>
       </div>
       {catalogLoading && <p role="status" className="mt-6 text-sm text-[#64748b]">Memuat indikator dari Supabase...</p>}
       {catalogError && <p role="alert" className="mt-6 text-sm text-red-600">Indikator KPI gagal dimuat: {catalogError}</p>}
