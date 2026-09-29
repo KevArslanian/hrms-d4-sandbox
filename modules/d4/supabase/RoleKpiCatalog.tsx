@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createD4BrowserClient } from "./client";
 
 export type RoleKpiRow = {
   role_order: number;
@@ -11,14 +12,32 @@ export type RoleKpiRow = {
   weight_percent: number;
 };
 
-export function RoleKpiCatalog({ rows }: { rows: readonly RoleKpiRow[] }) {
+export function RoleKpiCatalog() {
+  const [rows, setRows] = useState<RoleKpiRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    let active = true;
+    void createD4BrowserClient().from("d4_kpi_role_catalog")
+      .select("role_order,role_name,indicator_order,kpi_name,target,weight_percent")
+      .order("role_order").order("indicator_order")
+      .then(({ data, error: queryError }) => {
+        if (!active) return;
+        if (queryError) setError(queryError.message);
+        else setRows((data ?? []) as RoleKpiRow[]);
+        setLoading(false);
+      });
+    return () => { active = false; };
+  }, []);
   const roles = [...new Map(rows.map((row) => [row.role_order, row.role_name])).entries()];
   const [selected, setSelected] = useState(roles[0]?.[0] ?? 1);
   const indicators = rows.filter((row) => row.role_order === selected);
   const total = indicators.reduce((sum, row) => sum + row.weight_percent, 0);
 
+  if (loading) return <p role="status" className="rounded-lg bg-white p-6 text-sm text-[#64748b]">Memuat KPI jabatan dari Supabase...</p>;
+  if (error) return <p role="alert" className="rounded-lg bg-white p-6 text-sm text-red-600">Data KPI jabatan gagal dimuat: {error}</p>;
   return <div className="mx-auto max-w-[1509px]">
-    <a href="/demo?module=performance&view=list" className="mb-8 inline-flex h-10 items-center rounded-lg border border-[#e5eaf0] bg-white px-4 text-xs font-semibold text-[#172033]">Kembali ke Performance &amp; KPI</a>
+    <a href="/live?module=performance&view=list" className="mb-8 inline-flex h-10 items-center rounded-lg border border-[#e5eaf0] bg-white px-4 text-xs font-semibold text-[#172033]">Kembali ke Performance &amp; KPI</a>
     <section className="rounded-xl border border-[#e5eaf0] bg-white p-6 shadow-sm sm:p-8">
       <div className="flex flex-wrap items-end justify-between gap-5">
         <div><p className="text-xs font-semibold uppercase tracking-wider text-[#3b6ff5]">KPI Scorecard V3.1</p><h1 className="mt-2 text-2xl font-semibold text-[#1e3765]">KPI per Jabatan</h1><p className="mt-2 text-sm text-[#64748b]">Indikator dan bobot sesuai KPI Scorecard PT Andima Transportindo V3.1.</p></div>

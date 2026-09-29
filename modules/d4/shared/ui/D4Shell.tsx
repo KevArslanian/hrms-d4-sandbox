@@ -26,10 +26,9 @@ function Icon({ name, size = 16 }: { name: string; size?: number }) {
 }
 
 type SearchPerson = { id: string; fullName: string; employeeId: string };
-export function D4Shell({ children, live = false, demo = false, activeModule, navigationEnabled = true, accountName, accountRole, onSignOut, people = [], canvasBackground }: {
+export function D4Shell({ children, live = false, activeModule, navigationEnabled = true, accountName, accountRole, onSignOut, people = [], canvasBackground }: {
   children: ReactNode;
   live?: boolean;
-  demo?: boolean;
   activeModule?: string;
   navigationEnabled?: boolean;
   accountName?: string;
@@ -52,7 +51,7 @@ export function D4Shell({ children, live = false, demo = false, activeModule, na
     {menuOpen && <button type="button" aria-label="Tutup menu" className="fixed inset-0 z-30 bg-[#0d203e]/50 lg:hidden" onClick={() => setMenuOpen(false)} />}
     <aside className={`fixed inset-y-0 left-0 z-40 flex w-[261px] flex-col bg-[#0f2342] text-white transition-transform lg:translate-x-0 ${menuOpen ? "translate-x-0" : "-translate-x-full"}`}>
       <div className="flex min-h-[88px] items-start justify-between gap-3 border-b border-[#1e3765]/60 px-5 py-5">
-        <Link href={demo ? "/demo" : live ? "/live" : "/"} className="flex items-start gap-3" onClick={() => setMenuOpen(false)}>
+        <Link href={live ? "/live" : "/"} className="flex items-start gap-3" onClick={() => setMenuOpen(false)}>
           <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#3b6ff5]"><Icon name="logo" size={20} /></span>
           <span><strong className="block text-sm leading-5 tracking-[0.7px]">ANDIMA</strong><span className="block text-xs leading-4">TRANSPORTINDO</span><small className="block text-[7px] tracking-[0.6px] text-[#94a3b8]">ENTERPRISE DIGITAL ECOSYSTEM</small></span>
         </Link>
@@ -67,7 +66,7 @@ export function D4Shell({ children, live = false, demo = false, activeModule, na
         <div className="mt-1 flex items-center justify-between px-3 py-2 font-semibold text-white"><span className="flex items-center gap-3"><Icon name="hrms" />HRMS</span><span className="rotate-180"><Icon name="chevron" size={14} /></span></div>
         <div className="ml-10 space-y-0.5 border-l border-[#1e3765] pl-4">
           {links.map(({ href, label, module }) => {
-            const destination = demo ? `/demo?module=${module}` : live ? `/live?module=${module}` : href;
+            const destination = live ? `/live?module=${module}` : href;
             const active = selectedModule === module && navigationEnabled;
             const className = `flex items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-[11px] ${active ? "bg-[#3b6ff5] font-semibold text-white" : "text-[#cbd5e1] hover:bg-[#1a345a] hover:text-white"}`;
             return navigationEnabled ? <Link key={href} href={destination} onClick={() => setMenuOpen(false)} className={className} aria-current={active ? "page" : undefined}>{label}{active && <span aria-hidden="true" className="size-1.5 rounded-full bg-white" />}</Link> : <span key={href} aria-disabled="true" className="block px-2.5 py-1.5 text-[11px] text-[#7183a0]">{label}</span>;
@@ -86,10 +85,10 @@ export function D4Shell({ children, live = false, demo = false, activeModule, na
           <div className="relative hidden xl:block" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setSearchOpen(false); }}>
             <span className="pointer-events-none absolute left-3 top-2"><Icon name="search" size={14} /></span>
             <input aria-label="Cari pegawai" value={query} onChange={(event) => setQuery(event.target.value)} onFocus={() => setSearchOpen(true)} onKeyDown={(event) => { if (event.key === "Escape") setSearchOpen(false); }} disabled={!navigationEnabled} placeholder="Cari pegawai atau ID..." className="h-8 w-[320px] rounded-full border border-[#e5eaf0] bg-[#f4f6fa] pl-9 pr-3 text-xs text-[#334766] outline-none placeholder:text-[#94a3b8] focus:border-[#3b6ff5]" />
-            {searchOpen && query.trim() && <div className="absolute left-0 top-10 z-50 w-full rounded-lg border border-[#e5eaf0] bg-white p-1 shadow-lg">{matches.length ? matches.map((person) => <Link key={person.id} href={demo ? `/demo?module=performance&view=detail&employee=${encodeURIComponent(person.id)}` : live ? `/live?module=performance&view=detail&employee=${encodeURIComponent(person.id)}` : `/employee/${encodeURIComponent(person.id)}`} onClick={() => { setQuery(""); setSearchOpen(false); }} className="block rounded px-3 py-2 text-xs hover:bg-[#f4f6fa]"><strong className="block">{person.fullName}</strong><span className="text-[#64748b]">{person.employeeId}</span></Link>) : <p className="px-3 py-2 text-xs text-[#64748b]">Tidak ada pegawai yang cocok.</p>}</div>}
+            {searchOpen && query.trim() && <div className="absolute left-0 top-10 z-50 w-full rounded-lg border border-[#e5eaf0] bg-white p-1 shadow-lg">{matches.length ? matches.map((person) => <Link key={person.id} href={live ? `/live?module=performance&view=detail&employee=${encodeURIComponent(person.id)}` : `/employee/${encodeURIComponent(person.id)}`} onClick={() => { setQuery(""); setSearchOpen(false); }} className="block rounded px-3 py-2 text-xs hover:bg-[#f4f6fa]"><strong className="block">{person.fullName}</strong><span className="text-[#64748b]">{person.employeeId}</span></Link>) : <p className="px-3 py-2 text-xs text-[#64748b]">Tidak ada pegawai yang cocok.</p>}</div>}
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-3 text-[#697b99]">{demo && <span className="rounded-full bg-[#eef4ff] px-3 py-1 text-[10px] font-bold text-[#3b6ff5]">MODE DEMO FIGMA</span>}<Icon name="bell" /><div className="flex items-center gap-2 border-l border-[#e5eaf0] pl-3"><span className="flex size-7 items-center justify-center rounded-full border border-[#16a37a]/30 bg-[#eaf7f0] text-[10px] font-semibold text-[#16a37a]">{initials}</span>{accountName && <span className="hidden max-w-40 md:block"><strong className="block truncate text-[11px] uppercase text-[#172033]">{accountName}</strong><small className="block text-[9px] text-[#94a3b8]">{accountRole}</small></span>}</div>{onSignOut && <button type="button" onClick={onSignOut} className="rounded-md px-1.5 py-1.5 text-xs font-semibold hover:bg-[#f4f6fa]">Keluar</button>}</div>
+        <div className="flex shrink-0 items-center gap-3 text-[#697b99]"><Icon name="bell" /><div className="flex items-center gap-2 border-l border-[#e5eaf0] pl-3"><span className="flex size-7 items-center justify-center rounded-full border border-[#16a37a]/30 bg-[#eaf7f0] text-[10px] font-semibold text-[#16a37a]">{initials}</span>{accountName && <span className="hidden max-w-40 md:block"><strong className="block truncate text-[11px] uppercase text-[#172033]">{accountName}</strong><small className="block text-[9px] text-[#94a3b8]">{accountRole}</small></span>}</div>{onSignOut && <button type="button" onClick={onSignOut} className="rounded-md px-1.5 py-1.5 text-xs font-semibold hover:bg-[#f4f6fa]">Keluar</button>}</div>
       </header>
       <main className="w-full px-4 py-6 sm:px-6">{children}</main>
     </div>

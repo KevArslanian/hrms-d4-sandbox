@@ -16,13 +16,6 @@ export interface D3KpiRecord {
 }
 
 export interface D4LiveSnapshot {
-  readonly isFigmaDemo?: boolean;
-  readonly demoCompetencyEvidence?: Readonly<Record<string, string>>;
-  readonly demoTrend?: readonly { quarter: string; performance: number; kpi: number }[];
-  readonly demoScorecards?: Readonly<Record<string, readonly {
-    aspect: string; weight: number; target: string; actual: string;
-    rawScore: number; weighted: number; result: string;
-  }[]>>;
   readonly reference: ReferenceDataSnapshot;
   readonly role: D4AppRole;
   readonly actorEmployeeId: string;
