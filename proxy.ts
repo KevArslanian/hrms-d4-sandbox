@@ -6,6 +6,8 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://ufjbbwqaztg
 const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "sb_publishable_0GFbshHOM6k80Wxde_iZVQ_v6DpVj1D";
 
 export async function proxy(request: NextRequest) {
+  if (request.nextUrl.pathname === "/demo") return NextResponse.next({ request });
+  if (process.env.NODE_ENV === "development" && request.nextUrl.pathname === "/qa-preview") return NextResponse.next({ request });
   let response = NextResponse.next({ request });
   const supabase = createServerClient(supabaseUrl, publishableKey, {
     cookies: {

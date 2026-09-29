@@ -3,6 +3,7 @@
 import { type FormEvent, useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Eye } from "lucide-react";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import styles from "@/components/auth/auth.module.css";
@@ -69,6 +70,7 @@ export default function LoginPage() {
       </form>
       {error && <p className={styles.formError} role="alert">{error}</p>}
       <p className={styles.accountSwitch}>Belum punya akses? Hubungi admin HRMS.</p>
+      <p className={styles.accountSwitch}><Link href="/demo">Lihat demo sesuai Figma</Link></p>
       <div className={styles.accountNote}>
         <strong>Akses HRMS</strong>
         <span>Gunakan email dan kata sandi akun Anda.</span>

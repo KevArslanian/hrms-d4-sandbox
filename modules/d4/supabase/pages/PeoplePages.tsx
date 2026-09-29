@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowRight, ChevronLeft, ChevronRight, Search } from "lucide-react";
+import Image from "next/image";
 import { compareCompetencies } from "../../competency/service";
 import type { CompetencyFinding } from "../../competency/types";
 import type { EmployeeReference } from "../../shared/types";
@@ -25,7 +25,7 @@ type FindingRow = {
 };
 
 const surface = "rounded-[10px] border border-[#d9e2ec] bg-white";
-const selectClass = "h-9 rounded-md border border-[#d9e2ec] bg-white px-3 text-xs text-[#334766] outline-none focus:border-[#3b6ff5]";
+const competencySelectClass = "h-[34px] w-full appearance-none rounded-lg border border-[rgba(190,202,189,0.5)] bg-white pl-3 pr-8 text-xs font-medium text-[#334155] outline-none focus:border-[#3b6ff5]";
 
 function visibleEmployees(snapshot: D4LiveSnapshot) {
   return snapshot.role === "EMPLOYEE"
@@ -43,11 +43,40 @@ function latestByEmployee<T extends { employeeId: string; createdAt: string }>(i
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] ?? null;
 }
 
-function statusForFinding(finding: CompetencyFinding | null, assessedAt: string | null) {
-  if (!finding) return "Belum Dinilai";
-  if (finding.status === "Gap") return "Perlu Perhatian";
-  if (finding.status === "Bukti Belum Cukup") return "Perlu Ditinjau";
-  return assessedAt ? "Sesuai" : "Belum Dinilai";
+function statusForFinding(finding: CompetencyFinding | null) {
+  if (!finding || (finding.actualLevel === null && !finding.evidenceNotes?.trim())) return "Not Evaluated";
+  if (finding.status === "Gap") return "Needs Attention";
+  if (finding.status === "Bukti Belum Cukup") return "Needs Review";
+  return "On Track";
+}
+
+function evidenceForFinding(finding: CompetencyFinding | null) {
+  if (!finding || (finding.actualLevel === null && !finding.evidenceNotes?.trim())) return "No evidence submitted";
+  if (!finding.evidenceNotes?.trim()) return "Documented evidence pending";
+  if (finding.status === "Gap") return "Evidence below requirement";
+  if (finding.status === "Bukti Belum Cukup") return "Partial evidence";
+  return "Evidence meets requirement";
+}
+
+function CompetencyFilter({ label, value, onChange, children, evidence = false }: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  children: React.ReactNode;
+  evidence?: boolean;
+}) {
+  return <label className={`relative block shrink-0 ${evidence ? "w-[149px]" : "w-[129px]"}`}>
+    <span className="sr-only">{label}</span>
+    <select className={competencySelectClass} value={value} onChange={(event) => onChange(event.target.value)}>{children}</select>
+    <span className="pointer-events-none absolute right-[9px] top-2"><Image src={`/figma/competency/${evidence ? "evidence-chevron" : "select-chevron"}.svg`} width={18} height={18} alt="" /></span>
+  </label>;
+}
+
+function CompetencyEvidenceBadge({ finding }: { finding: CompetencyFinding | null }) {
+  const gap = finding?.status === "Gap";
+  const missing = !finding || finding.status === "Bukti Belum Cukup" || finding.actualLevel === null || !finding.evidenceNotes?.trim();
+  if (!gap && !missing) return null;
+  return <span className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border px-[11px] py-[3px] text-xs font-semibold leading-4 ${gap ? "border-[#fde68a] bg-[#fef9c3] text-[#d99a16]" : "border-[#bfdbfe] bg-[#eff6ff] text-[#3b6ff5]"}`}><span aria-hidden="true" className="size-1.5 rounded-full bg-current" />{gap ? "Gap" : "Evidence Missing"}</span>;
 }
 
 function Badge({ children, tone }: { children: React.ReactNode; tone: "green" | "amber" | "red" | "blue" | "gray" }) {
@@ -82,38 +111,70 @@ function CompetencyNeeds({ snapshot, busy, runWrite, navigate }: Omit<Props, "vi
 
   const filtered = rows.filter((row) => {
     const query = search.trim().toLocaleLowerCase();
-    if (query && !`${row.employee.fullName} ${row.employee.employeeId} ${row.finding?.competencyName ?? ""}`.toLocaleLowerCase().includes(query)) return false;
+    if (query && !`${row.employee.fullName} ${row.employee.employeeId}`.toLocaleLowerCase().includes(query)) return false;
     if (positionFilter && row.positionId !== positionFilter) return false;
-    if (statusFilter && statusForFinding(row.finding, row.assessedAt) !== statusFilter) return false;
-    if (evidenceFilter === "with-evidence" && !row.finding?.evidenceNotes?.trim()) return false;
-    if (evidenceFilter === "without-evidence" && !!row.finding?.evidenceNotes?.trim()) return false;
+    if (statusFilter && statusForFinding(row.finding) !== statusFilter) return false;
+    if (evidenceFilter && evidenceForFinding(row.finding) !== evidenceFilter) return false;
     return true;
   });
   const pageSize = 8;
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, pageCount);
   const visible = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const selected = rows.find((row) => `${row.employee.id}:${row.finding?.requirementId ?? "none"}` === openRow);
   const canWrite = snapshot.role === "HR" || snapshot.role === "MANAGER";
+  const firstPage = Math.max(1, Math.min(currentPage - 1, pageCount - 2));
+  const pageNumbers = Array.from({ length: Math.min(3, pageCount) }, (_, index) => firstPage + index);
   function updateFilter(update: () => void) { update(); setPage(1); setOpenRow(null); }
 
-  return <div className="space-y-5 text-[#172033]">
-    <header className="flex flex-wrap items-start justify-between gap-3"><div><h1 className="text-[25px] font-bold tracking-tight text-[#1d335b]">Competency Needs</h1><p className="mt-1 text-xs text-[#7786a1]">Bandingkan bukti kompetensi pegawai dengan persyaratan posisi saat ini.</p></div>{canWrite && <button type="button" onClick={() => navigate("/live?module=competency&view=assessment")} className="rounded-md border border-[#d9e2ec] bg-white px-3 py-2 text-xs font-semibold text-[#3b6ff5]">Assessment posisi lain</button>}</header>
-    <div className={`${surface} flex flex-wrap items-center gap-3 p-4`}>
-      <label className="relative min-w-[220px] flex-1"><Search size={15} className="absolute left-3 top-2.5 text-[#7b91ad]" /><span className="sr-only">Cari pegawai atau kompetensi</span><input value={search} onChange={(event) => updateFilter(() => setSearch(event.target.value))} placeholder="Cari nama pegawai atau kompetensi" className="h-9 w-full rounded-md border border-[#e5eaf0] bg-[#f4f6fa] pl-9 pr-3 text-xs outline-none focus:border-[#3b6ff5]" /></label>
-      <label><span className="sr-only">Filter posisi</span><select className={selectClass} value={positionFilter} onChange={(event) => updateFilter(() => setPositionFilter(event.target.value))}><option value="">Semua posisi</option>{snapshot.reference.positions.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
-      <label><span className="sr-only">Filter status</span><select className={selectClass} value={statusFilter} onChange={(event) => updateFilter(() => setStatusFilter(event.target.value))}><option value="">Semua status</option><option>Sesuai</option><option>Perlu Ditinjau</option><option>Perlu Perhatian</option><option>Belum Dinilai</option></select></label>
-      <label><span className="sr-only">Filter bukti</span><select className={selectClass} value={evidenceFilter} onChange={(event) => updateFilter(() => setEvidenceFilter(event.target.value))}><option value="">Semua bukti</option><option value="with-evidence">Ada bukti</option><option value="without-evidence">Tanpa bukti</option></select></label>
+  return <div className="space-y-[31px] text-[#172033]">
+    <header className="min-h-[56px]">
+      <h1 className="text-[25px] font-semibold leading-8 tracking-[-0.5px]">Competency Needs</h1>
+      <p className="mt-1 text-xs leading-4 text-[#64748b]">Compare employee capability evidence with the requirement of the current position.</p>
+    </header>
+    <div className="flex min-h-[69px] flex-wrap items-center gap-x-[39px] gap-y-3 rounded-xl border border-[rgba(190,202,189,0.3)] bg-white px-[14px] py-4 shadow-[0_1px_1px_rgba(0,0,0,0.05)]">
+      <label className="relative block w-full max-w-[514px] shrink-0">
+        <span className="pointer-events-none absolute left-[10px] top-[10.25px]"><Image src="/figma/competency/search.svg" width={13.5} height={13.5} alt="" /></span>
+        <span className="sr-only">Search by Employee’s Name</span>
+        <input value={search} onChange={(event) => updateFilter(() => setSearch(event.target.value))} placeholder="Search by Employee’s Name" className="h-[34px] w-full rounded-lg border border-[#e5eaf0] bg-[#f4f6fa] pl-[33px] pr-[13px] text-xs text-[#334155] outline-none placeholder:text-[#4d5f81]/60 focus:border-[#3b6ff5]" />
+      </label>
+      <CompetencyFilter label="Filter posisi" value={positionFilter} onChange={(value) => updateFilter(() => setPositionFilter(value))}><option value="">All Positions</option>{snapshot.reference.positions.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</CompetencyFilter>
+      <CompetencyFilter label="Filter status" value={statusFilter} onChange={(value) => updateFilter(() => setStatusFilter(value))}><option value="">All Gap Status</option>{["On Track", "Needs Review", "Needs Attention", "Not Evaluated"].map((status) => <option key={status}>{status}</option>)}</CompetencyFilter>
+      <CompetencyFilter label="Filter bukti" evidence value={evidenceFilter} onChange={(value) => updateFilter(() => setEvidenceFilter(value))}><option value="">All Evidence State</option>{["Evidence meets requirement", "Evidence below requirement", "Partial evidence", "Documented evidence pending", "No evidence submitted"].map((evidence) => <option key={evidence}>{evidence}</option>)}</CompetencyFilter>
     </div>
-    <section className={`${surface} overflow-hidden`} aria-label="Daftar kebutuhan kompetensi">
-      <div className="overflow-x-auto"><table className="w-full min-w-[850px] text-left text-xs"><thead className="border-b border-[#e5eaf0] bg-[#f6f8fc] text-[10px] font-semibold uppercase tracking-wide text-[#7b91ad]"><tr><th className="px-4 py-3">Pegawai</th><th className="px-4 py-3">Posisi</th><th className="px-4 py-3">Persyaratan kompetensi</th><th className="px-4 py-3">Bukti / level</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Aksi</th></tr></thead><tbody>{visible.map((row) => {
-        const key = `${row.employee.id}:${row.finding?.requirementId ?? "none"}`;
-        const status = statusForFinding(row.finding, row.assessedAt);
-        const tone = status === "Sesuai" ? "green" : status === "Perlu Perhatian" ? "red" : status === "Perlu Ditinjau" ? "amber" : "gray";
-        return <tr key={key} className="border-b border-[#edf1f6] align-top last:border-0"><td className="px-4 py-3"><strong className="block font-semibold text-[#172033]">{row.employee.fullName}</strong><span className="text-[10px] text-[#7b91ad]">{row.employee.employeeId}</span></td><td className="px-4 py-3">{row.position}</td><td className="px-4 py-3">{row.finding?.competencyName ?? "Belum ada persyaratan"}<span className="block text-[10px] text-[#7b91ad]">{row.finding ? `Minimal level ${row.finding.requiredLevel}` : ""}</span></td><td className="px-4 py-3">{row.finding?.actualLevel == null ? "Belum ada level" : `Level ${row.finding.actualLevel}`}<span className="block max-w-[210px] truncate text-[10px] text-[#7b91ad]" title={row.finding?.evidenceNotes ?? ""}>{row.finding?.evidenceNotes?.trim() || "Bukti belum tersedia"}</span></td><td className="px-4 py-3"><Badge tone={tone}>{status}</Badge></td><td className="px-4 py-3"><button type="button" className="text-xs font-semibold text-[#3b6ff5] hover:underline" aria-expanded={openRow === key} onClick={() => setOpenRow(openRow === key ? null : key)}>{openRow === key ? "Tutup" : "Detail"}</button>{openRow === key && <div className="mt-3 min-w-[160px] space-y-2 rounded-md border border-[#d9e2ec] bg-white p-3 shadow-sm"><p className="text-[11px] text-[#64748b]">{row.assessedAt ? `Assessment terakhir: ${row.assessedAt}` : "Belum ada assessment tersimpan."}</p>{canWrite && row.positionId && row.finding && <button type="button" disabled={busy} className="block font-semibold text-[#3b6ff5] disabled:opacity-50" onClick={() => void runWrite((repo, data) => repo.saveCompetency({ employeeId: row.employee.id, positionId: row.positionId!, effectiveDate: new Date().toISOString().slice(0, 10) }, data.reference), "Assessment kompetensi tersimpan.")}>Simpan assessment</button>}{canWrite && row.finding?.status === "Gap" && <button type="button" className="flex items-center gap-1 font-semibold text-[#3b6ff5]" onClick={() => navigate(`/live?module=development&view=development-new&employee=${encodeURIComponent(row.employee.id)}&source=${encodeURIComponent(row.finding!.requirementId)}`)}>Buat development need <ArrowRight size={12} /></button>}</div>}</td></tr>;
-      })}</tbody></table></div>
+    <section className="max-w-[1051px] overflow-hidden rounded-xl border border-[#e5eaf0] bg-white" aria-label="Daftar kebutuhan kompetensi">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[820px] table-fixed text-left text-xs">
+          <colgroup><col className="w-[34%]" /><col className="w-[21.5%]" /><col className="w-[37.5%]" /><col className="w-[7%]" /></colgroup>
+          <thead className="h-[54px] border-b border-[#f2f4f2] bg-white text-xs font-bold uppercase tracking-[0.6px] text-[#94a3b8]"><tr><th className="px-[23px] font-bold">Employees</th><th className="px-3 font-bold">Competency Requirement</th><th className="px-3 font-bold">Evidence / Level</th><th className="pr-4 text-right font-bold">Actions</th></tr></thead>
+          <tbody>{visible.map((row) => {
+            const key = `${row.employee.id}:${row.finding?.requirementId ?? "none"}`;
+            return <tr key={key} className="h-[66px] border-b border-[#f2f4f2] last:border-0">
+              <td className="px-[23px] py-3"><strong className="block text-sm font-semibold leading-5 tracking-[0.07px] text-[#121b2e]">{row.employee.fullName}</strong><span className="block text-xs leading-4 text-[#64748b]">{row.employee.employeeId}</span></td>
+              <td className="px-3 py-3 font-medium leading-4 text-[#121b2e]">{row.finding?.competencyName ?? "No position requirements"}</td>
+              <td className="px-3 py-3 font-medium leading-4 text-[#121b2e]" title={row.finding?.evidenceNotes ?? ""}><div className="flex items-center gap-3"><span className="flex-1">{snapshot.demoCompetencyEvidence?.[row.employee.id] ?? evidenceForFinding(row.finding)}</span><span className="w-[150px] shrink-0"><CompetencyEvidenceBadge finding={row.finding} /></span></div></td>
+              <td className="pr-4 text-right"><button type="button" className="inline-flex h-7 w-6 items-center justify-center rounded hover:bg-[#f4f6fa] focus-visible:outline-2 focus-visible:outline-[#3b6ff5]" aria-label={`Aksi ${row.employee.fullName}, ${row.finding?.competencyName ?? "kompetensi"}`} aria-haspopup="dialog" onClick={() => setOpenRow(key)}><Image src="/figma/competency/actions.svg" width={2.66667} height={10.6667} alt="" /></button></td>
+            </tr>;
+          })}</tbody>
+        </table>
+      </div>
       {!filtered.length && <p className="px-5 py-10 text-center text-sm text-[#64748b]">Tidak ada data kompetensi yang cocok dengan filter.</p>}
-      {!!filtered.length && <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#e5eaf0] px-4 py-3 text-[11px] text-[#64748b]"><span>Menampilkan {(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, filtered.length)} dari {filtered.length} persyaratan</span><div className="flex items-center gap-1"><button type="button" aria-label="Halaman sebelumnya" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)} className="rounded border border-[#d9e2ec] p-1.5 disabled:opacity-40"><ChevronLeft size={13} /></button><span className="px-2">{currentPage} / {pageCount}</span><button type="button" aria-label="Halaman berikutnya" disabled={currentPage === pageCount} onClick={() => setPage(currentPage + 1)} className="rounded border border-[#d9e2ec] p-1.5 disabled:opacity-40"><ChevronRight size={13} /></button></div></div>}
+      {!!filtered.length && <div className="flex min-h-[52px] flex-wrap items-center justify-between gap-3 border-t border-[rgba(190,202,189,0.3)] px-4 py-3 text-xs text-[#4d5f81]">
+        <span>Showing <strong className="font-semibold text-[#121b2e]">{(currentPage - 1) * pageSize + 1}-{Math.min(currentPage * pageSize, filtered.length)}</strong> of {filtered.length} competency requirements</span>
+        <div className="flex items-center gap-1 text-[11px] font-medium">
+          <button type="button" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)} className="h-6 rounded border border-[#e5eaf0] px-2.5 text-[#475569] disabled:border-transparent disabled:bg-[#f8fafc] disabled:text-[#94a3b8]">Previous</button>
+          {pageNumbers.map((number) => <button key={number} type="button" aria-current={number === currentPage ? "page" : undefined} onClick={() => setPage(number)} className={`h-6 min-w-6 rounded border px-1 ${number === currentPage ? "border-[#3b6ff5] bg-[#3b6ff5] font-semibold text-white" : "border-[#e5eaf0] text-[#475569]"}`}>{number}</button>)}
+          <button type="button" disabled={currentPage === pageCount} onClick={() => setPage(currentPage + 1)} className="h-[26px] rounded border border-[#e5eaf0] px-[11px] text-[#475569] disabled:border-transparent disabled:bg-[#f8fafc] disabled:text-[#94a3b8]">Next</button>
+        </div>
+      </div>}
     </section>
+    {selected && <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0f2342]/40 p-4" onClick={() => setOpenRow(null)}>
+      <section role="dialog" aria-modal="true" aria-labelledby="competency-detail-title" className="w-full max-w-lg rounded-xl border border-[#e5eaf0] bg-white p-6 shadow-lg" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => { if (event.key === "Escape") setOpenRow(null); }}>
+        <div className="flex items-start justify-between gap-3"><div><h2 id="competency-detail-title" className="text-base font-semibold">{selected.employee.fullName}</h2><p className="mt-1 text-xs text-[#64748b]">{selected.position}</p></div><button type="button" autoFocus onClick={() => setOpenRow(null)} className="rounded px-2 py-1 text-xs text-[#64748b] hover:bg-[#f4f6fa]">Tutup</button></div>
+        <dl className="mt-5 space-y-3 text-xs"><div><dt className="text-[#64748b]">Kompetensi</dt><dd className="mt-1 font-medium">{selected.finding?.competencyName ?? "Persyaratan posisi belum tersedia"}</dd></div><div><dt className="text-[#64748b]">Bukti dan level</dt><dd className="mt-1 leading-relaxed">{selected.finding ? `Level aktual ${selected.finding.actualLevel ?? "belum ada"}, minimal ${selected.finding.requiredLevel}.` : "Belum ada level yang dapat dibandingkan."}<br />{selected.finding?.evidenceNotes?.trim() || "Bukti belum tersedia."}</dd></div><div><dt className="text-[#64748b]">Status berdasarkan data saat ini</dt><dd className="mt-1 font-medium">{statusForFinding(selected.finding)}</dd></div><div><dt className="text-[#64748b]">Assessment terakhir tersimpan</dt><dd className="mt-1">{selected.assessedAt ?? "Belum ada assessment tersimpan."}</dd></div></dl>
+        {canWrite && <div className="mt-5 flex flex-wrap gap-2 border-t border-[#e5eaf0] pt-4">{selected.positionId && selected.finding && <button type="button" disabled={busy} className="rounded-md bg-[#3b6ff5] px-3 py-2 text-xs font-semibold text-white disabled:opacity-50" onClick={() => void runWrite((repo, data) => repo.saveCompetency({ employeeId: selected.employee.id, positionId: selected.positionId!, effectiveDate: new Date().toISOString().slice(0, 10) }, data.reference), "Assessment kompetensi tersimpan.")}>Simpan assessment</button>}{selected.finding?.status === "Gap" && <button type="button" className="rounded-md border border-[#3b6ff5] px-3 py-2 text-xs font-semibold text-[#3b6ff5]" onClick={() => navigate(`/live?module=development&view=development-new&employee=${encodeURIComponent(selected.employee.id)}&source=${encodeURIComponent(selected.finding!.requirementId)}`)}>Buat development need</button>}<button type="button" onClick={() => navigate("/live?module=competency&view=assessment")} className="rounded-md border border-[#e5eaf0] px-3 py-2 text-xs font-medium text-[#475569]">Assessment posisi lain</button></div>}
+      </section>
+    </div>}
   </div>;
 }
 
@@ -153,6 +214,7 @@ function PeopleDashboard({ snapshot, navigate }: Pick<Props, "snapshot" | "navig
     performance: average(snapshot.performance.filter((item) => ids.has(item.employeeId) && item.status === "completed" && quarter(item.period) === label && item.overallScore !== null).map((item) => item.overallScore!)),
     kpi: average(snapshot.kpi.filter((item) => ids.has(item.employeeId) && quarter(item.period) === label).map((item) => item.score)),
   }));
+  const chartTrend = snapshot.isFigmaDemo && snapshot.demoTrend?.length ? snapshot.demoTrend.map((row) => ({ label: row.quarter, performance: row.performance, kpi: row.kpi })) : trend;
   const attention = employees.flatMap((employee) => {
     const messages: string[] = [];
     const evaluation = latestByEmployee(snapshot.performance, employee.id);
@@ -187,8 +249,8 @@ function PeopleDashboard({ snapshot, navigate }: Pick<Props, "snapshot" | "navig
     <div className="grid max-w-[1048px] gap-4 sm:grid-cols-2 xl:grid-cols-4">{cards.map((card) => <section key={card.label} title={card.note} className={`${surface} min-h-[86px] px-4 py-3.5`}><p className="text-[10px] font-medium text-[#64748b]">{card.label}</p><p className="mt-2 text-[22px] font-bold tabular-nums text-[#172033]">{card.value}</p><span className="sr-only">{card.note}</span></section>)}</div>
     <div className="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-2">
       <section aria-label="Performance and KPI trend" className={`${surface} min-w-0 rounded-xl p-6`}>
-        <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-base font-semibold">Performance &amp; KPI Trend</h2><p className="mt-1 text-[10px] text-[#64748b]">Ringkasan kuartal, kinerja 1-5 dan KPI 0-100</p></div><div className="flex gap-2"><Badge tone="blue">KPI</Badge><span className="inline-flex items-center gap-1 rounded-full bg-[#efeafd] px-2.5 py-1 text-[11px] font-medium text-[#8057e8]"><i className="size-1.5 rounded-full bg-current" />Performance</span></div></div>
-        {trend.length ? <div className="mt-5 flex h-[194px] items-end justify-around gap-2 overflow-x-auto sm:gap-5">{trend.map((item) => <div key={item.label} className="flex min-w-[56px] flex-1 flex-col items-center gap-2 sm:min-w-[108px]"><div className="flex h-[168px] w-full items-end justify-center gap-1.5 sm:gap-3"><div aria-label={item.performance === null ? "Kinerja belum ada" : `Kinerja ${item.performance.toFixed(2)} / 5`} title={item.performance === null ? "Kinerja belum ada" : `Kinerja ${item.performance.toFixed(2)} / 5`} className="w-5 rounded-md bg-[#8057e8] sm:w-11" style={{ height: item.performance === null ? 0 : `${Math.min(100, Math.max(0, item.performance / 5 * 100))}%` }} /><div aria-label={item.kpi === null ? "KPI belum ada" : `KPI ${item.kpi.toFixed(2)} / 100`} title={item.kpi === null ? "KPI belum ada" : `KPI ${item.kpi.toFixed(2)} / 100`} className="w-5 rounded-md bg-[#3b6ff5] sm:w-11" style={{ height: item.kpi === null ? 0 : `${Math.min(100, Math.max(0, item.kpi))}%` }} /></div><span className="text-[10px] text-[#64748b]">{item.label}</span></div>)}</div> : <p className="mt-5 flex min-h-[194px] items-center justify-center rounded-md bg-[#f6f8fc] p-5 text-xs text-[#64748b]">Belum ada data per periode untuk membuat tren.</p>}
+        <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-base font-semibold">Performance &amp; KPI Trend</h2><p className="mt-1 text-[10px] text-[#64748b]">{snapshot.isFigmaDemo ? "Quarterly summary · demo dataset" : "Ringkasan kuartal, kinerja 1-5 dan KPI 0-100"}</p></div><div className="flex gap-2"><span className="inline-flex items-center gap-1 rounded-full bg-[#efeafd] px-2.5 py-1 text-[11px] font-medium text-[#8057e8]"><i className="size-1.5 rounded-full bg-current" />Performance</span><Badge tone="blue">KPI</Badge></div></div>
+        {chartTrend.length ? <div className="mt-5 flex h-[194px] items-end justify-around gap-2 overflow-x-auto sm:gap-5">{chartTrend.map((item) => <div key={item.label} className="flex min-w-[56px] flex-1 flex-col items-center gap-2 sm:min-w-[108px]"><div className="flex h-[168px] w-full items-end justify-center gap-1.5 sm:gap-3"><div aria-label={item.performance === null ? "Kinerja belum ada" : `Kinerja ${item.performance.toFixed(2)} / 5`} title={item.performance === null ? "Kinerja belum ada" : `Kinerja ${item.performance.toFixed(2)} / 5`} className="w-5 rounded-md bg-[#8057e8] sm:w-11" style={{ height: item.performance === null ? 0 : `${Math.min(100, Math.max(0, item.performance / 5 * 100))}%` }} /><div aria-label={item.kpi === null ? "KPI belum ada" : `KPI ${item.kpi.toFixed(2)} / ${snapshot.isFigmaDemo ? 5 : 100}`} title={item.kpi === null ? "KPI belum ada" : `KPI ${item.kpi.toFixed(2)} / ${snapshot.isFigmaDemo ? 5 : 100}`} className="w-5 rounded-md bg-[#3b6ff5] sm:w-11" style={{ height: item.kpi === null ? 0 : `${Math.min(100, Math.max(0, snapshot.isFigmaDemo ? item.kpi / 5 * 100 : item.kpi))}%` }} /></div><span className="text-[10px] text-[#64748b]">{item.label}</span></div>)}</div> : <p className="mt-5 flex min-h-[194px] items-center justify-center rounded-md bg-[#f6f8fc] p-5 text-xs text-[#64748b]">Belum ada data per periode untuk membuat tren.</p>}
       </section>
       <section className={`${surface} min-w-0 rounded-xl p-6`}><h2 className="text-base font-semibold">Attention Needed</h2><p className="mt-1 text-[10px] text-[#64748b]">Exceptions and human-review items</p>{attention.length ? <ul className="mt-5 space-y-3">{attention.slice(0, 4).map((item) => <li key={item.employee.id} className="grid min-h-9 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 text-[11px] sm:grid-cols-[minmax(80px,1fr)_minmax(0,2fr)_auto]"><strong className="text-[#172033]">{item.employee.fullName}</strong><span className="col-span-2 row-start-2 text-[10px] leading-relaxed text-[#64748b] sm:col-span-1 sm:row-start-auto">{item.messages.join(" · ")}</span><span className="col-start-2 row-start-1 sm:col-start-3"><Badge tone={item.tone}>{item.state}</Badge></span></li>)}</ul> : <p className="mt-5 rounded-md bg-[#f6f8fc] p-5 text-xs text-[#64748b]">Belum ada catatan yang perlu ditinjau.</p>}</section>
     </div>

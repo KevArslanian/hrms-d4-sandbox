@@ -39,10 +39,20 @@ function selectedView(module: D4Module, value?: string) {
 }
 
 function LoadingState() {
-  return <section role="status" className="max-w-[820px] rounded-xl border border-[#e0e7f1] bg-white p-6 shadow-sm">
+  return <section role="status" className="min-h-[250px] max-w-[782px] rounded-xl border border-[#d9e2ec] bg-white p-6 sm:p-8">
     <h1 className="text-lg font-semibold text-[#243b65]">Memuat data D4</h1>
-    <p className="mt-3 text-sm text-[#607796]">Mengambil data performance, KPI, kompetensi, dan training...</p>
-    <div className="mt-6 space-y-3" aria-hidden="true">{[0, 1, 2, 3].map((index) => <div key={index} className="h-3 animate-pulse rounded-full bg-[#e8eef8]" style={{ width: `${96 - index * 8}%` }} />)}</div>
+    <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#edf3ff] px-3 py-1.5 text-xs font-medium text-[#3b6ff5]"><span aria-hidden="true" className="size-1.5 rounded-full bg-current" />Loading</span>
+    <p className="mt-4 text-xs leading-5 text-[#7a8ba8]">Mengambil data performance, KPI, kompetensi, dan training...</p>
+    <div className="mt-5 max-w-[620px] space-y-[8px]" aria-hidden="true">{[0, 1, 2, 3].map((index) => <div key={index} className="h-[10px] animate-pulse rounded-full bg-[#e7edf5]" />)}</div>
+  </section>;
+}
+
+function ErrorState({ error, onRetry, onSignOut }: { error: string; onRetry: () => void; onSignOut: () => void }) {
+  return <section role="alert" className="min-h-[250px] max-w-[782px] rounded-xl border border-[#d9e2ec] bg-white p-6 sm:p-8">
+    <h1 className="text-lg font-semibold text-[#243b65]">Data D4 belum dapat dimuat</h1>
+    <span className="mt-3 inline-flex rounded-full bg-[#fff0f1] px-3 py-1.5 text-xs font-medium text-[#d34d60]">Error</span>
+    <p className="mt-4 break-words text-xs leading-5 text-[#7a8ba8]">{error}</p>
+    <div className="mt-7 flex flex-wrap gap-2"><button type="button" onClick={onRetry} className="min-h-10 rounded-md bg-[#3b6ff5] px-4 text-xs font-medium text-white">Coba lagi</button><button type="button" onClick={onSignOut} className="min-h-10 rounded-md border border-[#d9e2ec] px-4 text-xs font-medium text-[#526a89]">Keluar</button></div>
   </section>;
 }
 
@@ -129,9 +139,9 @@ export function LiveD4Screen({ initialModule, initialView, employeeId, evaluatio
   const activeModule = currentModule === "development" ? "competency" : currentModule === "kpi" ? "performance" : currentModule;
   const people = snapshot?.role === "EMPLOYEE" ? snapshot.reference.employees.filter((employee) => employee.id === snapshot.actorEmployeeId) : snapshot?.reference.employees;
 
-  return <D4Shell live activeModule={activeModule} navigationEnabled={status === "ready"} accountName={snapshot?.reference.employees.find((employee) => employee.id === snapshot.actorEmployeeId)?.fullName} accountRole={snapshot?.role} people={people} onSignOut={status === "ready" ? signOut : undefined}>
+  return <D4Shell live activeModule={activeModule} canvasBackground={currentModule === "development" ? "white" : undefined} navigationEnabled={status === "ready"} accountName={snapshot?.reference.employees.find((employee) => employee.id === snapshot.actorEmployeeId)?.fullName} accountRole={snapshot?.role} people={people} onSignOut={status === "ready" ? signOut : undefined}>
     <div className="mx-auto max-w-[1604px]">
-      {status === "loading" ? <LoadingState /> : status === "error" ? <section role="alert" className="max-w-[820px] rounded-xl border border-[#f0c7cd] bg-white p-6 shadow-sm"><h1 className="text-lg font-semibold text-[#983c48]">Data D4 belum dapat dimuat</h1><p className="mt-3 text-sm text-[#8c4c56]">{error}</p><div className="mt-5 flex gap-2"><button type="button" onClick={() => { setStatus("loading"); setRetryKey((key) => key + 1); }} className="rounded-md bg-[#3b6ff5] px-4 py-2 text-sm font-semibold text-white">Coba lagi</button><button type="button" onClick={signOut} className="rounded-md border border-[#d7e1ee] px-4 py-2 text-sm text-[#526a89]">Keluar</button></div></section> : snapshot ? <>
+      {status === "loading" ? <LoadingState /> : status === "error" ? <ErrorState error={error} onRetry={() => { setStatus("loading"); setRetryKey((key) => key + 1); }} onSignOut={() => { void signOut(); }} /> : snapshot ? <>
         {(currentModule === "performance" || (currentModule === "kpi" && view === "scorecard")) && <PerformancePages {...shared} view={view as "list" | "add" | "edit" | "detail" | "history" | "scorecard"} employeeId={employeeId} evaluationId={evaluationId} />}
         {(currentModule === "dashboard" || (currentModule === "competency" && view === "competency")) && <PeoplePages {...shared} view={currentModule === "competency" ? "competency" : "dashboard"} />}
         {(currentModule === "training" || (currentModule === "development" && view === "development-new")) && <TrainingPages {...shared} view={view as "list" | "add" | "progress" | "history" | "development-new"} employeeId={employeeId} trainingId={trainingId} sourceRef={sourceRef} />}
