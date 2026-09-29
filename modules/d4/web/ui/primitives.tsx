@@ -66,12 +66,6 @@ export function Card({ title, actions, children, className, padded = true }: { t
   </section>;
 }
 
-export function MetricCard({ label, value, helper, href }: { label: string; value: string; helper?: string; href?: string }) {
-  const body = <><p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3">{label}</p><p className="mt-1.5 font-display text-2xl text-ink tabular-nums">{value}</p>{helper && <p className="mt-1 text-xs text-ink-2">{helper}</p>}</>;
-  const style = "block min-w-0 rounded-2xl border border-line bg-surface p-5 shadow-card";
-  return href ? <Link href={href} className={cx(style, "transition-colors hover:border-primary-500")}>{body}</Link> : <div className={style}>{body}</div>;
-}
-
 export function InfoGrid({ items, columns = 2 }: { items: { label: string; value: ReactNode }[]; columns?: 2 | 3 | 4 }) {
   const cols = { 2: "sm:grid-cols-2", 3: "sm:grid-cols-2 lg:grid-cols-3", 4: "sm:grid-cols-2 xl:grid-cols-4" }[columns];
   return <dl className={cx("grid gap-x-8 gap-y-5", cols)}>{items.map((item) => <div key={item.label} className="min-w-0">
