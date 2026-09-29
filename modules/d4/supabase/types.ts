@@ -26,6 +26,8 @@ export interface KpiAssessmentLine {
 }
 
 export interface KpiAssessmentInput {
+  /** KPI catalog version the lines were taken from (V5.1 once its migration is applied). */
+  readonly definitionVersion: string;
   readonly employeeId: string;
   readonly roleOrder: number;
   readonly roleName: string;

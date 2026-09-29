@@ -1,9 +1,6 @@
 import { d4ReferenceFixture } from "../shared/fixtures";
 import type { ReferenceDataSnapshot } from "../shared/types";
-import type { CompetencyAssessment, CompetencyFinding, CompetencyOverallStatus } from "./types";
-
-const storageKey = "hrms-d4-competency-assessments-v1";
-const changeEvent = "hrms-d4-competency-changed";
+import type { CompetencyFinding, CompetencyOverallStatus } from "./types";
 
 export function compareCompetencies(employeeId: string, positionId: string, reference: ReferenceDataSnapshot = d4ReferenceFixture): {
   findings: CompetencyFinding[];
@@ -33,53 +30,4 @@ export function compareCompetencies(employeeId: string, positionId: string, refe
     findings.some((item) => item.status === "Gap") ? "Gap" :
     findings.some((item) => item.status === "Bukti Belum Cukup") ? "Bukti Belum Cukup" : "Terpenuhi";
   return { findings, overallStatus };
-}
-
-export function getCompetencyStoredSnapshot(): string {
-  if (typeof window === "undefined") return "";
-  try { return window.localStorage.getItem(storageKey) ?? ""; } catch { return ""; }
-}
-
-export function subscribeCompetency(listener: () => void): () => void {
-  window.addEventListener("storage", listener);
-  window.addEventListener(changeEvent, listener);
-  return () => { window.removeEventListener("storage", listener); window.removeEventListener(changeEvent, listener); };
-}
-
-export function listCompetencyAssessments(snapshot = getCompetencyStoredSnapshot()): CompetencyAssessment[] {
-  try {
-    const saved: unknown = JSON.parse(snapshot || "[]");
-    return Array.isArray(saved) ? saved.filter((item): item is CompetencyAssessment =>
-      item !== null && typeof item === "object" && item.source === "local-demo" &&
-      typeof item.id === "string" && typeof item.employeeId === "string" &&
-      typeof item.positionId === "string" && Array.isArray(item.findings)) : [];
-  } catch { return []; }
-}
-
-export function saveCompetencyAssessment(input: {
-  employeeId: string;
-  positionId: string;
-  effectiveDate: string;
-}): CompetencyAssessment {
-  if (typeof window === "undefined") throw new Error("Penyimpanan demo hanya tersedia di browser.");
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.effectiveDate)) throw new Error("Tanggal berlaku wajib diisi.");
-  const employee = d4ReferenceFixture.employees.find((item) => item.id === input.employeeId);
-  if (!employee) throw new Error("Employee tidak ditemukan pada data demo.");
-  const comparison = compareCompetencies(input.employeeId, input.positionId);
-  if (comparison.findings.length === 0) throw new Error("Posisi belum memiliki persyaratan kompetensi pada fixture.");
-  const record: CompetencyAssessment = {
-    id: window.crypto.randomUUID(),
-    source: "local-demo",
-    employeeId: input.employeeId,
-    positionId: input.positionId,
-    effectiveDate: input.effectiveDate,
-    context: input.positionId === employee.positionId ? "current-position" : "role-change",
-    findings: comparison.findings,
-    overallStatus: comparison.overallStatus,
-    createdAt: new Date().toISOString(),
-    actor: "Akun demo lokal",
-  };
-  window.localStorage.setItem(storageKey, JSON.stringify([record, ...listCompetencyAssessments()]));
-  window.dispatchEvent(new Event(changeEvent));
-  return record;
 }

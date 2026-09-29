@@ -1,6 +1,4 @@
-import { d4Repository, handle } from "@/lib/d4/api";
+import { handle } from "@/modules/d4/server/_lib/http";
+import { getSnapshot } from "@/modules/d4/server/snapshot";
 
-// GET /api/d4/snapshot — seluruh data D4 yang boleh dilihat akun ini (dipakai layar /live).
-export async function GET() {
-  return handle(async () => (await d4Repository()).loadSnapshot());
-}
+export const GET = () => handle(getSnapshot);
