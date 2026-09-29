@@ -64,3 +64,29 @@ npm run build
 ```
 
 Jika lingkungan lokal melarang Turbopack membuka port untuk proses CSS, jalankan `npm run build -- --webpack`. Ini hanya opsi pemeriksaan lokal; skrip dan versi build tetap mengikuti repo resmi.
+
+## D4 API endpoints
+
+Route handlers under `app/api/d4` reuse `SupabaseD4Repository`, so they apply the same validation as the `/live` screen. Every request runs with the caller's Supabase session cookie, and the D4 RLS policies still apply: HR/MANAGER can read all records and insert, EMPLOYEE can read only their own records. Responses are JSON: `{ "data": … }` on success, `{ "error": "…" }` with 400/401/403/404 on failure.
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/d4/me` | Role and employee record of the signed-in account |
+| GET | `/api/d4/snapshot` | All D4 data visible to the account |
+| GET | `/api/d4/kpi-catalog?role_order=` | KPI Scorecard V3.1 catalog (5 indicators per role) |
+| GET, POST | `/api/d4/kpi-assessments?employee_id=` | KPI assessments; the score is calculated by the database trigger |
+| GET, POST | `/api/d4/performance-evaluations?employee_id=` | Performance evaluations |
+| GET, POST | `/api/d4/competency-assessments?employee_id=` | Competency gap snapshots; POST recalculates the gap on the server |
+| GET, POST | `/api/d4/development-needs?employee_id=` | Development needs; POST creates the need and revision 1 in one transaction |
+| POST | `/api/d4/development-needs/:id/versions` | Append a development status revision |
+| GET, POST | `/api/d4/training-records?employee_id=` | Training records; POST creates the record and version 1 in one transaction |
+| POST | `/api/d4/training-records/:id/versions` | Append a training status/result version |
+
+Example:
+
+```bash
+curl -X POST http://localhost:3000/api/d4/development-needs/<need-id>/versions \
+  -H "Content-Type: application/json" \
+  --cookie "<supabase session cookie>" \
+  -d '{"status":"Planned","notes":"Jadwal training disetujui"}'
+```
