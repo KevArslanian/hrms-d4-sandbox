@@ -127,10 +127,10 @@ export function LiveD4Screen({ initialModule, initialView, employeeId, evaluatio
 
   const shared = { snapshot: snapshot!, busy, runWrite, navigate: (url: string) => { setMessage(""); setError(""); router.push(url); } };
   const activeModule = currentModule === "development" ? "competency" : currentModule === "kpi" ? "performance" : currentModule;
+  const people = snapshot?.role === "EMPLOYEE" ? snapshot.reference.employees.filter((employee) => employee.id === snapshot.actorEmployeeId) : snapshot?.reference.employees;
 
-  return <D4Shell live activeModule={activeModule} navigationEnabled={status === "ready"}>
+  return <D4Shell live activeModule={activeModule} navigationEnabled={status === "ready"} accountName={snapshot?.reference.employees.find((employee) => employee.id === snapshot.actorEmployeeId)?.fullName} accountRole={snapshot?.role} people={people} onSignOut={status === "ready" ? signOut : undefined}>
     <div className="mx-auto max-w-[1604px]">
-      {status === "ready" && <div className="mb-4 flex justify-end"><button type="button" onClick={signOut} className="rounded-md border border-[#d7e1ee] bg-white px-3 py-1.5 text-xs font-semibold text-[#526a89]">Keluar</button></div>}
       {status === "loading" ? <LoadingState /> : status === "error" ? <section role="alert" className="max-w-[820px] rounded-xl border border-[#f0c7cd] bg-white p-6 shadow-sm"><h1 className="text-lg font-semibold text-[#983c48]">Data D4 belum dapat dimuat</h1><p className="mt-3 text-sm text-[#8c4c56]">{error}</p><div className="mt-5 flex gap-2"><button type="button" onClick={() => { setStatus("loading"); setRetryKey((key) => key + 1); }} className="rounded-md bg-[#3b6ff5] px-4 py-2 text-sm font-semibold text-white">Coba lagi</button><button type="button" onClick={signOut} className="rounded-md border border-[#d7e1ee] px-4 py-2 text-sm text-[#526a89]">Keluar</button></div></section> : snapshot ? <>
         {(currentModule === "performance" || (currentModule === "kpi" && view === "scorecard")) && <PerformancePages {...shared} view={view as "list" | "add" | "edit" | "detail" | "history" | "scorecard"} employeeId={employeeId} evaluationId={evaluationId} />}
         {(currentModule === "dashboard" || (currentModule === "competency" && view === "competency")) && <PeoplePages {...shared} view={currentModule === "competency" ? "competency" : "dashboard"} />}
