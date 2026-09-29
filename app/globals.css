@@ -1,19 +1,53 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #172b4d;
-}
+/*
+ * D4 V2 design tokens. Values mirror the "D4 V2 Tokens" variable collection in
+ * Figma (PISD – D4 V2), which follows the D2 colour identity.
+ */
+@theme {
+  --color-nav: #0f172b;
+  --color-nav-2: #1e3765;
+  --color-nav-text: #cbd5e1;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-poppins);
-  --font-mono: var(--font-geist-mono);
+  --color-primary-50: #f1f3ff;
+  --color-primary-100: #d9e2fc;
+  --color-primary-500: #3b6ff5;
+  --color-primary-600: #155dfc;
+  --color-primary-700: #0550d7;
+
+  --color-app: #f8f9fc;
+  --color-surface: #ffffff;
+  --color-muted: #f1f5f9;
+
+  --color-ink: #0f172b;
+  --color-ink-2: #45556c;
+  --color-ink-3: #64748b;
+
+  --color-line: #e2e8f0;
+  --color-line-strong: #cbd5e1;
+
+  --color-success: #16a37a;
+  --color-success-bg: #e7f7f1;
+  --color-warning: #b57f0f;
+  --color-warning-bg: #fdf4e3;
+  --color-danger: #d9364f;
+  --color-danger-bg: #fcebee;
+  --color-info: #3b6ff5;
+  --color-info-bg: #eaf0ff;
+  --color-neutral: #64748b;
+  --color-neutral-bg: #f1f5f9;
+  --color-teal: #069494;
+  --color-people: #c94fea;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-montserrat), var(--font-inter), ui-sans-serif, sans-serif;
+
+  --shadow-card: 0 8px 24px rgb(21 93 252 / 0.08);
+  --shadow-modal: 0 24px 48px rgb(15 23 43 / 0.2);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-poppins), Arial, Helvetica, sans-serif;
+  background: var(--color-app);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
 }

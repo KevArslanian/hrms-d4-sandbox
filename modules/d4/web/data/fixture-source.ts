@@ -1,0 +1,137 @@
+import { compareCompetencies } from "../../competency/service";
+import { developmentFixtureVersions } from "../../development/fixtures";
+import { indicatorsFor, KPI_V51_CATALOG, selectCatalog } from "../../kpi/catalog";
+import { performanceFixtureRecords } from "../../performance/fixtures";
+import { validatePerformanceInput } from "../../performance/validation";
+import { d4ReferenceFixture } from "../../shared/fixtures";
+import type { D4LiveSnapshot, KpiAssessment, KpiAssessmentLine } from "../../supabase/types";
+import { latestDevelopment, latestTraining } from "../../supabase/types";
+import { trainingFixtureVersions } from "../../training/fixtures";
+import type { D4DataSource } from "./source";
+
+// Local preview only (NEXT_PUBLIC_D4_DATA_MODE=fixture in development). All people and
+// records are fictional; writes live in memory and disappear on reload. The rules below
+// mirror the server so the UI behaves the same as in live mode.
+const HR_ACTOR = "d4000000-0000-4000-8000-000000000012";
+const NADIN = "d4000000-0000-4000-8000-000000000009";
+// NEXT_PUBLIC_D4_FIXTURE_ROLE=EMPLOYEE previews the self-service view as Nadin (read-only).
+const FIXTURE_ROLE = process.env.NEXT_PUBLIC_D4_FIXTURE_ROLE === "EMPLOYEE" ? "EMPLOYEE" : process.env.NEXT_PUBLIC_D4_FIXTURE_ROLE === "MANAGER" ? "MANAGER" : "HR";
+const catalog = selectCatalog(KPI_V51_CATALOG);
+
+function kpiLines(roleOrder: number, scores: (number | null)[], actual: string[]): KpiAssessmentLine[] {
+  return indicatorsFor(catalog, roleOrder).map((row, index) => ({
+    indicator_order: row.indicator_order, kpi_name: row.kpi_name, weight_percent: row.weight_percent,
+    target: "Sesuai target periode", actual: actual[index] ?? "", raw_score: scores[index] ?? null, comment: "",
+  }));
+}
+
+function total(lines: readonly KpiAssessmentLine[]): number | null {
+  if (lines.some((line) => line.raw_score === null)) return null;
+  return Math.round(lines.reduce((sum, line) => sum + line.weight_percent * (line.raw_score ?? 0) / 100, 0) * 100) / 100;
+}
+
+function assessment(id: string, employeeId: string, roleOrder: number, period: string, scores: (number | null)[], status: "draft" | "completed"): KpiAssessment {
+  const lines = kpiLines(roleOrder, scores, ["98% SLA", "100% akurat", "H+1", "Piutang 6%", "Zero denda"]);
+  return {
+    id, definitionVersion: catalog.version, employeeId, roleOrder, roleName: indicatorsFor(catalog, roleOrder)[0].role_name,
+    period, evaluationDate: `${period}-25`, evaluatorName: "Christy Gardena", status, lines, overallScore: total(lines),
+    generalNotes: status === "completed" ? "Contoh scorecard fixture (sampel FR-D4-002, total 4.10)." : "", createdAt: `${period}-25T08:00:00.000Z`, actor: "Christy Gardena",
+  };
+}
+
+function initialSnapshot(): D4LiveSnapshot {
+  const nadin = NADIN;
+  const finance = "d4000000-0000-4000-8000-000000000008";
+  const comparison = compareCompetencies(nadin, finance, d4ReferenceFixture);
+  return {
+    reference: d4ReferenceFixture,
+    role: FIXTURE_ROLE,
+    actorEmployeeId: FIXTURE_ROLE === "EMPLOYEE" ? NADIN : HR_ACTOR,
+    kpi: [],
+    kpiAssessments: [
+      assessment("FIX-D4-KPI-001", nadin, 10, "2026-09", [4, 5, 4, 3, 4], "completed"),
+      assessment("FIX-D4-KPI-002", nadin, 10, "2026-06", [3, 4, 4, 3, 3], "completed"),
+      assessment("FIX-D4-KPI-003", "d4000000-0000-4000-8000-000000000016", 10, "2026-09", [4, 4, null, null, null], "draft"),
+    ],
+    performance: performanceFixtureRecords,
+    competency: [{
+      id: "FIX-D4-COMP-ASSESS-001", source: "local-demo", employeeId: nadin, positionId: finance, effectiveDate: "2026-09-21",
+      context: "current-position", findings: comparison.findings, overallStatus: comparison.overallStatus,
+      createdAt: "2026-09-21T09:00:00.000Z", actor: "Christy Gardena",
+    }],
+    developmentVersions: developmentFixtureVersions,
+    trainingVersions: trainingFixtureVersions,
+  };
+}
+
+const actorName = () => d4ReferenceFixture.employees.find((item) => item.id === HR_ACTOR)?.fullName ?? "HR";
+const now = () => new Date().toISOString();
+const newId = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
+const delay = () => new Promise((resolve) => setTimeout(resolve, 250));
+
+export function createFixtureSource(): D4DataSource {
+  let state = initialSnapshot();
+  const update = (patch: Partial<D4LiveSnapshot>) => { state = { ...state, ...patch }; };
+  const assertWriter = () => { if (state.role === "EMPLOYEE") throw new Error("Hanya HR atau Manager yang dapat menyimpan perubahan."); };
+  return {
+    mode: "fixture",
+    async loadSnapshot() { await delay(); return state; },
+    async loadKpiCatalog() { return catalog; },
+    async createEvaluation(input) {
+      assertWriter();
+      validatePerformanceInput(input);
+      const id = newId("FIX-D4-PERF");
+      update({ performance: [{ ...input, id, source: "local-demo", createdAt: now(), actor: actorName() }, ...state.performance] });
+      return id;
+    },
+    async createKpiAssessment(input) {
+      assertWriter();
+      const indicators = indicatorsFor(catalog, input.roleOrder);
+      if (indicators.length !== 5) throw new Error("Jabatan KPI tidak ditemukan pada katalog.");
+      if (input.status === "completed" && input.lines.some((line) => line.raw_score === null)) throw new Error("Seluruh lima indikator harus dinilai sebelum diselesaikan.");
+      const id = newId("FIX-D4-KPI");
+      update({ kpiAssessments: [{ ...input, id, definitionVersion: catalog.version, roleName: indicators[0].role_name, overallScore: total(input.lines), createdAt: now(), actor: actorName() }, ...(state.kpiAssessments ?? [])] });
+      return id;
+    },
+    async saveCompetency(input) {
+      assertWriter();
+      const employee = state.reference.employees.find((item) => item.id === input.employeeId);
+      if (!employee) throw new Error("Employee tidak ditemukan.");
+      const comparison = compareCompetencies(input.employeeId, input.positionId, state.reference);
+      if (!comparison.findings.length) throw new Error("Persyaratan kompetensi posisi belum tersedia.");
+      const id = newId("FIX-D4-COMP");
+      update({ competency: [{ id, source: "local-demo", employeeId: input.employeeId, positionId: input.positionId, effectiveDate: input.effectiveDate, context: employee.positionId === input.positionId ? "current-position" : "role-change", findings: comparison.findings, overallStatus: comparison.overallStatus, createdAt: now(), actor: actorName() }, ...state.competency] });
+      return id;
+    },
+    async createDevelopment(input) {
+      assertWriter();
+      if (!input.objective.trim()) throw new Error("Development objective wajib diisi.");
+      if (!input.sourceRef) throw new Error("Referensi sumber wajib dipilih.");
+      const needId = newId("FIX-D4-DEV");
+      update({ developmentVersions: [{ ...input, id: newId("FIX-D4-DEV-V"), needId, revision: 1, source: "local-demo", status: "Identified", createdAt: now(), actor: actorName() }, ...state.developmentVersions] });
+      return needId;
+    },
+    async updateDevelopment(needId, status, notes) {
+      assertWriter();
+      const current = latestDevelopment(state).find((item) => item.needId === needId);
+      if (!current) throw new Error("Development need tidak ditemukan.");
+      update({ developmentVersions: [{ ...current, id: newId("FIX-D4-DEV-V"), revision: current.revision + 1, status, notes, createdAt: now(), actor: actorName() }, ...state.developmentVersions] });
+    },
+    async createTraining(input) {
+      assertWriter();
+      const need = latestDevelopment(state).find((item) => item.needId === input.developmentNeedId);
+      if (!need || need.employeeId !== input.employeeId) throw new Error("Training harus mengacu pada development need milik employee yang sama.");
+      if (input.status === "Completed" && !input.result.trim()) throw new Error("Hasil wajib diisi saat training selesai.");
+      const trainingId = newId("FIX-D4-TRN");
+      update({ trainingVersions: [{ ...input, id: newId("FIX-D4-TRN-V"), trainingId, revision: 1, source: "local-demo", createdAt: now(), actor: actorName() }, ...state.trainingVersions] });
+      return trainingId;
+    },
+    async updateTraining(trainingId, status, result, notes) {
+      assertWriter();
+      const current = latestTraining(state).find((item) => item.trainingId === trainingId);
+      if (!current) throw new Error("Training tidak ditemukan.");
+      if (status === "Completed" && !result.trim()) throw new Error("Hasil wajib diisi saat training selesai.");
+      update({ trainingVersions: [{ ...current, id: newId("FIX-D4-TRN-V"), revision: current.revision + 1, status, result, notes, createdAt: now(), actor: actorName() }, ...state.trainingVersions] });
+    },
+  };
+}
