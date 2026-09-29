@@ -145,14 +145,15 @@ function CompetencyNeeds({ snapshot, busy, runWrite, navigate }: Omit<Props, "vi
     <section className="max-w-[1051px] overflow-hidden rounded-xl border border-[#e5eaf0] bg-white" aria-label="Daftar kebutuhan kompetensi">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[820px] table-fixed text-left text-xs">
-          <colgroup><col className="w-[34%]" /><col className="w-[21.5%]" /><col className="w-[37.5%]" /><col className="w-[7%]" /></colgroup>
-          <thead className="h-[54px] border-b border-[#f2f4f2] bg-white text-xs font-bold uppercase tracking-[0.6px] text-[#94a3b8]"><tr><th className="px-[23px] font-bold">Employees</th><th className="px-3 font-bold">Competency Requirement</th><th className="px-3 font-bold">Evidence / Level</th><th className="pr-4 text-right font-bold">Actions</th></tr></thead>
+          <colgroup><col className="w-[34%]" /><col className="w-[21.5%]" /><col className="w-[21%]" /><col className="w-[16.5%]" /><col className="w-[7%]" /></colgroup>
+          <thead className="h-[54px] border-b border-[#f2f4f2] bg-white text-xs font-bold uppercase tracking-[0.6px] text-[#94a3b8]"><tr><th scope="col" className="px-[23px] font-bold">Employees</th><th scope="col" className="px-3 font-bold">Competency Requirement</th><th scope="col" className="px-3 font-bold">Evidence / Level</th><th scope="col" className="px-3 font-bold">Status</th><th scope="col" className="pr-4 text-right font-bold">Actions</th></tr></thead>
           <tbody>{visible.map((row) => {
             const key = `${row.employee.id}:${row.finding?.requirementId ?? "none"}`;
             return <tr key={key} className="h-[66px] border-b border-[#f2f4f2] last:border-0">
               <td className="px-[23px] py-3"><strong className="block text-sm font-semibold leading-5 tracking-[0.07px] text-[#121b2e]">{row.employee.fullName}</strong><span className="block text-xs leading-4 text-[#64748b]">{row.employee.employeeId}</span></td>
               <td className="px-3 py-3 font-medium leading-4 text-[#121b2e]">{row.finding?.competencyName ?? "No position requirements"}</td>
-              <td className="px-3 py-3 font-medium leading-4 text-[#121b2e]" title={row.finding?.evidenceNotes ?? ""}><div className="flex items-center gap-3"><span className="flex-1">{evidenceForFinding(row.finding)}</span><span className="w-[150px] shrink-0"><CompetencyEvidenceBadge finding={row.finding} /></span></div></td>
+              <td className="px-3 py-3 font-medium leading-4 text-[#121b2e]" title={row.finding?.evidenceNotes ?? ""}>{evidenceForFinding(row.finding)}</td>
+              <td className="px-3 py-3"><CompetencyEvidenceBadge finding={row.finding} /></td>
               <td className="pr-4 text-right"><button type="button" className="inline-flex h-7 w-6 items-center justify-center rounded hover:bg-[#f4f6fa] focus-visible:outline-2 focus-visible:outline-[#3b6ff5]" aria-label={`Aksi ${row.employee.fullName}, ${row.finding?.competencyName ?? "kompetensi"}`} aria-haspopup="dialog" onClick={() => setOpenRow(key)}><Image src="/figma/competency/actions.svg" width={2.66667} height={10.6667} alt="" /></button></td>
             </tr>;
           })}</tbody>
