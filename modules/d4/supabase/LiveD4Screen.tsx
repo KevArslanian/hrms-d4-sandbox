@@ -8,6 +8,7 @@ import { LiveModuleContent } from "./LiveModuleContent";
 import { PeoplePages } from "./pages/PeoplePages";
 import { PerformancePages } from "./pages/PerformancePages";
 import { TrainingPages } from "./pages/TrainingPages";
+import { RoleKpiCatalog } from "./RoleKpiCatalog";
 import { SupabaseD4Repository } from "./repository";
 import type { D4LiveSnapshot } from "./types";
 
@@ -28,7 +29,7 @@ function selectedModule(value?: string): D4Module {
 
 function selectedView(module: D4Module, value?: string) {
   const allowed: Record<D4Module, readonly string[]> = {
-    performance: ["list", "add", "edit", "detail", "history", "scorecard"],
+    performance: ["list", "add", "edit", "detail", "history", "scorecard", "roles"],
     competency: ["competency", "assessment"],
     training: ["list", "add", "progress", "history"],
     dashboard: ["dashboard"],
@@ -142,7 +143,8 @@ export function LiveD4Screen({ initialModule, initialView, employeeId, evaluatio
   return <D4Shell live activeModule={activeModule} canvasBackground={currentModule === "development" ? "white" : undefined} navigationEnabled={status === "ready"} accountName={snapshot?.reference.employees.find((employee) => employee.id === snapshot.actorEmployeeId)?.fullName} accountRole={snapshot?.role} people={people} onSignOut={status === "ready" ? signOut : undefined}>
     <div className="mx-auto max-w-[1604px]">
       {status === "loading" ? <LoadingState /> : status === "error" ? <ErrorState error={error} onRetry={() => { setStatus("loading"); setRetryKey((key) => key + 1); }} onSignOut={() => { void signOut(); }} /> : snapshot ? <>
-        {(currentModule === "performance" || (currentModule === "kpi" && view === "scorecard")) && <PerformancePages {...shared} view={view as "list" | "add" | "edit" | "detail" | "history" | "scorecard"} employeeId={employeeId} evaluationId={evaluationId} />}
+        {currentModule === "performance" && view === "roles" && <RoleKpiCatalog />}
+        {(currentModule === "performance" && view !== "roles" || (currentModule === "kpi" && view === "scorecard")) && <PerformancePages {...shared} view={view as "list" | "add" | "edit" | "detail" | "history" | "scorecard"} employeeId={employeeId} evaluationId={evaluationId} />}
         {(currentModule === "dashboard" || (currentModule === "competency" && view === "competency")) && <PeoplePages {...shared} view={currentModule === "competency" ? "competency" : "dashboard"} />}
         {(currentModule === "training" || (currentModule === "development" && view === "development-new")) && <TrainingPages {...shared} view={view as "list" | "add" | "progress" | "history" | "development-new"} employeeId={employeeId} trainingId={trainingId} sourceRef={sourceRef} />}
         {currentModule === "competency" && view === "assessment" && <LiveModuleContent {...shared} module="competency" />}
