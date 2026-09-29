@@ -14,7 +14,7 @@
 
 - Migrasi `supabase/migrations/20260929150000_d4_kpi_catalog_v51.sql` menambahkan katalog V5.1 dan kolom `definition_version` tanpa menghapus V3.1, sehingga scorecard lama tetap terbaca dengan versi aslinya.
 - Migrasi ini **belum diterapkan** ke Supabase bersama. Penerapannya perlu persetujuan PO dan Back End karena memengaruhi squad lain yang memakai project yang sama.
-- Sampai migrasi diterapkan, aplikasi memakai versi terbaru yang ada di database (V3.1) dan menampilkan versi katalog di halaman `/kpi/catalog`.
+- Sampai migrasi diterapkan, aplikasi memakai versi terbaru yang ada di database (V3.1) dan menampilkan peringatan versi katalog di halaman KPI Scorecard.
 - Setiap scorecard menyimpan versi katalog yang dipakai saat dibuat (*KPI definition reference*), sehingga perubahan katalog berikutnya tidak mengubah skor historis.
 
 ### Open decision

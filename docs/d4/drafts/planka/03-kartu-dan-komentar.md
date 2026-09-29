@@ -18,7 +18,7 @@ Route per kartu:
 | Kartu | Route |
 |---|---|
 | Performance Evaluation | `/performance`, `/performance/[id]`, `/performance/history/[employeeId]` |
-| KPI Scorecard | `/kpi`, `/kpi/[id]`, `/kpi/history/[employeeId]`, `/kpi/catalog` |
+| KPI Scorecard | `/kpi`, `/kpi/[id]`, `/kpi/history/[employeeId]` |
 | Competency Gap & Development | `/competency`, `/competency/[employeeId]`, `/competency/[employeeId]/history`, `/development`, `/development/[id]`, `/development/[id]/history` |
 | Training Tracking | `/training`, `/training/[id]`, `/training/[id]/history` |
 | People Dashboard | `/dashboard`, `/dashboard/employee/[id]` |
@@ -31,10 +31,10 @@ Frame per kartu:
 
 | Kartu | Frame | Node |
 |---|---|---|
-| Design Performance Evaluation & KPI Scorecard | 01–12 | [4:3](https://www.figma.com/design/blDVBM6m8VC02A7PvouX4F?node-id=4-3) |
-| Design Competency Gap & Development Requirement | 13–20 | [7:1556](https://www.figma.com/design/blDVBM6m8VC02A7PvouX4F?node-id=7-1556) |
-| Design Training | 21–25 | [9:2512](https://www.figma.com/design/blDVBM6m8VC02A7PvouX4F?node-id=9-2512) |
-| Design Dashboard | 26–29 | [11:3686](https://www.figma.com/design/blDVBM6m8VC02A7PvouX4F?node-id=11-3686) |
+| Design Performance Evaluation & KPI Scorecard | 01–12 | [19:4133](https://www.figma.com/design/blDVBM6m8VC02A7PvouX4F?node-id=19-4133) |
+| Design Competency Gap & Development Requirement | 13–20 | [21:4152](https://www.figma.com/design/blDVBM6m8VC02A7PvouX4F?node-id=21-4152) |
+| Design Training | 21–25 | [24:4152](https://www.figma.com/design/blDVBM6m8VC02A7PvouX4F?node-id=24-4152) |
+| Design Dashboard | 26–29, 35, 36 | [25:4116](https://www.figma.com/design/blDVBM6m8VC02A7PvouX4F?node-id=25-4116) |
 | UI Consistency / Handoff | 00 Foundations & Components, 30–34 | [2:2](https://www.figma.com/design/blDVBM6m8VC02A7PvouX4F?node-id=2-2) |
 
 ## 4. Kartu baru (opsional, untuk To Do List QA)
