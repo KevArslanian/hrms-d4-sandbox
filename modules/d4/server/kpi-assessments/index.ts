@@ -1,4 +1,4 @@
-import { indicatorsFor, selectCatalog, type RoleKpiRow } from "../../kpi/catalog";
+import { indicatorsFor, roleForPositionTitle, selectCatalog, type RoleKpiRow } from "../../kpi/catalog";
 import type { KpiAssessmentLine } from "../../supabase/types";
 import { ApiError, employeeFilter, field, readJson } from "../_lib/http";
 import { d4Session, requireWriter } from "../_lib/session";
@@ -19,20 +19,27 @@ export async function getAssessment(id: string) {
 }
 
 /**
- * POST /api/d4/kpi-assessments — the five lines must match the catalog role exactly
- * (name, order, weight = 100 %). Weighted and total scores are calculated by the
+ * POST /api/d4/kpi-assessments — the KPI role must be the one mapped from the employee's
+ * position (FR-02.1/FR-02.11) and the five lines must match it exactly (name, order, weight = 100 %). Weighted and total scores are calculated by the
  * database trigger; realisation is never converted into a raw score automatically.
  */
 export async function createAssessment(request: Request) {
   const { client, repository } = await requireWriter();
   const body = await readJson(request);
-  const status = field.oneOf(body, "status", ["draft", "completed"] as const);
+  // FR-D4-002 defines no draft scorecard; every saved scorecard is complete.
+  const status = field.oneOf(body, "status", ["completed"] as const);
   const roleOrder = typeof body.roleOrder === "number" ? body.roleOrder : NaN;
+  const employeeId = field.uuid(body, "employeeId");
   const { data, error } = await client.from("d4_kpi_role_catalog")
     .select("role_order,role_name,indicator_order,kpi_name,target,weight_percent,source_version");
   if (error) throw new Error(`Katalog KPI: ${error.message}`);
   const catalog = selectCatalog((data ?? []) as RoleKpiRow[]);
   const indicators = indicatorsFor(catalog, roleOrder);
+  const { reference } = await repository.loadSnapshot();
+  const employee = reference.employees.find((item) => item.id === employeeId);
+  if (!employee) throw new ApiError("VALIDATION_FAILED", "Employee tidak ditemukan.");
+  const positionTitle = reference.positions.find((item) => item.id === employee.positionId)?.title;
+  if (roleForPositionTitle(catalog, positionTitle) !== roleOrder) throw new ApiError("VALIDATION_FAILED", "KPI yang dipilih bukan KPI untuk position employee ini.");
   if (indicators.length !== 5 || indicators.reduce((sum, row) => sum + row.weight_percent, 0) !== 100) throw new ApiError("VALIDATION_FAILED", "Jabatan KPI tidak ditemukan pada katalog atau bobotnya bukan 100%.");
   if (!Array.isArray(body.lines) || body.lines.length !== 5) throw new ApiError("VALIDATION_FAILED", "Scorecard harus memiliki lima indikator KPI.");
   const lines: KpiAssessmentLine[] = indicators.map((indicator, index) => {
@@ -48,7 +55,7 @@ export async function createAssessment(request: Request) {
   });
   const id = await repository.saveKpiAssessment({
     definitionVersion: catalog.version,
-    employeeId: field.uuid(body, "employeeId"), roleOrder, roleName: indicators[0].role_name,
+    employeeId, roleOrder, roleName: indicators[0].role_name,
     period: field.period(body, "period"), evaluationDate: field.date(body, "evaluationDate", { required: status === "completed" }),
     evaluatorName: field.text(body, "evaluatorName", { required: status === "completed", max: 120 }),
     status, lines, generalNotes: field.text(body, "generalNotes", { required: false, max: 4000 }),

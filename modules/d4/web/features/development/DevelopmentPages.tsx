@@ -4,7 +4,7 @@ import { Eye, GraduationCap, History, Plus, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { DevelopmentNeedVersion, DevelopmentSourceType } from "../../../development/types";
 import { useSnapshot } from "../../data/D4DataProvider";
-import { canWrite, describeSource, developmentById, developmentHistory, developmentNeeds, employeeById, formatDate, includesText, positionOf, sourceTypeLabel, trainings, visibleEmployees } from "../../data/selectors";
+import { canWrite, describeSource, developmentById, developmentHistory, developmentNeeds, employeeById, formatDate, formatPeriod, includesText, positionOf, sourceTypeLabel, trainings, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
@@ -19,27 +19,29 @@ export function DevelopmentListPage() {
   const [search, setSearch] = useState("");
   const [sourceType, setSourceType] = useState("");
   const [status, setStatus] = useState("");
-  const [priority, setPriority] = useState("");
+  const [period, setPeriod] = useState("");
   const [adding, setAdding] = useState(false);
   const [statusFor, setStatusFor] = useState<string | null>(null);
   const [trainingFor, setTrainingFor] = useState<DevelopmentNeedVersion | null>(null);
+  // FR-04.8: filter by employee, source, period (month the requirement was last recorded) and status.
+  const periods = useMemo(() => [...new Set(developmentNeeds(snapshot).map((need) => need.createdAt.slice(0, 7)))].sort().reverse(), [snapshot]);
   const rows = useMemo(() => {
     const visible = new Set(visibleEmployees(snapshot).map((item) => item.id));
     return developmentNeeds(snapshot).filter((need) => {
       const employee = employeeById(snapshot, need.employeeId);
       return visible.has(need.employeeId) && includesText(`${employee?.fullName ?? ""} ${employee?.employeeId ?? ""} ${need.objective}`, search)
-        && (!sourceType || need.sourceType === sourceType) && (!status || need.status === status) && (!priority || need.priority === priority);
+        && (!sourceType || need.sourceType === sourceType) && (!status || need.status === status) && (!period || need.createdAt.startsWith(period));
     });
-  }, [snapshot, search, sourceType, status, priority]);
+  }, [snapshot, search, sourceType, status, period]);
 
   return <>
     <PageHeader title="Development Requirement" subtitle="Kebutuhan development/training dengan alasan dan sumber yang dapat ditelusuri (FR-D4-004)."
       actions={writer && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)}>Add Requirement</Button>} />
-    <FilterBar canReset={Boolean(search || sourceType || status || priority)} onReset={() => { setSearch(""); setSourceType(""); setStatus(""); setPriority(""); }}>
+    <FilterBar canReset={Boolean(search || sourceType || status || period)} onReset={() => { setSearch(""); setSourceType(""); setStatus(""); setPeriod(""); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Search employee or objective" />
       <SelectFilter label="All sources" value={sourceType} onChange={setSourceType} options={(Object.keys(sourceTypeLabel) as DevelopmentSourceType[]).map((key) => ({ value: key, label: sourceTypeLabel[key] }))} />
       <SelectFilter label="All status" value={status} onChange={setStatus} options={["Identified", "Planned", "In Progress", "Completed"].map((item) => ({ value: item, label: item }))} />
-      <SelectFilter label="All priority" value={priority} onChange={setPriority} options={["High", "Medium", "Low"].map((item) => ({ value: item, label: item }))} />
+      <SelectFilter label="All periods" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
     </FilterBar>
     <DataTable<DevelopmentNeedVersion> rows={rows} noun="requirements" rowKey={(row) => row.needId} rowHref={(row) => `/development/${row.needId}`}
       emptyTitle="Belum ada development requirement" emptyText="Buat requirement dari competency gap, perubahan posisi, atau evaluasi kinerja."

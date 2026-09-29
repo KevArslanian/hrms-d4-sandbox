@@ -9,14 +9,13 @@ import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
-import { Button, ButtonLink, Card, InfoGrid, MetricCard, Notice, SourceChip, StatusBadge } from "../../ui/primitives";
+import { Button, ButtonLink, Card, InfoGrid, Notice, SourceChip, StatusBadge } from "../../ui/primitives";
 import { TrainingFormModal, TrainingProgressModal } from "./TrainingModals";
 
 export function TrainingListPage() {
   const snapshot = useSnapshot();
   const writer = canWrite(snapshot);
   const [search, setSearch] = useState("");
-  const [position, setPosition] = useState("");
   const [period, setPeriod] = useState("");
   const [status, setStatus] = useState("");
   const [requirement, setRequirement] = useState("");
@@ -31,22 +30,14 @@ export function TrainingListPage() {
   const rows = all.filter((item) => {
     const employee = employeeById(snapshot, item.employeeId);
     return includesText(`${employee?.fullName ?? ""} ${employee?.employeeId ?? ""} ${item.activity}`, search)
-      && (!position || employee?.positionId === position) && (!period || item.date.startsWith(period)) && (!status || item.status === status) && (!requirement || item.developmentNeedId === requirement);
+      && (!period || item.date.startsWith(period)) && (!status || item.status === status) && (!requirement || item.developmentNeedId === requirement);
   });
-  const count = (value: string) => all.filter((item) => item.status === value).length;
 
   return <>
     <PageHeader title="Training Tracking" subtitle="Lacak training/development dari requirement sumber sampai hasil pelaksanaan (FR-D4-005)."
       actions={writer && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)}>Add Training</Button>} />
-    <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(200px,1fr))]">
-      <MetricCard label="Planned" value={String(count("Planned"))} />
-      <MetricCard label="In progress" value={String(count("In Progress"))} />
-      <MetricCard label="Completed" value={String(count("Completed"))} helper="Tidak otomatis menutup gap" />
-      <MetricCard label="Cancelled" value={String(count("Cancelled"))} />
-    </div>
-    <FilterBar canReset={Boolean(search || position || period || status || requirement)} onReset={() => { setSearch(""); setPosition(""); setPeriod(""); setStatus(""); setRequirement(""); }}>
+    <FilterBar canReset={Boolean(search || period || status || requirement)} onReset={() => { setSearch(""); setPeriod(""); setStatus(""); setRequirement(""); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Search employee or training" />
-      <SelectFilter label="All positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />
       <SelectFilter label="All periods" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
       <SelectFilter label="All status" value={status} onChange={setStatus} options={["Planned", "In Progress", "Completed", "Cancelled"].map((item) => ({ value: item, label: item }))} />
       <SelectFilter label="All source requirements" value={requirement} onChange={setRequirement} options={requirements.map(([value, label]) => ({ value, label }))} />
