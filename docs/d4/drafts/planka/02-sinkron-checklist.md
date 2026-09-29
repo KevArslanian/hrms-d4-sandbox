@@ -25,7 +25,7 @@ Arti kolom **Rekomendasi**:
 | DoD: History | Centang setelah QA live | `/performance/history/[employeeId]` |
 | DoD: Data dapat dibuka kembali | Centang setelah QA live | `/performance/[id]` |
 | DoD: Permission | Centang setelah QA live | `requireWriter` (HR/Manager); Employee read-only, diuji dengan fixture role EMPLOYEE |
-| DoD: No automatic decision | Centang | Review status dipilih manual; tidak ada aksi otomatis dari skor |
+| DoD: No automatic decision | Centang | Hasil evaluasi dipilih manual oleh evaluator; tidak ada aksi otomatis dari skor |
 
 ### Implementasi KPI Scorecard
 
