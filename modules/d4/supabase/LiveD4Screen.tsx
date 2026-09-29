@@ -137,7 +137,7 @@ export function LiveD4Screen({ initialModule, initialView, employeeId, evaluatio
     }
   }
 
-  const shared = { snapshot: snapshot!, busy, runWrite, navigate: (url: string) => { setMessage(""); setError(""); router.push(url); } };
+  const shared = { snapshot: snapshot!, busy, runWrite, navigate: (url: string, keepStatus = false) => { if (!keepStatus) { setMessage(""); setError(""); } router.push(url); } };
   const activeModule = currentModule === "development" ? "competency" : currentModule === "kpi" ? "performance" : currentModule;
   const people = snapshot?.role === "EMPLOYEE" ? snapshot.reference.employees.filter((employee) => employee.id === snapshot.actorEmployeeId) : snapshot?.reference.employees;
 

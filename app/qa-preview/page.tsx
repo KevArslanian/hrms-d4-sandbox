@@ -22,7 +22,7 @@ export default function Preview() {
   const employeeId = query.get("employee") ?? d4ReferenceFixture.employees[1].id;
   const empty = query.has("empty");
   const snapshot: D4LiveSnapshot = {
-    role, actorEmployeeId: d4ReferenceFixture.employees[1].id,
+    role, actorEmployeeId: d4ReferenceFixture.employees[1].id, actorName: d4ReferenceFixture.employees[1].fullName,
     reference: empty ? { ...d4ReferenceFixture, employees: [], employeeSkills: [] } : d4ReferenceFixture,
     performance: empty ? [] : performanceFixtureRecords,
     kpi: empty ? [] : performanceFixtureRecords.map((record, index) => ({ id: `QA-KPI-${index}`, employeeId: record.employeeId, period: record.period, score: 70 + index * 3, notes: "QA fixture only", createdAt: record.createdAt })),

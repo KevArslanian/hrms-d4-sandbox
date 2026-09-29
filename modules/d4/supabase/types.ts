@@ -35,7 +35,8 @@ export interface KpiAssessmentInput {
   readonly roleName: string;
   readonly period: string;
   readonly evaluationDate: string;
-  readonly evaluatorName: string;
+  /** Ignored on save: the repository uses the signed-in account's name. */
+  readonly evaluatorName?: string;
   readonly status: "draft" | "completed";
   readonly lines: readonly KpiAssessmentLine[];
   readonly generalNotes: string;
@@ -52,12 +53,28 @@ export interface D4LiveSnapshot {
   readonly reference: ReferenceDataSnapshot;
   readonly role: D4AppRole;
   readonly actorEmployeeId: string;
+  /** Display name of the signed-in account, used as the evaluator on new assessments. */
+  readonly actorName: string;
   readonly kpi: readonly D3KpiRecord[];
   readonly kpiAssessments?: readonly KpiAssessment[];
   readonly performance: readonly PerformanceEvaluation[];
   readonly competency: readonly CompetencyAssessment[];
   readonly developmentVersions: readonly DevelopmentNeedVersion[];
   readonly trainingVersions: readonly TrainingVersion[];
+}
+
+/** KPI score in the scale of its source: assessments show x.xx / 5 like the scorecard, D3 records show / 100. */
+export function kpiScore(snapshot: D4LiveSnapshot, record: D3KpiRecord): { value: string; suffix: string } {
+  const assessment = snapshot.kpiAssessments?.find((item) => item.id === record.id);
+  return assessment?.overallScore != null
+    ? { value: assessment.overallScore.toFixed(2), suffix: "/ 5" }
+    : { value: String(record.score), suffix: "/ 100" };
+}
+
+export function kpiScoreLabel(snapshot: D4LiveSnapshot, record: D3KpiRecord | undefined): string {
+  if (!record) return "-";
+  const score = kpiScore(snapshot, record);
+  return `${score.value} ${score.suffix}`;
 }
 
 export function latestDevelopment(snapshot: D4LiveSnapshot): DevelopmentNeedVersion[] {
