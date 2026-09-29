@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { createD4BrowserClient } from "../client";
 import type { SupabaseD4Repository } from "../repository";
-import type { D4LiveSnapshot, KpiAssessmentLine } from "../types";
+import { ACTIVE_KPI_VERSION, type D4LiveSnapshot, type KpiAssessmentLine } from "../types";
 import type { RoleKpiRow } from "../RoleKpiCatalog";
 
 type Props = {
@@ -48,6 +48,7 @@ export function KpiAssessmentForm({ snapshot, employeeId, busy, runWrite, naviga
     let active = true;
     void createD4BrowserClient().from("d4_kpi_role_catalog")
       .select("role_order,role_name,indicator_order,kpi_name,target,weight_percent")
+      .eq("source_version", ACTIVE_KPI_VERSION)
       .order("role_order").order("indicator_order")
       .then(({ data, error: queryError }) => {
         if (!active) return;
@@ -103,7 +104,7 @@ export function KpiAssessmentForm({ snapshot, employeeId, busy, runWrite, naviga
     let savedId = "";
     await runWrite(async (repo) => {
       savedId = await repo.saveKpiAssessment({
-        employeeId: selectedEmployee, roleOrder, roleName, period, evaluationDate,
+        definitionVersion: ACTIVE_KPI_VERSION, employeeId: selectedEmployee, roleOrder, roleName, period, evaluationDate,
         evaluatorName, status, lines, generalNotes,
       });
     }, status === "draft" ? "Draft KPI tersimpan di Supabase." : "Penilaian KPI tersimpan di Supabase.");
@@ -115,7 +116,7 @@ export function KpiAssessmentForm({ snapshot, employeeId, busy, runWrite, naviga
     <section role="dialog" aria-modal="true" aria-labelledby="kpi-form-title" className="relative max-h-[94vh] w-full max-w-[1485px] overflow-y-auto rounded-xl bg-white p-5 shadow-2xl sm:p-8 lg:p-10">
       <button type="button" aria-label="Tutup formulir" onClick={() => navigate("/live?module=performance&view=list")} className="absolute right-4 top-4 rounded p-1 text-[#7c8da5] hover:bg-[#f4f6fa]"><X size={18} /></button>
       <h1 id="kpi-form-title" className="text-2xl font-semibold text-[#1e3765]">Penilaian KPI Andima</h1>
-      <p className="mt-1 text-sm text-[#64748b]">Lima indikator dan bobot mengikuti KPI Scorecard V3.1.</p>
+      <p className="mt-1 text-sm text-[#64748b]">Lima indikator dan bobot mengikuti KPI Scorecard {ACTIVE_KPI_VERSION}.</p>
       <div className="mt-7 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
         <label className="text-xs font-semibold text-[#45556c]">Pegawai *<select value={selectedEmployee} onChange={(event) => selectEmployee(event.target.value)} className={`mt-2 ${inputClass}`}><option value="">Pilih pegawai</option>{snapshot.reference.employees.map((item) => <option key={item.id} value={item.id}>{item.fullName} | {item.employeeId}</option>)}</select></label>
         <label className="text-xs font-semibold text-[#45556c]">Jabatan KPI *<select value={roleOrder} onChange={(event) => selectRole(Number(event.target.value))} disabled={catalogLoading || !!catalogError} className={`mt-2 ${inputClass}`}><option value={0}>Pilih jabatan dari Excel</option>{roles.map(([order, name]) => <option key={order} value={order}>{name}</option>)}</select></label>

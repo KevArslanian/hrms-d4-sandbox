@@ -25,7 +25,11 @@ export interface KpiAssessmentLine {
   readonly comment: string;
 }
 
+/** Catalog version used for new KPI assessments (sheet "KPI LIST PER POSISI" of the workbook). */
+export const ACTIVE_KPI_VERSION = "V5.1";
+
 export interface KpiAssessmentInput {
+  readonly definitionVersion: string;
   readonly employeeId: string;
   readonly roleOrder: number;
   readonly roleName: string;

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createD4BrowserClient } from "./client";
+import { ACTIVE_KPI_VERSION } from "./types";
 
 export type RoleKpiRow = {
   role_order: number;
@@ -20,6 +21,7 @@ export function RoleKpiCatalog() {
     let active = true;
     void createD4BrowserClient().from("d4_kpi_role_catalog")
       .select("role_order,role_name,indicator_order,kpi_name,target,weight_percent")
+      .eq("source_version", ACTIVE_KPI_VERSION)
       .order("role_order").order("indicator_order")
       .then(({ data, error: queryError }) => {
         if (!active) return;
@@ -40,7 +42,7 @@ export function RoleKpiCatalog() {
     <a href="/live?module=performance&view=list" className="mb-8 inline-flex h-10 items-center rounded-lg border border-[#e5eaf0] bg-white px-4 text-xs font-semibold text-[#172033]">Kembali ke Performance &amp; KPI</a>
     <section className="rounded-xl border border-[#e5eaf0] bg-white p-6 shadow-sm sm:p-8">
       <div className="flex flex-wrap items-end justify-between gap-5">
-        <div><p className="text-xs font-semibold uppercase tracking-wider text-[#3b6ff5]">KPI Scorecard V3.1</p><h1 className="mt-2 text-2xl font-semibold text-[#1e3765]">KPI per Jabatan</h1><p className="mt-2 text-sm text-[#64748b]">Indikator dan bobot sesuai KPI Scorecard PT Andima Transportindo V3.1.</p></div>
+        <div><p className="text-xs font-semibold uppercase tracking-wider text-[#3b6ff5]">KPI Scorecard {ACTIVE_KPI_VERSION}</p><h1 className="mt-2 text-2xl font-semibold text-[#1e3765]">KPI per Jabatan</h1><p className="mt-2 text-sm text-[#64748b]">Indikator dan bobot sesuai KPI Scorecard PT Andima Transportindo {ACTIVE_KPI_VERSION}.</p></div>
         <label className="block min-w-[260px] text-xs font-semibold text-[#405371]">Jabatan
           <select value={selected} onChange={(event) => setSelected(Number(event.target.value))} className="mt-2 block h-11 w-full rounded-lg border border-[#dce3ee] bg-white px-3 text-sm font-normal text-[#172033]">
             {roles.map(([order, name]) => <option key={order} value={order}>{name}</option>)}

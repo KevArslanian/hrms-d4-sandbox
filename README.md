@@ -73,7 +73,7 @@ Route handlers under `app/api/d4` reuse `SupabaseD4Repository`, so they apply th
 |---|---|---|
 | GET | `/api/d4/me` | Role and employee record of the signed-in account |
 | GET | `/api/d4/snapshot` | All D4 data visible to the account |
-| GET | `/api/d4/kpi-catalog?role_order=` | KPI Scorecard V3.1 catalog (5 indicators per role) |
+| GET | `/api/d4/kpi-catalog?role_order=&version=` | KPI Scorecard catalog (5 indicators per role); defaults to the active version V5.1 |
 | GET, POST | `/api/d4/kpi-assessments?employee_id=` | KPI assessments; the score is calculated by the database trigger |
 | GET, POST | `/api/d4/performance-evaluations?employee_id=` | Performance evaluations |
 | GET, POST | `/api/d4/competency-assessments?employee_id=` | Competency gap snapshots; POST recalculates the gap on the server |
