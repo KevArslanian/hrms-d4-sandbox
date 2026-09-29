@@ -18,4 +18,4 @@ Semua file di folder ini adalah **draft siap tempel**. Belum ada yang diubah di 
 1. Centang item Planka hanya setelah dicek di lingkungan tim (Supabase bersama + Vercel), bukan hanya di sandbox ini. Kolom "Bukti" di draft menunjuk ke kode di repo sandbox.
 2. Halaman **"Test Write Access (boleh dihapus)"** di Docmost tidak disentuh. Keputusan hapus ada di PO/pemilik space.
 3. Halaman duplikat tidak dihapus; salah satunya ditandai *Superseded*.
-4. Link Figma memakai file **PISD – D4 V2** (`https://www.figma.com/design/bpUIPDcmpjGbYzg0JuZnPH`). Node id per layar diisi setelah 34 frame selesai dibangun (lihat `figma-plugin/d4-v2-builder/`).
+4. Link Figma memakai file **D4 V2** (`https://www.figma.com/design/blDVBM6m8VC02A7PvouX4F`). Node id per layar sudah diisi untuk 34 frame; kalau frame dibangun ulang dengan `figma-plugin/d4-v2-builder/`, id-nya berubah dan perlu diperbarui.
