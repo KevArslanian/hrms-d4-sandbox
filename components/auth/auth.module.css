@@ -19,6 +19,9 @@
   font-display: swap;
 }
 
+/* D2 login look (industrial background, glass card, brand wordmark) sized for laptop screens:
+   the card must fit a 1280×720 viewport without scrolling. */
+
 .page {
   min-height: 100vh;
   min-height: 100svh;
@@ -33,74 +36,69 @@
 }
 
 .content {
-  width: min(1194px, calc(100% - 48px));
+  width: min(1120px, calc(100% - 48px));
   min-height: 100vh;
   min-height: 100svh;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: minmax(0, 805px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 460px) minmax(0, 1fr);
   align-items: center;
-  column-gap: 60px;
-  padding: 158px 0 0;
+  column-gap: 64px;
+  padding: 40px 0;
 }
 
 .card {
   width: 100%;
-  min-height: 808px;
-  border-radius: 35px;
-  background: rgba(248, 249, 252, 0.8);
-  box-shadow: inset -5px -10px 4px rgba(0, 0, 0, 0.25);
-  padding: 28px 68px 22px 46px;
-  backdrop-filter: blur(2px);
+  border-radius: 24px;
+  background: rgba(248, 249, 252, 0.85);
+  box-shadow: inset -3px -6px 3px rgba(0, 0, 0, 0.18), 0 24px 48px rgba(8, 20, 43, 0.25);
+  padding: 36px 40px 32px;
+  backdrop-filter: blur(4px);
 }
 
 .title {
-  margin: 0 0 17px;
-  font: 600 48px/1.5 "B2 Poppins", sans-serif;
-  letter-spacing: -0.04em;
+  margin: 0 0 8px;
+  font: 600 32px/1.25 "B2 Poppins", sans-serif;
+  letter-spacing: -0.03em;
 }
 
 .subtitle {
   margin: 0;
   color: #505d6f;
-  font: 600 18px/1.4 "B2 Montserrat", sans-serif;
+  font: 600 14px/1.45 "B2 Montserrat", sans-serif;
 }
 
 .form {
-  margin-top: 47px;
-}
-
-.form .field:first-child label {
-  margin-bottom: 20px;
+  margin-top: 28px;
 }
 
 .field + .field {
-  margin-top: 28px;
+  margin-top: 18px;
 }
 
 .field label {
   display: block;
-  margin: 0 0 13px 17px;
-  font: 600 24px/1.2 "B2 Syne", sans-serif;
+  margin: 0 0 8px 4px;
+  font: 600 15px/1.2 "B2 Syne", sans-serif;
 }
 
 .field input {
   display: block;
   width: 100%;
-  height: 77px;
-  border: 1px solid rgba(80, 93, 111, 0.1);
-  border-radius: 35px;
+  height: 52px;
+  border: 1px solid rgba(80, 93, 111, 0.12);
+  border-radius: 16px;
   outline: 0;
   background: #f8f9fc;
-  box-shadow: inset -5px -9px 4px rgba(0, 0, 0, 0.2);
-  padding: 0 27px;
+  box-shadow: inset -3px -5px 3px rgba(0, 0, 0, 0.12);
+  padding: 0 20px;
   color: #151922;
-  font: 600 20px/1.2 "B2 Montserrat", sans-serif;
+  font: 600 15px/1.2 "B2 Montserrat", sans-serif;
 }
 
 .field input:focus-visible {
   outline: 3px solid #3b6ff5;
-  outline-offset: 3px;
+  outline-offset: 2px;
 }
 
 .passwordField {
@@ -108,18 +106,18 @@
 }
 
 .passwordField input {
-  padding-right: 82px;
+  padding-right: 60px;
 }
 
 .visibilityButton {
   position: absolute;
   top: 50%;
-  right: 18px;
+  right: 8px;
   transform: translateY(-50%);
   display: grid;
   place-items: center;
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   border: 0;
   border-radius: 50%;
   background: transparent;
@@ -128,22 +126,22 @@
 }
 
 .visibilityButton:focus-visible,
-.submitButton:focus-visible,
-.accountLink:focus-visible {
+.submitButton:focus-visible {
   outline: 3px solid #151922;
   outline-offset: 3px;
 }
 
 .submitButton {
   display: block;
-  width: calc(100% - 74px);
-  min-height: 67px;
-  margin: 53px auto 0;
+  width: 100%;
+  min-height: 48px;
+  margin: 28px 0 0;
   border: 0;
-  border-radius: 20px;
+  border-radius: 14px;
   background: #3b6ff5;
   color: #fff;
-  font: 600 24px/1.2 "B2 Montserrat", sans-serif;
+  font: 600 16px/1.2 "B2 Montserrat", sans-serif;
+  letter-spacing: 0.04em;
   cursor: pointer;
 }
 
@@ -156,45 +154,35 @@
   opacity: 0.7;
 }
 
+.formError {
+  margin: 14px 0 0;
+  color: #a83342;
+  font: 600 14px/1.4 "B2 Montserrat", sans-serif;
+}
+
 .accountSwitch {
-  margin: 5px 0 0;
+  margin: 16px 0 0;
   text-align: center;
   color: #505d6f;
-  font: 600 24px/1.2 "B2 Syne", sans-serif;
-}
-
-.accountLink {
-  color: #151922;
-  text-decoration: none;
-}
-
-.accountLink:hover {
-  text-decoration: underline;
+  font: 600 14px/1.3 "B2 Syne", sans-serif;
 }
 
 .accountNote {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  min-height: 101px;
-  margin: 67px 0 0 23px;
-  padding: 19px 18px;
-  border-radius: 35px;
+  gap: 4px;
+  margin: 24px 0 0;
+  padding: 14px 18px;
+  border-radius: 16px;
   background: #f8f9fc;
-  box-shadow: inset -5px -9px 4px rgba(0, 0, 0, 0.2);
+  box-shadow: inset -3px -5px 3px rgba(0, 0, 0, 0.12);
   color: #505d6f;
-  font: 600 17px/1.3 "B2 Montserrat", sans-serif;
+  font: 600 13px/1.4 "B2 Montserrat", sans-serif;
 }
 
 .accountNote strong {
   color: #3b6ff5;
-  font-size: 20px;
-}
-
-.formError {
-  margin: 18px 0 0;
-  color: #a83342;
-  font: 600 16px/1.4 "B2 Montserrat", sans-serif;
+  font-size: 15px;
 }
 
 .brand {
@@ -203,95 +191,18 @@
   align-items: center;
   color: #f8f9fc;
   text-align: center;
-  font: 600 48px/1.6 "B2 Poppins", sans-serif;
-  white-space: nowrap;
-  transform: translateY(-89px);
-}
-
-.toast {
-  position: fixed;
-  z-index: 10;
-  top: 24px;
-  right: 24px;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  max-width: min(500px, calc(100% - 48px));
-  border-radius: 14px;
-  padding: 14px 20px;
-  color: #fff;
-  box-shadow: 0 14px 35px rgba(12, 20, 38, 0.25);
-  font: 600 18px/1.3 "B2 Montserrat", sans-serif;
-}
-
-.errorToast {
-  background: #dc3651;
-}
-
-.successToast {
-  background: #159565;
-}
-
-.toastIcon {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: #f8f9fc;
-  color: #dc3651;
-  font-size: 26px;
-  line-height: 1;
-}
-
-.successToast .toastIcon {
-  color: #159565;
-}
-
-.registerContent {
-  width: min(1444px, calc(100% - 48px));
-  align-items: start;
-  padding: 40px 0 30px;
-}
-
-.registerCard {
-  min-height: 1041px;
-  padding: 32px 70px 25px 49px;
-}
-
-.registerEyebrow {
-  margin: 0;
-  font: 600 24px/1.2 "B2 Syne", sans-serif;
-}
-
-.registerTitle {
-  margin: -19px 0 0;
-  font: 600 48px/1.5 "B2 Poppins", sans-serif;
-  letter-spacing: -0.04em;
+  font: 600 clamp(32px, 3.2vw, 48px)/1.3 "B2 Poppins", sans-serif;
   white-space: nowrap;
 }
 
-.registerForm {
-  margin-top: 24px;
-}
-
-.registerForm .field + .field {
-  margin-top: 25px;
-}
-
-.registerForm .submitButton {
-  margin-top: 100px;
-}
-
-@media (max-width: 1100px) {
+@media (max-width: 1024px) {
   .content {
-    grid-template-columns: minmax(0, 1fr) 280px;
-    gap: 28px;
+    grid-template-columns: minmax(0, 440px) minmax(0, 1fr);
+    column-gap: 32px;
   }
 
   .brand {
-    font-size: 32px;
+    font-size: 28px;
   }
 }
 
@@ -301,98 +212,31 @@
     flex-direction: column-reverse;
     justify-content: center;
     gap: 24px;
+    width: min(460px, calc(100% - 32px));
     padding: 24px 0;
   }
 
-  .card {
-    min-height: 0;
-    padding: 30px 26px;
-  }
-
   .brand {
-    font-size: clamp(22px, 5vw, 32px);
+    font-size: clamp(20px, 5vw, 28px);
     line-height: 1.25;
-    transform: none;
-  }
-
-  .accountNote {
-    margin: 44px 0 0;
-  }
-
-  .registerContent {
-    display: block;
-  }
-
-  .registerTitle {
-    font-size: clamp(28px, 5vw, 48px);
-    margin-top: 0;
-    white-space: normal;
-  }
-
-  .registerForm .submitButton {
-    margin-top: 50px;
   }
 }
 
 @media (max-width: 480px) {
-  .content,
-  .registerContent {
-    width: min(100% - 24px, 430px);
-  }
-
   .card {
-    border-radius: 24px;
-    padding: 26px 20px;
+    border-radius: 20px;
+    padding: 28px 20px 24px;
   }
 
   .title {
-    font-size: 33px;
-    line-height: 1.2;
-  }
-
-  .subtitle {
-    font-size: 13px;
+    font-size: 26px;
   }
 
   .form {
-    margin-top: 28px;
-  }
-
-  .field label,
-  .registerEyebrow {
-    font-size: 17px;
+    margin-top: 24px;
   }
 
   .field input {
-    height: 58px;
-    font-size: 16px;
-  }
-
-  .submitButton {
-    width: 100%;
-    min-height: 55px;
-    margin-top: 35px;
-    font-size: 17px;
-  }
-
-  .accountSwitch {
-    font-size: 16px;
-  }
-
-  .accountNote {
-    min-height: 0;
-    font-size: 13px;
-  }
-
-  .accountNote strong {
-    font-size: 16px;
-  }
-
-  .registerTitle {
-    font-size: 28px;
-  }
-
-  .registerForm .submitButton {
-    margin-top: 45px;
+    height: 48px;
   }
 }
