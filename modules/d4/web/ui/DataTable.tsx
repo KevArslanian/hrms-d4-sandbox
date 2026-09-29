@@ -12,7 +12,11 @@ export type Column<T> = {
   className?: string;
   /** Allow text to wrap (long text columns). Other cells stay on one line. */
   wrap?: boolean;
+  /** Secondary column: hidden below 1400 px so the primary columns keep their room (matches Figma frame 28). */
+  secondary?: boolean;
 };
+
+const secondaryCell = (column: { secondary?: boolean }) => column.secondary && "hidden min-[1400px]:table-cell";
 
 const PAGE_SIZE = 8;
 
@@ -41,7 +45,7 @@ export function DataTable<T>({ rows, columns, rowKey, rowHref, actions, emptyTit
     <div className="overflow-x-auto">
       <table className="w-full min-w-[760px] text-left text-sm">
         <thead className="bg-app">
-          <tr>{columns.map((column) => <th key={column.key} scope="col" className={cx("px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3", column.className)}>{column.header}</th>)}
+          <tr>{columns.map((column) => <th key={column.key} scope="col" className={cx("px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3", secondaryCell(column), column.className)}>{column.header}</th>)}
             {actions && <th scope="col" className="w-16 px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3">Action</th>}</tr>
         </thead>
         <tbody>
@@ -49,7 +53,7 @@ export function DataTable<T>({ rows, columns, rowKey, rowHref, actions, emptyTit
             const href = rowHref?.(row);
             return <tr key={rowKey(row)} onClick={href ? () => router.push(href) : undefined}
               className={cx("h-14 border-t border-line", href && "cursor-pointer hover:bg-primary-50/60")}>
-              {columns.map((column) => <td key={column.key} className={cx("px-5 py-3 align-middle text-ink", !column.wrap && "whitespace-nowrap", column.className)}>{column.cell(row)}</td>)}
+              {columns.map((column) => <td key={column.key} className={cx("px-5 py-3 align-middle text-ink", !column.wrap && "whitespace-nowrap", secondaryCell(column), column.className)}>{column.cell(row)}</td>)}
               {actions && <td className="px-5 py-3 text-right">{actions(row)}</td>}
             </tr>;
           })}

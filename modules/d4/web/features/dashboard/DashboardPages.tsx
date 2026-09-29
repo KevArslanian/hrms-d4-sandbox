@@ -65,12 +65,12 @@ export function DashboardPage() {
       emptyTitle="Tidak ada employee yang cocok" emptyText="Ubah kata kunci, position, atau periode, lalu coba lagi."
       columns={[
         { key: "employee", header: "Employee", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
-        { key: "position", header: "Position", wrap: true, cell: (row) => row.position },
+        { key: "position", header: "Position", wrap: true, secondary: true, cell: (row) => row.position },
         { key: "period", header: "Period", cell: (row) => formatPeriod(row.period) },
         { key: "kpi", header: "KPI total", className: "tabular-nums", cell: (row) => <ScoreCell scorecard={row.scorecard} /> },
         { key: "performance", header: "Performance", className: "tabular-nums", cell: (row) => formatScore(row.performance) },
         { key: "gap", header: "Competency", cell: (row) => <StatusBadge status={row.gap} /> },
-        { key: "needs", header: "Open dev.", className: "tabular-nums", cell: (row) => row.openNeeds || "—" },
+        { key: "needs", header: "Open dev.", className: "tabular-nums", secondary: true, cell: (row) => row.openNeeds || "—" },
         { key: "training", header: "Training", cell: (row) => row.training ? <StatusBadge status={row.training} /> : "—" },
       ]}
       actions={(row) => <RowActionMenu label={`Aksi untuk ${row.employee.fullName}`} actions={[

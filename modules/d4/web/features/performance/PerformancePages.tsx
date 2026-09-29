@@ -27,6 +27,8 @@ export function PerformanceListPage() {
   const [modalFor, setModalFor] = useState<string | null>(null);
 
   const periods = useMemo(() => [...new Set(snapshot.performance.map((item) => item.period))].sort().reverse(), [snapshot]);
+  // FR-D4-001 has no draft; "Draft" is only offered when legacy draft rows still exist.
+  const statuses = useMemo(() => ["Completed", ...(snapshot.performance.some((item) => item.status !== "completed") ? ["Draft"] : []), "Not Evaluated"], [snapshot]);
   const rows = useMemo<Row[]>(() => visibleEmployees(snapshot).map((employee) => {
     const evaluation = period ? evaluationsOf(snapshot, employee.id).find((item) => item.period === period) : latestEvaluation(snapshot, employee.id);
     return { employee, position: positionOf(snapshot, employee)?.title ?? "—", evaluation };
@@ -42,7 +44,7 @@ export function PerformanceListPage() {
       <SearchInput value={search} onChange={setSearch} placeholder="Search employee name or ID" />
       <SelectFilter label="All positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />
       <SelectFilter label="Latest period" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
-      <SelectFilter label="All status" value={status} onChange={setStatus} options={["Completed", "Draft", "Not Evaluated"].map((item) => ({ value: item, label: item }))} />
+      <SelectFilter label="All status" value={status} onChange={setStatus} options={statuses.map((item) => ({ value: item, label: item }))} />
     </FilterBar>
     <DataTable<Row> rows={rows} noun="employees" rowKey={(row) => row.employee.id}
       emptyTitle="Tidak ada employee yang cocok" emptyText="Ubah kata kunci atau reset filter untuk melihat seluruh employee."
