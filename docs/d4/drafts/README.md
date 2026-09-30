@@ -1,6 +1,6 @@
 # Draft perubahan Docmost & Planka (D4 V2)
 
-Semua file di folder ini adalah **draft siap tempel**. Draft **Planka sudah diterapkan 30 Sep 2026** (lihat [PLANKA-D4](../PLANKA-D4.md)); label P0 dari `planka/01-label.md` sengaja tidak dipakai. Draft **Docmost belum diterapkan**. Setelah PO menyetujui, isi file disalin ke halaman atau kartu yang disebut di bagian "Target" masing-masing file.
+Semua file di folder ini adalah **draft siap tempel**. Draft **Planka sudah diterapkan 30 Sep 2026** (lihat [PLANKA-D4](../PLANKA-D4.md)); label dari `planka/01-label.md` diganti dengan format label D1 (lihat PLANKA-D4 §2). Draft **Docmost belum diterapkan**. Setelah PO menyetujui, isi file disalin ke halaman atau kartu yang disebut di bagian "Target" masing-masing file.
 
 | File | Target | Menutup |
 |---|---|---|
