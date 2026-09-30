@@ -13,7 +13,11 @@ export type KpiAssessmentDraft = {
   status: "draft" | "completed";
   lines: KpiAssessmentLine[];
   generalNotes: string;
+  /** Id of the current record for this employee and period when saving a revision of it. */
+  revisionOf?: string | null;
 };
+
+export type EvaluationDraft = EvaluationInput & { revisionOf?: string | null };
 
 export type DevelopmentDraft = { employeeId: string; sourceType: DevelopmentSourceType; sourceRef: string; objective: string; priority: DevelopmentPriority; notes: string };
 export type TrainingDraft = { employeeId: string; developmentNeedId: string; activity: string; date: string; status: TrainingStatus; result: string; notes: string };
@@ -26,7 +30,7 @@ export interface D4DataSource {
   readonly mode: "live" | "fixture";
   loadSnapshot(): Promise<D4LiveSnapshot>;
   loadKpiCatalog(): Promise<KpiCatalog>;
-  createEvaluation(input: EvaluationInput): Promise<string>;
+  createEvaluation(input: EvaluationDraft): Promise<string>;
   createKpiAssessment(input: KpiAssessmentDraft): Promise<string>;
   saveCompetency(input: { employeeId: string; positionId: string; effectiveDate: string }): Promise<string>;
   createDevelopment(input: DevelopmentDraft): Promise<string>;

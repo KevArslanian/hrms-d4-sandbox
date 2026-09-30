@@ -34,6 +34,16 @@ export async function handle(run: () => Promise<unknown>, successStatus = 200) {
   }
 }
 
+/** Runs a shared integrity rule (modules/d4/shared/rules.ts); a broken rule is a validation error. */
+export function enforce(check: () => void) {
+  try { check(); } catch (cause) { throw new ApiError("VALIDATION_FAILED", cause instanceof Error ? cause.message : "Data tidak valid."); }
+}
+
+/** Optional UUID, e.g. `revisionOf` when a record is saved as a revision of the current one. */
+export function optionalUuid(body: Record<string, unknown>, key: string): string | null {
+  return body[key] === undefined || body[key] === null || body[key] === "" ? null : field.uuid(body, key);
+}
+
 export async function readJson(request: Request): Promise<Record<string, unknown>> {
   let body: unknown;
   try { body = await request.json(); } catch { throw new ApiError("BAD_REQUEST", "Body harus berupa JSON yang valid."); }

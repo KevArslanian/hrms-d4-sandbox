@@ -1,6 +1,7 @@
 import type { TrainingStatus } from "../../training/types";
-import { latestTraining } from "../../supabase/types";
-import { ApiError, employeeFilter, field, readJson } from "../_lib/http";
+import { assertNeedOpen, assertTrainingChange } from "../../shared/rules";
+import { latestDevelopment, latestTraining } from "../../supabase/types";
+import { ApiError, employeeFilter, enforce, field, readJson } from "../_lib/http";
 import { d4Session, requireWriter } from "../_lib/session";
 
 const statuses: readonly TrainingStatus[] = ["Planned", "In Progress", "Completed", "Cancelled"];
@@ -31,7 +32,9 @@ export async function createTraining(request: Request) {
     activity: field.text(body, "activity", { max: 200 }), date: field.date(body, "date"), status,
     result: field.text(body, "result", { required: status === "Completed", max: 2000 }), notes: field.text(body, "notes", { required: false, max: 2000 }),
   };
-  return { id: await repository.createTraining(input, await repository.loadSnapshot()) };
+  const snapshot = await repository.loadSnapshot();
+  enforce(() => assertNeedOpen(latestDevelopment(snapshot).find((item) => item.needId === input.developmentNeedId)));
+  return { id: await repository.createTraining(input, snapshot) };
 }
 
 /** POST /api/d4/training-records/:id/versions — progress update as a new version. Completion never closes a gap. */
@@ -40,6 +43,10 @@ export async function addTrainingVersion(request: Request, id: string) {
   const body = await readJson(request);
   const status = field.oneOf(body, "status", statuses);
   const result = field.text(body, "result", { required: status === "Completed", max: 2000 });
-  await repository.updateTraining(id, status, result, field.text(body, "notes", { required: false, max: 2000 }));
+  const notes = field.text(body, "notes", { required: false, max: 2000 });
+  const current = latestTraining(await repository.loadSnapshot()).find((item) => item.trainingId === id);
+  if (!current) throw new ApiError("NOT_FOUND", "Training tidak ditemukan.");
+  enforce(() => assertTrainingChange(current.status, status, notes));
+  await repository.updateTraining(id, status, result, notes);
   return { trainingId: id, status };
 }

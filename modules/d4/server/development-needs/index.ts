@@ -1,6 +1,7 @@
 import type { DevelopmentPriority, DevelopmentSourceType, DevelopmentStatus } from "../../development/types";
 import { latestDevelopment } from "../../supabase/types";
-import { ApiError, employeeFilter, field, readJson } from "../_lib/http";
+import { assertNoOpenNeed } from "../../shared/rules";
+import { ApiError, employeeFilter, enforce, field, readJson } from "../_lib/http";
 import { d4Session, requireWriter } from "../_lib/session";
 
 const sourceTypes: readonly DevelopmentSourceType[] = ["competency_gap", "role_change", "performance_context"];
@@ -32,7 +33,9 @@ export async function createDevelopment(request: Request) {
     sourceRef: field.uuid(body, "sourceRef"), objective: field.text(body, "objective", { max: 500 }),
     priority: field.oneOf(body, "priority", priorities), notes: field.text(body, "notes", { required: false, max: 2000 }),
   };
-  return { id: await repository.createDevelopment(input, await repository.loadSnapshot()) };
+  const snapshot = await repository.loadSnapshot();
+  enforce(() => assertNoOpenNeed(latestDevelopment(snapshot), input.employeeId, input.sourceType, input.sourceRef));
+  return { id: await repository.createDevelopment(input, snapshot) };
 }
 
 /** POST /api/d4/development-needs/:id/versions — status change as a new revision; history is never overwritten. */

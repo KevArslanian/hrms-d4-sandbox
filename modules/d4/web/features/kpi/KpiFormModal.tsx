@@ -5,8 +5,9 @@ import { useState, type FormEvent } from "react";
 import { indicatorsFor, roleForPositionTitle } from "../../../kpi/catalog";
 import type { KpiAssessmentLine } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { departmentOf, employeeById, positionOf, SCORE_LABELS, thisMonth, today, visibleEmployees } from "../../data/selectors";
-import { FormError, FormModal, ModalActions, ReadOnlyField, SelectField, TextAreaField, TextField } from "../../ui/forms";
+import { latestForPeriod } from "../../../shared/rules";
+import { assessableEmployees, departmentOf, employeeById, formatDate, positionOf, SCORE_LABELS, thisMonth, today } from "../../data/selectors";
+import { FormError, FormModal, ModalActions, ReadOnlyField, RevisionConfirm, SelectField, TextAreaField, TextField } from "../../ui/forms";
 import { cx } from "../../ui/primitives";
 
 const validScore = (value: number | null) => value !== null && Number.isInteger(value) && value >= 1 && value <= 5;
@@ -30,10 +31,13 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
   const [lines, setLines] = useState<KpiAssessmentLine[]>(() => linesFor(employeeId ? suggest(employeeId) : 0));
   const [period, setPeriod] = useState(thisMonth());
   const [date, setDate] = useState(today());
-  const [evaluator, setEvaluator] = useState(actor?.fullName ?? "");
+  // The evaluator is the signed-in user; the server stores that name and ignores the form value.
+  const evaluator = actor?.fullName ?? "";
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
   const [touched, setTouched] = useState(false);
+  const [revise, setRevise] = useState(false);
+  const existing = employee && period ? latestForPeriod(snapshot.kpiAssessments ?? [], employee, period) : undefined;
 
   const totalWeight = lines.reduce((sum, line) => sum + line.weight_percent, 0);
   const allScored = lines.length === 5 && lines.every((line) => validScore(line.raw_score));
@@ -51,29 +55,32 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
     setTouched(true);
     if (!employee) { setError("Pilih employee terlebih dahulu."); return; }
     if (!roleOrder || lines.length !== 5 || totalWeight !== 100) { setError("KPI untuk position ini belum tersedia di KPI Scorecard; scorecard tidak dapat disimpan."); return; }
-    if (!allScored || !period || !date || !evaluator.trim()) { setError("Lengkapi periode, tanggal penilaian, penilai, dan skor 1–5 untuk kelima KPI."); return; }
+    if (!allScored || !period || !date) { setError("Lengkapi periode, evaluation date, dan skor 1–5 untuk kelima KPI."); return; }
+    if (existing && !revise) { setError("Scorecard periode ini sudah ada. Centang “Simpan sebagai revisi” atau ganti periode."); return; }
     setError("");
-    const result = await run((source) => source.createKpiAssessment({ employeeId: employee, roleOrder, period, evaluationDate: date, evaluatorName: evaluator, status: "completed", lines, generalNotes: notes }),
+    const result = await run((source) => source.createKpiAssessment({ employeeId: employee, roleOrder, period, evaluationDate: date, evaluatorName: evaluator, status: "completed", lines, generalNotes: notes, revisionOf: existing?.id ?? null }),
       "KPI scorecard tersimpan.");
     if (result.ok) { onSaved?.(result.value); onClose(); } else setError(result.error);
   }
 
-  return <FormModal size="lg" title="KPI Scorecard" description={`Lima Core KPI dan bobot mengikuti KPI Scorecard ${catalog?.version ?? ""} sesuai position employee.`} onClose={onClose}
+  return <FormModal size="lg" title="Add Scorecard" description={`Lima Core KPI dan bobot mengikuti KPI Scorecard ${catalog?.version ?? ""} sesuai position employee.`} onClose={onClose}
     footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Scorecard" />}>
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />
       <div className="grid gap-4 sm:grid-cols-3">
         <SelectField label="Employee" required value={employee} onChange={(event) => chooseEmployee(event.target.value)} error={touched && !employee ? "Employee wajib dipilih." : undefined} className="sm:col-span-2">
           <option value="">Select employee</option>
-          {visibleEmployees(snapshot).map((item) => <option key={item.id} value={item.id}>{item.fullName} · {item.employeeId}</option>)}
+          {assessableEmployees(snapshot).map((item) => <option key={item.id} value={item.id}>{item.fullName} · {item.employeeId}</option>)}
         </SelectField>
         <TextField label="Period" required type="month" value={period} onChange={(event) => setPeriod(event.target.value)} error={touched && !period ? "Periode wajib dipilih." : undefined} />
         <ReadOnlyField label="Position" value={position?.title ?? "—"} />
         <ReadOnlyField label="Department" value={departmentOf(snapshot, selected)?.name ?? "—"} />
         <ReadOnlyField label="KPI jabatan" value={!employee ? "—" : roleName ?? "Belum tersedia untuk position ini"} />
-        <TextField label="Tanggal penilaian" required type="date" value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? "Tanggal wajib diisi." : undefined} />
-        <TextField label="Penilai" required value={evaluator} onChange={(event) => setEvaluator(event.target.value)} error={touched && !evaluator.trim() ? "Penilai wajib diisi." : undefined} className="sm:col-span-2" />
+        <TextField label="Evaluation date" required type="date" value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? "Tanggal wajib diisi." : undefined} />
+        <ReadOnlyField label="Evaluator" value={evaluator || "—"} className="sm:col-span-2" />
       </div>
+      {existing && <RevisionConfirm what="Scorecard" existing={`${existing.evaluatorName}, ${formatDate(existing.evaluationDate)}`} checked={revise} onChange={setRevise}
+        error={touched && !revise ? "Centang untuk menyimpan sebagai revisi, atau ganti periode." : undefined} />}
 
       <div className="overflow-x-auto rounded-2xl border border-line">
         <table className="w-full min-w-[760px] text-left text-sm">
@@ -99,7 +106,7 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
           </tfoot>
         </table>
       </div>
-      <p className="text-xs text-ink-3">Kriteria skor: {[1, 2, 3, 4, 5].map((value) => `${value} ${SCORE_LABELS[value]}`).join(" · ")}. Skor mentah diisi penilai; sistem tidak mengonversi realisasi menjadi skor dan tidak memberi label tercapai/tidak tercapai.</p>
+      <p className="text-xs text-ink-3">Kriteria skor: {[1, 2, 3, 4, 5].map((value) => `${value} ${SCORE_LABELS[value]}`).join(" · ")}. Skor mentah diisi evaluator; sistem tidak mengonversi realisasi menjadi skor dan tidak memberi label tercapai/tidak tercapai.</p>
       <TextAreaField label="Catatan / rekomendasi atasan" value={notes} onChange={(event) => setNotes(event.target.value)} />
     </form>
   </FormModal>;

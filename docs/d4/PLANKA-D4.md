@@ -89,12 +89,12 @@ Pembagian PIC per kartu WebDev belum ditetapkan di dokumen. Di kartu, PIC dituli
 | Kartu | List | Label | Source Requirement | Evidence |
 |---|---|---|---|---|
 | [PO] Finalisasi Scope, Requirement & Prioritas MVP D4 | Done | HIGH PRIORITY, @PO | US/FR/TR D4 semua | Docmost "Finalisasi Scope Kerja D4"; RN-D4-001 §2 |
-| [PO] Finalisasi Requirement Phase 1 | Doing | HIGH PRIORITY, @PO | US/FR-D4-001, 002 | RN-D4-001 §2, §7; AUDIT §2.4 (O1–O4) |
+| [PO] Finalisasi Requirement Phase 1 | Doing | HIGH PRIORITY, @PO | US/FR-D4-001, 002 | RN-D4-001 §2, §7; AUDIT §2.6 (O1–O4) |
 | [PO] Finalisasi Requirement Phase 2 | To Do PO | HIGH PRIORITY, @PO | US/FR-D4-003, 004 | AUDIT §3 (relasi FR-003↔004); drafts/docmost/02 |
 | [PO] Finalisasi Requirement Phase 3 | To Do PO | HIGH PRIORITY, @PO | US/FR-D4-005, 006 | RN-D4-001 §2 |
 | [PO] Validasi Dependency, Integration, Security & Cross-Cutting | To Do PO | HIGH PRIORITY, @PO | FR-D4-007, TR-D4-001, 002 | TEST-PLAN §5; API-D4-001 |
 | [PO] Review MVP, Acceptance & Final Readiness D4 | To Do PO | HIGH PRIORITY, @PO | Semua | TEST-PLAN §7; RN-D4-001 §7 |
-| [Back End] Setup Foundation, Data Model & Integration D4 | Doing | HIGH PRIORITY, @WebDev, BACKEND | FR-D4-007, TR-D4-001 | API-D4-001; `modules/d4/server`; badge *Preview · data fiktif* (`AppShell.tsx`); AUDIT §2.4 |
+| [Back End] Setup Foundation, Data Model & Integration D4 | Doing | HIGH PRIORITY, @WebDev, BACKEND | FR-D4-007, TR-D4-001 | API-D4-001; `modules/d4/server`; badge *Preview · data fiktif* (`AppShell.tsx`); AUDIT §2.6 |
 | [Fullstack] Implementasi Performance Evaluation | Review / Testing | HIGH PRIORITY, @WebDev, FRONTEND, BACKEND | US/FR-D4-001 | Route `/performance*`; API `performance-evaluations`; commit 41d44b8 |
 | [Fullstack] Implementasi KPI Scorecard Employee | Doing | HIGH PRIORITY, @WebDev, FRONTEND, BACKEND | US/FR-D4-002 | Route `/kpi*`; API `kpi-assessments`, `kpi-catalog`; blocker O1, O2 |
 | [Fullstack] Implementasi Competency Gap & Development Requirement | Review / Testing | HIGH PRIORITY, @WebDev, FRONTEND, BACKEND | US/FR-D4-003, 004 | Route `/competency*`, `/development*`; AUDIT §3 |

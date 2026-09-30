@@ -3,6 +3,7 @@ import type { CompetencyFinding, CompetencyOverallStatus } from "../../competenc
 import type { DevelopmentNeedVersion, DevelopmentSourceType } from "../../development/types";
 import type { PerformanceEvaluation } from "../../performance/types";
 import type { EmployeeReference } from "../../shared/types";
+import { localMonth, localToday, revisionNumber } from "../../shared/rules";
 import { latestDevelopment, latestTraining, type D4LiveSnapshot, type KpiAssessment } from "../../supabase/types";
 import type { TrainingVersion } from "../../training/types";
 
@@ -14,6 +15,9 @@ export const canWrite = (snapshot: Snapshot) => snapshot.role === "HR" || snapsh
 export function visibleEmployees(snapshot: Snapshot): readonly EmployeeReference[] {
   return snapshot.role === "EMPLOYEE" ? snapshot.reference.employees.filter((item) => item.id === snapshot.actorEmployeeId) : snapshot.reference.employees;
 }
+
+/** Employees the signed-in evaluator may assess: never themselves. */
+export const assessableEmployees = (snapshot: Snapshot) => visibleEmployees(snapshot).filter((item) => item.id !== snapshot.actorEmployeeId);
 
 export const employeeById = (snapshot: Snapshot, id: string) => snapshot.reference.employees.find((item) => item.id === id);
 export const positionOf = (snapshot: Snapshot, employee?: EmployeeReference) => snapshot.reference.positions.find((item) => item.id === employee?.positionId);
@@ -30,6 +34,12 @@ export const latestEvaluation = (snapshot: Snapshot, employeeId: string) => eval
 export function scorecardsOf(snapshot: Snapshot, employeeId: string): KpiAssessment[] {
   return newestFirst((snapshot.kpiAssessments ?? []).filter((item) => item.employeeId === employeeId)).sort((a, b) => b.period.localeCompare(a.period));
 }
+/** " · Revisi n" for the second and later record of the same period; empty for the first. */
+export function revisionTag<T extends { id: string; employeeId: string; period: string; createdAt: string }>(records: readonly T[], record: T) {
+  const n = revisionNumber(records, record);
+  return n > 1 ? ` · Revisi ${n}` : "";
+}
+
 export const latestScorecard = (snapshot: Snapshot, employeeId: string) => scorecardsOf(snapshot, employeeId)[0];
 
 /** Live comparison of the employee's current position requirements against recorded evidence. */
@@ -91,8 +101,9 @@ export const SCORE_LABELS: Record<number, string> = { 1: "Sangat Kurang", 2: "Ku
 
 export const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("");
 
-export const today = () => new Date().toISOString().slice(0, 10);
-export const thisMonth = () => new Date().toISOString().slice(0, 7);
+// Dates follow WIB, not UTC: a form opened before 07:00 WIB must not default to yesterday.
+export const today = () => localToday();
+export const thisMonth = () => localMonth();
 
 export function includesText(haystack: string, needle: string) {
   return !needle.trim() || haystack.toLocaleLowerCase().includes(needle.trim().toLocaleLowerCase());

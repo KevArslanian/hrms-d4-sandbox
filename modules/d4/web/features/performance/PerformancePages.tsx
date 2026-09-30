@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import type { PerformanceEvaluation } from "../../../performance/types";
 import type { EmployeeReference } from "../../../shared/types";
 import { useSnapshot } from "../../data/D4DataProvider";
-import { canWrite, departmentOf, describeSource, developmentNeeds, employeeById, evaluationsOf, formatDate, formatPeriod, formatScore, includesText, latestEvaluation, positionOf, SCORE_LABELS, scorecardsOf, visibleEmployees } from "../../data/selectors";
+import { canWrite, departmentOf, describeSource, developmentNeeds, employeeById, evaluationsOf, formatDate, formatPeriod, formatScore, includesText, latestEvaluation, positionOf, revisionTag, SCORE_LABELS, scorecardsOf, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
@@ -83,7 +83,7 @@ export function PerformanceDetailPage({ id }: { id: string }) {
       actions={<>
         <ButtonLink href={`/performance/history/${employee.id}`} icon={<History className="size-4" />}>View History</ButtonLink>
         <ButtonLink href={scorecard ? `/kpi/${scorecard.id}` : `/kpi/history/${employee.id}`} icon={<Target className="size-4" />}>KPI Scorecard</ButtonLink>
-        {canWrite(snapshot) && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)}>New Evaluation</Button>}
+        {canWrite(snapshot) && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)}>Add Evaluation</Button>}
       </>} />
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
       <Card title="Evaluation summary">
@@ -128,7 +128,7 @@ export function PerformanceHistoryPage({ employeeId }: { employeeId: string }) {
     <Card title="Evaluation history">
       <Timeline empty="Employee ini belum memiliki evaluasi kinerja." entries={evaluations.map((item) => ({
         id: item.id, date: `${formatPeriod(item.period)} · ${formatDate(item.evaluationDate || item.createdAt)}`,
-        title: `Evaluasi ${formatPeriod(item.period)} — ${formatScore(item.overallScore)}`,
+        title: `Evaluasi ${formatPeriod(item.period)} — ${formatScore(item.overallScore)}${revisionTag(evaluations, item)}`,
         status: evaluationStatus(item), actor: item.actor, href: `/performance/${item.id}`,
         body: <>Evaluator: {item.evaluator || "—"}{item.generalNotes ? ` · ${item.generalNotes}` : ""}</>,
       }))} />

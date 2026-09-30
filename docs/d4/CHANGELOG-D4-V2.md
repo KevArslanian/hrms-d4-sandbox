@@ -58,6 +58,19 @@ Audit ulang terhadap FR-D4-001..006 (Docmost), checklist Planka, dan catatan VN 
 - **Figma**: 36 frame dibangun ulang dari builder (`figma-plugin/d4-v2-builder/code.js`), teks kolom lebar dipotong dua baris, lebar kolom dashboard dan Development Requirement disesuaikan, link prototype 14 → 18 dipulihkan.
 - **Dokumen**: API-D4-001 §5 disesuaikan dengan kontrak evaluasi dan KPI yang baru; UI-D4-001 §2–§7 disesuaikan.
 
+## Integritas logika · 30 Sep 2026 (malam)
+
+Perbaikan dari audit ulang terhadap dokumen dan flow bisnis; detail di [AUDIT-UX-D4.md](AUDIT-UX-D4.md) §2.4–2.6. Aturan bersama ada di `modules/d4/shared/rules.ts` dan dipakai UI, fixture, serta API.
+
+- **Tanggal WIB**: default tanggal dan periode form memakai `Asia/Jakarta`, bukan UTC (L1).
+- **Revisi per periode**: evaluasi/scorecard kedua untuk employee + periode yang sama harus dikonfirmasi sebagai revisi (`revisionOf`); riwayat menampilkan "Revisi n" (L2).
+- **Evaluator = user login**: field read-only; API mengambil nama dari akun dan menolak penilaian diri sendiri (L3, L4).
+- **Training ↔ requirement**: requirement Completed tidak bisa diberi training baru; peringatan saat menyelesaikan requirement yang training-nya masih berjalan (L5).
+- **Satu requirement terbuka per gap**: gap yang sudah tertangani tidak bisa dibuatkan requirement lagi; notes menyimpan nilai gap saat dibuat (L6).
+- **Label**: "Evaluator", "Evaluation date", "Add Scorecard", "Add Evaluation" di semua layar (U1).
+- **Sidebar**: modul squad lain diredupkan dan ditandai belum terhubung (U2).
+- **Training rollback**: status mundur wajib disertai alasan (U4).
+
 ## Belum selesai
 
 | Item | Alasan | Langkah berikut |
@@ -67,4 +80,6 @@ Audit ulang terhadap FR-D4-001..006 (Docmost), checklist Planka, dan catatan VN 
 | QA di data asli | Mode live butuh akun HR/Manager dan data seed | `npm run seed:d4 -- --apply`, lalu skenario QA di `drafts/planka/03-…` |
 | Docmost dan Planka tim | Keputusan: draft dulu | Terapkan isi `drafts/` setelah disetujui PO |
 | Sales Admin memakai KPI Sales & Marketing | V5.1 tidak punya role Sales Admin; pemetaan sementara | Keputusan PO (lihat `drafts/docmost/03-…`) |
+| Cakupan Manager (O7) | Manager masih melihat semua employee; butuh data atasan dari D3 | Keputusan PO + `supervisor_id` dari D3 |
+| Kolom `review_status` (O8) dan unique index per periode/gap (O9) | Butuh migrasi Supabase bersama | Persetujuan PO/Back End |
 | HR Associate tanpa KPI | V5.1 tidak mendefinisikan KPI untuk HR Associate | Form menampilkan "Belum tersedia untuk position ini" dan menolak simpan; tunggu KPI dari PO |
