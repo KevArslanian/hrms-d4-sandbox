@@ -19,7 +19,7 @@ function classify(message: string): ApiError {
   if (/sesi login/i.test(message)) return new ApiError("UNAUTHENTICATED", "Sesi login tidak tersedia. Silakan masuk kembali.");
   if (/row-level security|permission denied|belum diberi akses/i.test(message)) return new ApiError("FORBIDDEN", "Akun ini tidak memiliki izin untuk tindakan tersebut.");
   if (/tidak ditemukan|not found/i.test(message)) return new ApiError("NOT_FOUND", message);
-  if (/wajib|harus|tidak valid|tidak sesuai|belum tersedia|belum lengkap/i.test(message)) return new ApiError("VALIDATION_FAILED", message.replace(/^[^:]+:\s*/, ""));
+  if (/wajib|harus|tidak valid|tidak sesuai|tidak tersedia|belum tersedia|belum lengkap/i.test(message)) return new ApiError("VALIDATION_FAILED", message.replace(/^[^:]+:\s*/, ""));
   return new ApiError("SERVER_ERROR", "Permintaan gagal diproses. Coba lagi beberapa saat lagi.");
 }
 
