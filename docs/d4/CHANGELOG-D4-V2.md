@@ -42,7 +42,7 @@ Tanggal: 29 Sep 2026 · Branch: `feature/d4-v2-d2-style`
 
 - Route lama `/live`, `/demo`, `/qa-preview`, `/employee/[id]`, dan layar V1 di `modules/d4/{performance,kpi,competency,development,training,dashboard}/*Screen.tsx`.
 - Quick-view panel, popover detail, dan modal detail.
-- Salinan komponen `components/Custom*.tsx`, `Pagination.tsx`, `StatusBadge.tsx`, `UserInput.tsx` yang tidak lagi dipakai. `components/auth/*` tetap dipakai halaman login.
+- Salinan komponen `components/Custom*.tsx`, `Pagination.tsx`, `StatusBadge.tsx`, `UserInput.tsx` yang tidak lagi dipakai. `components/auth/*` dan `public/auth`, `public/fonts` dihapus saat login diganti versi B2 GitHub (1 Okt).
 - Aset SVG hasil ekspor Figma lama di `public/figma/`.
 - Penyimpanan `localStorage` untuk data fitur.
 
@@ -78,6 +78,11 @@ Detail di [QA-STABILITY-D4.md](QA-STABILITY-D4.md). `npm test` (Vitest) menjalan
 - **BUG-D4-001 (tinggi)**: update status development need dengan id tidak dikenal kini 404, bukan error database.
 - **BUG-D4-002 (tinggi)**: referensi employee/posisi yang tidak ada kini 422, bukan 500.
 - **BUG-D4-003 (sedang)**: pratinjau EMPLOYEE hanya memuat record milik sendiri, seperti RLS.
+
+## Login B2 (GitHub) · 1 Okt 2026
+
+- `/login` memakai kode login tim B2 dari `PISD-X-ANDIMA/Andima-HRMS` branch `feature/D3-005-employee-report-ticket`: tampilan kartu kaca, `signInWithPassword`, cek `d3_user_access`, `signOut` bila akun belum punya role.
+- Penyesuaian D4: tujuan setelah login `/dashboard`; tidak ada register mandiri ("Belum punya akun? Hubungi HR Admin."); kotak "Kredensial Pengujian (Demo)" dari Figma B2 hanya tampil bila `NEXT_PUBLIC_D4_DEMO_EMAIL` dan `NEXT_PUBLIC_D4_DEMO_PASSWORD` diisi.
 
 ## Belum selesai
 
