@@ -63,7 +63,7 @@ Status: ✅ diperbaiki dan diverifikasi · ⏳ sisa, butuh keputusan di luar tim
 | O2 | Migrasi katalog KPI V5.1 + `definition_version` | Mengubah Supabase bersama; perlu persetujuan |
 | O3 | Sales Admin memakai KPI Sales & Marketing | V5.1 tidak punya role Sales Admin |
 | O4 | HR Associate belum punya KPI di V5.1 | Form menolak simpan dengan pesan "Belum tersedia untuk position ini" |
-| O5 | Label Planka Front End / Back End menggantikan "WebDev" | Perubahan label hanya diusulkan (`drafts/planka/01-label.md`) |
+| O5 | Label Planka Front End / Back End menggantikan "WebDev" | **Selesai 30 Sep 2026**: label peran Front End, Back End, UI/UX, QA, PO, Bug dipasang; lihat PLANKA-D4 |
 | O6 | Penjelasan relasi FR-D4-003 ↔ FR-D4-004 di Docmost | Draft di `drafts/docmost/02-…`, Docmost read-only |
 
 ## 3. FR-D4-004 dalam satu paragraf (VN K8)
@@ -100,7 +100,7 @@ Item dicentang hanya bila ada bukti yang bisa dibuka (commit, route, frame Figma
 | Design Competency Gap & Development Requirement | 28 item (frame 13–20) | "Empty, validation, success, error state" Development (belum ada frame validasi requirement) |
 | UI Consistency Review, Handoff & Final Design Validation | 33 item (audit ini, UI-D4-001, frame 00 dan 28–36) | Handoff formal ke Webdev, konfirmasi readiness ke PO/QA, "semua fitur P0 punya desain final" — butuh persetujuan orang, bukan bukti artefak |
 
-Label kartu tidak diubah; usulan Front End / Back End ada di `drafts/planka/01-label.md`.
+Pembaruan 30 Sep 2026 (sore): board ditata ulang mengikuti D1/D3 — nama kartu berawalan peran, label peran (tanpa P0), deskripsi berformat Source Requirement/Scope/Dependency/Out of Scope/Evidence/PIC, komentar progress per kartu, dan centang tambahan berbukti (Security: error generik & log `[d4-api]`, pattern konsisten, badge data fiktif; Setup Foundation: fixture vs baseline, dependency terdokumentasi; Setup User Flow DoD 3 item; Finalisasi Scope DoD 5 item; Test Plan 4 item via TEST-PLAN-D4). Detail per kartu di PLANKA-D4 §4.
 
 ## 6. Verifikasi
 

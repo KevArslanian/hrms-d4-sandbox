@@ -6,7 +6,11 @@
 | [UI-D4-001.md](UI-D4-001.md) | Interaction & Component Guideline: token, tipografi, pola wajib, menu ⋮ per fitur, navigasi, responsif, aksesibilitas |
 | [API-D4-001.md](API-D4-001.md) | Endpoint Contract: struktur, izin, format error, 14 endpoint, aturan body, seeder |
 | [CHANGELOG-D4-V2.md](CHANGELOG-D4-V2.md) | Perubahan V1 → V2 dan pemetaan ke kritik K1–K9 |
-| [drafts/](drafts/README.md) | Teks siap tempel untuk Docmost dan Planka (belum diterapkan) |
+| [RN-D4-001.md](RN-D4-001.md) | Release notes D4 V2.0: fitur, perubahan, known issues, catatan deployment |
+| [AUDIT-UX-D4.md](AUDIT-UX-D4.md) | Audit UX, flow, dan traceability FR → route → Figma → Planka |
+| [TEST-PLAN-D4.md](TEST-PLAN-D4.md) | Test plan + Requirement Traceability Matrix (117 TC/TS), format PASS/FAIL/BLOCKED, dependency |
+| [PLANKA-D4.md](PLANKA-D4.md) | Konvensi board Planka "Squad D4" (layout, nama, label peran) + matriks kartu ↔ bukti |
+| [drafts/](drafts/README.md) | Teks siap tempel untuk Docmost (belum diterapkan) dan Planka (diterapkan 30 Sep 2026) |
 
 ## Figma
 
