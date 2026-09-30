@@ -6,17 +6,37 @@ export class D4RequestError extends Error {
   constructor(readonly status: number, readonly code: string, message: string) { super(message); }
 }
 
+/** Requests that take longer than this are aborted and reported as a timeout. */
+const REQUEST_TIMEOUT_MS = 20_000;
+
+const MESSAGES = {
+  NETWORK_ERROR: "Tidak dapat terhubung ke server. Periksa koneksi internet lalu coba lagi.",
+  TIMEOUT: "Server terlalu lama merespons. Coba lagi beberapa saat lagi.",
+  INTEGRATION_ERROR: "Layanan data HRMS sedang tidak dapat dihubungi. Coba lagi beberapa saat lagi.",
+  SERVER_ERROR: "Permintaan ke server gagal. Coba lagi beberapa saat lagi.",
+} as const;
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, {
-    ...init,
-    credentials: "same-origin",
-    headers: { "Content-Type": "application/json", ...init?.headers },
-  });
-  const body = await response.json().catch(() => null) as { data?: T; error?: { code: string; message: string } } | null;
-  if (!response.ok || !body || body.error) {
-    throw new D4RequestError(response.status, body?.error?.code ?? "SERVER_ERROR", body?.error?.message ?? "Permintaan ke server gagal. Periksa koneksi lalu coba lagi.");
+  let response: Response;
+  try {
+    response = await fetch(path, {
+      ...init,
+      credentials: "same-origin",
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      headers: { "Content-Type": "application/json", ...init?.headers },
+    });
+  } catch (cause) {
+    // fetch only rejects when no HTTP response arrived: offline, DNS, CORS, or our timeout.
+    const timedOut = cause instanceof DOMException && cause.name === "TimeoutError";
+    const code = timedOut ? "TIMEOUT" : "NETWORK_ERROR";
+    throw new D4RequestError(0, code, MESSAGES[code]);
   }
-  return body.data as T;
+  const body = await response.json().catch(() => null) as { data?: T; error?: { code: string; message: string } } | null;
+  if (response.ok && body && !body.error) return body.data as T;
+  if (body?.error) throw new D4RequestError(response.status, body.error.code, body.error.message);
+  // No D4 envelope: a gateway/proxy or the upstream service answered instead of our route handler.
+  const code = response.status === 502 || response.status === 503 || response.status === 504 ? "INTEGRATION_ERROR" : "SERVER_ERROR";
+  throw new D4RequestError(response.status, code, MESSAGES[code]);
 }
 
 const post = <T>(path: string, body: unknown) => request<T>(path, { method: "POST", body: JSON.stringify(body) });

@@ -74,18 +74,24 @@ export function D4DataProvider({ children, mode }: { children: ReactNode; mode: 
 
   const run = useCallback(async <T,>(operation: (data: D4DataSource) => Promise<T>, success: string): Promise<Result<T>> => {
     setBusy(true);
+    let value: T;
     try {
-      const value = await operation(source);
-      setSnapshot(await source.loadSnapshot());
-      pushToast("success", success);
-      return { ok: true, value };
+      value = await operation(source);
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "Penyimpanan gagal.";
       pushToast("error", message);
-      return { ok: false, error: message };
-    } finally {
       setBusy(false);
+      return { ok: false, error: message };
     }
+    // The write already succeeded; a failed refresh must not read as a failed save, or the user may submit twice.
+    try {
+      setSnapshot(await source.loadSnapshot());
+      pushToast("success", success);
+    } catch {
+      pushToast("error", `${success} Namun data terbaru gagal dimuat, muat ulang halaman sebelum menyimpan lagi.`);
+    }
+    setBusy(false);
+    return { ok: true, value };
   }, [source, pushToast]);
 
   const value = useMemo<D4Data>(() => ({
