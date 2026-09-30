@@ -98,9 +98,9 @@ Item dicentang hanya bila ada bukti yang bisa dibuka (commit, route, frame Figma
 | Design Dashboard KPI Orang | Seluruh 25 item (frame 26–29, 35, 36; loading/error memakai pola bersama frame 30/32) | — |
 | Design Training Completion Tracking | 20 item (frame 21–25, 31, 32, 34) | Validation state (belum ada frame validasi training) |
 | Design Competency Gap & Development Requirement | 28 item (frame 13–20) | "Empty, validation, success, error state" Development (belum ada frame validasi requirement) |
-| UI Consistency Review, Handoff & Final Design Validation | 33 item (audit ini, UI-D4-001, frame 00 dan 28–36) | Handoff formal ke Webdev, konfirmasi readiness ke PO/QA, "semua fitur P0 punya desain final" — butuh persetujuan orang, bukan bukti artefak |
+| UI Consistency Review, Handoff & Final Design Validation | 33 item (audit ini, UI-D4-001, frame 00 dan 28–36) | Handoff formal ke Webdev, konfirmasi readiness ke PO/QA, "semua fitur MVP punya desain final" — butuh persetujuan orang, bukan bukti artefak |
 
-Pembaruan 30 Sep 2026 (sore): board ditata ulang mengikuti D1/D3 — nama kartu berawalan peran, label peran (tanpa P0), deskripsi berformat Source Requirement/Scope/Dependency/Out of Scope/Evidence/PIC, komentar progress per kartu, dan centang tambahan berbukti (Security: error generik & log `[d4-api]`, pattern konsisten, badge data fiktif; Setup Foundation: fixture vs baseline, dependency terdokumentasi; Setup User Flow DoD 3 item; Finalisasi Scope DoD 5 item; Test Plan 4 item via TEST-PLAN-D4). Detail per kartu di PLANKA-D4 §4.
+Pembaruan 30 Sep 2026 (sore): board ditata ulang mengikuti D1/D3 — nama kartu berawalan peran, label disamakan dengan D1 (HIGH/MEDIUM PRIORITY, @PO/@WebDev/@UI/UX/@QA, FRONTEND/BACKEND), deskripsi berformat Source Requirement/Scope/Dependency/Out of Scope/Evidence/PIC, komentar progress per kartu, dan centang tambahan berbukti (Security: error generik & log `[d4-api]`, pattern konsisten, badge data fiktif; Setup Foundation: fixture vs baseline, dependency terdokumentasi; Setup User Flow DoD 3 item; Finalisasi Scope DoD 5 item; Test Plan 4 item via TEST-PLAN-D4). Detail per kartu di PLANKA-D4 §4.
 
 ## 6. Verifikasi
 

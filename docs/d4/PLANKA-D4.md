@@ -38,18 +38,22 @@ Perubahan dari layout lama: "Doing/Proses" → **Doing**; "Ticket QA" → **Revi
 
 Skenario QA lintas fitur: `[QA] TS-D4-00x - Judul`.
 
-**Label (peran, bukan prioritas):**
+**Label (disamakan dengan board D1; D2/D3 memakai pola yang sama: prioritas + peran):**
 
 | Label | Warna | Dipakai pada |
 |---|---|---|
-| Front End | biru | Implementasi halaman, dashboard, konsistensi UI |
-| Back End | ungu | API, data model, security |
-| UI/UX | merah muda | Kartu desain |
-| QA | oranye | Kartu pengujian dan TS |
-| PO | abu-abu | Kartu PO |
-| Bug | merah | Tiket bug |
+| HIGH PRIORITY | berry-red | Fitur MVP FR-D4-001 s.d. 006, kartu PO, desain fitur, pengujian per phase, bug |
+| MEDIUM PRIORITY | morning-sky | Security/staging, UI consistency, pengujian integrasi, eksekusi, regression, TS, UC |
+| @PO | orange-peel | Kartu PO |
+| @WebDev | pirate-gold | Kartu implementasi dan bug |
+| @UI/UX | pink-tulip | Kartu desain |
+| @QA | summer-sky | Kartu pengujian, TS, UC, bug |
+| FRONTEND | antique-blue | Implementasi yang menyentuh halaman |
+| BACKEND | pumpkin-orange | Implementasi yang menyentuh API/data |
 
-Label prioritas (P0/Must Have) tidak dipakai. Prioritas MVP sudah ditetapkan di dokumen scope Docmost.
+Setiap kartu memakai satu label prioritas dan satu label peran. Kartu WebDev ditambah FRONTEND dan/atau BACKEND. Kartu bug memakai @QA (pelapor) + @WebDev (perbaikan), seperti tiket bug D3.
+
+Label lama D4 (PO-Must Have, Requirement, Milestone, Phase 1–3, Functional Testing, dan lain-lain; total 36 label) sudah dilepas dari semua kartu, tetapi definisinya belum dihapus dari board. Fase kerja sudah terlihat dari judul kartu, dan jenis pengujian dari checklist.
 
 **Deskripsi (pola D1/D3):**
 
@@ -84,39 +88,39 @@ Pembagian PIC per kartu WebDev belum ditetapkan di dokumen. Di kartu, PIC dituli
 
 | Kartu | List | Label | Source Requirement | Evidence |
 |---|---|---|---|---|
-| [PO] Finalisasi Scope, Requirement & Prioritas MVP D4 | Done | PO | US/FR/TR D4 semua | Docmost "Finalisasi Scope Kerja D4"; RN-D4-001 §2 |
-| [PO] Finalisasi Requirement Phase 1 | Doing | PO | US/FR-D4-001, 002 | RN-D4-001 §2, §7; AUDIT §2.4 (O1–O4) |
-| [PO] Finalisasi Requirement Phase 2 | To Do PO | PO | US/FR-D4-003, 004 | AUDIT §3 (relasi FR-003↔004); drafts/docmost/02 |
-| [PO] Finalisasi Requirement Phase 3 | To Do PO | PO | US/FR-D4-005, 006 | RN-D4-001 §2 |
-| [PO] Validasi Dependency, Integration, Security & Cross-Cutting | To Do PO | PO | FR-D4-007, TR-D4-001, 002 | TEST-PLAN §5; API-D4-001 |
-| [PO] Review MVP, Acceptance & Final Readiness D4 | To Do PO | PO | Semua | TEST-PLAN §7; RN-D4-001 §7 |
-| [Back End] Setup Foundation, Data Model & Integration D4 | Doing | Back End | FR-D4-007, TR-D4-001 | API-D4-001; `modules/d4/server`; badge *Preview · data fiktif* (`AppShell.tsx`); AUDIT §2.4 |
-| [Fullstack] Implementasi Performance Evaluation | Review / Testing | Front End, Back End | US/FR-D4-001 | Route `/performance*`; API `performance-evaluations`; commit 41d44b8 |
-| [Fullstack] Implementasi KPI Scorecard Employee | Doing | Front End, Back End | US/FR-D4-002 | Route `/kpi*`; API `kpi-assessments`, `kpi-catalog`; blocker O1, O2 |
-| [Fullstack] Implementasi Competency Gap & Development Requirement | Review / Testing | Front End, Back End | US/FR-D4-003, 004 | Route `/competency*`, `/development*`; AUDIT §3 |
-| [Fullstack] Implementasi Training Completion Tracking | Review / Testing | Front End, Back End | US/FR-D4-005 | Route `/training*`; API `training-records` |
-| [Front End] Implementasi Dashboard KPI Orang | Review / Testing | Front End | US/FR-D4-006 | Route `/dashboard*`; API `snapshot`; commit 49467b5 |
-| [Fullstack] Security, Validation, Integration Fix & Final Staging Readiness | Doing | Front End, Back End | TR-D4-001, 002 | `modules/d4/server/_lib/http.ts` (error generik, log `[d4-api]`); UI-D4-001; API-D4-001 §3 |
-| [UI/UX] Setup User Flow, IA & UI Component D4 | Review / Testing | UI/UX | Semua FR | Figma frame 00; UI-D4-001 |
-| [UI/UX] Design Performance Evaluation & KPI Scorecard | Done | UI/UX | FR-D4-001, 002 | Figma 01–12 (node 19:4133) |
-| [UI/UX] Design Competency Gap & Development Requirement | Doing | UI/UX | FR-D4-003, 004 | Figma 13–20 (node 21:4152). Kurang frame validation Development |
-| [UI/UX] Design Training Completion Tracking | Doing | UI/UX | FR-D4-005 | Figma 21–25 (node 24:4152). Kurang frame validation Training |
-| [UI/UX] Design Dashboard KPI Orang | Done | UI/UX | FR-D4-006 | Figma 26–29, 35, 36 (node 25:4116) |
-| [UI/UX] UI Consistency Review, Handoff & Final Design Validation | Doing | UI/UX, Front End | TR-D4-002 | Figma 00, 30–34 (node 2:2); AUDIT-UX-D4; UI-D4-001 |
-| [QA] Penyusunan Test Plan & Requirement Traceability D4 | Doing | QA | Semua | **TEST-PLAN-D4** |
-| [QA] Pengujian Phase 1 | To Do QA | QA | FR-D4-001, 002 | TEST-PLAN TC-D4-001, TC-D4-002 |
-| [QA] Pengujian Phase 2 | To Do QA | QA | FR-D4-003, 004 | TEST-PLAN TC-D4-003, TC-D4-004 |
-| [QA] Pengujian Phase 3 | To Do QA | QA | FR-D4-005, 006 | TEST-PLAN TC-D4-005, TC-D4-006 |
-| [QA] Pengujian Integration, Security, Validation & UI Quality | To Do QA | QA | FR-D4-007, TR-D4-001, 002 | TEST-PLAN TC-D4-007, SEC, UIQ |
-| [QA] Test Execution, Defect Reporting & Retest | To Do QA | QA | Semua | TEST-PLAN §3, §4, §7 |
-| [QA] Regression Testing & Final QA Evidence | To Do QA | QA | Semua | TEST-PLAN §7 |
-| [QA] TS-D4-001 - KPI berbeda menurut Position | To Do QA | QA | FR-D4-001, 002 | TEST-PLAN §6 TS |
-| [QA] TS-D4-002 - Skill Gap dan Role Change | To Do QA | QA | FR-D4-003 | TEST-PLAN §6 TS |
-| [QA] TS-D4-003 - Gap-Based Training dan Completion | To Do QA | QA | FR-D4-004, 005 | TEST-PLAN §6 TS |
-| [QA] UC-D4-002 Pelacakan KPI Employee | To Do QA | QA | FR-D4-002 | TEST-PLAN §6 UC (BF/E/A → TC RTM) |
-| [QA] UC-D4-003 Identifikasi Competency Gap | To Do QA | QA | FR-D4-003 | TEST-PLAN §6 UC (BF/E/A → TC RTM) |
-| [Bug] BUG-D4-002 - Dashboard Performance & Development Employee | Bug Report | Bug, Front End | FR-D4-006 | Dibuat 19 Sep (V1). Perlu retest di V2 |
-| [Bug] BUG-D4-003 - Data Competency Gap Tertukar Antar Employee (judul lama: Integrasi Data Employee …) | Bug Report | Bug, Back End | FR-D4-003, 007 | Dibuat 19 Sep (V1). Perlu retest di V2 |
+| [PO] Finalisasi Scope, Requirement & Prioritas MVP D4 | Done | HIGH PRIORITY, @PO | US/FR/TR D4 semua | Docmost "Finalisasi Scope Kerja D4"; RN-D4-001 §2 |
+| [PO] Finalisasi Requirement Phase 1 | Doing | HIGH PRIORITY, @PO | US/FR-D4-001, 002 | RN-D4-001 §2, §7; AUDIT §2.4 (O1–O4) |
+| [PO] Finalisasi Requirement Phase 2 | To Do PO | HIGH PRIORITY, @PO | US/FR-D4-003, 004 | AUDIT §3 (relasi FR-003↔004); drafts/docmost/02 |
+| [PO] Finalisasi Requirement Phase 3 | To Do PO | HIGH PRIORITY, @PO | US/FR-D4-005, 006 | RN-D4-001 §2 |
+| [PO] Validasi Dependency, Integration, Security & Cross-Cutting | To Do PO | HIGH PRIORITY, @PO | FR-D4-007, TR-D4-001, 002 | TEST-PLAN §5; API-D4-001 |
+| [PO] Review MVP, Acceptance & Final Readiness D4 | To Do PO | HIGH PRIORITY, @PO | Semua | TEST-PLAN §7; RN-D4-001 §7 |
+| [Back End] Setup Foundation, Data Model & Integration D4 | Doing | HIGH PRIORITY, @WebDev, BACKEND | FR-D4-007, TR-D4-001 | API-D4-001; `modules/d4/server`; badge *Preview · data fiktif* (`AppShell.tsx`); AUDIT §2.4 |
+| [Fullstack] Implementasi Performance Evaluation | Review / Testing | HIGH PRIORITY, @WebDev, FRONTEND, BACKEND | US/FR-D4-001 | Route `/performance*`; API `performance-evaluations`; commit 41d44b8 |
+| [Fullstack] Implementasi KPI Scorecard Employee | Doing | HIGH PRIORITY, @WebDev, FRONTEND, BACKEND | US/FR-D4-002 | Route `/kpi*`; API `kpi-assessments`, `kpi-catalog`; blocker O1, O2 |
+| [Fullstack] Implementasi Competency Gap & Development Requirement | Review / Testing | HIGH PRIORITY, @WebDev, FRONTEND, BACKEND | US/FR-D4-003, 004 | Route `/competency*`, `/development*`; AUDIT §3 |
+| [Fullstack] Implementasi Training Completion Tracking | Review / Testing | HIGH PRIORITY, @WebDev, FRONTEND, BACKEND | US/FR-D4-005 | Route `/training*`; API `training-records` |
+| [Front End] Implementasi Dashboard KPI Orang | Review / Testing | HIGH PRIORITY, @WebDev, FRONTEND | US/FR-D4-006 | Route `/dashboard*`; API `snapshot`; commit 49467b5 |
+| [Fullstack] Security, Validation, Integration Fix & Final Staging Readiness | Doing | MEDIUM PRIORITY, @WebDev, FRONTEND, BACKEND | TR-D4-001, 002 | `modules/d4/server/_lib/http.ts` (error generik, log `[d4-api]`); UI-D4-001; API-D4-001 §3 |
+| [UI/UX] Setup User Flow, IA & UI Component D4 | Review / Testing | HIGH PRIORITY, @UI/UX | Semua FR | Figma frame 00; UI-D4-001 |
+| [UI/UX] Design Performance Evaluation & KPI Scorecard | Done | HIGH PRIORITY, @UI/UX | FR-D4-001, 002 | Figma 01–12 (node 19:4133) |
+| [UI/UX] Design Competency Gap & Development Requirement | Doing | HIGH PRIORITY, @UI/UX | FR-D4-003, 004 | Figma 13–20 (node 21:4152). Kurang frame validation Development |
+| [UI/UX] Design Training Completion Tracking | Doing | HIGH PRIORITY, @UI/UX | FR-D4-005 | Figma 21–25 (node 24:4152). Kurang frame validation Training |
+| [UI/UX] Design Dashboard KPI Orang | Done | HIGH PRIORITY, @UI/UX | FR-D4-006 | Figma 26–29, 35, 36 (node 25:4116) |
+| [UI/UX] UI Consistency Review, Handoff & Final Design Validation | Doing | MEDIUM PRIORITY, @UI/UX | TR-D4-002 | Figma 00, 30–34 (node 2:2); AUDIT-UX-D4; UI-D4-001 |
+| [QA] Penyusunan Test Plan & Requirement Traceability D4 | Doing | HIGH PRIORITY, @QA | Semua | **TEST-PLAN-D4** |
+| [QA] Pengujian Phase 1 | To Do QA | HIGH PRIORITY, @QA | FR-D4-001, 002 | TEST-PLAN TC-D4-001, TC-D4-002 |
+| [QA] Pengujian Phase 2 | To Do QA | HIGH PRIORITY, @QA | FR-D4-003, 004 | TEST-PLAN TC-D4-003, TC-D4-004 |
+| [QA] Pengujian Phase 3 | To Do QA | HIGH PRIORITY, @QA | FR-D4-005, 006 | TEST-PLAN TC-D4-005, TC-D4-006 |
+| [QA] Pengujian Integration, Security, Validation & UI Quality | To Do QA | MEDIUM PRIORITY, @QA | FR-D4-007, TR-D4-001, 002 | TEST-PLAN TC-D4-007, SEC, UIQ |
+| [QA] Test Execution, Defect Reporting & Retest | To Do QA | MEDIUM PRIORITY, @QA | Semua | TEST-PLAN §3, §4, §7 |
+| [QA] Regression Testing & Final QA Evidence | To Do QA | MEDIUM PRIORITY, @QA | Semua | TEST-PLAN §7 |
+| [QA] TS-D4-001 - KPI berbeda menurut Position | To Do QA | MEDIUM PRIORITY, @QA | FR-D4-001, 002 | TEST-PLAN §6 TS |
+| [QA] TS-D4-002 - Skill Gap dan Role Change | To Do QA | MEDIUM PRIORITY, @QA | FR-D4-003 | TEST-PLAN §6 TS |
+| [QA] TS-D4-003 - Gap-Based Training dan Completion | To Do QA | MEDIUM PRIORITY, @QA | FR-D4-004, 005 | TEST-PLAN §6 TS |
+| [QA] UC-D4-002 Pelacakan KPI Employee | To Do QA | MEDIUM PRIORITY, @QA | FR-D4-002 | TEST-PLAN §6 UC (BF/E/A → TC RTM) |
+| [QA] UC-D4-003 Identifikasi Competency Gap | To Do QA | MEDIUM PRIORITY, @QA | FR-D4-003 | TEST-PLAN §6 UC (BF/E/A → TC RTM) |
+| [Bug] BUG-D4-002 - Dashboard Performance & Development Employee | Bug Report | HIGH PRIORITY, @QA, @WebDev, FRONTEND | FR-D4-006 | Dibuat 19 Sep (V1). Perlu retest di V2 |
+| [Bug] BUG-D4-003 - Data Competency Gap Tertukar Antar Employee (judul lama: Integrasi Data Employee …) | Bug Report | HIGH PRIORITY, @QA, @WebDev, BACKEND | FR-D4-003, 007 | Dibuat 19 Sep (V1). Perlu retest di V2 |
 
 BUG-D4-001 tidak ada di board, jadi nomor berikutnya adalah BUG-D4-004. Nomor yang hilang tidak dipakai ulang.
 
