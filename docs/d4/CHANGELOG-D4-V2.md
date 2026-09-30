@@ -71,6 +71,14 @@ Perbaikan dari audit ulang terhadap dokumen dan flow bisnis; detail di [AUDIT-UX
 - **Sidebar**: modul squad lain diredupkan dan ditandai belum terhubung (U2).
 - **Training rollback**: status mundur wajib disertai alasan (U4).
 
+## Uji stabilitas · 1 Okt 2026
+
+Detail di [QA-STABILITY-D4.md](QA-STABILITY-D4.md). `npm test` (Vitest) menjalankan 90 tes tanpa menyentuh Supabase.
+
+- **BUG-D4-001 (tinggi)**: update status development need dengan id tidak dikenal kini 404, bukan error database.
+- **BUG-D4-002 (tinggi)**: referensi employee/posisi yang tidak ada kini 422, bukan 500.
+- **BUG-D4-003 (sedang)**: pratinjau EMPLOYEE hanya memuat record milik sendiri, seperti RLS.
+
 ## Belum selesai
 
 | Item | Alasan | Langkah berikut |

@@ -64,6 +64,15 @@ function initialSnapshot(): D4LiveSnapshot {
   };
 }
 
+/** What RLS returns to an employee: only their own records, so detail URLs of others show NotFound. */
+function ownRecords(snapshot: D4LiveSnapshot): D4LiveSnapshot {
+  const own = <T extends { employeeId: string }>(items: readonly T[]) => items.filter((item) => item.employeeId === snapshot.actorEmployeeId);
+  return {
+    ...snapshot, performance: own(snapshot.performance), kpiAssessments: own(snapshot.kpiAssessments ?? []), competency: own(snapshot.competency),
+    developmentVersions: own(snapshot.developmentVersions), trainingVersions: own(snapshot.trainingVersions),
+  };
+}
+
 const now = () => new Date().toISOString();
 const newId = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(2, 10).toUpperCase()}`;
 const delay = () => new Promise((resolve) => setTimeout(resolve, 250));
@@ -76,7 +85,7 @@ export function createFixtureSource(): D4DataSource {
   const actorName = () => state.reference.employees.find((item) => item.id === state.actorEmployeeId)?.fullName ?? "HR";
   return {
     mode: "fixture",
-    async loadSnapshot() { await delay(); return state; },
+    async loadSnapshot() { await delay(); return state.role === "EMPLOYEE" ? ownRecords(state) : state; },
     async loadKpiCatalog() { return catalog; },
     async createEvaluation({ revisionOf, ...draft }) {
       assertWriter();

@@ -43,6 +43,9 @@ export async function addDevelopmentVersion(request: Request, id: string) {
   const { repository } = await requireWriter();
   const body = await readJson(request);
   const status = field.oneOf(body, "status", statuses);
-  await repository.updateDevelopment(id, status, field.text(body, "notes", { required: false, max: 2000 }));
+  const notes = field.text(body, "notes", { required: false, max: 2000 });
+  // Checked here so an unknown or malformed id is a 404, not a database error.
+  if (!latestDevelopment(await repository.loadSnapshot()).some((item) => item.needId === id)) throw new ApiError("NOT_FOUND", "Development need tidak ditemukan.");
+  await repository.updateDevelopment(id, status, notes);
   return { developmentNeedId: id, status };
 }
