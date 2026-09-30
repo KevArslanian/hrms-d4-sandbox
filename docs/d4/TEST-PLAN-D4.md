@@ -61,7 +61,7 @@ Satu baris hasil: `TC ID | Tanggal | Tester | Role login | Build/commit | Status
 | O3 | Sales Admin memakai KPI Sales & Marketing (sementara) | TC-D4-002-01/02 untuk position Sales Admin | PO |
 | O4 | HR Associate belum punya KPI V5.1 | TC-D4-002-01/02 untuk HR Associate (expected: form menolak simpan) | PO |
 | MGT | Role Management read-only belum dikonfigurasi | TC-D4-SEC-05 | PO |
-| NET | Network/integration failure belum ditangani di klien | TC-D4-UIQ-06, TC-D4-UIQ-07 (diperkirakan FAIL) | WebDev |
+| ~~NET~~ | Selesai 30 Sep 2026: klien menangani network failure, timeout, dan integration failure (API-D4-001 §3) | TC-D4-UIQ-06, TC-D4-UIQ-07 siap diuji di staging | WebDev |
 
 ## 6. Requirement Traceability Matrix
 
@@ -233,8 +233,8 @@ Kartu Planka: **[QA] Pengujian Integration, Security, Validation & UI Quality**
 | TC-D4-UIQ-03 | Test validation state | Positif | Not Run | Staging |
 | TC-D4-UIQ-04 | Test success state | Positif | Not Run | Staging |
 | TC-D4-UIQ-05 | Test error state | Positif | Not Run | Staging |
-| TC-D4-UIQ-06 | Test network failure | Negatif | Not Run | Belum ditangani di klien (item Security "Handle network failure" terbuka) → kemungkinan FAIL |
-| TC-D4-UIQ-07 | Test integration failure | Negatif | Not Run | idem |
+| TC-D4-UIQ-06 | Test network failure | Negatif | Not Run | Matikan jaringan (DevTools → Offline) lalu simpan: expected toast "Tidak dapat terhubung ke server…", data tidak berubah |
+| TC-D4-UIQ-07 | Test integration failure | Negatif | Not Run | Supabase tidak terjangkau / respons 503: expected `INTEGRATION_ERROR` dan pesan "Layanan data HRMS sedang tidak dapat dihubungi…" |
 | TC-D4-UIQ-08 | Test feedback error dapat dipahami user | Positif | Not Run | Staging |
 | TC-D4-UIQ-09 | Test form pattern konsisten | Positif | Not Run | Staging |
 | TC-D4-UIQ-10 | Test table pattern konsisten | Positif | Not Run | Staging |

@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 
-export type ErrorCode = "BAD_REQUEST" | "UNAUTHENTICATED" | "FORBIDDEN" | "NOT_FOUND" | "VALIDATION_FAILED" | "SERVER_ERROR";
+export type ErrorCode = "BAD_REQUEST" | "UNAUTHENTICATED" | "FORBIDDEN" | "NOT_FOUND" | "VALIDATION_FAILED" | "INTEGRATION_ERROR" | "SERVER_ERROR";
 
 const statusByCode: Record<ErrorCode, number> = {
-  BAD_REQUEST: 400, VALIDATION_FAILED: 422, UNAUTHENTICATED: 401, FORBIDDEN: 403, NOT_FOUND: 404, SERVER_ERROR: 500,
+  BAD_REQUEST: 400, VALIDATION_FAILED: 422, UNAUTHENTICATED: 401, FORBIDDEN: 403, NOT_FOUND: 404, SERVER_ERROR: 500, INTEGRATION_ERROR: 503,
 };
 
 /** An error whose message is safe to show to the user. */
@@ -15,6 +15,7 @@ export class ApiError extends Error {
 // Repository and database messages are mapped to a code; anything unrecognised
 // becomes a generic message so SQL details and stack traces never reach the client (TR-17).
 function classify(message: string): ApiError {
+  if (/fetch failed|ECONNREFUSED|ECONNRESET|ENOTFOUND|ETIMEDOUT|network ?error|timed? ?out/i.test(message)) return new ApiError("INTEGRATION_ERROR", "Layanan data HRMS sedang tidak dapat dihubungi. Coba lagi beberapa saat lagi.");
   if (/sesi login/i.test(message)) return new ApiError("UNAUTHENTICATED", "Sesi login tidak tersedia. Silakan masuk kembali.");
   if (/row-level security|permission denied|belum diberi akses/i.test(message)) return new ApiError("FORBIDDEN", "Akun ini tidak memiliki izin untuk tindakan tersebut.");
   if (/tidak ditemukan|not found/i.test(message)) return new ApiError("NOT_FOUND", message);
@@ -28,7 +29,7 @@ export async function handle(run: () => Promise<unknown>, successStatus = 200) {
     return NextResponse.json({ data: await run() }, { status: successStatus });
   } catch (cause) {
     const error = cause instanceof ApiError ? cause : classify(cause instanceof Error ? cause.message : "");
-    if (error.code === "SERVER_ERROR") console.error("[d4-api]", cause);
+    if (error.code === "SERVER_ERROR" || error.code === "INTEGRATION_ERROR") console.error("[d4-api]", cause);
     return NextResponse.json({ error: { code: error.code, message: error.message } }, { status: error.status });
   }
 }
