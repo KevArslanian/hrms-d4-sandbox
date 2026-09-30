@@ -5,9 +5,12 @@
  * Figma (PISD – D4 V2), which follows the D2 colour identity.
  */
 @theme {
-  --color-nav: #0f172b;
+  /* Sidebar follows the shared "GENERAL SIDEBAR" (PISD page A, node 2469:1744). */
+  --color-nav: #0f2342;
   --color-nav-2: #1e3765;
   --color-nav-text: #cbd5e1;
+  --color-nav-label: #94a3b8;
+  --color-nav-active: #2563eb;
 
   --color-primary-50: #f1f3ff;
   --color-primary-100: #d9e2fc;
