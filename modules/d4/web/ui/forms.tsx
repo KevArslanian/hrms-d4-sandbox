@@ -80,6 +80,22 @@ export function ReadOnlyField({ label, value, className }: { label: string; valu
   </div>;
 }
 
+/**
+ * One active record per employee and period: when one exists, saving is allowed only as an explicit
+ * revision of it, so a second record never silently replaces the one shown on the page.
+ */
+export function RevisionConfirm({ what, existing, checked, onChange, error }: { what: string; existing: string; checked: boolean; onChange: (checked: boolean) => void; error?: string }) {
+  const id = useId();
+  return <div className={cx("rounded-xl border px-4 py-3 text-xs leading-5", error ? "border-danger bg-danger-bg" : "border-warning/30 bg-warning-bg")}>
+    <p className="text-warning">{what} untuk periode ini sudah ada ({existing}). Menyimpan akan membuat <strong>revisi</strong>; versi sebelumnya tetap ada di riwayat.</p>
+    <label htmlFor={id} className="mt-2 flex items-center gap-2 font-semibold text-ink">
+      <input id={id} type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} className="size-4 accent-primary-600" />
+      Simpan sebagai revisi
+    </label>
+    {error && <p className="mt-1 text-danger">{error}</p>}
+  </div>;
+}
+
 /* ---------- Modal ---------- */
 
 /**

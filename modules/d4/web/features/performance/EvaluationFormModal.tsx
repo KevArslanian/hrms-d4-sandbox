@@ -2,8 +2,9 @@
 
 import { useState, type FormEvent } from "react";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { departmentOf, employeeById, positionOf, SCORE_LABELS, thisMonth, today, visibleEmployees } from "../../data/selectors";
-import { FormError, FormModal, ModalActions, ReadOnlyField, SelectField, TextAreaField, TextField } from "../../ui/forms";
+import { latestForPeriod } from "../../../shared/rules";
+import { assessableEmployees, departmentOf, employeeById, formatDate, positionOf, SCORE_LABELS, thisMonth, today } from "../../data/selectors";
+import { FormError, FormModal, ModalActions, ReadOnlyField, RevisionConfirm, SelectField, TextAreaField, TextField } from "../../ui/forms";
 
 /**
  * FR-01.2: employee, period, result or notes, date, evaluator, optional evidence. The result is the
@@ -17,14 +18,17 @@ export function EvaluationFormModal({ employeeId, onClose, onSaved }: { employee
   const [employee, setEmployee] = useState(employeeId ?? "");
   const [period, setPeriod] = useState(thisMonth());
   const [date, setDate] = useState(today());
-  const [evaluator, setEvaluator] = useState(actor?.fullName ?? "");
+  // The evaluator is the signed-in user; the server stores that name and ignores the form value.
+  const evaluator = actor?.fullName ?? "";
   const [score, setScore] = useState<number | null>(null);
   const [notes, setNotes] = useState("");
   const [evidence, setEvidence] = useState("");
   const [error, setError] = useState("");
   const [touched, setTouched] = useState(false);
+  const [revise, setRevise] = useState(false);
   const selected = employeeById(snapshot, employee);
-  const missing = [!employee && "employee", !period && "periode", !date && "tanggal", !evaluator.trim() && "evaluator", score === null && "hasil evaluasi", !notes.trim() && "catatan evaluasi"].filter(Boolean);
+  const existing = employee && period ? latestForPeriod(snapshot.performance, employee, period) : undefined;
+  const missing = [!employee && "employee", !period && "periode", !date && "tanggal", score === null && "hasil evaluasi", !notes.trim() && "catatan evaluasi", existing && !revise && "konfirmasi revisi"].filter(Boolean);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -33,7 +37,7 @@ export function EvaluationFormModal({ employeeId, onClose, onSaved }: { employee
     setError("");
     const result = await run((source) => source.createEvaluation({
       employeeId: employee, period, evaluationDate: date, evaluator, status: "completed", reviewStatus: "Needs Review",
-      overallScore: score, aspects: [], generalNotes: notes, evidenceReference: evidence.trim() || null,
+      overallScore: score, aspects: [], generalNotes: notes, evidenceReference: evidence.trim() || null, revisionOf: existing?.id ?? null,
     }), "Evaluasi kinerja tersimpan.");
     if (result.ok) { onSaved?.(result.value); onClose(); } else setError(result.error);
   }
@@ -45,19 +49,21 @@ export function EvaluationFormModal({ employeeId, onClose, onSaved }: { employee
       <div className="grid gap-4 sm:grid-cols-2">
         <SelectField label="Employee" required value={employee} onChange={(event) => setEmployee(event.target.value)} error={touched && !employee ? "Employee wajib dipilih." : undefined} className="sm:col-span-2">
           <option value="">Select employee</option>
-          {visibleEmployees(snapshot).map((item) => <option key={item.id} value={item.id}>{item.fullName} · {item.employeeId}</option>)}
+          {assessableEmployees(snapshot).map((item) => <option key={item.id} value={item.id}>{item.fullName} · {item.employeeId}</option>)}
         </SelectField>
         <ReadOnlyField label="Position" value={positionOf(snapshot, selected)?.title ?? "—"} />
         <ReadOnlyField label="Department" value={departmentOf(snapshot, selected)?.name ?? "—"} />
         <TextField label="Period" required type="month" value={period} onChange={(event) => setPeriod(event.target.value)} error={touched && !period ? "Periode wajib dipilih." : undefined} />
         <TextField label="Evaluation date" required type="date" value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? "Tanggal wajib diisi." : undefined} />
-        <TextField label="Evaluator" required value={evaluator} onChange={(event) => setEvaluator(event.target.value)} error={touched && !evaluator.trim() ? "Evaluator wajib diisi." : undefined} />
+        <ReadOnlyField label="Evaluator" value={evaluator || "—"} />
         <SelectField label="Hasil evaluasi" required value={score ?? ""} onChange={(event) => setScore(event.target.value ? Number(event.target.value) : null)}
           error={touched && score === null ? "Hasil evaluasi wajib dipilih." : undefined} helper="Diisi evaluator; tidak memicu keputusan HR otomatis.">
           <option value="">Select result</option>
           {[5, 4, 3, 2, 1].map((value) => <option key={value} value={value}>{value} · {SCORE_LABELS[value]}</option>)}
         </SelectField>
       </div>
+      {existing && <RevisionConfirm what="Evaluasi" existing={`${existing.evaluator}, ${formatDate(existing.evaluationDate)}`} checked={revise} onChange={setRevise}
+        error={touched && !revise ? "Centang untuk menyimpan sebagai revisi, atau ganti periode." : undefined} />}
       <TextAreaField label="Catatan evaluasi" required value={notes} onChange={(event) => setNotes(event.target.value)} error={touched && !notes.trim() ? "Catatan evaluasi wajib diisi." : undefined}
         helper="Termasuk rekomendasi/rencana pelatihan bila ada — dapat dipakai sebagai konteks Development Requirement." />
       <TextField label="Evidence / reference" value={evidence} onChange={(event) => setEvidence(event.target.value)} helper="Opsional: nomor dokumen atau tautan bukti." />

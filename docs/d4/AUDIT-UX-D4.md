@@ -55,7 +55,28 @@ Status: ✅ diperbaiki dan diverifikasi · ⏳ sisa, butuh keputusan di luar tim
 | G3 | Link prototype 14 → 18 putus setelah frame 18 dibangun ulang | Dipulihkan; tidak ada link yang menunjuk frame terhapus | ✅ |
 | G4 | Frame 09/10/18 masih berlabel "(HR Manager)" | Menjadi "(HR)" | ✅ |
 
-### 2.4 Sisa (butuh keputusan PO/Back End)
+### 2.4 Integritas logika (audit ulang 30 Sep 2026, malam)
+
+Aturan dipusatkan di `modules/d4/shared/rules.ts`, lalu dipakai oleh form (UI), fixture source (preview), dan route API. Dengan begitu mode preview dan live menolak input yang sama.
+
+| # | Temuan | Dasar | Perbaikan | Status |
+|---|---|---|---|---|
+| L1 | Default tanggal/periode memakai UTC (`toISOString`); form yang dibuka sebelum 07.00 WIB terisi tanggal kemarin, dan di tanggal 1 terisi periode bulan lalu | Error prevention (Nielsen #5) | `localToday()`/`localMonth()` berbasis `Asia/Jakarta` | ✅ |
+| L2 | Evaluasi/scorecard kedua untuk employee + periode yang sama tersimpan diam-diam, lalu data yang tampil berganti tanpa jejak | FR-01.4 / FR-02.9 (riwayat tidak ditimpa), visibility of status | Form menampilkan peringatan dan meminta centang **Simpan sebagai revisi**; payload membawa `revisionOf` (id record terbaru). Server dan fixture menolak bila record sudah ada tetapi `revisionOf` tidak sesuai. Riwayat diberi label "Revisi n" | ✅ |
+| L3 | Field Evaluator bisa diketik bebas, sehingga nama evaluator bisa dipalsukan | Akuntabilitas audit trail | Evaluator read-only = user yang login; server mengambil nama dari `d3_user_access.employee_id` dan mengabaikan nilai body | ✅ |
+| L4 | Penilai bisa menilai dirinya sendiri (daftar employee memuat dirinya) | Konflik kepentingan | Daftar employee di form Evaluasi dan KPI tidak memuat user yang login; server menolak `employeeId` = diri sendiri. Fixture Mercury kini dievaluasi oleh "Oscar" | ✅ |
+| L5 | Training bisa dibuat untuk requirement yang sudah Completed; requirement bisa di-Completed-kan saat training masih berjalan tanpa peringatan | Konsistensi status | Form training hanya menampilkan requirement yang belum Completed; server/fixture menolak. Update Status Completed menampilkan peringatan jumlah training Planned/In Progress | ✅ |
+| L6 | Satu gap kompetensi bisa dibuatkan beberapa requirement terbuka; nilai gap saat requirement dibuat tidak tercatat | Duplikasi data, traceability | Opsi gap yang sudah punya requirement terbuka dinonaktifkan ("sudah ada requirement terbuka"); aksi Create di Competency Gap disembunyikan bila semua gap sudah tertangani; server menolak duplikat. Notes otomatis menyimpan "Gap saat dibuat (tanggal): … level X dari min. Y" | ✅ |
+
+### 2.5 Konsistensi UI (audit ulang 30 Sep 2026, malam)
+
+| # | Temuan | Perbaikan | Status |
+|---|---|---|---|
+| U1 | Label campur: "Penilai"/"Tanggal penilaian" di KPI vs "Evaluator"/"Evaluation date" di Performance; tombol "New Scorecard"/"New Evaluation" vs pola `+ Add …` | Seragam **Evaluator** dan **Evaluation date** di form, detail, dan history; tombol **Add Scorecard** / **Add Evaluation**; judul modal KPI "Add Scorecard" | ✅ |
+| U2 | Item sidebar modul squad lain (General Dashboard, POS, CRM, MID, Settings) terlihat seperti link tetapi tidak bisa diklik | Diredupkan (opacity 50 %), `cursor-not-allowed`, `aria-disabled`, tooltip "Modul squad lain — belum terhubung" | ✅ |
+| U4 | Status training bisa mundur (Completed → Planned, Cancelled → Planned) tanpa alasan | Rollback mewajibkan **Alasan perubahan** (UI, fixture, server); alasan tersimpan di versi | ✅ |
+
+### 2.6 Sisa (butuh keputusan PO/Back End)
 
 | # | Item | Alasan belum |
 |---|---|---|
@@ -65,6 +86,10 @@ Status: ✅ diperbaiki dan diverifikasi · ⏳ sisa, butuh keputusan di luar tim
 | O4 | HR Associate belum punya KPI di V5.1 | Form menolak simpan dengan pesan "Belum tersedia untuk position ini" |
 | O5 | Label Planka Front End / Back End menggantikan "WebDev" | **Selesai 30 Sep 2026**: label peran Front End, Back End, UI/UX, QA, PO, Bug dipasang; lihat PLANKA-D4 |
 | O6 | Penjelasan relasi FR-D4-003 ↔ FR-D4-004 di Docmost | Draft di `drafts/docmost/02-…`, Docmost read-only |
+| O7 | (L7) Manager melihat dan menilai **semua** employee, bukan hanya bawahannya | Butuh data atasan/`supervisor_id` dari D3 dan keputusan PO tentang cakupan Manager; RLS saat ini hanya membatasi EMPLOYEE |
+| O8 | (U3) Kolom `review_status` masih diisi "Needs Review" untuk setiap evaluasi padahal FR-D4-001 tidak mengenal review status | Kolom `NOT NULL` + `CHECK` di migrasi `20260928052350`; menghapusnya butuh migrasi di Supabase bersama (tidak boleh tanpa persetujuan). UI sudah tidak menampilkannya |
+| O9 | Aturan satu-record-aktif-per-periode (L2) dan satu-requirement-terbuka-per-gap (L6) baru ditegakkan di aplikasi | Unique/partial index di database butuh migrasi; tanpa itu dua request bersamaan masih bisa lolos |
+| O10 | Masukan wawancara: palet Galaxy/ungu/pink, relasi KPI ↔ capability | Dijadwalkan setelah perbaikan ini, sesuai arahan tim |
 
 ## 3. FR-D4-004 dalam satu paragraf (VN K8)
 
@@ -105,5 +130,6 @@ Pembaruan 30 Sep 2026 (sore): board ditata ulang mengikuti D1/D3 — nama kartu 
 ## 6. Verifikasi
 
 - `npx tsc --noEmit`, `npx eslint modules/d4`, `npm run build`: lulus.
+- Perbaikan L1–L6, U1, U2, U4 (30 Sep 2026 malam): typecheck dan eslint lulus; aturan di `shared/rules.ts` diuji dengan skrip Node (9 kasus lulus, termasuk 23.30 UTC → tanggal WIB berikutnya); alur preview diuji di browser: notice + centang revisi → riwayat "Revisi 2", evaluator read-only, Mercury tidak ada di daftar employee, opsi gap tertangani nonaktif, requirement Completed tidak muncul di form training, peringatan training terbuka saat Completed, rollback Cancelled → Planned ditolak tanpa alasan.
 - Preview (fixture) 1280 px: dashboard 6 kolom, tanpa scroll horizontal; 1440 px: 8 kolom.
 - Figma: pemindaian otomatis tidak menemukan isi sel yang lebih lebar dari selnya, tidak ada link prototype yang putus, dan tidak ada teks "Maya"/"HR Manager".

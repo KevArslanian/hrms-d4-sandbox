@@ -6,7 +6,7 @@ import { ACTIVE_KPI_VERSION } from "../../../kpi/catalog";
 import type { EmployeeReference } from "../../../shared/types";
 import type { KpiAssessment } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { canWrite, employeeById, evaluationsOf, formatDate, formatPeriod, formatScore, includesText, latestScorecard, positionOf, scorecardsOf, visibleEmployees } from "../../data/selectors";
+import { canWrite, employeeById, evaluationsOf, formatDate, formatPeriod, formatScore, includesText, latestScorecard, positionOf, revisionTag, scorecardsOf, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
@@ -67,7 +67,7 @@ export function KpiListPage() {
         { label: "View Detail", icon: <Eye />, href: row.scorecard ? `/kpi/${row.scorecard.id}` : undefined, hidden: !row.scorecard },
         { label: "View History", icon: <History />, href: `/kpi/history/${row.employee.id}` },
         { label: "Open Evaluation", icon: <ClipboardCheck />, href: `/performance/history/${row.employee.id}` },
-        { label: "New Scorecard", icon: <Plus />, onSelect: () => setModalFor(row.employee.id), hidden: !writer },
+        { label: "Add Scorecard", icon: <Plus />, onSelect: () => setModalFor(row.employee.id), hidden: !writer },
       ]} />} />
     {modalFor !== null && <KpiFormModal employeeId={modalFor || undefined} onClose={() => setModalFor(null)} />}
   </>;
@@ -84,7 +84,7 @@ export function KpiDetailPage({ id }: { id: string }) {
   return <>
     <DetailHeader crumbs={[{ label: "HRMS" }, { label: "KPI Scorecard", href: "/kpi" }, { label: "Detail" }]} backHref="/kpi"
       name={employee.fullName} meta={[positionOf(snapshot, employee)?.title ?? "", employee.employeeId, `Periode ${formatPeriod(scorecard.period)}`]} status={scorecardStatus(scorecard)}
-      actions={<><ButtonLink href={`/kpi/history/${employee.id}`} icon={<History className="size-4" />}>View History</ButtonLink>{canWrite(snapshot) && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)}>New Scorecard</Button>}</>} />
+      actions={<><ButtonLink href={`/kpi/history/${employee.id}`} icon={<History className="size-4" />}>View History</ButtonLink>{canWrite(snapshot) && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)}>Add Scorecard</Button>}</>} />
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(300px,1fr)]">
       <Card title="Core KPI" padded={false}>
         <div className="overflow-x-auto">
@@ -126,12 +126,12 @@ export function KpiHistoryPage({ employeeId }: { employeeId: string }) {
   return <>
     <DetailHeader crumbs={[{ label: "HRMS" }, { label: "KPI Scorecard", href: "/kpi" }, { label: "History" }]} backHref="/kpi"
       name={employee.fullName} meta={[positionOf(snapshot, employee)?.title ?? "", employee.employeeId, `${scorecards.length} scorecard`]}
-      actions={canWrite(snapshot) && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)}>New Scorecard</Button>} />
+      actions={canWrite(snapshot) && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)}>Add Scorecard</Button>} />
     <Card title="Scorecard history">
       <Timeline empty="Employee ini belum memiliki KPI scorecard." entries={scorecards.map((item) => ({
         id: item.id, date: `${formatPeriod(item.period)} · ${formatDate(item.evaluationDate || item.createdAt)}`,
-        title: `${item.roleName} — ${formatScore(item.overallScore)}`, status: scorecardStatus(item), actor: item.actor, href: `/kpi/${item.id}`,
-        body: `Katalog ${item.definitionVersion} · Penilai ${item.evaluatorName || "—"}`,
+        title: `${item.roleName} — ${formatScore(item.overallScore)}${revisionTag(scorecards, item)}`, status: scorecardStatus(item), actor: item.actor, href: `/kpi/${item.id}`,
+        body: `Katalog ${item.definitionVersion} · Evaluator ${item.evaluatorName || "—"}`,
       }))} />
     </Card>
     {adding && <KpiFormModal employeeId={employee.id} onClose={() => setAdding(false)} />}
