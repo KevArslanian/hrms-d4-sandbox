@@ -1,6 +1,7 @@
 import { indicatorsFor, roleForPositionTitle, selectCatalog, type RoleKpiRow } from "../../kpi/catalog";
 import type { KpiAssessmentLine } from "../../supabase/types";
 import { assertNotSelf, assertPeriodRevision } from "../../shared/rules";
+import { databaseError } from "../../shared/errors";
 import { ApiError, employeeFilter, enforce, field, optionalUuid, readJson } from "../_lib/http";
 import { d4Session, requireWriter } from "../_lib/session";
 
@@ -33,13 +34,13 @@ export async function createAssessment(request: Request) {
   const employeeId = field.uuid(body, "employeeId");
   const { data, error } = await client.from("d4_kpi_role_catalog")
     .select("role_order,role_name,indicator_order,kpi_name,target,weight_percent,source_version");
-  if (error) throw new Error(`Katalog KPI: ${error.message}`);
+  if (error) throw databaseError(error, "Katalog KPI");
   const catalog = selectCatalog((data ?? []) as RoleKpiRow[]);
   const indicators = indicatorsFor(catalog, roleOrder);
   const snapshot = await repository.loadSnapshot();
   const { reference } = snapshot;
   const employee = reference.employees.find((item) => item.id === employeeId);
-  if (!employee) throw new ApiError("VALIDATION_FAILED", "Employee tidak ditemukan.");
+  if (!employee) throw new ApiError("NOT_FOUND", "Employee tidak ditemukan.");
   const evaluatorName = reference.employees.find((item) => item.id === access.employeeId)?.fullName;
   if (!evaluatorName) throw new ApiError("FORBIDDEN", "Akun belum terhubung dengan data employee.");
   const period = field.period(body, "period");
@@ -53,7 +54,6 @@ export async function createAssessment(request: Request) {
     const raw = (body.lines as unknown[])[index] as Record<string, unknown> | null;
     if (!raw || raw.kpi_name !== indicator.kpi_name) throw new ApiError("VALIDATION_FAILED", `Indikator ${index + 1} harus ${indicator.kpi_name}.`);
     const score = field.score(raw.raw_score, `Skor ${indicator.kpi_name}`, { required: status === "completed" });
-    if (score !== null && !Number.isInteger(score)) throw new ApiError("VALIDATION_FAILED", `Skor ${indicator.kpi_name} harus bilangan bulat 1 sampai 5.`);
     return {
       indicator_order: indicator.indicator_order, kpi_name: indicator.kpi_name, weight_percent: indicator.weight_percent,
       target: field.text(raw, "target", { required: false, max: 200 }), actual: field.text(raw, "actual", { required: false, max: 200 }),

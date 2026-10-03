@@ -1,39 +1,39 @@
 import { describe, expect, it, vi } from "vitest";
-import { handle } from "@/modules/d4/server/_lib/http";
+import { ApiError, handle } from "@/modules/d4/server/_lib/http";
 
-// Every message the Supabase repository throws must map to a client status, never a bare 500.
-const fail = (message: string) => handle(async () => { throw new Error(message); });
+// The status comes from the typed error code, never from the message text.
+const fail = (error: Error) => handle(async () => { throw error; });
 
-describe("handle() error classification", () => {
+describe("handle() error mapping", () => {
   it.each([
-    ["Periode penilaian wajib dipilih.", 422],
-    ["Penilaian harus memiliki lima indikator KPI.", 422],
-    ["Posisi employee tidak tersedia.", 422],
-    ["Employee atau posisi tidak tersedia.", 422],
-    ["Tanggal berlaku tidak valid.", 422],
-    ["Persyaratan kompetensi posisi belum tersedia.", 422],
-    ["Employee tidak tersedia.", 422],
-    ["Referensi sumber tidak sesuai employee atau belum tersedia.", 422],
-    ["Hasil wajib diisi saat training selesai.", 422],
-    ["Sesi login Supabase tidak tersedia.", 401],
-    ["Akun sudah masuk, tetapi belum diberi akses data HRMS.", 403],
-    ['Simpan evaluasi: new row violates row-level security policy for table "x"', 403],
-    ["Riwayat training: JSON object requested, multiple (or no) rows returned", 500],
-    ["fetch failed", 503],
-  ])("%s → %i", async (message, status) => {
+    ["BAD_REQUEST", 400],
+    ["UNAUTHENTICATED", 401],
+    ["FORBIDDEN", 403],
+    ["NOT_FOUND", 404],
+    ["VALIDATION_FAILED", 422],
+    ["INTEGRATION_ERROR", 503],
+    ["SERVER_ERROR", 500],
+  ] as const)("%s → %i", async (code, status) => {
     vi.spyOn(console, "error").mockImplementation(() => {});
-    expect((await fail(message)).status).toBe(status);
+    const res = await fail(new ApiError(code, "Pesan uji."));
+    expect(res.status).toBe(status);
+    expect(await res.json()).toEqual({ error: { code, message: "Pesan uji." } });
+  });
+
+  it("does not guess a status from an untyped message", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    expect((await fail(new Error("Periode penilaian wajib dipilih."))).status).toBe(500);
+  });
+
+  it("maps a transport failure to 503", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    expect((await fail(new Error("fetch failed"))).status).toBe(503);
   });
 
   it("never leaks database details on a server error", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const body = await (await fail('insert: duplicate key value violates unique constraint "d4_x_pkey"')).json();
+    const body = await (await fail(new Error('insert: violates check constraint "d4_x_check"'))).json();
     expect(body.error.code).toBe("SERVER_ERROR");
     expect(body.error.message).not.toMatch(/d4_x|constraint/);
-  });
-
-  it("strips the repository label from validation messages", async () => {
-    const body = await (await fail("Simpan KPI: Periode penilaian wajib dipilih.")).json();
-    expect(body.error.message).toBe("Periode penilaian wajib dipilih.");
   });
 });
