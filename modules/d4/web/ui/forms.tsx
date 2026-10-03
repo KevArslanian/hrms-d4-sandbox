@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronDown, Search, X } from "lucide-react";
-import { useEffect, useId, useRef, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { createPortal } from "react-dom";
 import { Button, cx } from "./primitives";
 
@@ -112,11 +112,15 @@ export function FormModal({ title, description, size = "md", onClose, children, 
 }) {
   const dialog = useRef<HTMLDivElement>(null);
   const titleId = useId();
+  // Callers pass an inline onClose, so it changes on every parent render. Keeping it in a ref lets the
+  // effect below run once per open; otherwise each re-render (busy flag, toast) would refocus the first field.
+  const closeRef = useRef(onClose);
+  useLayoutEffect(() => { closeRef.current = onClose; });
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     dialog.current?.querySelector<HTMLElement>("input, select, textarea, button")?.focus();
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") closeRef.current();
       if (event.key !== "Tab" || !dialog.current) return;
       const focusable = [...dialog.current.querySelectorAll<HTMLElement>("input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), a[href]")];
       const first = focusable[0], last = focusable[focusable.length - 1];
@@ -126,7 +130,7 @@ export function FormModal({ title, description, size = "md", onClose, children, 
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
     return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = ""; previous?.focus(); };
-  }, [onClose]);
+  }, []);
 
   return createPortal(<div className="fixed inset-0 z-[60] flex items-center justify-center bg-ink/40 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
     <div ref={dialog} role="dialog" aria-modal="true" aria-labelledby={titleId}
