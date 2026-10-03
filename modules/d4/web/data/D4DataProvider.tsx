@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import type { KpiCatalog } from "../../kpi/catalog";
 import { createD4BrowserClient } from "../../supabase/client";
@@ -54,6 +54,8 @@ export function D4DataProvider({ children, mode }: { children: ReactNode; mode: 
   const [busy, setBusy] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  // Set synchronously, unlike `busy`, so a second click before the re-render cannot start another POST.
+  const writing = useRef(false);
 
   const pushToast = useCallback((tone: ToastMessage["tone"], text: string) => {
     const id = Date.now() + Math.random();
@@ -81,6 +83,8 @@ export function D4DataProvider({ children, mode }: { children: ReactNode; mode: 
   }, [source, router, attempt]);
 
   const run = useCallback(async <T,>(operation: (data: D4DataSource) => Promise<T>, success: string): Promise<Result<T>> => {
+    if (writing.current) return { ok: false, error: "Penyimpanan sebelumnya masih diproses." };
+    writing.current = true;
     setBusy(true);
     let data: D4DataSource;
     let value: T;
@@ -90,6 +94,7 @@ export function D4DataProvider({ children, mode }: { children: ReactNode; mode: 
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "Penyimpanan gagal.";
       pushToast("error", message);
+      writing.current = false;
       setBusy(false);
       return { ok: false, error: message };
     }
@@ -100,6 +105,7 @@ export function D4DataProvider({ children, mode }: { children: ReactNode; mode: 
     } catch {
       pushToast("error", `${success} Namun data terbaru gagal dimuat, muat ulang halaman sebelum menyimpan lagi.`);
     }
+    writing.current = false;
     setBusy(false);
     return { ok: true, value };
   }, [source, pushToast]);
