@@ -5,13 +5,20 @@ import type { D4AppRole } from "../../supabase/types";
 import { databaseError } from "../../shared/errors";
 import { ApiError } from "./http";
 
+let missingConfigLogged = false;
+
 // Route handlers use the caller's Supabase session cookie, so every query is still
 // limited by the D4 RLS policies. The role checks below add an explicit server-side
 // authorization layer on top of RLS (TR-12, TR-13).
 export async function d4Session() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (!url || !key) throw new ApiError("SERVER_ERROR", "Konfigurasi Supabase belum tersedia.");
+  if (!url || !key) {
+    // A deployment problem, not a request problem: log it once (no stack) and answer 503 every time.
+    if (!missingConfigLogged) console.error("[d4-api] NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY belum diatur; endpoint D4 menjawab 503.");
+    missingConfigLogged = true;
+    throw new ApiError("CONFIGURATION_ERROR", "Konfigurasi server belum lengkap.");
+  }
   const cookieStore = await cookies();
   const client = createServerClient(url, key, {
     cookies: {

@@ -2,10 +2,10 @@
  * Typed D4 errors. The code decides the HTTP status (modules/d4/server/_lib/http.ts), so the API never
  * has to guess a status from message text. Framework-free: also thrown by rules used in the browser.
  */
-export type ErrorCode = "BAD_REQUEST" | "UNAUTHENTICATED" | "FORBIDDEN" | "NOT_FOUND" | "CONFLICT" | "VALIDATION_FAILED" | "INTEGRATION_ERROR" | "SERVER_ERROR";
+export type ErrorCode = "BAD_REQUEST" | "UNAUTHENTICATED" | "FORBIDDEN" | "NOT_FOUND" | "CONFLICT" | "VALIDATION_FAILED" | "INTEGRATION_ERROR" | "CONFIGURATION_ERROR" | "SERVER_ERROR";
 
 const statusByCode: Record<ErrorCode, number> = {
-  BAD_REQUEST: 400, VALIDATION_FAILED: 422, UNAUTHENTICATED: 401, FORBIDDEN: 403, NOT_FOUND: 404, CONFLICT: 409, SERVER_ERROR: 500, INTEGRATION_ERROR: 503,
+  BAD_REQUEST: 400, VALIDATION_FAILED: 422, UNAUTHENTICATED: 401, FORBIDDEN: 403, NOT_FOUND: 404, CONFLICT: 409, SERVER_ERROR: 500, INTEGRATION_ERROR: 503, CONFIGURATION_ERROR: 503,
 };
 
 /** An error whose message is safe to show to the user. */
