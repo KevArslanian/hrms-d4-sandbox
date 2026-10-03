@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { d4ReferenceFixture } from "@/modules/d4/shared/fixtures";
-import { ApiError } from "@/modules/d4/shared/errors";
+import { ApiError, databaseError } from "@/modules/d4/shared/errors";
+import { compareCompetencies } from "@/modules/d4/competency/service";
 import { SupabaseD4Repository } from "@/modules/d4/supabase/repository";
 import type { EvaluationInput } from "@/modules/d4/performance/types";
 
@@ -44,13 +45,28 @@ describe("duplicate and concurrent writes", () => {
     const error = await new SupabaseD4Repository(client).updateTraining("t", "In Progress", "", "").catch((cause) => cause);
     expect(error).toBeInstanceOf(ApiError);
     expect(error).toMatchObject({ code: "CONFLICT", status: 409 });
-    expect(error.message).toMatch(/muat ulang/);
+    expect(error.message).toMatch(/Muat ulang/);
   });
 
-  it("refuses a second competency snapshot for the same employee, position and date", async () => {
-    const { client, calls } = fakeClient({ "d4_competency_assessments:select": { data: [{ id: "existing" }], error: null } });
-    expect(await code(new SupabaseD4Repository(client).saveCompetency(competencyInput, reference))).toBe("CONFLICT");
+  it("answers a re-sent identical snapshot (double click) with the stored one instead of a second row", async () => {
+    const { findings, overallStatus } = compareCompetencies(competencyInput.employeeId, competencyInput.positionId, reference);
+    const { client, calls } = fakeClient({ "d4_competency_assessments:select": { data: [{ id: "existing", overall_status: overallStatus, findings }], error: null } });
+    expect(await new SupabaseD4Repository(client).saveCompetency(competencyInput, reference)).toBe("existing");
     expect(calls).not.toContain("d4_competency_assessments:insert");
+  });
+
+  it("still stores a changed snapshot on the same day", async () => {
+    const { client, calls } = fakeClient({
+      "d4_competency_assessments:select": { data: [{ id: "earlier", overall_status: "Gap", findings: [] }], error: null },
+      "d4_competency_assessments:insert": { data: { id: "new" }, error: null },
+    });
+    expect(await new SupabaseD4Repository(client).saveCompetency(competencyInput, reference)).toBe("new");
+    expect(calls).toContain("d4_competency_assessments:insert");
+  });
+
+  it("maps a database trigger exception (P0001) to VALIDATION_FAILED with its message", () => {
+    const error = databaseError({ code: "P0001", message: "Skor indikator 2 harus antara 1 dan 5" }, "Simpan KPI");
+    expect(error).toMatchObject({ code: "VALIDATION_FAILED", status: 422, message: "Skor indikator 2 harus antara 1 dan 5" });
   });
 
   it("stores the first competency snapshot", async () => {
