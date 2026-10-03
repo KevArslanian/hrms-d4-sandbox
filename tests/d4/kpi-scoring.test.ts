@@ -90,8 +90,10 @@ describe("roleForPositionTitle (FR-02.11)", () => {
 
   it.each([
     ["Vice President / CEO", 1], ["CEO", 1], ["Director", 2], ["Operations Director", 3], ["Branch Manager", 4],
-    ["Customs Clearance Officer", 5], ["Seafreight Ops Staff", 6], ["Warehouse Staff", 7], ["EDI Officer", 8],
+    ["Customs Clearance Officer", 5], ["PPJK Officer", 5], ["Seafreight Ops Staff", 6], ["Airfreight Staff", 6], ["Freight Staff", 6],
+    ["Warehouse Staff", 7], ["Logistics Staff", 7], ["EDI Officer", 8], ["Manifest Input Staff", 8], ["Implant Staff", 8],
     ["Sales Staff", 9], ["Marketing Staff", 9], ["Sales Administration Associate", 9], ["Finance Staff", 10], ["Finance Administrator", 10],
+    ["Accounting Staff", 10], ["Admin Staff", 10],
   ])("%s → role %i", (title, role) => {
     expect(roleForPositionTitle(catalog, title)).toBe(role);
   });
@@ -102,7 +104,7 @@ describe("roleForPositionTitle (FR-02.11)", () => {
   });
 
   // BUG-D4-005 regression: keywords match whole words, so "edi" inside "Credit"/"Media" no longer maps to Implant Staff.
-  it.each([["Credit Control Staff"], ["Media Relations Officer"]])("%s has no KPI → 0", (title) => {
+  it.each([["Credit Control Staff"], ["Media Relations Officer"], ["Medical Officer"]])("%s has no KPI → 0", (title) => {
     expect(roleForPositionTitle(catalog, title)).toBe(0);
   });
 });
