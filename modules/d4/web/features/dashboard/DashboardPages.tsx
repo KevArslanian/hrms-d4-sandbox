@@ -6,7 +6,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import type { EmployeeReference } from "../../../shared/types";
 import type { D4LiveSnapshot, KpiAssessment } from "../../../supabase/types";
 import { useSnapshot } from "../../data/D4DataProvider";
-import { currentGap, departmentOf, developmentNeeds, employeeById, evaluationsOf, formatDate, formatPeriod, formatResult, formatScore, includesText, periodsOf, positionOf, scorecardsOf, trainings, visibleEmployees } from "../../data/selectors";
+import { currentGap, departmentOf, developmentNeeds, employeeById, evaluationsOf, formatDate, formatPeriod, formatResult, formatScore, includesText, periodsOf, positionOf, positionOptions, scorecardsOf, trainings, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader } from "../../ui/layout";
@@ -64,7 +64,7 @@ export function DashboardPage() {
     <PageHeader title="People Dashboard" subtitle="KPI dan performance mengikuti periode terpilih; competency gap, development, dan training menampilkan kondisi terkini per employee." />
     <FilterBar canReset={Boolean(search || position || periodChoice !== null)} onReset={() => { setSearch(""); setPosition(""); setPeriod(null); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Search employee name or ID" />
-      <SelectFilter label="All positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />
+      <SelectFilter label="All positions" value={position} onChange={setPosition} options={positionOptions(snapshot)} />
       <SelectFilter label="Semua periode" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
     </FilterBar>
     <DataTable<Row> rows={rows} noun="employees" rowKey={(row) => row.employee.id} rowHref={profileHref}

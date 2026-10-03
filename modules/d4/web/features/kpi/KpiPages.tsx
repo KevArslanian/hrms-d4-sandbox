@@ -6,7 +6,7 @@ import { ACTIVE_KPI_VERSION, roleForPositionTitle } from "../../../kpi/catalog";
 import type { EmployeeReference } from "../../../shared/types";
 import type { KpiAssessment } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { canWrite, employeeById, evaluationsOf, formatDate, formatPeriod, formatScore, includesText, latestScorecard, periodsOf, positionOf, revisionTag, scorecardsOf, visibleEmployees } from "../../data/selectors";
+import { canWrite, employeeById, evaluationsOf, formatDate, formatPeriod, formatScore, includesText, latestScorecard, periodsOf, positionOf, positionOptions, revisionTag, scorecardsOf, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
@@ -53,7 +53,7 @@ export function KpiListPage() {
     <CatalogNotice />
     <FilterBar canReset={Boolean(search || position || department || periodChoice !== null || status)} onReset={() => { setSearch(""); setPosition(""); setDepartment(""); setPeriod(null); setStatus(""); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Search employee name or ID" />
-      <SelectFilter label="All positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />
+      <SelectFilter label="All positions" value={position} onChange={setPosition} options={positionOptions(snapshot)} />
       <SelectFilter label="All departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />
       <SelectFilter label="Semua periode" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
       <SelectFilter label="All status" value={status} onChange={setStatus} options={["Completed", "Belum dinilai"].map((item) => ({ value: item, label: item }))} />
