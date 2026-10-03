@@ -6,7 +6,7 @@ import type { CompetencyFinding, CompetencyOverallStatus } from "../../../compet
 import type { EmployeeReference } from "../../../shared/types";
 import { openNeedFor } from "../../../shared/rules";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { canWrite, currentGap, departmentOf, developmentNeeds, employeeById, formatDate, includesText, positionById, positionOf, today, visibleEmployees } from "../../data/selectors";
+import { canWrite, currentGap, departmentOf, developmentNeeds, employeeById, formatDate, includesText, positionById, positionOf, positionOptions, today, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, FormError, FormModal, ModalActions, SearchInput, SelectField, SelectFilter, TextField } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
@@ -24,6 +24,8 @@ const STATUS_FILTER = ["Terpenuhi", "Gap", "Data Belum Cukup", "Belum Ada Persya
  */
 function GapDelta({ finding }: { finding: CompetencyFinding }) {
   if (finding.actualLevel === null) return <span className="text-ink-3">—</span>;
+  // Without evidence the level is unverified, so a numeric delta would contradict "Data Belum Cukup".
+  if (finding.status === "Bukti Belum Cukup") return <span className="text-ink-3" title="Level belum terverifikasi evidence">—</span>;
   const delta = finding.actualLevel - finding.requiredLevel;
   return <span className={cx("font-semibold tabular-nums", delta <= -2 ? "text-danger" : delta === -1 ? "text-warning" : delta > 0 ? "text-success" : "text-ink-2")}>
     {delta > 0 ? `+${delta}` : delta < 0 ? `−${-delta}` : "0"}
@@ -50,7 +52,7 @@ export function CompetencyListPage() {
     <PageHeader title="Competency Gap" subtitle="Bandingkan capability/evidence employee dengan requirement position aktif." />
     <FilterBar canReset={Boolean(search || position || status)} onReset={() => { setSearch(""); setPosition(""); setStatus(""); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Search employee name or ID" />
-      <SelectFilter label="All positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />
+      <SelectFilter label="All positions" value={position} onChange={setPosition} options={positionOptions(snapshot)} />
       <SelectFilter label="All gap status" value={status} onChange={setStatus} options={STATUS_FILTER.map((item) => ({ value: item, label: item }))} />
     </FilterBar>
     <DataTable<Row> rows={rows} noun="employees" rowKey={(row) => row.employee.id} rowHref={(row) => `/competency/${row.employee.id}`}

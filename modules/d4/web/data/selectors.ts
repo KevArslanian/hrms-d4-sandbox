@@ -30,6 +30,11 @@ export const assessableEmployees = (snapshot: Snapshot) => visibleEmployees(snap
 
 export const employeeById = (snapshot: Snapshot, id: string) => snapshot.reference.employees.find((item) => item.id === id);
 export const positionOf = (snapshot: Snapshot, employee?: EmployeeReference) => snapshot.reference.positions.find((item) => item.id === employee?.positionId);
+/** Position filter options limited to positions held by employees this role can see. */
+export function positionOptions(snapshot: Snapshot) {
+  const held = new Set(visibleEmployees(snapshot).map((item) => item.positionId));
+  return snapshot.reference.positions.filter((item) => held.has(item.id)).map((item) => ({ value: item.id, label: item.title }));
+}
 export const positionById = (snapshot: Snapshot, id?: string | null) => snapshot.reference.positions.find((item) => item.id === id);
 export const departmentOf = (snapshot: Snapshot, employee?: EmployeeReference) => snapshot.reference.departments.find((item) => item.id === employee?.departmentId);
 
