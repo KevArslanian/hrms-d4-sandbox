@@ -2,13 +2,16 @@
 
 import { CheckCircle2, CircleAlert } from "lucide-react";
 import { useState, type FormEvent } from "react";
-import { indicatorsFor, roleForPositionTitle } from "../../../kpi/catalog";
+import { ACTIVE_KPI_VERSION, indicatorsFor, roleForPositionTitle } from "../../../kpi/catalog";
 import type { KpiAssessmentLine } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
 import { latestForPeriod } from "../../../shared/rules";
 import { assessableEmployees, departmentOf, employeeById, formatDate, positionOf, SCORE_LABELS, thisMonth, today } from "../../data/selectors";
 import { FormError, FormModal, ModalActions, ReadOnlyField, RevisionConfirm, SelectField, TextAreaField, TextField } from "../../ui/forms";
-import { cx } from "../../ui/primitives";
+import { cx, Notice } from "../../ui/primitives";
+
+/** FR-02.11: positions without a KPI role in the catalog get no scorecard; no mapping is invented for them. */
+export const noKpiText = (version = ACTIVE_KPI_VERSION) => `Posisi ini belum memiliki KPI di katalog ${version} — hubungi HR.`;
 
 const validScore = (value: number | null) => value !== null && Number.isInteger(value) && value >= 1 && value <= 5;
 
@@ -75,14 +78,14 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
         <TextField label="Period" required type="month" value={period} onChange={(event) => setPeriod(event.target.value)} error={touched && !period ? "Periode wajib dipilih." : undefined} />
         <ReadOnlyField label="Position" value={position?.title ?? "—"} />
         <ReadOnlyField label="Department" value={departmentOf(snapshot, selected)?.name ?? "—"} />
-        <ReadOnlyField label="KPI jabatan" value={!employee ? "—" : roleName ?? "Belum tersedia untuk position ini"} />
+        <ReadOnlyField label="KPI jabatan" value={!employee ? "—" : roleName ?? `Belum ada di katalog ${catalog?.version ?? ACTIVE_KPI_VERSION}`} />
         <TextField label="Evaluation date" required type="date" value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? "Tanggal wajib diisi." : undefined} />
         <ReadOnlyField label="Evaluator" value={evaluator || "—"} className="sm:col-span-2" />
       </div>
       {existing && <RevisionConfirm what="Scorecard" existing={`${existing.evaluatorName}, ${formatDate(existing.evaluationDate)}`} checked={revise} onChange={setRevise}
         error={touched && !revise ? "Centang untuk menyimpan sebagai revisi, atau ganti periode." : undefined} />}
 
-      <div className="overflow-x-auto rounded-2xl border border-line">
+      {employee && !lines.length ? <Notice tone="warning">{position ? noKpiText(catalog?.version) : "Employee belum memiliki position aktif, sehingga KPI belum dapat ditentukan."}</Notice> : <div className="overflow-x-auto rounded-2xl border border-line">
         <table className="w-full min-w-[760px] text-left text-sm">
           <thead className="bg-app text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3">
             <tr><th className="w-10 px-3 py-2.5">No</th><th className="px-3 py-2.5">Core KPI</th><th className="w-20 px-3 py-2.5">Bobot</th><th className="w-36 px-3 py-2.5">Target</th><th className="w-36 px-3 py-2.5">Realisasi</th><th className="w-24 px-3 py-2.5">Skor 1–5</th><th className="w-24 px-3 py-2.5 text-right">Terbobot</th></tr>
@@ -101,11 +104,11 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
           <tfoot className="border-t border-line bg-app">
             <tr><td colSpan={2} className="px-3 py-3 font-semibold">Total</td>
               <td className="px-3 py-3"><span className={cx("inline-flex items-center gap-1 text-xs font-semibold", totalWeight === 100 ? "text-success" : "text-danger")}>{totalWeight === 100 ? <CheckCircle2 className="size-3.5" /> : <CircleAlert className="size-3.5" />}{lines.length ? `${totalWeight}%` : "—"}</span></td>
-              <td colSpan={3} className="px-3 py-3 text-xs text-ink-3">{lines.length ? (totalWeight === 100 ? "Total bobot 100%" : "Total bobot harus 100%") : employee ? "KPI untuk position ini belum tersedia." : "Pilih employee untuk menampilkan KPI position-nya."}</td>
+              <td colSpan={3} className="px-3 py-3 text-xs text-ink-3">{lines.length ? (totalWeight === 100 ? "Total bobot 100%" : "Total bobot harus 100%") : "Pilih employee untuk menampilkan KPI position-nya."}</td>
               <td className="px-3 py-3 text-right font-display text-base tabular-nums">{total === null ? "—" : `${total.toFixed(2)} / 5`}</td></tr>
           </tfoot>
         </table>
-      </div>
+      </div>}
       <p className="text-xs text-ink-3">Kriteria skor: {[1, 2, 3, 4, 5].map((value) => `${value} ${SCORE_LABELS[value]}`).join(" · ")}. Skor mentah diisi evaluator; sistem tidak mengonversi realisasi menjadi skor dan tidak memberi label tercapai/tidak tercapai.</p>
       <TextAreaField label="Catatan / rekomendasi atasan" value={notes} onChange={(event) => setNotes(event.target.value)} />
     </form>

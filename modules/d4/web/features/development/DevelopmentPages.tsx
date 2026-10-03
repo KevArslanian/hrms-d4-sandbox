@@ -56,7 +56,7 @@ export function DevelopmentListPage() {
       actions={(row) => <RowActionMenu label={`Aksi untuk ${row.objective}`} actions={[
         { label: "View Detail", icon: <Eye />, href: `/development/${row.needId}` },
         { label: "View History", icon: <History />, href: `/development/${row.needId}/history` },
-        { label: "Create Training", icon: <GraduationCap />, onSelect: () => setTrainingFor(row), hidden: !writer },
+        { label: "Create Training", icon: <GraduationCap />, onSelect: () => setTrainingFor(row), hidden: !writer || row.status === "Completed" },
         { label: "Update Status", icon: <RefreshCw />, onSelect: () => setStatusFor(row.needId), hidden: !writer },
       ]} />} />
     {adding && <DevelopmentFormModal onClose={() => setAdding(false)} />}
@@ -82,7 +82,8 @@ export function DevelopmentDetailPage({ needId }: { needId: string }) {
       actions={<>
         <ButtonLink href={`/development/${need.needId}/history`} icon={<History className="size-4" />}>View History</ButtonLink>
         {writer && <Button variant="secondary" icon={<RefreshCw className="size-4" />} onClick={() => setStatusOpen(true)}>Update Status</Button>}
-        {writer && <Button icon={<GraduationCap className="size-4" />} onClick={() => setTrainingOpen(true)}>Create Training</Button>}
+        {/* A completed requirement cannot take new training (assertNeedOpen). */}
+        {writer && need.status !== "Completed" && <Button icon={<GraduationCap className="size-4" />} onClick={() => setTrainingOpen(true)}>Create Training</Button>}
       </>} />
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
       <Card title="Requirement">
