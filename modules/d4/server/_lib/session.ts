@@ -30,7 +30,7 @@ export async function d4Session() {
   });
   const { data, error } = await client.auth.getUser();
   if (error || !data.user) throw new ApiError("UNAUTHENTICATED", "Sesi login tidak tersedia. Silakan masuk kembali.");
-  return { client, user: data.user, repository: new SupabaseD4Repository(client) };
+  return { client, user: data.user, repository: new SupabaseD4Repository(client, data.user) };
 }
 
 export async function d4Access(session: Awaited<ReturnType<typeof d4Session>>): Promise<{ role: D4AppRole; employeeId: string }> {

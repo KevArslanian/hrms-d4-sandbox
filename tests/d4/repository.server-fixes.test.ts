@@ -80,3 +80,17 @@ describe("typed repository errors", () => {
     expect(await code(new SupabaseD4Repository(broken.client).updateDevelopment("n", "Planned", ""))).toBe("UNTYPED");
   });
 });
+
+describe("auth.getUser per request", () => {
+  it("is called once per repository, and not at all when the session already verified the user", async () => {
+    const fresh = fakeClient({});
+    const repository = new SupabaseD4Repository(fresh.client);
+    await repository.loadReferenceData();
+    await repository.loadReferenceData();
+    expect(fresh.getUserCalls()).toBe(1);
+
+    const verified = fakeClient({});
+    await new SupabaseD4Repository(verified.client, { id: "user" } as never).loadReferenceData();
+    expect(verified.getUserCalls()).toBe(0);
+  });
+});

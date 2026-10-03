@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { compareCompetencies } from "../competency/service";
 import type { CompetencyAssessment, CompetencyFinding, CompetencyOverallStatus } from "../competency/types";
 import type { DevelopmentNeedVersion, DevelopmentPriority, DevelopmentSourceType, DevelopmentStatus } from "../development/types";
@@ -37,12 +37,20 @@ function actorName(reference: ReferenceDataSnapshot, employeeId: string): string
 }
 
 export class SupabaseD4Repository implements ReferenceDataRepository {
-  constructor(private readonly client: SupabaseClient) {}
+  private user?: Promise<User>;
 
-  private async requireUser() {
-    const { data, error } = await this.client.auth.getUser();
-    if (error || !data.user) throw new ApiError("UNAUTHENTICATED", "Sesi login tidak tersedia. Silakan masuk kembali.");
-    return data.user;
+  /** `verifiedUser`: the user the caller already checked with auth.getUser() for this request. */
+  constructor(private readonly client: SupabaseClient, verifiedUser?: User) {
+    if (verifiedUser) this.user = Promise.resolve(verifiedUser);
+  }
+
+  // At most one auth.getUser() round trip per repository; a repository lives for one request.
+  private requireUser(): Promise<User> {
+    this.user ??= this.client.auth.getUser().then(({ data, error }) => {
+      if (error || !data.user) throw new ApiError("UNAUTHENTICATED", "Sesi login tidak tersedia. Silakan masuk kembali.");
+      return data.user;
+    });
+    return this.user;
   }
 
   async loadReferenceData(): Promise<ReferenceDataSnapshot> {
