@@ -25,7 +25,7 @@ Code freeze menjaga build yang didemokan tetap sama dengan build yang sudah diuj
 | Berakhir | Setelah Show & Tell minggu 5 selesai dan PO menyatakan freeze dicabut. Tanggal: `<diisi PO>` |
 | Di luar freeze | Branch `feature/D4-week5-demo-prep`, yang hanya berisi dokumen demo dan `scripts/smoke-d4.mjs` tanpa perubahan kode aplikasi |
 
-Catatan: RN-D4-001 masih menyebut commit `b8e9564`. Untuk demo, acuan yang berlaku adalah `bcb92d8`.
+Catatan: RN-D4-001 sudah merujuk `bcb92d8` sebagai baseline; `b8e9564` hanya titik penyusunan draf awal RN.
 
 ## 3. Yang boleh dan tidak boleh selama freeze
 
