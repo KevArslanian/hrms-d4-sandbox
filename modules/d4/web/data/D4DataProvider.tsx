@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import type { KpiCatalog } from "../../kpi/catalog";
+import { createD4BrowserClient } from "../../supabase/client";
 import type { D4LiveSnapshot } from "../../supabase/types";
 import { apiSource, D4RequestError } from "./api-source";
 import { createFixtureSource } from "./fixture-source";
@@ -65,9 +66,14 @@ export function D4DataProvider({ children, mode }: { children: ReactNode; mode: 
       setSnapshot(nextSnapshot); setCatalog(nextCatalog); setStatus("ready"); setError("");
     }).catch((cause: unknown) => {
       if (!active) return;
-      if (cause instanceof D4RequestError && cause.status === 401) { router.replace("/login"); return; }
       setStatus("error");
       setError(cause instanceof Error ? cause.message : "Data D4 gagal dimuat.");
+      // Session expired: leave the loading screen and go to /login. The stale session is cleared first, because
+      // the proxy sends a still-signed-in user from /login back to /dashboard and the two pages would bounce.
+      if (cause instanceof D4RequestError && cause.status === 401) {
+        void Promise.resolve().then(() => createD4BrowserClient().auth.signOut()).catch(() => undefined)
+          .finally(() => { router.replace("/login"); router.refresh(); });
+      }
     });
     return () => { active = false; };
   }, [source, router, attempt]);
