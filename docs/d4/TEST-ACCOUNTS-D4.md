@@ -27,6 +27,8 @@ Nama orang di kolom "Contoh tampilan" hanya placeholder. Nama yang tampil di apl
 | 3 | EMPLOYEE | Menunjukkan tampilan self-service read-only | `EMPLOYEE` | `<diisi PO>` | Alfa (Employee) | `employee_id` wajib menunjuk employee yang **sudah punya** data D4 (evaluasi, scorecard, development, training). Tanpa itu, halaman terlihat kosong. |
 | 4 | (tanpa akses) | Uji negatif, opsional, tidak dipakai saat demo | tidak ada baris | `<diisi PO>` | – | Akun Supabase Auth tanpa baris `d3_user_access` |
 
+> **Wajib sebelum demo dan QA: akun HR dan MANAGER harus terhubung ke `employee_id` di `d3_user_access`.** Tanpa tautan ini, simpan akan ditolak **403**. Performance Evaluation dan KPI Scorecard ditolak oleh API sendiri. POST lain lolos `requireWriter()` (fungsi itu hanya memeriksa peran), tetapi insert di database tetap butuh `actor_employee_id = d3_current_employee_uuid()` dari policy RLS, sehingga diperkirakan juga ditolak 403 karena RLS. Bagian RLS ini belum diverifikasi terhadap database. Perilaku API-nya diuji di `tests/d4/api.test.ts` (blok "account without employee_id").
+
 Catatan pemetaan:
 
 - Peran dibaca dari `d3_user_access.app_role` berdasarkan `auth_user_id` (`modules/d4/server/_lib/session.ts:28-33`). Nilai yang dikenali D4 hanya `HR`, `MANAGER`, dan `EMPLOYEE`.
