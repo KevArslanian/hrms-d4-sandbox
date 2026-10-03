@@ -1,10 +1,12 @@
 "use client";
 
 import { CircleAlert, CircleCheck, Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
+import dynamic from "next/dynamic";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { type FormEvent, type ReactNode, useState } from "react";
 import { createD4BrowserClient, hasSupabaseConfig } from "@/modules/d4/supabase/client";
+import { isDemoMode } from "@/modules/d4/web/data/mode";
 
 // Ported from the team's B2 login (PISD-X-ANDIMA/Andima-HRMS, feature/D3-005-employee-report-ticket):
 // same look, same Supabase sign-in and d3_user_access check. D4 differences: it opens /dashboard,
@@ -13,9 +15,16 @@ import { createD4BrowserClient, hasSupabaseConfig } from "@/modules/d4/supabase/
 const demoEmail = process.env.NEXT_PUBLIC_D4_DEMO_EMAIL ?? "";
 const demoPassword = process.env.NEXT_PUBLIC_D4_DEMO_PASSWORD ?? "";
 
+// Loaded only by the demo deployment, so the live login never downloads the fictional dataset.
+const DemoLogin = dynamic(() => import("@/modules/d4/demo/DemoLogin").then((demo) => demo.DemoLogin));
+
 type Notice = { tone: "error" | "success"; text: string } | null;
 
 export default function LoginPage() {
+  return isDemoMode ? <DemoLogin /> : <PasswordLogin />;
+}
+
+function PasswordLogin() {
   const router = useRouter();
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);

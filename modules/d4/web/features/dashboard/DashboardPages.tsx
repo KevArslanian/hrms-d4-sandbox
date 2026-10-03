@@ -6,7 +6,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import type { EmployeeReference } from "../../../shared/types";
 import type { D4LiveSnapshot, KpiAssessment } from "../../../supabase/types";
 import { useSnapshot } from "../../data/D4DataProvider";
-import { currentGap, departmentOf, developmentNeeds, employeeById, evaluationsOf, formatDate, formatPeriod, formatScore, includesText, positionOf, SCORE_LABELS, scorecardsOf, trainings, visibleEmployees } from "../../data/selectors";
+import { currentGap, departmentOf, developmentNeeds, employeeById, evaluationsOf, formatDate, formatPeriod, formatResult, formatScore, includesText, periodsOf, positionOf, scorecardsOf, trainings, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader } from "../../ui/layout";
@@ -14,7 +14,9 @@ import { RowActionMenu } from "../../ui/RowActionMenu";
 import { Card, Notice, StatusBadge } from "../../ui/primitives";
 import { weighted } from "../kpi/KpiFormModal";
 
-type Row = { employee: EmployeeReference; position: string; period?: string; scorecard?: KpiAssessment; performance: number | null; gap: string; openNeeds: number; training?: string };
+type Row = { employee: EmployeeReference; position: string; period?: string; scorecard?: KpiAssessment; performance: number | null; gap: string; openNeeds: number; training: { done: number; total: number } };
+
+const notAssessed = <span className="text-ink-3">Belum dinilai</span>;
 
 /** FR-06.9 validation state: a scorecard is only summarised when it has five KPIs whose weights total 100%. */
 const validScorecard = (item: KpiAssessment) => item.lines.length === 5 && item.lines.reduce((sum, line) => sum + line.weight_percent, 0) === 100;
@@ -36,18 +38,22 @@ export function DashboardPage() {
   const snapshot = useSnapshot();
   const [search, setSearch] = useState("");
   const [position, setPosition] = useState("");
-  const [period, setPeriod] = useState("");
-  const periods = useMemo(() => [...new Set([...(snapshot.kpiAssessments ?? []), ...snapshot.performance].map((item) => item.period))].sort().reverse(), [snapshot]);
+  // null = default cycle (newest period in the data); "" = all periods, each employee's latest record.
+  const [periodChoice, setPeriod] = useState<string | null>(null);
+  const periods = useMemo(() => periodsOf([...(snapshot.kpiAssessments ?? []), ...snapshot.performance]), [snapshot]);
+  const period = periodChoice ?? periods[0] ?? "";
 
   const rows = useMemo<Row[]>(() => visibleEmployees(snapshot).map((employee) => {
     const data = periodData(snapshot, employee.id, period);
     const gap = currentGap(snapshot, employee);
+    // Cancelled training is not part of the plan, so it counts in neither number.
+    const planned = trainings(snapshot).filter((item) => item.employeeId === employee.id && item.status !== "Cancelled");
     return {
       employee, position: positionOf(snapshot, employee)?.title ?? "—", period: data.period, scorecard: data.scorecard,
       performance: data.evaluation?.overallScore ?? null,
       gap: gap?.overallStatus ?? "Belum Ada Persyaratan",
       openNeeds: developmentNeeds(snapshot).filter((item) => item.employeeId === employee.id && item.status !== "Completed").length,
-      training: trainings(snapshot).find((item) => item.employeeId === employee.id)?.status,
+      training: { done: planned.filter((item) => item.status === "Completed").length, total: planned.length },
     };
   }).filter((row) => includesText(`${row.employee.fullName} ${row.employee.employeeId}`, search) && (!position || row.employee.positionId === position))
     .sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName)), [snapshot, search, position, period]);
@@ -55,11 +61,11 @@ export function DashboardPage() {
   const profileHref = (row: Row) => `/dashboard/employee/${row.employee.id}${row.period ? `?period=${row.period}` : ""}`;
 
   return <>
-    <PageHeader title="People Dashboard" subtitle="Ringkasan KPI, performance, competency gap, development, dan training per employee pada periode yang sama (FR-D4-006)." />
-    <FilterBar canReset={Boolean(search || position || period)} onReset={() => { setSearch(""); setPosition(""); setPeriod(""); }}>
+    <PageHeader title="People Dashboard" subtitle="KPI dan performance mengikuti periode terpilih; competency gap, development, dan training menampilkan kondisi terkini per employee." />
+    <FilterBar canReset={Boolean(search || position || periodChoice !== null)} onReset={() => { setSearch(""); setPosition(""); setPeriod(null); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Search employee name or ID" />
       <SelectFilter label="All positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />
-      <SelectFilter label="Latest period" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
+      <SelectFilter label="Semua periode" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
     </FilterBar>
     <DataTable<Row> rows={rows} noun="employees" rowKey={(row) => row.employee.id} rowHref={profileHref}
       emptyTitle="Tidak ada employee yang cocok" emptyText="Ubah kata kunci, position, atau periode, lalu coba lagi."
@@ -68,10 +74,10 @@ export function DashboardPage() {
         { key: "position", header: "Position", wrap: true, secondary: true, cell: (row) => row.position },
         { key: "period", header: "Period", cell: (row) => formatPeriod(row.period) },
         { key: "kpi", header: "KPI total", className: "tabular-nums", cell: (row) => <ScoreCell scorecard={row.scorecard} /> },
-        { key: "performance", header: "Performance", className: "tabular-nums", cell: (row) => formatScore(row.performance) },
+        { key: "performance", header: "Performance", className: "tabular-nums", cell: (row) => row.performance === null ? notAssessed : formatResult(row.performance) },
         { key: "gap", header: "Competency", cell: (row) => <StatusBadge status={row.gap} /> },
         { key: "needs", header: "Open dev.", className: "tabular-nums", secondary: true, cell: (row) => row.openNeeds || "—" },
-        { key: "training", header: "Training", cell: (row) => row.training ? <StatusBadge status={row.training} /> : "—" },
+        { key: "training", header: "Training", className: "tabular-nums", cell: (row) => row.training.total ? `${row.training.done}/${row.training.total} selesai` : "—" },
       ]}
       actions={(row) => <RowActionMenu label={`Aksi untuk ${row.employee.fullName}`} actions={[
         { label: "View Detail", icon: <Eye />, href: profileHref(row) },
@@ -82,7 +88,7 @@ export function DashboardPage() {
 }
 
 function ScoreCell({ scorecard }: { scorecard?: KpiAssessment }) {
-  if (!scorecard) return <>—</>;
+  if (!scorecard) return notAssessed;
   if (!validScorecard(scorecard)) return <span className="text-xs font-semibold text-danger">Data tidak valid</span>;
   return <span className="font-semibold text-ink">{formatScore(scorecard.overallScore)}</span>;
 }
@@ -119,7 +125,7 @@ export function EmployeeProfilePage({ employeeId, initialPeriod = "" }: { employ
         </table></div> : <p className="px-6 pb-6 text-sm text-ink-3">Belum ada KPI scorecard pada periode ini.</p>}
       </Card>
       <Card title="Performance evaluation" actions={<SourceLink href={evaluation ? `/performance/${evaluation.id}` : `/performance/history/${employee.id}`} />}>
-        {evaluation ? <><p className="font-display text-2xl text-ink">{formatScore(evaluation.overallScore)} <span className="text-sm font-sans text-ink-3">{SCORE_LABELS[Math.round(evaluation.overallScore ?? 0)] ?? ""}</span></p><p className="mt-1 text-sm text-ink-2">{formatPeriod(evaluation.period)} · Evaluator {evaluation.evaluator || "—"}</p><p className="mt-4 line-clamp-3 text-sm text-ink-2">{evaluation.generalNotes || "—"}</p></>
+        {evaluation ? <><p className="font-display text-2xl text-ink">{formatResult(evaluation.overallScore)}</p><p className="mt-1 text-sm text-ink-2">{formatPeriod(evaluation.period)} · Evaluator {evaluation.evaluator || "—"}</p><p className="mt-4 line-clamp-3 text-sm text-ink-2">{evaluation.generalNotes || "—"}</p></>
           : <p className="text-sm text-ink-3">Belum ada evaluasi kinerja pada periode ini.</p>}
       </Card>
       <Card title="Competency gap" actions={<SourceLink href={`/competency/${employee.id}`} />}>

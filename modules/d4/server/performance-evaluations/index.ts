@@ -1,5 +1,5 @@
 import type { EvaluationInput } from "../../performance/types";
-import { assertNotSelf, assertPeriodRevision } from "../../shared/rules";
+import { assertNotSelf, assertPeriodRevision, assertRevisionReason } from "../../shared/rules";
 import { ApiError, employeeFilter, enforce, field, optionalUuid, readJson } from "../_lib/http";
 import { d4Session, requireWriter } from "../_lib/session";
 
@@ -45,6 +45,8 @@ export async function createEvaluation(request: Request) {
     evidenceReference: field.text(body, "evidenceReference", { required: false, max: 500 }) || null,
   };
   enforce(() => assertNotSelf(access.employeeId, input.employeeId));
-  enforce(() => assertPeriodRevision(snapshot.performance, input.employeeId, input.period, optionalUuid(body, "revisionOf"), "Evaluasi"));
+  const revisionOf = optionalUuid(body, "revisionOf");
+  enforce(() => assertPeriodRevision(snapshot.performance, input.employeeId, input.period, revisionOf, "Evaluasi"));
+  enforce(() => assertRevisionReason(revisionOf, input.generalNotes));
   return { id: await repository.savePerformance(input, snapshot.reference) };
 }

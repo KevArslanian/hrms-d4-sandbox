@@ -1,10 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { isTrainingRollback, localMonth, localToday, revisionNumber } from "@/modules/d4/shared/rules";
-import { assessableEmployees, canWrite, revisionTag, visibleEmployees } from "@/modules/d4/web/data/selectors";
+import { isDevelopmentRollback, isTrainingRollback, localMonth, localToday, revisionNumber } from "@/modules/d4/shared/rules";
+import { assessableEmployees, canWrite, formatPeriod, formatResult, periodsOf, revisionTag, visibleEmployees } from "@/modules/d4/web/data/selectors";
+import type { DevelopmentStatus } from "@/modules/d4/development/types";
 import type { TrainingStatus } from "@/modules/d4/training/types";
 
 const ALFA = "d4000000-0000-4000-8000-000000000009";
 const MERCURY = "d4000000-0000-4000-8000-000000000012";
+const ECHO = "d4000000-0000-4000-8000-000000000014"; // fixture manager (Finance)
+const HOLLY = "d4000000-0000-4000-8000-000000000016"; // Finance, Echo's team
+const BRAVO = "d4000000-0000-4000-8000-000000000010"; // Sales, outside Echo's team
 
 async function fixtureAs(role: "HR" | "MANAGER" | "EMPLOYEE") {
   vi.stubEnv("NEXT_PUBLIC_D4_FIXTURE_ROLE", role);
@@ -30,6 +34,25 @@ describe("training rollback", () => {
   });
 });
 
+describe("development rollback", () => {
+  const statuses: DevelopmentStatus[] = ["Identified", "Planned", "In Progress", "Completed"];
+  it.each(statuses.flatMap((from) => statuses.map((to) => [from, to] as const)))("%s → %s", (from, to) => {
+    expect(isDevelopmentRollback(from, to)).toBe(statuses.indexOf(to) < statuses.indexOf(from));
+  });
+});
+
+describe("display formatting", () => {
+  it("shows the evaluation result with its V5.1 label and Indonesian month names", () => {
+    expect(formatResult(4)).toBe("4 · Baik");
+    expect(formatResult(null)).toBe("—");
+    expect(formatPeriod("2026-09")).toBe("September 2026");
+  });
+
+  it("lists periods newest first, so the first is the default cycle", () => {
+    expect(periodsOf([{ period: "2026-06" }, { period: "2026-09" }, { period: "2026-06" }])).toEqual(["2026-09", "2026-06"]);
+  });
+});
+
 describe("revision numbering", () => {
   const records = [
     { id: "a", employeeId: ALFA, period: "2026-09", createdAt: "2026-09-01T00:00:00Z" },
@@ -50,8 +73,18 @@ describe("role views (fixture)", () => {
     expect(assessableEmployees(snapshot).some((item) => item.id === MERCURY)).toBe(false);
   });
 
-  it("MANAGER writes", async () => {
-    expect(canWrite(await (await fixtureAs("MANAGER")).loadSnapshot())).toBe(true);
+  it("MANAGER writes, sees only their own department and never themselves", async () => {
+    const source = await fixtureAs("MANAGER");
+    const snapshot = await source.loadSnapshot();
+    expect(canWrite(snapshot)).toBe(true);
+    expect(snapshot.actorEmployeeId).toBe(ECHO);
+    expect(visibleEmployees(snapshot).map((item) => item.id).sort()).toEqual([ALFA, HOLLY].sort());
+    expect(assessableEmployees(snapshot)).toEqual(visibleEmployees(snapshot));
+    const records = [...snapshot.performance, ...(snapshot.kpiAssessments ?? []), ...snapshot.competency, ...snapshot.developmentVersions, ...snapshot.trainingVersions];
+    expect(records.length).toBeGreaterThan(0);
+    expect(records.every((item) => item.employeeId === ALFA || item.employeeId === HOLLY)).toBe(true);
+    await expect(source.createEvaluation({ employeeId: BRAVO, period: "2026-10", evaluationDate: "2026-10-01", evaluator: "x", status: "completed", reviewStatus: "Needs Review", overallScore: 4, aspects: [], generalNotes: "Uji", evidenceReference: null })).rejects.toThrow(/anggota tim/);
+    await source.createEvaluation({ employeeId: HOLLY, period: "2026-10", evaluationDate: "2026-10-01", evaluator: "x", status: "completed", reviewStatus: "Needs Review", overallScore: 4, aspects: [], generalNotes: "Uji", evidenceReference: null });
   });
 
   it("EMPLOYEE is read-only and receives only their own records", async () => {

@@ -12,7 +12,8 @@ const control = "h-10 w-full rounded-[10px] border border-line-strong bg-surface
 export function FilterBar({ children, onReset, canReset }: { children: ReactNode; onReset?: () => void; canReset?: boolean }) {
   return <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-surface p-3 shadow-card">
     {children}
-    {onReset && <button type="button" onClick={onReset} disabled={!canReset} className="ml-auto inline-flex h-10 items-center gap-1.5 rounded-[10px] px-3 text-sm font-semibold text-primary-600 hover:bg-primary-50 disabled:text-ink-3 disabled:hover:bg-transparent">
+    {/* Hidden, not disabled, while there is nothing to reset: a greyed-out control only adds noise. */}
+    {onReset && canReset && <button type="button" onClick={onReset} className="ml-auto inline-flex h-10 items-center gap-1.5 rounded-[10px] px-3 text-sm font-semibold text-primary-600 hover:bg-primary-50">
       <X aria-hidden="true" className="size-4" />Reset
     </button>}
   </div>;

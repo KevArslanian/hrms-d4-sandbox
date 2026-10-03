@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFixtureSource } from "@/modules/d4/web/data/fixture-source";
 import type { D4DataSource, EvaluationDraft, KpiAssessmentDraft } from "@/modules/d4/web/data/source";
 import { latestDevelopment, latestTraining } from "@/modules/d4/supabase/types";
@@ -15,7 +15,9 @@ const evaluation = (patch: Partial<EvaluationDraft> = {}): EvaluationDraft => ({
 });
 
 let source: D4DataSource;
-beforeEach(() => { source = createFixtureSource(); });
+// Fixed "today" (WIB) after the fixture training dates (8 and 12 Oct 2026), so completing them is allowed.
+beforeEach(() => { vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-10-20T03:00:00Z") }); source = createFixtureSource(); });
+afterEach(() => { vi.useRealTimers(); });
 
 async function kpiDraft(employeeId: string, period: string, patch: Partial<KpiAssessmentDraft> = {}): Promise<KpiAssessmentDraft> {
   const snapshot = await source.loadSnapshot();
@@ -71,7 +73,11 @@ describe("KPI scorecard (fixture)", () => {
 
   it("requires an explicit revision for an existing period", async () => {
     await expect(source.createKpiAssessment(await kpiDraft(ALFA, "2026-09"))).rejects.toThrow(/sudah ada/);
-    await source.createKpiAssessment(await kpiDraft(ALFA, "2026-09", { revisionOf: "FIX-D4-KPI-001" }));
+    await source.createKpiAssessment(await kpiDraft(ALFA, "2026-09", { revisionOf: "FIX-D4-KPI-001", generalNotes: "Koreksi skor indikator 2." }));
+  });
+
+  it("requires a reason in the notes for a revision", async () => {
+    await expect(source.createKpiAssessment(await kpiDraft(ALFA, "2026-09", { revisionOf: "FIX-D4-KPI-001", generalNotes: "  " }))).rejects.toThrow(/Alasan revisi/);
   });
 
   it("rejects a KPI role that does not match the employee position", async () => {
@@ -113,6 +119,28 @@ describe("development and training (fixture)", () => {
     const versions = (await source.loadSnapshot()).trainingVersions.filter((item) => item.trainingId === "FIX-D4-TRN-001");
     expect(versions.map((item) => item.revision).sort()).toEqual([1, 2, 3]);
     expect(latestTraining(await source.loadSnapshot()).find((item) => item.trainingId === "FIX-D4-TRN-001")?.notes).toBe("Perlu sesi ulang");
+  });
+
+  it("requires a reason when a requirement moves back", async () => {
+    await source.updateDevelopment("FIX-D4-DEV-001", "In Progress", "");
+    await expect(source.updateDevelopment("FIX-D4-DEV-001", "Identified", "")).rejects.toThrow(/Alasan/);
+    await source.updateDevelopment("FIX-D4-DEV-001", "Completed", "");
+    await expect(source.updateDevelopment("FIX-D4-DEV-001", "Planned", " ")).rejects.toThrow(/Alasan/);
+    await source.updateDevelopment("FIX-D4-DEV-001", "Planned", "Dibuka lagi: hasil workshop belum cukup");
+  });
+
+  it("rejects Completed training dated after today (WIB)", async () => {
+    await expect(source.createTraining({ employeeId: ALFA, developmentNeedId: "FIX-D4-DEV-001", activity: "X", date: "2026-10-21", status: "Completed", result: "Lulus", notes: "" }))
+      .rejects.toThrow(/setelah hari ini/);
+    await source.createTraining({ employeeId: ALFA, developmentNeedId: "FIX-D4-DEV-001", activity: "X", date: "2026-10-21", status: "Planned", result: "", notes: "" });
+    vi.setSystemTime(new Date("2026-10-05T03:00:00Z")); // before the 8 Oct fixture training
+    await expect(source.updateTraining("FIX-D4-TRN-001", "Completed", "Lulus", "")).rejects.toThrow(/setelah hari ini/);
+  });
+
+  it("rejects development and training for the actor themselves", async () => {
+    const own = await source.createEvaluation(evaluation({ employeeId: ALFA, period: "2026-12" })); // any valid source; the self check comes first
+    await expect(source.createDevelopment({ employeeId: MERCURY, sourceType: "performance_context", sourceRef: own, objective: "Uji", priority: "Low", notes: "" })).rejects.toThrow(/diri sendiri/);
+    await expect(source.createTraining({ employeeId: MERCURY, developmentNeedId: "FIX-D4-DEV-001", activity: "X", date: "2026-10-01", status: "Planned", result: "", notes: "" })).rejects.toThrow(/diri sendiri/);
   });
 
   it("keeps history append-only across status changes", async () => {

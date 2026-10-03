@@ -3,7 +3,7 @@ import type { CompetencyFinding, CompetencyOverallStatus } from "../../competenc
 import type { DevelopmentNeedVersion, DevelopmentSourceType } from "../../development/types";
 import type { PerformanceEvaluation } from "../../performance/types";
 import type { EmployeeReference } from "../../shared/types";
-import { localMonth, localToday, revisionNumber } from "../../shared/rules";
+import { isTeamMember, localMonth, localToday, revisionNumber } from "../../shared/rules";
 import { latestDevelopment, latestTraining, type D4LiveSnapshot, type KpiAssessment } from "../../supabase/types";
 import type { TrainingVersion } from "../../training/types";
 
@@ -11,12 +11,21 @@ export type Snapshot = D4LiveSnapshot;
 
 export const canWrite = (snapshot: Snapshot) => snapshot.role === "HR" || snapshot.role === "MANAGER";
 
-/** Employees see only their own records; HR and managers see everyone RLS allows. */
+/**
+ * Employees see only their own records; managers only their team (same department, never themselves);
+ * HR sees everyone RLS allows.
+ */
 export function visibleEmployees(snapshot: Snapshot): readonly EmployeeReference[] {
-  return snapshot.role === "EMPLOYEE" ? snapshot.reference.employees.filter((item) => item.id === snapshot.actorEmployeeId) : snapshot.reference.employees;
+  const { employees } = snapshot.reference;
+  if (snapshot.role === "EMPLOYEE") return employees.filter((item) => item.id === snapshot.actorEmployeeId);
+  if (snapshot.role === "MANAGER") {
+    const actor = employees.find((item) => item.id === snapshot.actorEmployeeId);
+    return employees.filter((item) => isTeamMember(actor, item));
+  }
+  return employees;
 }
 
-/** Employees the signed-in evaluator may assess: never themselves. */
+/** Employees the signed-in evaluator may assess or raise development/training for: never themselves. */
 export const assessableEmployees = (snapshot: Snapshot) => visibleEmployees(snapshot).filter((item) => item.id !== snapshot.actorEmployeeId);
 
 export const employeeById = (snapshot: Snapshot, id: string) => snapshot.reference.employees.find((item) => item.id === id);
@@ -80,16 +89,20 @@ export function trainingSource(snapshot: Snapshot, record: TrainingVersion) {
   return developmentById(snapshot, record.developmentNeedId);
 }
 
+/** Distinct periods of the records, newest first. The first one is the default cycle of the list pages. */
+export const periodsOf = (records: readonly { period: string }[]) => [...new Set(records.map((item) => item.period))].sort().reverse();
+
+// Users read Indonesian dates: "September 2026", "3 Okt 2026".
 export function formatPeriod(period: string | undefined): string {
   if (!period) return "—";
   const date = new Date(`${period.slice(0, 7)}-01T00:00:00Z`);
-  return Number.isNaN(date.getTime()) ? period : new Intl.DateTimeFormat("en-GB", { month: "short", year: "numeric", timeZone: "UTC" }).format(date);
+  return Number.isNaN(date.getTime()) ? period : new Intl.DateTimeFormat("id-ID", { month: "long", year: "numeric", timeZone: "UTC" }).format(date);
 }
 
 export function formatDate(value: string | undefined): string {
   if (!value) return "—";
   const date = new Date(value.length === 10 ? `${value}T12:00:00` : value);
-  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" }).format(date);
+  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", year: "numeric" }).format(date);
 }
 
 export function formatScore(value: number | null | undefined, scale = 5): string {
@@ -98,6 +111,13 @@ export function formatScore(value: number | null | undefined, scale = 5): string
 
 /** Raw-score criteria from KPI Scorecard V3.1/V5.1 sheet "KPI Scoring Card"; shared by KPI and evaluation results. */
 export const SCORE_LABELS: Record<number, string> = { 1: "Sangat Kurang", 2: "Kurang", 3: "Cukup", 4: "Baik", 5: "Sangat Baik" };
+
+/** An evaluation result is a whole 1–5 score, so it reads as "4 · Baik" rather than "4.00 / 5". */
+export function formatResult(value: number | null | undefined): string {
+  if (value === null || value === undefined) return "—";
+  const label = SCORE_LABELS[Math.round(value)];
+  return label ? `${value} · ${label}` : String(value);
+}
 
 export const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("");
 

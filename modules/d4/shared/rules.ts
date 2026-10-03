@@ -1,4 +1,4 @@
-import type { DevelopmentNeedVersion, DevelopmentSourceType } from "../development/types";
+import type { DevelopmentNeedVersion, DevelopmentSourceType, DevelopmentStatus } from "../development/types";
 import type { TrainingStatus } from "../training/types";
 import { ApiError } from "./errors";
 
@@ -38,9 +38,14 @@ export function revisionNumber<T extends PeriodRecord>(records: readonly T[], re
   return records.filter((item) => item.employeeId === record.employeeId && item.period === record.period && item.createdAt <= record.createdAt).length;
 }
 
-/** An evaluator never assesses themselves. */
-export function assertNotSelf(actorEmployeeId: string, employeeId: string) {
-  if (actorEmployeeId === employeeId) throw new ApiError("VALIDATION_FAILED", "Penilaian untuk diri sendiri harus dibuat oleh HR atau atasan lain.");
+/** An evaluator never assesses themselves; nor does HR or a manager raise development or training for themselves. */
+export function assertNotSelf(actorEmployeeId: string, employeeId: string, what = "Penilaian") {
+  if (actorEmployeeId === employeeId) throw new ApiError("VALIDATION_FAILED", `${what} untuk diri sendiri harus dibuat oleh HR atau atasan lain.`);
+}
+
+/** A revision replaces what the page shows, so the reason for it must be on record. */
+export function assertRevisionReason(revisionOf: string | null | undefined, notes: string | null | undefined) {
+  if (revisionOf && !notes?.trim()) throw new ApiError("VALIDATION_FAILED", "Alasan revisi wajib ditulis di catatan saat menyimpan revisi.");
 }
 
 /** A completed development need does not take new training. */
@@ -69,4 +74,28 @@ export const isTrainingRollback = (from: TrainingStatus, to: TrainingStatus) =>
 
 export function assertTrainingChange(from: TrainingStatus, to: TrainingStatus, notes: string) {
   if (isTrainingRollback(from, to) && !notes.trim()) throw new ApiError("VALIDATION_FAILED", `Alasan perubahan wajib diisi saat status kembali dari ${from} ke ${to}.`);
+}
+
+/** A training cannot be Completed on a date that has not happened yet (WIB). */
+export function assertTrainingDate(status: TrainingStatus, date: string, today = localToday()) {
+  if (status === "Completed" && date > today) throw new ApiError("VALIDATION_FAILED", "Training berstatus Completed tidak boleh bertanggal setelah hari ini.");
+}
+
+const DEVELOPMENT_STEP: Record<DevelopmentStatus, number> = { Identified: 0, Planned: 1, "In Progress": 2, Completed: 3 };
+
+/** Moving a development need back (e.g. Completed → Planned, In Progress → Identified). */
+export const isDevelopmentRollback = (from: DevelopmentStatus, to: DevelopmentStatus) => DEVELOPMENT_STEP[to] < DEVELOPMENT_STEP[from];
+
+export function assertDevelopmentChange(from: DevelopmentStatus, to: DevelopmentStatus, notes: string) {
+  if (isDevelopmentRollback(from, to) && !notes.trim()) throw new ApiError("VALIDATION_FAILED", `Alasan perubahan wajib diisi saat status kembali dari ${from} ke ${to}.`);
+}
+
+type TeamMember = { readonly id: string; readonly departmentId: string | null };
+
+/**
+ * A manager's team: other employees of the manager's own department. Department is the only grouping
+ * D4 has until D3 provides reporting lines; the manager is never part of their own team.
+ */
+export function isTeamMember(actor: TeamMember | undefined, employee: TeamMember | undefined) {
+  return Boolean(actor?.departmentId && employee && employee.id !== actor.id && employee.departmentId === actor.departmentId);
 }

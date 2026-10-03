@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, Box, ChevronUp, Contact, LayoutGrid, LogOut, Menu, Phone, Settings, ShoppingBag, Terminal, Users, X } from "lucide-react";
+import { Bell, BookOpen, Box, ChevronUp, Contact, LayoutGrid, LogOut, Menu, Phone, RefreshCw, RotateCcw, Settings, ShoppingBag, Terminal, Users, X } from "lucide-react";
 import { useState, type ReactNode } from "react";
+import { resetState } from "../../demo/storage";
 import { createD4BrowserClient } from "../../supabase/client";
 import { useD4 } from "../data/D4DataProvider";
 import { cx } from "./primitives";
@@ -66,9 +67,19 @@ function Sidebar({ onNavigate }: { onNavigate: () => void }) {
       <span className={other} {...pending}><Terminal aria-hidden="true" className="size-4" />MID</span>
       <p className={section}>System</p>
       <span className={other} {...pending}><Settings aria-hidden="true" className="size-4" />Settings</span>
+      {mode === "demo" && <>
+        <p className={section}>Demo</p>
+        <Link href="/panduan" onClick={onNavigate} aria-current={pathname === "/panduan" ? "page" : undefined}
+          className={cx("flex items-center gap-3 rounded-md px-2 py-2 text-xs font-medium", pathname === "/panduan" ? "bg-nav-active font-semibold text-white" : "text-white/85 hover:bg-nav-2 hover:text-white")}>
+          <BookOpen aria-hidden="true" className="size-4" />Panduan &amp; Alur
+        </Link>
+        <Link href="/login" className="flex items-center gap-3 rounded-md px-2 py-2 text-xs font-medium text-white/85 hover:bg-nav-2 hover:text-white"><RefreshCw aria-hidden="true" className="size-4" />Ganti peran</Link>
+        <button type="button" onClick={() => { if (window.confirm("Kembalikan semua data demo ke kondisi awal? Perubahan yang Anda simpan di browser ini akan hilang.")) { resetState(); window.location.reload(); } }}
+          className="flex items-center gap-3 rounded-md px-2 py-2 text-left text-xs font-medium text-white/85 hover:bg-nav-2 hover:text-white"><RotateCcw aria-hidden="true" className="size-4" />Reset data demo</button>
+      </>}
       {mode === "live" && <button type="button" onClick={() => void signOut()} className="flex items-center gap-3 rounded-md px-2 py-2 text-left text-xs font-medium text-danger hover:bg-danger/10"><LogOut aria-hidden="true" className="size-4" />Logout</button>}
     </nav>
-    {mode !== "live" && <p className="mb-2 rounded-lg border border-nav-2 px-3 py-1.5 text-center text-[11px] text-nav-text">Preview mode · data fiktif</p>}
+    {mode !== "live" && <p className="mb-2 rounded-lg border border-nav-2 px-3 py-1.5 text-center text-[11px] text-nav-text">{mode === "demo" ? "Demo · data fiktif" : "Preview mode · data fiktif"}</p>}
     <div className="flex items-center gap-3 rounded-lg border border-primary-500/20 bg-nav-2/60 p-3">
       <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary-500/20 text-primary-500"><Phone className="size-4" /></span>
       <span><strong className="block text-[11px] font-semibold text-white">Customer Support</strong><span className="block text-[9px] text-nav-label">24/7 Operations Line</span></span>
@@ -80,7 +91,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { snapshot, mode } = useD4();
   const [menuOpen, setMenuOpen] = useState(false);
-  const current = D4_MENU.find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
+  const current = pathname === "/panduan" ? { label: "Panduan & Alur" } : D4_MENU.find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
   const actor = snapshot?.reference.employees.find((item) => item.id === snapshot.actorEmployeeId);
   const name = actor?.fullName ?? "—";
 
@@ -97,7 +108,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <span aria-hidden="true" className="hidden h-5 w-px bg-line-strong sm:block" />
         <p className="hidden flex-1 truncate text-xs text-ink-2 sm:block">HRMS / {current?.label ?? "Performance & Training"}</p>
         <span className="flex-1 sm:hidden" />
-        {mode === "fixture" && <span className="hidden rounded-full bg-warning-bg px-2.5 py-1 text-[11px] font-semibold text-warning md:inline">Preview · data fiktif</span>}
+        {mode !== "live" && <span className="hidden rounded-full bg-warning-bg px-2.5 py-1 text-[11px] font-semibold text-warning md:inline">{mode === "demo" ? "Demo" : "Preview"} · data fiktif</span>}
         <span className="rounded-lg p-2 text-ink-2" title="Notifikasi"><Bell aria-hidden="true" className="size-5" /><span className="sr-only">Notifikasi</span></span>
         <span aria-hidden="true" className="h-8 w-px bg-line" />
         <div className="flex items-center gap-2.5">

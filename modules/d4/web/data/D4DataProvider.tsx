@@ -6,6 +6,7 @@ import type { KpiCatalog } from "../../kpi/catalog";
 import { createD4BrowserClient } from "../../supabase/client";
 import type { D4LiveSnapshot } from "../../supabase/types";
 import { apiSource, D4RequestError } from "./api-source";
+import type { D4DataMode } from "./mode";
 import type { D4DataSource } from "./source";
 
 export type ToastMessage = { id: number; tone: "success" | "error"; text: string };
@@ -41,12 +42,14 @@ export function useSnapshot() {
   return snapshot;
 }
 
-export function D4DataProvider({ children, mode }: { children: ReactNode; mode: "live" | "fixture" }) {
+export function D4DataProvider({ children, mode }: { children: ReactNode; mode: D4DataMode }) {
   const router = useRouter();
   // The fixture source is loaded on demand. The NODE_ENV check is inlined at build time, so production
   // bundles drop this import and never contain the fictional records.
+  // The demo dataset is likewise only imported by the public demo deployment.
   const source = useMemo<Promise<D4DataSource>>(() => process.env.NODE_ENV === "development" && mode === "fixture"
-    ? import("./fixture-source").then((fixture) => fixture.createFixtureSource()) : Promise.resolve(apiSource), [mode]);
+    ? import("./fixture-source").then((fixture) => fixture.createFixtureSource())
+    : mode === "demo" ? import("../../demo/demo-source").then((demo) => demo.createDemoSource()) : Promise.resolve(apiSource), [mode]);
   const [status, setStatus] = useState<D4Data["status"]>("loading");
   const [error, setError] = useState("");
   const [snapshot, setSnapshot] = useState<D4LiveSnapshot | null>(null);

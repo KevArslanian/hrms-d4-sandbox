@@ -1,6 +1,6 @@
 import { indicatorsFor, roleForPositionTitle, selectCatalog, type RoleKpiRow } from "../../kpi/catalog";
 import type { KpiAssessmentLine } from "../../supabase/types";
-import { assertNotSelf, assertPeriodRevision } from "../../shared/rules";
+import { assertNotSelf, assertPeriodRevision, assertRevisionReason } from "../../shared/rules";
 import { databaseError } from "../../shared/errors";
 import { ApiError, employeeFilter, enforce, field, optionalUuid, readJson } from "../_lib/http";
 import { d4Session, requireWriter } from "../_lib/session";
@@ -45,7 +45,10 @@ export async function createAssessment(request: Request) {
   if (!evaluatorName) throw new ApiError("FORBIDDEN", "Akun belum terhubung dengan data employee.");
   const period = field.period(body, "period");
   enforce(() => assertNotSelf(access.employeeId, employeeId));
-  enforce(() => assertPeriodRevision(snapshot.kpiAssessments ?? [], employeeId, period, optionalUuid(body, "revisionOf"), "Scorecard"));
+  const revisionOf = optionalUuid(body, "revisionOf");
+  const generalNotes = field.text(body, "generalNotes", { required: false, max: 4000 });
+  enforce(() => assertPeriodRevision(snapshot.kpiAssessments ?? [], employeeId, period, revisionOf, "Scorecard"));
+  enforce(() => assertRevisionReason(revisionOf, generalNotes));
   const positionTitle = reference.positions.find((item) => item.id === employee.positionId)?.title;
   if (roleForPositionTitle(catalog, positionTitle) !== roleOrder) throw new ApiError("VALIDATION_FAILED", "KPI yang dipilih bukan KPI untuk position employee ini.");
   if (indicators.length !== 5 || indicators.reduce((sum, row) => sum + row.weight_percent, 0) !== 100) throw new ApiError("VALIDATION_FAILED", "Jabatan KPI tidak ditemukan pada katalog atau bobotnya bukan 100%.");
@@ -65,7 +68,7 @@ export async function createAssessment(request: Request) {
     employeeId, roleOrder, roleName: indicators[0].role_name,
     period, evaluationDate: field.date(body, "evaluationDate", { required: status === "completed" }),
     evaluatorName,
-    status, lines, generalNotes: field.text(body, "generalNotes", { required: false, max: 4000 }),
+    status, lines, generalNotes,
   });
   return { id, definitionVersion: catalog.version };
 }

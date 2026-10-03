@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { compareCompetencies } from "@/modules/d4/competency/service";
 import { indicatorsFor, KPI_V51_CATALOG, selectCatalog } from "@/modules/d4/kpi/catalog";
 import { d4ReferenceFixture } from "@/modules/d4/shared/fixtures";
@@ -23,8 +23,11 @@ let source: D4DataSource;
 beforeEach(() => {
   // The fixture source waits 250 ms per read to imitate the network; run it immediately.
   vi.spyOn(globalThis, "setTimeout").mockImplementation(((run: () => void) => { run(); return 0; }) as unknown as typeof setTimeout);
+  // "Today" after the fixture training date (8 Oct 2026): a Completed training may not be dated in the future.
+  vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-10-20T03:00:00Z") });
   source = createFixtureSource();
 });
+afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
 
 async function latestAlfaAssessment() {
   return [...(await source.loadSnapshot()).competency].filter((item) => item.employeeId === ALFA).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
@@ -81,6 +84,19 @@ describe("explicit resolution: new skill evidence + reassessment", () => {
 
   it("a higher level without evidence is not a resolution: it becomes Bukti Belum Cukup, not Terpenuhi", () => {
     expect(gapFinding(compareCompetencies(ALFA, FINANCE_STAFF, withSkill(ADMIN_ACCURACY, 5, "  ")).findings)).toBe("Bukti Belum Cukup");
+  });
+
+  it("an optional requirement is shown but does not decide the overall status", () => {
+    const resolved = withSkill(THIRD_REQUIREMENT_COMPETENCY, 3, "Bukti", withSkill(ADMIN_ACCURACY, 4, "Penilaian ulang"));
+    const optionalGap: ReferenceDataSnapshot = {
+      ...resolved,
+      positionRequirements: resolved.positionRequirements.map((item) => item.id === ALFA_GAP ? { ...item, minProficiencyLevel: 5, isMandatory: false } : item),
+    };
+    const result = compareCompetencies(ALFA, FINANCE_STAFF, optionalGap);
+    expect(result.findings.find((item) => item.requirementId === ALFA_GAP)).toMatchObject({ status: "Gap", isMandatory: false });
+    expect(result.overallStatus).toBe("Terpenuhi");
+    // The same line as mandatory makes the employee Gap again.
+    expect(compareCompetencies(ALFA, FINANCE_STAFF, { ...optionalGap, positionRequirements: optionalGap.positionRequirements.map((item) => ({ ...item, isMandatory: true })) }).overallStatus).toBe("Gap");
   });
 
   it("overall status turns Terpenuhi only when every requirement is met with evidence", () => {

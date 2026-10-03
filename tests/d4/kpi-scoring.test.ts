@@ -93,9 +93,18 @@ describe("roleForPositionTitle (FR-02.11)", () => {
     ["Customs Clearance Officer", 5], ["PPJK Officer", 5], ["Seafreight Ops Staff", 6], ["Airfreight Staff", 6], ["Freight Staff", 6],
     ["Warehouse Staff", 7], ["Logistics Staff", 7], ["EDI Officer", 8], ["Manifest Input Staff", 8], ["Implant Staff", 8],
     ["Sales Staff", 9], ["Marketing Staff", 9], ["Sales Administration Associate", 9], ["Finance Staff", 10], ["Finance Administrator", 10],
-    ["Accounting Staff", 10], ["Admin Staff", 10],
+    ["Accounting Staff", 10], ["Finance & Administration Staff", 10],
   ])("%s → role %i", (title, role) => {
     expect(roleForPositionTitle(catalog, title)).toBe(role);
+  });
+
+  // "Admin" alone is not finance: an HR or general administrator has no Finance & Administration KPI.
+  it.each([["HR Administrator"], ["Admin Staff"], ["System Administrator"]])("%s has no KPI → 0", (title) => {
+    expect(roleForPositionTitle(catalog, title)).toBe(0);
+  });
+
+  it("maps every exact V5.1 role title to its own role", () => {
+    for (const role of rolesOf(catalog)) expect(roleForPositionTitle(catalog, role.name)).toBe(role.order);
   });
 
   it("maps every fixture position; only the positions without a V5.1 KPI return 0", () => {

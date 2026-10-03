@@ -6,7 +6,7 @@ import { ACTIVE_KPI_VERSION, roleForPositionTitle } from "../../../kpi/catalog";
 import type { EmployeeReference } from "../../../shared/types";
 import type { KpiAssessment } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { canWrite, employeeById, evaluationsOf, formatDate, formatPeriod, formatScore, includesText, latestScorecard, positionOf, revisionTag, scorecardsOf, visibleEmployees } from "../../data/selectors";
+import { canWrite, employeeById, evaluationsOf, formatDate, formatPeriod, formatScore, includesText, latestScorecard, periodsOf, positionOf, revisionTag, scorecardsOf, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
@@ -14,12 +14,12 @@ import { RowActionMenu } from "../../ui/RowActionMenu";
 import { Button, ButtonLink, Card, InfoGrid, Notice, SourceChip, StatusBadge } from "../../ui/primitives";
 import { KpiFormModal, noKpiText, weighted } from "./KpiFormModal";
 
-const scorecardStatus = (item?: KpiAssessment) => !item ? "Not Evaluated" : item.status === "completed" ? "Completed" : "Draft";
+const scorecardStatus = (item?: KpiAssessment) => !item ? "Belum dinilai" : item.status === "completed" ? "Completed" : "Draft";
 
 function CatalogNotice() {
   const { catalog } = useD4();
   if (!catalog || catalog.version === ACTIVE_KPI_VERSION) return null;
-  return <Notice tone="warning">Katalog KPI di database masih {catalog.version}. Terapkan migrasi <code>20260929150000_d4_kpi_catalog_v51.sql</code> agar scorecard baru memakai KPI Scorecard {ACTIVE_KPI_VERSION} (FR-D4-002).</Notice>;
+  return <Notice tone="warning">Katalog KPI di database masih {catalog.version}. Terapkan migrasi <code>20260929150000_d4_kpi_catalog_v51.sql</code> agar scorecard baru memakai KPI Scorecard {ACTIVE_KPI_VERSION}.</Notice>;
 }
 
 type Row = { employee: EmployeeReference; position: string; hasKpi: boolean; scorecard?: KpiAssessment };
@@ -31,10 +31,12 @@ export function KpiListPage() {
   const [search, setSearch] = useState("");
   const [position, setPosition] = useState("");
   const [department, setDepartment] = useState("");
-  const [period, setPeriod] = useState("");
+  // null = default cycle (newest period in the data); "" = all periods, each employee's latest scorecard.
+  const [periodChoice, setPeriod] = useState<string | null>(null);
   const [status, setStatus] = useState("");
   const [modalFor, setModalFor] = useState<string | null>(null);
-  const periods = useMemo(() => [...new Set((snapshot.kpiAssessments ?? []).map((item) => item.period))].sort().reverse(), [snapshot]);
+  const periods = useMemo(() => periodsOf(snapshot.kpiAssessments ?? []), [snapshot]);
+  const period = periodChoice ?? periods[0] ?? "";
   const rows = useMemo<Row[]>(() => visibleEmployees(snapshot).map((employee) => {
     const title = positionOf(snapshot, employee)?.title;
     return {
@@ -46,15 +48,15 @@ export function KpiListPage() {
     .sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName)), [snapshot, catalog, search, position, department, period, status]);
 
   return <>
-    <PageHeader title="KPI Scorecard" subtitle="Lima Core KPI per position dan periode, dengan bobot 100% dan total skor terbobot (FR-D4-002)."
+    <PageHeader title="KPI Scorecard" subtitle="Lima Core KPI per position dan periode, dengan bobot 100% dan total skor terbobot."
       actions={writer && <Button icon={<Plus className="size-4" />} onClick={() => setModalFor("")}>Add Scorecard</Button>} />
     <CatalogNotice />
-    <FilterBar canReset={Boolean(search || position || department || period || status)} onReset={() => { setSearch(""); setPosition(""); setDepartment(""); setPeriod(""); setStatus(""); }}>
+    <FilterBar canReset={Boolean(search || position || department || periodChoice !== null || status)} onReset={() => { setSearch(""); setPosition(""); setDepartment(""); setPeriod(null); setStatus(""); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Search employee name or ID" />
       <SelectFilter label="All positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />
       <SelectFilter label="All departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />
-      <SelectFilter label="Latest period" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
-      <SelectFilter label="All status" value={status} onChange={setStatus} options={["Completed", "Not Evaluated"].map((item) => ({ value: item, label: item }))} />
+      <SelectFilter label="Semua periode" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
+      <SelectFilter label="All status" value={status} onChange={setStatus} options={["Completed", "Belum dinilai"].map((item) => ({ value: item, label: item }))} />
     </FilterBar>
     <DataTable<Row> rows={rows} noun="employees" rowKey={(row) => row.employee.id}
       emptyTitle="Tidak ada employee yang cocok" emptyText="Ubah kata kunci atau reset filter."
