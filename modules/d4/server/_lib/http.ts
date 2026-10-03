@@ -1,42 +1,21 @@
 import { NextResponse } from "next/server";
+import { ApiError, isNetworkFailure, NETWORK_ERROR_MESSAGE } from "../../shared/errors";
 
-export type ErrorCode = "BAD_REQUEST" | "UNAUTHENTICATED" | "FORBIDDEN" | "NOT_FOUND" | "VALIDATION_FAILED" | "INTEGRATION_ERROR" | "SERVER_ERROR";
-
-const statusByCode: Record<ErrorCode, number> = {
-  BAD_REQUEST: 400, VALIDATION_FAILED: 422, UNAUTHENTICATED: 401, FORBIDDEN: 403, NOT_FOUND: 404, SERVER_ERROR: 500, INTEGRATION_ERROR: 503,
-};
-
-/** An error whose message is safe to show to the user. */
-export class ApiError extends Error {
-  constructor(readonly code: ErrorCode, message: string) { super(message); }
-  get status() { return statusByCode[this.code]; }
-}
-
-// Repository and database messages are mapped to a code; anything unrecognised
-// becomes a generic message so SQL details and stack traces never reach the client (TR-17).
-function classify(message: string): ApiError {
-  if (/fetch failed|ECONNREFUSED|ECONNRESET|ENOTFOUND|ETIMEDOUT|network ?error|timed? ?out/i.test(message)) return new ApiError("INTEGRATION_ERROR", "Layanan data HRMS sedang tidak dapat dihubungi. Coba lagi beberapa saat lagi.");
-  if (/sesi login/i.test(message)) return new ApiError("UNAUTHENTICATED", "Sesi login tidak tersedia. Silakan masuk kembali.");
-  if (/row-level security|permission denied|belum diberi akses/i.test(message)) return new ApiError("FORBIDDEN", "Akun ini tidak memiliki izin untuk tindakan tersebut.");
-  if (/tidak ditemukan|not found/i.test(message)) return new ApiError("NOT_FOUND", message);
-  if (/wajib|harus|tidak valid|tidak sesuai|tidak tersedia|belum tersedia|belum lengkap/i.test(message)) return new ApiError("VALIDATION_FAILED", message.replace(/^[^:]+:\s*/, ""));
-  return new ApiError("SERVER_ERROR", "Permintaan gagal diproses. Coba lagi beberapa saat lagi.");
-}
+export { ApiError, enforce, type ErrorCode } from "../../shared/errors";
 
 /** Wraps a handler in the standard `{ data }` / `{ error: { code, message } }` envelope. */
 export async function handle(run: () => Promise<unknown>, successStatus = 200) {
   try {
     return NextResponse.json({ data: await run() }, { status: successStatus });
   } catch (cause) {
-    const error = cause instanceof ApiError ? cause : classify(cause instanceof Error ? cause.message : "");
+    // Only typed errors carry a user-facing message; anything else (SQL, bugs) becomes a generic
+    // message so database details and stack traces never reach the client (TR-17).
+    const error = cause instanceof ApiError ? cause
+      : isNetworkFailure(cause instanceof Error ? cause.message : "") ? new ApiError("INTEGRATION_ERROR", NETWORK_ERROR_MESSAGE)
+        : new ApiError("SERVER_ERROR", "Permintaan gagal diproses. Coba lagi beberapa saat lagi.");
     if (error.code === "SERVER_ERROR" || error.code === "INTEGRATION_ERROR") console.error("[d4-api]", cause);
     return NextResponse.json({ error: { code: error.code, message: error.message } }, { status: error.status });
   }
-}
-
-/** Runs a shared integrity rule (modules/d4/shared/rules.ts); a broken rule is a validation error. */
-export function enforce(check: () => void) {
-  try { check(); } catch (cause) { throw new ApiError("VALIDATION_FAILED", cause instanceof Error ? cause.message : "Data tidak valid."); }
 }
 
 /** Optional UUID, e.g. `revisionOf` when a record is saved as a revision of the current one. */
