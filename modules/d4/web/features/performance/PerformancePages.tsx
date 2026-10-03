@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import type { PerformanceEvaluation } from "../../../performance/types";
 import type { EmployeeReference } from "../../../shared/types";
 import { useSnapshot } from "../../data/D4DataProvider";
-import { canWrite, departmentOf, describeSource, developmentNeeds, employeeById, evaluationsOf, formatDate, formatPeriod, formatScore, includesText, latestEvaluation, positionOf, revisionTag, SCORE_LABELS, scorecardsOf, visibleEmployees } from "../../data/selectors";
+import { canWrite, departmentOf, describeSource, developmentNeeds, employeeById, evaluationsOf, formatDate, formatPeriod, formatResult, includesText, latestEvaluation, periodsOf, positionOf, revisionTag, scorecardsOf, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
@@ -13,7 +13,7 @@ import { RowActionMenu } from "../../ui/RowActionMenu";
 import { Button, ButtonLink, Card, InfoGrid, SourceChip, StatusBadge } from "../../ui/primitives";
 import { EvaluationFormModal } from "./EvaluationFormModal";
 
-const evaluationStatus = (evaluation?: PerformanceEvaluation) => !evaluation ? "Not Evaluated" : evaluation.status === "completed" ? "Completed" : "Draft";
+const evaluationStatus = (evaluation?: PerformanceEvaluation) => !evaluation ? "Belum dinilai" : evaluation.status === "completed" ? "Completed" : "Draft";
 
 type Row = { employee: EmployeeReference; position: string; evaluation?: PerformanceEvaluation };
 
@@ -22,13 +22,16 @@ export function PerformanceListPage() {
   const writer = canWrite(snapshot);
   const [search, setSearch] = useState("");
   const [position, setPosition] = useState("");
-  const [period, setPeriod] = useState("");
+  // null = default cycle (newest period in the data); "" = all periods, each employee's latest record.
+  const [periodChoice, setPeriod] = useState<string | null>(null);
   const [status, setStatus] = useState("");
   const [modalFor, setModalFor] = useState<string | null>(null);
 
-  const periods = useMemo(() => [...new Set(snapshot.performance.map((item) => item.period))].sort().reverse(), [snapshot]);
-  // FR-D4-001 has no draft; "Draft" is only offered when legacy draft rows still exist.
-  const statuses = useMemo(() => ["Completed", ...(snapshot.performance.some((item) => item.status !== "completed") ? ["Draft"] : []), "Not Evaluated"], [snapshot]);
+  const periods = useMemo(() => periodsOf(snapshot.performance), [snapshot]);
+  const period = periodChoice ?? periods[0] ?? "";
+  // FR-D4-001 has no draft; "Draft" and the Status column only appear while legacy draft rows still exist.
+  const hasDraft = snapshot.performance.some((item) => item.status !== "completed");
+  const statuses = ["Completed", ...(hasDraft ? ["Draft"] : []), "Belum dinilai"];
   const rows = useMemo<Row[]>(() => visibleEmployees(snapshot).map((employee) => {
     const evaluation = period ? evaluationsOf(snapshot, employee.id).find((item) => item.period === period) : latestEvaluation(snapshot, employee.id);
     return { employee, position: positionOf(snapshot, employee)?.title ?? "—", evaluation };
@@ -38,12 +41,12 @@ export function PerformanceListPage() {
     .sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName)), [snapshot, search, position, period, status]);
 
   return <>
-    <PageHeader title="Performance Evaluation" subtitle="Catat dan telusuri evaluasi kinerja per employee dan periode (FR-D4-001)."
+    <PageHeader title="Performance Evaluation" subtitle="Catat dan telusuri evaluasi kinerja per employee dan periode."
       actions={writer && <Button icon={<Plus className="size-4" />} onClick={() => setModalFor("")}>Add Evaluation</Button>} />
-    <FilterBar canReset={Boolean(search || position || period || status)} onReset={() => { setSearch(""); setPosition(""); setPeriod(""); setStatus(""); }}>
+    <FilterBar canReset={Boolean(search || position || periodChoice !== null || status)} onReset={() => { setSearch(""); setPosition(""); setPeriod(null); setStatus(""); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Search employee name or ID" />
       <SelectFilter label="All positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />
-      <SelectFilter label="Latest period" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
+      <SelectFilter label="Semua periode" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
       <SelectFilter label="All status" value={status} onChange={setStatus} options={statuses.map((item) => ({ value: item, label: item }))} />
     </FilterBar>
     <DataTable<Row> rows={rows} noun="employees" rowKey={(row) => row.employee.id}
@@ -53,9 +56,9 @@ export function PerformanceListPage() {
         { key: "employee", header: "Employee", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
         { key: "position", header: "Position", wrap: true, cell: (row) => row.position },
         { key: "period", header: "Period", cell: (row) => formatPeriod(row.evaluation?.period) },
-        { key: "score", header: "Hasil", className: "tabular-nums", cell: (row) => formatScore(row.evaluation?.overallScore) },
+        { key: "score", header: "Hasil", className: "tabular-nums", cell: (row) => row.evaluation ? formatResult(row.evaluation.overallScore) : <span className="text-ink-3">Belum dinilai</span> },
         { key: "evaluator", header: "Evaluator", cell: (row) => row.evaluation?.evaluator || "—" },
-        { key: "status", header: "Status", cell: (row) => <StatusBadge status={evaluationStatus(row.evaluation)} /> },
+        ...(hasDraft ? [{ key: "status", header: "Status", cell: (row: Row) => <StatusBadge status={evaluationStatus(row.evaluation)} /> }] : []),
       ]}
       actions={(row) => <RowActionMenu label={`Aksi untuk ${row.employee.fullName}`} actions={[
         { label: "View Detail", icon: <Eye />, href: row.evaluation ? `/performance/${row.evaluation.id}` : undefined, hidden: !row.evaluation },
@@ -91,8 +94,7 @@ export function PerformanceDetailPage({ id }: { id: string }) {
           { label: "Period", value: formatPeriod(evaluation.period) },
           { label: "Evaluation date", value: formatDate(evaluation.evaluationDate) },
           { label: "Evaluator", value: evaluation.evaluator || "—" },
-          { label: "Hasil evaluasi", value: <strong className="font-display text-lg">{formatScore(evaluation.overallScore)}</strong> },
-          { label: "Kriteria", value: evaluation.overallScore ? SCORE_LABELS[Math.round(evaluation.overallScore)] ?? "—" : "—" },
+          { label: "Hasil evaluasi", value: <strong className="font-display text-lg">{formatResult(evaluation.overallScore)}</strong> },
           { label: "Department", value: departmentOf(snapshot, employee)?.name ?? "—" },
         ]} />
         <h3 className="mb-2 mt-8 text-sm font-semibold text-ink-2">Catatan evaluasi</h3>
@@ -128,7 +130,7 @@ export function PerformanceHistoryPage({ employeeId }: { employeeId: string }) {
     <Card title="Evaluation history">
       <Timeline empty="Employee ini belum memiliki evaluasi kinerja." entries={evaluations.map((item) => ({
         id: item.id, date: `${formatPeriod(item.period)} · ${formatDate(item.evaluationDate || item.createdAt)}`,
-        title: `Evaluasi ${formatPeriod(item.period)} — ${formatScore(item.overallScore)}${revisionTag(evaluations, item)}`,
+        title: `Evaluasi ${formatPeriod(item.period)} — ${formatResult(item.overallScore)}${revisionTag(evaluations, item)}`,
         status: evaluationStatus(item), actor: item.actor, href: `/performance/${item.id}`,
         body: <>Evaluator: {item.evaluator || "—"}{item.generalNotes ? ` · ${item.generalNotes}` : ""}</>,
       }))} />

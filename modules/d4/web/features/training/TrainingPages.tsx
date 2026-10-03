@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, FileSearch, History, Plus, RefreshCw } from "lucide-react";
+import { ClipboardCheck, Eye, FileSearch, History, Plus, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { TrainingVersion } from "../../../training/types";
 import { useSnapshot } from "../../data/D4DataProvider";
@@ -34,7 +34,7 @@ export function TrainingListPage() {
   });
 
   return <>
-    <PageHeader title="Training Tracking" subtitle="Lacak training/development dari requirement sumber sampai hasil pelaksanaan (FR-D4-005)."
+    <PageHeader title="Training Tracking" subtitle="Lacak training/development dari requirement sumber sampai hasil pelaksanaan."
       actions={writer && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)}>Add Training</Button>} />
     <FilterBar canReset={Boolean(search || period || status || requirement)} onReset={() => { setSearch(""); setPeriod(""); setStatus(""); setRequirement(""); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Search employee or training" />
@@ -74,6 +74,8 @@ export function TrainingDetailPage({ trainingId }: { trainingId: string }) {
       name={employee.fullName} meta={[positionOf(snapshot, employee)?.title ?? "", employee.employeeId, record.activity]} status={record.status}
       actions={<>
         <ButtonLink href={`/training/${record.trainingId}/history`} icon={<History className="size-4" />}>View History</ButtonLink>
+        {/* Completion never closes the gap; this only leads to the manual reassessment. */}
+        {record.status === "Completed" && need?.sourceType === "competency_gap" && <ButtonLink href={`/competency/${employee.id}`} icon={<ClipboardCheck className="size-4" />}>Nilai ulang kompetensi</ButtonLink>}
         {canWrite(snapshot) && <Button icon={<RefreshCw className="size-4" />} onClick={() => setProgressOpen(true)}>Update Progress</Button>}
       </>} />
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">

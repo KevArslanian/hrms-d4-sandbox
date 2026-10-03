@@ -35,7 +35,7 @@ export function DevelopmentListPage() {
   }, [snapshot, search, sourceType, status, period]);
 
   return <>
-    <PageHeader title="Development Requirement" subtitle="Kebutuhan development/training dengan alasan dan sumber yang dapat ditelusuri (FR-D4-004)."
+    <PageHeader title="Development Requirement" subtitle="Kebutuhan development/training dengan alasan dan sumber yang dapat ditelusuri."
       actions={writer && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)}>Add Requirement</Button>} />
     <FilterBar canReset={Boolean(search || sourceType || status || period)} onReset={() => { setSearch(""); setSourceType(""); setStatus(""); setPeriod(""); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Search employee or objective" />

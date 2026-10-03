@@ -10,6 +10,8 @@ export interface CompetencyFinding {
   readonly evidenceNotes: string | null;
   readonly sourceReference: string;
   readonly status: CompetencyStatus;
+  /** False for an optional requirement, which is shown but does not decide the overall status. Absent on older saved findings (= mandatory). */
+  readonly isMandatory?: boolean;
 }
 
 export interface CompetencyAssessment {

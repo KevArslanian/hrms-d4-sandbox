@@ -94,9 +94,10 @@ export function roleForPositionTitle(catalog: KpiCatalog, title: string | undefi
   const roles = rolesOf(catalog);
   const exact = roles.find((role) => normalise(role.name) === target);
   if (exact) return exact.order;
-  // Whole words only: a bare substring such as "edi" would also match "Credit" or "Media".
+  // Whole words only: a bare substring such as "edi" would also match "Credit" or "Media". "Admin" is not a
+  // finance keyword: "HR Administrator" or "Admin Staff" are not Finance & Administration roles.
   const keywords: [RegExp, RegExp][] = [
-    [/\b(sales|marketing)\b/, /\bsales\b/], [/\b(finance|accounting|admin|administration|administrator)\b/, /\bfinance\b/],
+    [/\b(sales|marketing)\b/, /\bsales\b/], [/\b(finance|accounting)\b/, /\bfinance\b/],
     [/\b(customs|ppjk)\b/, /\bcustoms\b/], [/\b(warehouse|warehousing|logistic|logistics)\b/, /\bwarehous(e|ing)\b/],
     [/\b(air|sea)?freight\b/, /\b(air|sea)?freight\b/], [/\b(implant|edi|manifest)\b/, /\bimplant\b/],
     [/\bbranch\b/, /\bbranch\b/], [/\boperations director\b/, /\boperations director\b/], [/\b(ceo|vice president)\b/, /\bceo\b/], [/^director\b/, /^director\b/],

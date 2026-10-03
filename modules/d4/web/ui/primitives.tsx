@@ -39,7 +39,7 @@ const statusTone: Record<string, Tone> = {
   "In Progress": "info", Active: "info",
   Planned: "warning", "Needs Review": "warning", Identified: "warning", Draft: "neutral",
   Gap: "danger", Cancelled: "danger", "Needs Attention": "danger",
-  "Data Belum Cukup": "neutral", "Bukti Belum Cukup": "neutral", "Not Evaluated": "neutral", "Belum Ada Persyaratan": "neutral",
+  "Data Belum Cukup": "neutral", "Bukti Belum Cukup": "neutral", "Not Evaluated": "neutral", "Belum dinilai": "neutral", "Belum Ada Persyaratan": "neutral",
 };
 
 export const statusLabel = (status: string) => status === "Bukti Belum Cukup" ? "Data Belum Cukup" : status;

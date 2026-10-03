@@ -1,3 +1,4 @@
+import type { D4DataMode } from "./mode";
 import type { KpiCatalog } from "../../kpi/catalog";
 import type { DevelopmentPriority, DevelopmentSourceType, DevelopmentStatus } from "../../development/types";
 import type { EvaluationInput } from "../../performance/types";
@@ -24,10 +25,10 @@ export type TrainingDraft = { employeeId: string; developmentNeedId: string; act
 
 /**
  * Everything the D4 screens need. The live implementation talks to /api/d4/*;
- * the fixture implementation keeps fictional data in memory for local preview.
+ * the local implementation keeps fictional data in the browser (fixture preview and public demo).
  */
 export interface D4DataSource {
-  readonly mode: "live" | "fixture";
+  readonly mode: D4DataMode;
   loadSnapshot(): Promise<D4LiveSnapshot>;
   loadKpiCatalog(): Promise<KpiCatalog>;
   createEvaluation(input: EvaluationDraft): Promise<string>;

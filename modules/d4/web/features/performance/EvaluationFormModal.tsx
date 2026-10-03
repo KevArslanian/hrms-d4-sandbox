@@ -57,7 +57,7 @@ export function EvaluationFormModal({ employeeId, onClose, onSaved }: { employee
         <TextField label="Evaluation date" required type="date" value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? "Tanggal wajib diisi." : undefined} />
         <ReadOnlyField label="Evaluator" value={evaluator || "—"} />
         <SelectField label="Hasil evaluasi" required value={score ?? ""} onChange={(event) => setScore(event.target.value ? Number(event.target.value) : null)}
-          error={touched && score === null ? "Hasil evaluasi wajib dipilih." : undefined} helper="Diisi evaluator; tidak memicu keputusan HR otomatis.">
+          error={touched && score === null ? "Hasil evaluasi wajib dipilih." : undefined} helper="Skala 1–5 mengikuti label KPI Scorecard V5.1. Diisi evaluator; tidak memicu keputusan HR otomatis.">
           <option value="">Select result</option>
           {[5, 4, 3, 2, 1].map((value) => <option key={value} value={value}>{value} · {SCORE_LABELS[value]}</option>)}
         </SelectField>
@@ -65,7 +65,7 @@ export function EvaluationFormModal({ employeeId, onClose, onSaved }: { employee
       {existing && <RevisionConfirm what="Evaluasi" existing={`${existing.evaluator}, ${formatDate(existing.evaluationDate)}`} checked={revise} onChange={setRevise}
         error={touched && !revise ? "Centang untuk menyimpan sebagai revisi, atau ganti periode." : undefined} />}
       <TextAreaField label="Catatan evaluasi" required value={notes} onChange={(event) => setNotes(event.target.value)} error={touched && !notes.trim() ? "Catatan evaluasi wajib diisi." : undefined}
-        helper="Termasuk rekomendasi/rencana pelatihan bila ada — dapat dipakai sebagai konteks Development Requirement." />
+        helper={existing ? "Untuk revisi, tuliskan juga alasan revisinya." : "Termasuk rekomendasi/rencana pelatihan bila ada — dapat dipakai sebagai konteks Development Requirement."} />
       <TextField label="Evidence / reference" value={evidence} onChange={(event) => setEvidence(event.target.value)} helper="Opsional: nomor dokumen atau tautan bukti." />
     </form>
   </FormModal>;

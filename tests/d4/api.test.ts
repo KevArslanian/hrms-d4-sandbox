@@ -275,8 +275,15 @@ describe("POST /kpi-assessments", () => {
   });
 
   it("accepts a revision of the current scorecard", async () => {
-    const res = await call(kpi.POST(post(kpiBody({ period: "2026-09", revisionOf: KPI_ALFA }))));
+    const res = await call(kpi.POST(post(kpiBody({ period: "2026-09", revisionOf: KPI_ALFA, generalNotes: "Koreksi realisasi indikator 3." }))));
     expect(res.status).toBe(201);
+  });
+
+  it("rejects a revision without a reason in the notes", async () => {
+    const res = await call(kpi.POST(post(kpiBody({ period: "2026-09", revisionOf: KPI_ALFA }))));
+    expect(res).toMatchObject({ status: 422, body: { error: { code: "VALIDATION_FAILED" } } });
+    expect(res.body.error?.message).toMatch(/Alasan revisi/);
+    expect(writes).toHaveLength(0);
   });
 
   it("rejects a self scorecard", async () => {
@@ -311,6 +318,37 @@ describe("development needs and training", () => {
     const bad = await call(trainingVersions.POST(post({ status: "Planned" }), params(TRAINING)));
     expect(bad).toMatchObject({ status: 422 });
     const ok = await call(trainingVersions.POST(post({ status: "Planned", notes: "Jadwal ulang" }), params(TRAINING)));
+    expect(ok.status).toBe(201);
+  });
+
+  it("rejects Completed training dated after today", async () => {
+    const res = await call(training.POST(post({ ...trainingBody, date: "2999-01-01", status: "Completed", result: "Lulus" })));
+    expect(res).toMatchObject({ status: 422 });
+    expect(res.body.error?.message).toMatch(/setelah hari ini/);
+    expect(writes).toHaveLength(0);
+  });
+
+  it("rejects completing a training whose date is still in the future", async () => {
+    snapshot = { ...snapshot, trainingVersions: snapshot.trainingVersions.map((item) => item.trainingId === TRAINING ? { ...item, date: "2999-01-01" } : item) };
+    const res = await call(trainingVersions.POST(post({ status: "Completed", result: "Lulus" }), params(TRAINING)));
+    expect(res).toMatchObject({ status: 422 });
+    expect(writes).toHaveLength(0);
+  });
+
+  it("rejects development or training for the signed-in user", async () => {
+    const devRes = await call(dev.POST(post({ ...devBody, employeeId: MERCURY, sourceType: "performance_context", sourceRef: PERF_ALFA })));
+    const trnRes = await call(training.POST(post({ ...trainingBody, employeeId: MERCURY })));
+    expect(devRes).toMatchObject({ status: 422 });
+    expect(devRes.body.error?.message).toMatch(/diri sendiri/);
+    expect(trnRes).toMatchObject({ status: 422 });
+    expect(writes).toHaveLength(0);
+  });
+
+  it("requires a reason when a development need moves back", async () => {
+    snapshot = { ...snapshot, developmentVersions: [...snapshot.developmentVersions, { ...snapshot.developmentVersions.find((item) => item.needId === NEED)!, id: uuid(12), revision: 2, status: "Completed" }] };
+    const bad = await call(devVersions.POST(post({ status: "Planned" }), params(NEED)));
+    expect(bad).toMatchObject({ status: 422 });
+    const ok = await call(devVersions.POST(post({ status: "Planned", notes: "Gap masih terbuka setelah reassessment" }), params(NEED)));
     expect(ok.status).toBe(201);
   });
 

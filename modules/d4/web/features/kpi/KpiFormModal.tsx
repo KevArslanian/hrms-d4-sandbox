@@ -60,6 +60,7 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
     if (!roleOrder || lines.length !== 5 || totalWeight !== 100) { setError("KPI untuk position ini belum tersedia di KPI Scorecard; scorecard tidak dapat disimpan."); return; }
     if (!allScored || !period || !date) { setError("Lengkapi periode, evaluation date, dan skor 1–5 untuk kelima KPI."); return; }
     if (existing && !revise) { setError("Scorecard periode ini sudah ada. Centang “Simpan sebagai revisi” atau ganti periode."); return; }
+    if (existing && !notes.trim()) { setError("Tuliskan alasan revisi di catatan sebelum menyimpan."); return; }
     setError("");
     const result = await run((source) => source.createKpiAssessment({ employeeId: employee, roleOrder, period, evaluationDate: date, evaluatorName: evaluator, status: "completed", lines, generalNotes: notes, revisionOf: existing?.id ?? null }),
       "KPI scorecard tersimpan.");
@@ -110,7 +111,9 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
         </table>
       </div>}
       <p className="text-xs text-ink-3">Kriteria skor: {[1, 2, 3, 4, 5].map((value) => `${value} ${SCORE_LABELS[value]}`).join(" · ")}. Skor mentah diisi evaluator; sistem tidak mengonversi realisasi menjadi skor dan tidak memberi label tercapai/tidak tercapai.</p>
-      <TextAreaField label="Catatan / rekomendasi atasan" value={notes} onChange={(event) => setNotes(event.target.value)} />
+      {/* A revision replaces the scorecard shown for the period, so its reason is required (assertRevisionReason). */}
+      <TextAreaField label={existing ? "Catatan / alasan revisi" : "Catatan / rekomendasi atasan"} required={Boolean(existing)} value={notes} onChange={(event) => setNotes(event.target.value)}
+        error={touched && existing && !notes.trim() ? "Alasan revisi wajib diisi." : undefined} />
     </form>
   </FormModal>;
 }
