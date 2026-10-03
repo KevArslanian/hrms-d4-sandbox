@@ -40,7 +40,7 @@ export async function createAssessment(request: Request) {
   const snapshot = await repository.loadSnapshot();
   const { reference } = snapshot;
   const employee = reference.employees.find((item) => item.id === employeeId);
-  if (!employee) throw new ApiError("VALIDATION_FAILED", "Employee tidak ditemukan.");
+  if (!employee) throw new ApiError("NOT_FOUND", "Employee tidak ditemukan.");
   const evaluatorName = reference.employees.find((item) => item.id === access.employeeId)?.fullName;
   if (!evaluatorName) throw new ApiError("FORBIDDEN", "Akun belum terhubung dengan data employee.");
   const period = field.period(body, "period");

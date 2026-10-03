@@ -170,11 +170,12 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
   async savePerformance(input: EvaluationInput, reference: ReferenceDataSnapshot): Promise<string> {
     await this.requireUser();
     const employee = reference.employees.find((item) => item.id === input.employeeId);
-    const position = reference.positions.find((item) => item.id === employee?.positionId);
+    if (!employee) throw new ApiError("NOT_FOUND", "Employee tidak ditemukan.");
+    const position = reference.positions.find((item) => item.id === employee.positionId);
     if (!position) throw new ApiError("VALIDATION_FAILED", "Posisi employee tidak tersedia.");
     enforce(() => validatePerformanceInput(input));
     const result = await this.client.from("d4_performance_evaluations").insert({
-      employee_id: employee!.id, position_id: position.id, position_title_snapshot: position.title,
+      employee_id: employee.id, position_id: position.id, position_title_snapshot: position.title,
       period: input.period, evaluation_date: input.evaluationDate || null,
       evaluator_name_snapshot: input.evaluator.trim(), status: input.status,
       review_status: input.reviewStatus, overall_score: input.overallScore,
@@ -188,7 +189,8 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
     await this.requireUser();
     const employee = reference.employees.find((item) => item.id === input.employeeId);
     const position = reference.positions.find((item) => item.id === input.positionId);
-    if (!employee || !position) throw new ApiError("VALIDATION_FAILED", "Employee atau posisi tidak tersedia.");
+    if (!employee) throw new ApiError("NOT_FOUND", "Employee tidak ditemukan.");
+    if (!position) throw new ApiError("VALIDATION_FAILED", "Posisi tidak tersedia.");
     if (!/^\d{4}-\d{2}-\d{2}$/.test(input.effectiveDate)) throw new ApiError("VALIDATION_FAILED", "Tanggal berlaku tidak valid.");
     const comparison = compareCompetencies(employee.id, position.id, reference);
     if (!comparison.findings.length) throw new ApiError("VALIDATION_FAILED", "Persyaratan kompetensi posisi belum tersedia.");
@@ -203,7 +205,7 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
 
   async createDevelopment(input: { employeeId: string; sourceType: DevelopmentSourceType; sourceRef: string; objective: string; priority: DevelopmentPriority; notes: string }, snapshot: D4LiveSnapshot): Promise<string> {
     await this.requireUser();
-    if (!snapshot.reference.employees.some((item) => item.id === input.employeeId)) throw new ApiError("VALIDATION_FAILED", "Employee tidak tersedia.");
+    if (!snapshot.reference.employees.some((item) => item.id === input.employeeId)) throw new ApiError("NOT_FOUND", "Employee tidak ditemukan.");
     if (!input.objective.trim()) throw new ApiError("VALIDATION_FAILED", "Development objective wajib diisi.");
     const validSource = input.sourceType === "competency_gap"
       ? (() => { const employee = snapshot.reference.employees.find((item) => item.id === input.employeeId);
