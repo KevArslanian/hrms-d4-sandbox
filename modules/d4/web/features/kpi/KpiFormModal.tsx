@@ -67,7 +67,7 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
   }
 
   return <FormModal size="lg" title="Add Scorecard" description={`Lima Core KPI dan bobot mengikuti KPI Scorecard ${catalog?.version ?? ""} sesuai position employee.`} onClose={onClose}
-    footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Scorecard" />}>
+    footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Scorecard" disabled={Boolean(employee) && !lines.length} />}>
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />
       <div className="grid gap-4 sm:grid-cols-3">

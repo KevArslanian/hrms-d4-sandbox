@@ -118,7 +118,8 @@ export function FormModal({ title, description, size = "md", onClose, children, 
   useLayoutEffect(() => { closeRef.current = onClose; });
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
-    dialog.current?.querySelector<HTMLElement>("input, select, textarea, button")?.focus();
+    const body = dialog.current?.querySelector<HTMLElement>("[data-modal-body]");
+    (body?.querySelector<HTMLElement>("input:not([disabled]), select:not([disabled]), textarea:not([disabled])") ?? dialog.current)?.focus();
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") closeRef.current();
       if (event.key !== "Tab" || !dialog.current) return;
@@ -133,23 +134,23 @@ export function FormModal({ title, description, size = "md", onClose, children, 
   }, []);
 
   return createPortal(<div className="fixed inset-0 z-[60] flex items-center justify-center bg-ink/40 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-    <div ref={dialog} role="dialog" aria-modal="true" aria-labelledby={titleId}
+    <div ref={dialog} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}
       className={cx("flex max-h-[88vh] w-full flex-col rounded-2xl bg-surface shadow-modal", size === "lg" ? "max-w-[880px]" : "max-w-[640px]")}>
       <header className="flex items-start justify-between gap-4 border-b border-line px-6 py-5">
         <div><h2 id={titleId} className="font-display text-lg text-ink">{title}</h2>{description && <p className="mt-1 text-xs text-ink-3">{description}</p>}</div>
         <button type="button" aria-label="Tutup" onClick={onClose} className="rounded-lg p-1.5 text-ink-3 hover:bg-muted hover:text-ink"><X className="size-5" /></button>
       </header>
-      <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">{children}</div>
+      <div data-modal-body className="min-h-0 flex-1 overflow-y-auto px-6 py-5">{children}</div>
       <footer className="flex flex-wrap justify-end gap-3 border-t border-line px-6 py-4">{footer}</footer>
     </div>
   </div>, document.body);
 }
 
-export function ModalActions({ onCancel, busy, submitLabel, secondary }: { onCancel: () => void; busy: boolean; submitLabel: string; secondary?: ReactNode }) {
+export function ModalActions({ onCancel, busy, submitLabel, secondary, disabled = false }: { onCancel: () => void; busy: boolean; submitLabel: string; secondary?: ReactNode; disabled?: boolean }) {
   return <>
     <Button variant="secondary" onClick={onCancel}>Cancel</Button>
     {secondary}
-    <Button type="submit" form="d4-modal-form" disabled={busy}>{busy ? "Saving…" : submitLabel}</Button>
+    <Button type="submit" form="d4-modal-form" disabled={busy || disabled}>{busy ? "Saving…" : submitLabel}</Button>
   </>;
 }
 

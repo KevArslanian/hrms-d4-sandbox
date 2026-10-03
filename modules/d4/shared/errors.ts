@@ -15,7 +15,7 @@ export class ApiError extends Error {
 }
 
 /** Duplicate or concurrent write (double click, two tabs) of a record that must be unique. */
-export const DUPLICATE_MESSAGE = "Data untuk periode ini sudah ada / sedang diproses — muat ulang halaman.";
+export const DUPLICATE_MESSAGE = "Data yang sama sudah tersimpan atau sedang diproses. Muat ulang halaman untuk melihat data terbaru.";
 
 export const NETWORK_ERROR_MESSAGE = "Layanan data HRMS sedang tidak dapat dihubungi. Coba lagi beberapa saat lagi.";
 
@@ -23,12 +23,14 @@ export const NETWORK_ERROR_MESSAGE = "Layanan data HRMS sedang tidak dapat dihub
 export const isNetworkFailure = (message: string) => /fetch failed|ECONNREFUSED|ECONNRESET|ENOTFOUND|ETIMEDOUT|network ?error|timed? ?out/i.test(message);
 
 /**
- * Maps a Supabase/PostgREST error to a typed error by its Postgres code (23505 → 409, 42501 → 403).
+ * Maps a Supabase/PostgREST error to a typed error by its Postgres code (23505 → 409, 42501 → 403,
+ * P0001 → 422: D4 triggers `raise exception` with messages written for the user, e.g. the KPI catalog checks).
  * Anything unrecognised stays a plain Error so handle() answers with a generic 500 and SQL details
  * never reach the client (TR-17).
  */
 export function databaseError(error: { message: string; code?: string }, label: string): Error {
   if (error.code === "23505") return new ApiError("CONFLICT", DUPLICATE_MESSAGE); // unique_violation
+  if (error.code === "P0001") return new ApiError("VALIDATION_FAILED", error.message); // raise_exception
   if (error.code === "42501" || /row-level security/i.test(error.message)) return new ApiError("FORBIDDEN", "Akun ini tidak memiliki izin untuk tindakan tersebut.");
   if (isNetworkFailure(error.message)) return new ApiError("INTEGRATION_ERROR", NETWORK_ERROR_MESSAGE);
   return new Error(`${label}: ${error.message}`);
