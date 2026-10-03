@@ -1,6 +1,7 @@
 import { indicatorsFor, roleForPositionTitle, selectCatalog, type RoleKpiRow } from "../../kpi/catalog";
 import type { KpiAssessmentLine } from "../../supabase/types";
 import { assertNotSelf, assertPeriodRevision } from "../../shared/rules";
+import { databaseError } from "../../shared/errors";
 import { ApiError, employeeFilter, enforce, field, optionalUuid, readJson } from "../_lib/http";
 import { d4Session, requireWriter } from "../_lib/session";
 
@@ -33,7 +34,7 @@ export async function createAssessment(request: Request) {
   const employeeId = field.uuid(body, "employeeId");
   const { data, error } = await client.from("d4_kpi_role_catalog")
     .select("role_order,role_name,indicator_order,kpi_name,target,weight_percent,source_version");
-  if (error) throw new Error(`Katalog KPI: ${error.message}`);
+  if (error) throw databaseError(error, "Katalog KPI");
   const catalog = selectCatalog((data ?? []) as RoleKpiRow[]);
   const indicators = indicatorsFor(catalog, roleOrder);
   const snapshot = await repository.loadSnapshot();

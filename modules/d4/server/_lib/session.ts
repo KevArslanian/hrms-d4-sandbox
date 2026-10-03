@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { SupabaseD4Repository } from "../../supabase/repository";
 import type { D4AppRole } from "../../supabase/types";
+import { databaseError } from "../../shared/errors";
 import { ApiError } from "./http";
 
 // Route handlers use the caller's Supabase session cookie, so every query is still
@@ -27,7 +28,7 @@ export async function d4Session() {
 
 export async function d4Access(session: Awaited<ReturnType<typeof d4Session>>): Promise<{ role: D4AppRole; employeeId: string }> {
   const { data, error } = await session.client.from("d3_user_access").select("app_role,employee_id").eq("auth_user_id", session.user.id).maybeSingle();
-  if (error) throw new Error(`Hak akses: ${error.message}`);
+  if (error) throw databaseError(error, "Hak akses");
   if (!data) throw new ApiError("FORBIDDEN", "Akun belum diberi akses data HRMS.");
   return { role: data.app_role as D4AppRole, employeeId: data.employee_id as string };
 }
