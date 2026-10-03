@@ -9,6 +9,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "seed:d4": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/seed-d4.mjs",
+    "smoke:d4": "node scripts/smoke-d4.mjs",
     "test": "vitest run"
   },
   "dependencies": {
