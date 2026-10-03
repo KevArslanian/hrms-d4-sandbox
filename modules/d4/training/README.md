@@ -1,3 +1,11 @@
-# FR-D4-005 Training Tracking
+# Training Tracking, FR-D4-005
 
-Training is linked to one employee and one existing development need. A local version is appended for each status/result/notes update. The fixture and local browser storage are for sandbox UI work only. Training completion never changes competency evidence or closes a gap. Supabase integration belongs to Step 6.
+| Bagian | Lokasi |
+|---|---|
+| Tipe domain | `types.ts` |
+| Data preview (fiktif) | `fixtures.ts` |
+| Halaman list, detail, history | `modules/d4/web/features/training/TrainingPages.tsx` |
+| Modal Add Training dan Update Progress | `modules/d4/web/features/training/TrainingModals.tsx` |
+| API | `modules/d4/server/training-records/index.ts` |
+
+Training terhubung ke satu employee dan satu Development Requirement miliknya. Setiap perubahan status, hasil, atau catatan menambah versi (`POST …/:id/versions`). `Result` wajib diisi saat status Completed. Training yang Completed tidak mengubah evidence kompetensi dan tidak menutup gap; halaman detail menampilkan catatan itu.
