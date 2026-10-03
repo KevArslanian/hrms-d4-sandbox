@@ -94,10 +94,12 @@ export function roleForPositionTitle(catalog: KpiCatalog, title: string | undefi
   const roles = rolesOf(catalog);
   const exact = roles.find((role) => normalise(role.name) === target);
   if (exact) return exact.order;
+  // Whole words only: a bare substring such as "edi" would also match "Credit" or "Media".
   const keywords: [RegExp, RegExp][] = [
-    [/sales|marketing/, /sales/], [/finance|accounting|admin/, /finance/], [/customs|ppjk/, /customs/],
-    [/warehouse|logistic/, /warehous/], [/airfreight|seafreight|freight/, /freight/], [/implant|edi|manifest/, /implant/],
-    [/branch/, /branch/], [/operations director/, /operations director/], [/ceo|vice president/, /ceo/], [/^director/, /^director/],
+    [/\b(sales|marketing)\b/, /\bsales\b/], [/\b(finance|accounting|admin|administration|administrator)\b/, /\bfinance\b/],
+    [/\b(customs|ppjk)\b/, /\bcustoms\b/], [/\b(warehouse|warehousing|logistic|logistics)\b/, /\bwarehous(e|ing)\b/],
+    [/\b(air|sea)?freight\b/, /\b(air|sea)?freight\b/], [/\b(implant|edi|manifest)\b/, /\bimplant\b/],
+    [/\bbranch\b/, /\bbranch\b/], [/\boperations director\b/, /\boperations director\b/], [/\b(ceo|vice president)\b/, /\bceo\b/], [/^director\b/, /^director\b/],
   ];
   for (const [position, role] of keywords) {
     if (position.test(target)) {
