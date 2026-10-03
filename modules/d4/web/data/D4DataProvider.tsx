@@ -6,7 +6,6 @@ import type { KpiCatalog } from "../../kpi/catalog";
 import { createD4BrowserClient } from "../../supabase/client";
 import type { D4LiveSnapshot } from "../../supabase/types";
 import { apiSource, D4RequestError } from "./api-source";
-import { createFixtureSource } from "./fixture-source";
 import type { D4DataSource } from "./source";
 
 export type ToastMessage = { id: number; tone: "success" | "error"; text: string };
@@ -44,7 +43,10 @@ export function useSnapshot() {
 
 export function D4DataProvider({ children, mode }: { children: ReactNode; mode: "live" | "fixture" }) {
   const router = useRouter();
-  const source = useMemo(() => mode === "fixture" ? createFixtureSource() : apiSource, [mode]);
+  // The fixture source is loaded on demand. The NODE_ENV check is inlined at build time, so production
+  // bundles drop this import and never contain the fictional records.
+  const source = useMemo<Promise<D4DataSource>>(() => process.env.NODE_ENV === "development" && mode === "fixture"
+    ? import("./fixture-source").then((fixture) => fixture.createFixtureSource()) : Promise.resolve(apiSource), [mode]);
   const [status, setStatus] = useState<D4Data["status"]>("loading");
   const [error, setError] = useState("");
   const [snapshot, setSnapshot] = useState<D4LiveSnapshot | null>(null);
@@ -61,7 +63,7 @@ export function D4DataProvider({ children, mode }: { children: ReactNode; mode: 
 
   useEffect(() => {
     let active = true;
-    Promise.all([source.loadSnapshot(), source.loadKpiCatalog()]).then(([nextSnapshot, nextCatalog]) => {
+    source.then((data) => Promise.all([data.loadSnapshot(), data.loadKpiCatalog()])).then(([nextSnapshot, nextCatalog]) => {
       if (!active) return;
       setSnapshot(nextSnapshot); setCatalog(nextCatalog); setStatus("ready"); setError("");
     }).catch((cause: unknown) => {
@@ -80,9 +82,11 @@ export function D4DataProvider({ children, mode }: { children: ReactNode; mode: 
 
   const run = useCallback(async <T,>(operation: (data: D4DataSource) => Promise<T>, success: string): Promise<Result<T>> => {
     setBusy(true);
+    let data: D4DataSource;
     let value: T;
     try {
-      value = await operation(source);
+      data = await source;
+      value = await operation(data);
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "Penyimpanan gagal.";
       pushToast("error", message);
@@ -91,7 +95,7 @@ export function D4DataProvider({ children, mode }: { children: ReactNode; mode: 
     }
     // The write already succeeded; a failed refresh must not read as a failed save, or the user may submit twice.
     try {
-      setSnapshot(await source.loadSnapshot());
+      setSnapshot(await data.loadSnapshot());
       pushToast("success", success);
     } catch {
       pushToast("error", `${success} Namun data terbaru gagal dimuat, muat ulang halaman sebelum menyimpan lagi.`);
