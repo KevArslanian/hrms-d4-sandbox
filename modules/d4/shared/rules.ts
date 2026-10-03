@@ -1,9 +1,10 @@
 import type { DevelopmentNeedVersion, DevelopmentSourceType } from "../development/types";
 import type { TrainingStatus } from "../training/types";
+import { ApiError } from "./errors";
 
 /**
  * Integrity rules shared by the fixture source (browser preview) and the API handlers, so both
- * reject the same input. Messages are shown to the user as-is.
+ * reject the same input. Messages are shown to the user as-is; a broken rule is a validation error (422).
  */
 
 const JAKARTA = "Asia/Jakarta";
@@ -28,8 +29,8 @@ export function latestForPeriod<T extends PeriodRecord>(records: readonly T[], e
  */
 export function assertPeriodRevision(records: readonly PeriodRecord[], employeeId: string, period: string, revisionOf: string | null | undefined, label: string) {
   const current = latestForPeriod(records, employeeId, period);
-  if (current && revisionOf !== current.id) throw new Error(`${label} untuk periode ini sudah ada. Simpan sebagai revisi atau buka riwayatnya.`);
-  if (!current && revisionOf) throw new Error(`${label} yang direvisi tidak sesuai employee atau periode.`);
+  if (current && revisionOf !== current.id) throw new ApiError("VALIDATION_FAILED", `${label} untuk periode ini sudah ada. Simpan sebagai revisi atau buka riwayatnya.`);
+  if (!current && revisionOf) throw new ApiError("VALIDATION_FAILED", `${label} yang direvisi tidak sesuai employee atau periode.`);
 }
 
 /** Revision number of a record within its employee and period (1 = first record). */
@@ -39,12 +40,12 @@ export function revisionNumber<T extends PeriodRecord>(records: readonly T[], re
 
 /** An evaluator never assesses themselves. */
 export function assertNotSelf(actorEmployeeId: string, employeeId: string) {
-  if (actorEmployeeId === employeeId) throw new Error("Penilaian untuk diri sendiri harus dibuat oleh HR atau atasan lain.");
+  if (actorEmployeeId === employeeId) throw new ApiError("VALIDATION_FAILED", "Penilaian untuk diri sendiri harus dibuat oleh HR atau atasan lain.");
 }
 
 /** A completed development need does not take new training. */
 export function assertNeedOpen(need: Pick<DevelopmentNeedVersion, "status"> | undefined) {
-  if (need?.status === "Completed") throw new Error("Development requirement ini sudah Completed; training baru harus mengacu pada requirement yang masih terbuka.");
+  if (need?.status === "Completed") throw new ApiError("VALIDATION_FAILED", "Development requirement ini sudah Completed; training baru harus mengacu pada requirement yang masih terbuka.");
 }
 
 /** An unfinished need already raised from the same source, if any (prevents duplicate needs for one gap). */
@@ -57,7 +58,7 @@ export function openNeedFor(needs: readonly DevelopmentNeedVersion[], employeeId
  * can recommend more than one development activity), so they are not limited.
  */
 export function assertNoOpenNeed(needs: readonly DevelopmentNeedVersion[], employeeId: string, sourceType: DevelopmentSourceType, sourceRef: string) {
-  if (sourceType === "competency_gap" && openNeedFor(needs, employeeId, sourceType, sourceRef)) throw new Error("Gap kompetensi ini sudah memiliki development requirement yang belum selesai.");
+  if (sourceType === "competency_gap" && openNeedFor(needs, employeeId, sourceType, sourceRef)) throw new ApiError("VALIDATION_FAILED", "Gap kompetensi ini sudah memiliki development requirement yang belum selesai.");
 }
 
 const TRAINING_STEP: Record<TrainingStatus, number> = { Planned: 0, "In Progress": 1, Completed: 2, Cancelled: 2 };
@@ -67,5 +68,5 @@ export const isTrainingRollback = (from: TrainingStatus, to: TrainingStatus) =>
   from !== to && (TRAINING_STEP[to] < TRAINING_STEP[from] || from === "Cancelled" || (from === "Completed" && to === "Cancelled"));
 
 export function assertTrainingChange(from: TrainingStatus, to: TrainingStatus, notes: string) {
-  if (isTrainingRollback(from, to) && !notes.trim()) throw new Error(`Alasan perubahan wajib diisi saat status kembali dari ${from} ke ${to}.`);
+  if (isTrainingRollback(from, to) && !notes.trim()) throw new ApiError("VALIDATION_FAILED", `Alasan perubahan wajib diisi saat status kembali dari ${from} ke ${to}.`);
 }
