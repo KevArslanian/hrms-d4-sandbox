@@ -195,9 +195,8 @@ describe("session guard: real requireWriter over a mocked Supabase client", () =
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "");
     const res = await call(perf.POST(post(evaluationBody())));
-    // 500 SERVER_ERROR today; API-D4-001 §5 targets 503 once branch fix-api is merged.
-    expect(res.status).toBeGreaterThanOrEqual(500);
-    expect(["SERVER_ERROR", "INTEGRATION_ERROR"]).toContain(res.body.error?.code);
+    expect(res.status).toBe(503);
+    expect(res.body.error?.code).toBe("CONFIGURATION_ERROR");
     expect(createServerClient).not.toHaveBeenCalled();
     expect(writes).toHaveLength(0);
   });

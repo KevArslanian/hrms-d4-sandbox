@@ -101,10 +101,8 @@ describe("roleForPositionTitle (FR-02.11)", () => {
     expect(withoutKpi.sort()).toEqual(["HR Associate Officer", "Operations Staff", "Staf Demo D4"]);
   });
 
-  // BUG (modules/d4/kpi/catalog.ts, keyword list in roleForPositionTitle): /implant|edi|manifest/ is an unanchored
-  // substring match, so any title containing "edi" ("Credit", "Media", "Medical") is mapped to Implant Staff (role 8)
-  // instead of 0. Remove `.fails` once the keyword uses word boundaries.
-  it.fails.each([["Credit Control Staff"], ["Media Relations Officer"]])("%s has no KPI → 0", (title) => {
+  // BUG-D4-005 regression: keywords match whole words, so "edi" inside "Credit"/"Media" no longer maps to Implant Staff.
+  it.each([["Credit Control Staff"], ["Media Relations Officer"]])("%s has no KPI → 0", (title) => {
     expect(roleForPositionTitle(catalog, title)).toBe(0);
   });
 });
