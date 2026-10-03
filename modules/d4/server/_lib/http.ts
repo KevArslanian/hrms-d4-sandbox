@@ -18,6 +18,17 @@ export async function handle(run: () => Promise<unknown>, successStatus = 200) {
   }
 }
 
+/**
+ * Handler for the HTTP methods a route does not implement, so they get the standard envelope
+ * instead of Next.js' empty 405. `allowed` is the route's own methods, e.g. "GET, POST".
+ */
+export function methodNotAllowed(allowed: string) {
+  return () => {
+    const error = new ApiError("METHOD_NOT_ALLOWED", "Metode HTTP ini tidak didukung untuk endpoint tersebut.");
+    return NextResponse.json({ error: { code: error.code, message: error.message } }, { status: error.status, headers: { Allow: allowed } });
+  };
+}
+
 /** Optional UUID, e.g. `revisionOf` when a record is saved as a revision of the current one. */
 export function optionalUuid(body: Record<string, unknown>, key: string): string | null {
   return body[key] === undefined || body[key] === null || body[key] === "" ? null : field.uuid(body, key);

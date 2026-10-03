@@ -9,3 +9,13 @@ describe("field.score", () => {
     expect(() => field.score(value, "Skor")).toThrow(/bilangan bulat 1 sampai 5/);
   });
 });
+
+describe("unsupported methods", () => {
+  it("answer 405 with the standard envelope and an Allow header", async () => {
+    const route = await import("@/app/api/d4/performance-evaluations/route");
+    const res = await route.DELETE();
+    expect(res.status).toBe(405);
+    expect(res.headers.get("Allow")).toBe("GET, POST");
+    expect(await res.json()).toEqual({ error: { code: "METHOD_NOT_ALLOWED", message: expect.any(String) } });
+  });
+});
