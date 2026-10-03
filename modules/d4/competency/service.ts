@@ -1,3 +1,4 @@
+import { ApiError } from "../shared/errors";
 import type { ReferenceDataSnapshot } from "../shared/types";
 import type { CompetencyFinding, CompetencyOverallStatus } from "./types";
 
@@ -5,8 +6,8 @@ export function compareCompetencies(employeeId: string, positionId: string, refe
   findings: CompetencyFinding[];
   overallStatus: CompetencyOverallStatus;
 } {
-  if (!reference.employees.some((item) => item.id === employeeId)) throw new Error("Employee tidak ditemukan.");
-  if (!reference.positions.some((item) => item.id === positionId)) throw new Error("Posisi tidak ditemukan.");
+  if (!reference.employees.some((item) => item.id === employeeId)) throw new ApiError("NOT_FOUND", "Employee tidak ditemukan.");
+  if (!reference.positions.some((item) => item.id === positionId)) throw new ApiError("NOT_FOUND", "Posisi tidak ditemukan.");
   const requirements = reference.positionRequirements.filter((item) => item.positionId === positionId);
   const findings = requirements.map((requirement): CompetencyFinding => {
     const competency = reference.competencies.find((item) => item.id === requirement.competencyId);

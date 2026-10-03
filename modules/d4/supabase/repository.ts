@@ -4,7 +4,7 @@ import type { CompetencyAssessment, CompetencyFinding, CompetencyOverallStatus }
 import type { DevelopmentNeedVersion, DevelopmentPriority, DevelopmentSourceType, DevelopmentStatus } from "../development/types";
 import type { EvaluationAspect, EvaluationInput, PerformanceEvaluation } from "../performance/types";
 import { validatePerformanceInput } from "../performance/validation";
-import { ApiError, databaseError, DUPLICATE_MESSAGE, enforce } from "../shared/errors";
+import { ApiError, databaseError, enforce } from "../shared/errors";
 import type { ReferenceDataRepository } from "../shared/services";
 import type { ReferenceDataSnapshot } from "../shared/types";
 import type { TrainingStatus, TrainingVersion } from "../training/types";
@@ -202,11 +202,13 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(input.effectiveDate)) throw new ApiError("VALIDATION_FAILED", "Tanggal berlaku tidak valid.");
     const comparison = compareCompetencies(employee.id, position.id, reference);
     if (!comparison.findings.length) throw new ApiError("VALIDATION_FAILED", "Persyaratan kompetensi posisi belum tersedia.");
-    // d4_competency_assessments has no unique key yet, so a double click would store the same snapshot
-    // twice. Application-level guard until the database index is approved (narrows, not closes, the race).
-    const existing = take(await this.client.from("d4_competency_assessments").select("id")
-      .eq("employee_id", employee.id).eq("position_id", position.id).eq("effective_date", input.effectiveDate).limit(1), "Cek assessment") as { id: string }[];
-    if (existing.length) throw new ApiError("CONFLICT", DUPLICATE_MESSAGE);
+    // d4_competency_assessments has no unique key yet. A double click re-sends an identical snapshot: answer
+    // with the stored one instead of a second row. A changed snapshot (new evidence the same day) is still saved.
+    // Narrows, not closes, the race until the database index is approved.
+    const sameDay = take(await this.client.from("d4_competency_assessments").select("id, overall_status, findings")
+      .eq("employee_id", employee.id).eq("position_id", position.id).eq("effective_date", input.effectiveDate), "Cek assessment") as { id: string; overall_status: string; findings: unknown }[];
+    const identical = sameDay.find((row) => row.overall_status === comparison.overallStatus && JSON.stringify(row.findings) === JSON.stringify(comparison.findings));
+    if (identical) return identical.id;
     const result = await this.client.from("d4_competency_assessments").insert({
       employee_id: employee.id, position_id: position.id, position_title_snapshot: position.title,
       effective_date: input.effectiveDate,
