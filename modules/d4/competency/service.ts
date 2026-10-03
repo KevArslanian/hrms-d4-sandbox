@@ -1,8 +1,7 @@
-import { d4ReferenceFixture } from "../shared/fixtures";
 import type { ReferenceDataSnapshot } from "../shared/types";
 import type { CompetencyFinding, CompetencyOverallStatus } from "./types";
 
-export function compareCompetencies(employeeId: string, positionId: string, reference: ReferenceDataSnapshot = d4ReferenceFixture): {
+export function compareCompetencies(employeeId: string, positionId: string, reference: ReferenceDataSnapshot): {
   findings: CompetencyFinding[];
   overallStatus: CompetencyOverallStatus;
 } {
