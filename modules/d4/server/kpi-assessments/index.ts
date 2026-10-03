@@ -54,7 +54,6 @@ export async function createAssessment(request: Request) {
     const raw = (body.lines as unknown[])[index] as Record<string, unknown> | null;
     if (!raw || raw.kpi_name !== indicator.kpi_name) throw new ApiError("VALIDATION_FAILED", `Indikator ${index + 1} harus ${indicator.kpi_name}.`);
     const score = field.score(raw.raw_score, `Skor ${indicator.kpi_name}`, { required: status === "completed" });
-    if (score !== null && !Number.isInteger(score)) throw new ApiError("VALIDATION_FAILED", `Skor ${indicator.kpi_name} harus bilangan bulat 1 sampai 5.`);
     return {
       indicator_order: indicator.indicator_order, kpi_name: indicator.kpi_name, weight_percent: indicator.weight_percent,
       target: field.text(raw, "target", { required: false, max: 200 }), actual: field.text(raw, "actual", { required: false, max: 200 }),
