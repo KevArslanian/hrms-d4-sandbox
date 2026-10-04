@@ -5,6 +5,8 @@
 alter table public.d4_kpi_role_catalog drop constraint if exists d4_kpi_role_catalog_pkey;
 alter table public.d4_kpi_role_catalog drop constraint if exists d4_kpi_role_catalog_role_name_kpi_name_key;
 alter table public.d4_kpi_role_catalog drop constraint if exists d4_kpi_role_catalog_version_role_kpi_key;
+-- Name Postgres generated when an earlier copy of this file added the unique key without a name.
+alter table public.d4_kpi_role_catalog drop constraint if exists d4_kpi_role_catalog_source_version_role_name_kpi_name_key;
 alter table public.d4_kpi_role_catalog add primary key (source_version, role_order, indicator_order);
 alter table public.d4_kpi_role_catalog add constraint d4_kpi_role_catalog_version_role_kpi_key unique (source_version, role_name, kpi_name);
 
