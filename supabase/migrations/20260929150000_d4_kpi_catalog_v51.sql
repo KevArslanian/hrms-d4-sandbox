@@ -1,9 +1,12 @@
 -- KPI Scorecard V5.1 becomes the active assessment baseline.
 -- V3.1 rows stay in the catalog so assessments made against V3.1 keep a valid reference.
-alter table public.d4_kpi_role_catalog drop constraint d4_kpi_role_catalog_pkey;
-alter table public.d4_kpi_role_catalog drop constraint d4_kpi_role_catalog_role_name_kpi_name_key;
+-- Safe to run more than once: constraints are dropped only if present and the new unique key has a fixed name.
+-- Rollback: supabase/rollbacks/20260929150000_d4_kpi_catalog_v51_down.sql
+alter table public.d4_kpi_role_catalog drop constraint if exists d4_kpi_role_catalog_pkey;
+alter table public.d4_kpi_role_catalog drop constraint if exists d4_kpi_role_catalog_role_name_kpi_name_key;
+alter table public.d4_kpi_role_catalog drop constraint if exists d4_kpi_role_catalog_version_role_kpi_key;
 alter table public.d4_kpi_role_catalog add primary key (source_version, role_order, indicator_order);
-alter table public.d4_kpi_role_catalog add unique (source_version, role_name, kpi_name);
+alter table public.d4_kpi_role_catalog add constraint d4_kpi_role_catalog_version_role_kpi_key unique (source_version, role_name, kpi_name);
 
 -- Transcribed from sheet "KPI LIST PER POSISI" of KPI_Scorecard V5.1. The workbook has no targets.
 insert into public.d4_kpi_role_catalog (role_order,role_name,indicator_order,kpi_name,target,weight_percent,source_version) values
@@ -65,7 +68,7 @@ on conflict (source_version, role_order, indicator_order) do update set
 
 -- Each assessment records the catalog version it was scored against.
 alter table public.d4_kpi_assessments
-  add column definition_version text not null default 'V3.1' check (definition_version in ('V3.1', 'V5.1'));
+  add column if not exists definition_version text not null default 'V3.1' check (definition_version in ('V3.1', 'V5.1'));
 alter table public.d4_kpi_assessments alter column definition_version set default 'V5.1';
 
 create or replace function public.d4_calculate_kpi_assessment() returns trigger
