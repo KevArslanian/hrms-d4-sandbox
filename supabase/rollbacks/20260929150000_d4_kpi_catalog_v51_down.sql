@@ -79,6 +79,7 @@ delete from public.d4_kpi_role_catalog where source_version = 'V5.1';
 
 -- 4. Restore the original V3.1 keys.
 alter table public.d4_kpi_role_catalog drop constraint if exists d4_kpi_role_catalog_version_role_kpi_key;
+alter table public.d4_kpi_role_catalog drop constraint if exists d4_kpi_role_catalog_source_version_role_name_kpi_name_key;
 alter table public.d4_kpi_role_catalog drop constraint if exists d4_kpi_role_catalog_role_name_kpi_name_key;
 alter table public.d4_kpi_role_catalog drop constraint if exists d4_kpi_role_catalog_pkey;
 alter table public.d4_kpi_role_catalog add primary key (role_order, indicator_order);
