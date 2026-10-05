@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, BriefcaseBusiness, ChevronDown, ClipboardList, Layers3, Menu, X } from "lucide-react";
+import { Bell, ChevronDown, Contact, Menu, Printer, SquareTerminal, Users, X } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { createD4BrowserClient } from "../../supabase/client";
 import { useD4 } from "../data/D4DataProvider";
@@ -19,13 +19,12 @@ export const D4_MENU = [
 
 const roleLabel: Record<string, string> = { HR: "HR", MANAGER: "Manager", EMPLOYEE: "Employee" };
 
-// Same look as the D3 sidebar (components/Sidebar.tsx on the D3 branches); D4 owns its own sub-menu.
+// Matches Figma PISD D3 "sidebar report ticket" (node 2025:217); D4 owns the HRMS sub-menu.
 function Sidebar({ onNavigate, onClose }: { onNavigate: () => void; onClose: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const { mode } = useD4();
   const [hrmsOpen, setHrmsOpen] = useState(true);
-  const [d4Open, setD4Open] = useState(true);
   const [signingOut, setSigningOut] = useState(false);
 
   async function signOut() {
@@ -39,45 +38,44 @@ function Sidebar({ onNavigate, onClose }: { onNavigate: () => void; onClose: () 
     }
   }
 
-  return <div className="flex h-full flex-col bg-[#0f2342] px-4 py-5 text-[#d9e2fc] shadow-lg">
+  const moduleItem = (Icon: typeof Users, label: string) =>
+    <span className="flex items-center gap-3 px-3 py-2.5 text-white"><Icon size={18} /> {label}</span>;
+
+  return <div className="flex h-full flex-col bg-[#0f2342] px-4 py-6 text-white">
     <div className="flex items-center gap-3 px-2">
-      <div className="grid size-9 place-items-center rounded-lg bg-[#155cfd] shadow-sm"><BriefcaseBusiness size={19} className="text-white" /></div>
-      <div><p className="text-xl font-bold tracking-[-0.5px] text-white">ANDIMA</p><p className="text-xs text-[#d9e2fc]/80">Logistics Suite</p></div>
+      <span aria-hidden="true" className="size-9 rounded-lg bg-[#155dfc]" />
+      <div><p className="text-lg font-bold leading-6">ANDIMA</p><p className="text-xs text-[#d9e2fc]/80">Logistics Suite</p></div>
       <button type="button" onClick={onClose} className="ml-auto rounded p-1 text-[#d9e2fc] lg:hidden" aria-label="Tutup navigasi"><X size={18} /></button>
     </div>
 
-    <nav aria-label="Navigasi utama" className="mt-8 flex-1 space-y-1.5 overflow-y-auto text-sm font-semibold">
+    <nav aria-label="Navigasi utama" className="mt-20 flex-1 space-y-1 overflow-y-auto text-sm font-semibold">
+      {moduleItem(Printer, "POS")}
+      {moduleItem(Contact, "CRM")}
       <button type="button" onClick={() => setHrmsOpen((v) => !v)} aria-expanded={hrmsOpen}
-        className="flex w-full items-center justify-between rounded-lg bg-[#155cfd] px-3 py-2.5 text-white shadow-sm">
-        <span className="flex items-center gap-3"><ClipboardList size={17} /> HRMS</span>
+        className="flex w-full items-center justify-between rounded-lg bg-[#155dfc] px-3 py-2 text-white">
+        <span className="flex items-center gap-3"><Users size={18} /> HRMS</span>
         <ChevronDown size={16} className={cx("transition-transform", hrmsOpen ? "rotate-0" : "-rotate-90")} />
       </button>
-      {hrmsOpen && <div className="ml-5 mt-2 border-l border-[#d9e2fc]/20 pl-3">
-        <button type="button" onClick={() => setD4Open((v) => !v)} aria-expanded={d4Open}
-          className="mt-1 flex w-full items-center justify-between rounded-md bg-[#155cfd] px-3 py-2 text-xs text-white transition-colors">
-          <span className="flex items-center gap-2"><Layers3 size={14} /> D4</span>
-          <ChevronDown size={14} className={cx("transition-transform", d4Open ? "rotate-0" : "-rotate-90")} />
-        </button>
-        {d4Open && <div className="ml-4 mt-1 border-l border-[#d9e2fc]/15 pl-2">
-          {D4_MENU.map((item) => {
-            const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
-            return <Link key={item.href} href={item.href} onClick={onNavigate} aria-current={active ? "page" : undefined}
-              className={cx("flex w-full items-center rounded-md px-3 py-2 text-xs transition-colors", active ? "bg-[#1e3765] text-white" : "text-[#d9e2fc]/80 hover:bg-[#1e3765] hover:text-white")}>
-              {item.label}
-            </Link>;
-          })}
-        </div>}
+      {hrmsOpen && <div className="ml-5 space-y-1 border-l border-[#50607e] py-2 pl-2.5">
+        {D4_MENU.map((item) => {
+          const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          return <Link key={item.href} href={item.href} onClick={onNavigate} aria-current={active ? "page" : undefined}
+            className={cx("flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors",
+              active ? "bg-[#b0c6d4] text-[#4b5b7a]" : "text-[#8b97ad] hover:text-white")}>
+            <span aria-hidden="true" className={cx("size-1 rounded-full", active ? "bg-[#069494]" : "bg-current")} />
+            {item.label}
+          </Link>;
+        })}
       </div>}
+      {moduleItem(SquareTerminal, "MID")}
     </nav>
 
-    <div className="mt-auto space-y-3">
-      {mode === "live"
-        ? <button type="button" onClick={() => void signOut()} disabled={signingOut} aria-label="Logout"
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-red-600 px-3 py-1.5 text-sm font-bold text-red-500 transition hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50">
-            {signingOut ? "Keluar..." : "Logout"}
-          </button>
-        : <p className="rounded-lg border border-[#d9e2fc]/20 px-3 py-1.5 text-center text-[11px] text-[#d9e2fc]/80">Preview mode · data fiktif</p>}
-    </div>
+    {mode === "live"
+      ? <button type="button" onClick={() => void signOut()} disabled={signingOut}
+          className="mt-4 w-full rounded-2xl border-2 border-[#d9364f] py-1.5 text-lg font-bold text-[#d9364f] transition hover:bg-[#d9364f]/10 disabled:cursor-not-allowed disabled:opacity-50">
+          {signingOut ? "Keluar..." : "Logout"}
+        </button>
+      : <p className="mt-4 rounded-lg border border-[#d9e2fc]/20 px-3 py-1.5 text-center text-[11px] text-[#d9e2fc]/80">Preview mode · data fiktif</p>}
   </div>;
 }
 
