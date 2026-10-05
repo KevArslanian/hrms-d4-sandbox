@@ -1,8 +1,10 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import CustomButton from "@/components/CustomButton";
+import AuthShell, { inputClass, labelClass, PasswordInput } from "@/components/AuthShell";
 import { createClient } from "@/utils/supabase/client";
 
 export default function LoginPage() {
@@ -31,53 +33,50 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-neutral-100 p-6 font-sans">
-      <section className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-xs">
-        <h1 className="text-2xl font-bold text-slate-900">Masuk HRMS</h1>
-        <p className="mt-2 text-slate-600">Gunakan akun yang sudah disiapkan oleh administrator.</p>
+    <AuthShell title="Selamat Datang Kembali" subtitle="Masuk ke HRMS Andima dengan akun Anda.">
+      <form id="login-form" data-testid="login-form" className="mt-6 space-y-4" onSubmit={handleSubmit}>
+        <div>
+          <label className={labelClass} htmlFor="email">
+            Email
+          </label>
+          <input
+            id="email"
+            name="email"
+            data-testid="input-email"
+            type="email"
+            autoComplete="email"
+            placeholder="nama@andima.co.id"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            required
+            className={inputClass}
+          />
+        </div>
 
-        <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700" htmlFor="email">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              required
-              className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-slate-900 outline-none transition focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
-            />
-          </div>
+        <div>
+          <label className={labelClass} htmlFor="password">
+            Password
+          </label>
+          <PasswordInput id="password" value={password} onChange={setPassword} autoComplete="current-password" />
+        </div>
 
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700" htmlFor="password">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              required
-              className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-slate-900 outline-none transition focus:border-slate-900 focus:ring-1 focus:ring-slate-900"
-            />
-          </div>
+        {errorMessage && (
+          <p id="login-error" data-testid="login-error" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+            {errorMessage}
+          </p>
+        )}
 
-          {errorMessage && (
-            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
-              {errorMessage}
-            </p>
-          )}
+        <CustomButton id="btn-login" name="btn-login" data-testid="btn-login" type="submit" disabled={isLoading}>
+          {isLoading ? "Memproses..." : "Masuk"}
+        </CustomButton>
+      </form>
 
-          <CustomButton type="submit" disabled={isLoading}>
-            {isLoading ? "Memproses..." : "Masuk"}
-          </CustomButton>
-        </form>
-      </section>
-    </main>
+      <p className="mt-6 text-center text-sm text-slate-600">
+        Belum punya akun?{" "}
+        <Link id="link-register" data-testid="link-register" href="/register" className="font-semibold text-[#1E3765] hover:underline">
+          Daftar
+        </Link>
+      </p>
+    </AuthShell>
   );
 }
