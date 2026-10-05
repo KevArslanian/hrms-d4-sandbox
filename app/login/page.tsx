@@ -17,26 +17,19 @@ export default function LoginPage() {
   const [isLocked, setIsLocked] = useState<boolean>(false);
   const [isPermanentlyBlocked, setIsPermanentlyBlocked] = useState<boolean>(false);
   const [countdown, setCountdown] = useState<number>(0);
-  const [greeting, setGreeting] = useState<string>('Good Morning');
+  const hour = new Date().getHours();
+  const greeting = hour >= 3 && hour < 12 ? 'Good Morning' : hour >= 12 && hour < 17 ? 'Good Afternoon' : 'Good Evening';
 
   useEffect(() => {
-    const hour = new Date().getHours();
-    if (hour >= 3 && hour < 12) setGreeting('Good Morning');
-    else if (hour >= 12 && hour < 17) setGreeting('Good Afternoon');
-    else setGreeting('Good Evening');
-  }, []);
-
-  useEffect(() => {
-    let timer: ReturnType<typeof setInterval> | undefined;
-    if (isLocked && countdown > 0) {
-      timer = setInterval(() => setCountdown((prev) => prev - 1), 1000);
-    } else if (countdown === 0 && isLocked && !isPermanentlyBlocked) {
-      setIsLocked(false);
-      setErrorMessage('');
-    }
-    return () => {
-      if (timer) clearInterval(timer);
-    };
+    if (!isLocked || isPermanentlyBlocked || countdown <= 0) return;
+    const timer = setTimeout(() => {
+      if (countdown === 1) {
+        setIsLocked(false);
+        setErrorMessage('');
+      }
+      setCountdown(countdown - 1);
+    }, 1000);
+    return () => clearTimeout(timer);
   }, [isLocked, countdown, isPermanentlyBlocked]);
 
   const validateEmailFormat = (emailVal: string): boolean => {
@@ -156,7 +149,7 @@ export default function LoginPage() {
 
             {/* Greeting */}
             <div className="mb-7 text-left relative z-10">
-              <h2 className="font-[family-name:var(--font-syne)] text-xl sm:text-2xl font-bold text-[#0D1B2A] tracking-tight">
+              <h2 suppressHydrationWarning className="font-[family-name:var(--font-syne)] text-xl sm:text-2xl font-bold text-[#0D1B2A] tracking-tight">
                 {greeting},
               </h2>
               <p className="font-[family-name:var(--font-montserrat)] text-sm text-[#334155] mt-1.5 font-medium">
