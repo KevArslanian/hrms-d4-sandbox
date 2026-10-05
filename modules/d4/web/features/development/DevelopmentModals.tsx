@@ -53,7 +53,7 @@ export function DevelopmentFormModal({ employeeId, sourceType, sourceRef, onClos
     if (result.ok) { onSaved?.(result.value); onClose(); } else setError(result.error);
   }
 
-  return <FormModal title="Add Development Requirement" description="Setiap kebutuhan wajib punya sumber yang dapat ditelusuri (FR-D4-004, FR-D4-007)." onClose={onClose}
+  return <FormModal title="Add Development Requirement" description="Setiap kebutuhan wajib punya sumber yang dapat ditelusuri (FR-D4-003, FR-D4-005)." onClose={onClose}
     footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Requirement" />}>
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />

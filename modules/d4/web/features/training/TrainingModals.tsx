@@ -35,7 +35,7 @@ export function TrainingFormModal({ employeeId, developmentNeedId, onClose }: { 
     if (saved.ok) onClose(); else setError(saved.error);
   }
 
-  return <FormModal title="Add Training" description="Training selalu terhubung ke development requirement sumber (FR-D4-005)." onClose={onClose}
+  return <FormModal title="Add Training" description="Training selalu terhubung ke development requirement sumber (FR-D4-003)." onClose={onClose}
     footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Training" />}>
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />

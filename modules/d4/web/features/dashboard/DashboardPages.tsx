@@ -28,7 +28,7 @@ function periodData(snapshot: D4LiveSnapshot, employeeId: string, period: string
 }
 
 /**
- * Dashboard KPI Orang (FR-D4-006): a read-only per-employee summary of the other five features.
+ * Dashboard KPI Orang (FR-D4-004): a read-only per-employee summary of the other five features.
  * It reads the same snapshot as the detail pages (FR-06.8), creates no data of its own, adds no
  * aggregate management metrics (out of scope #12) and shows no achieved label (FR-06.10).
  */
@@ -55,7 +55,7 @@ export function DashboardPage() {
   const profileHref = (row: Row) => `/dashboard/employee/${row.employee.id}${row.period ? `?period=${row.period}` : ""}`;
 
   return <>
-    <PageHeader title="People Dashboard" subtitle="Ringkasan KPI, performance, competency gap, development, dan training per employee pada periode yang sama (FR-D4-006)." />
+    <PageHeader title="People Dashboard" subtitle="Ringkasan KPI, performance, competency gap, development, dan training per employee pada periode yang sama (FR-D4-004)." />
     <FilterBar canReset={Boolean(search || position || period)} onReset={() => { setSearch(""); setPosition(""); setPeriod(""); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Search employee name or ID" />
       <SelectFilter label="All positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />
