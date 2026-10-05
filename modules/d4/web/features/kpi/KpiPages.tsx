@@ -19,7 +19,7 @@ const scorecardStatus = (item?: KpiAssessment) => !item ? "Not Evaluated" : item
 function CatalogNotice() {
   const { catalog } = useD4();
   if (!catalog || catalog.version === ACTIVE_KPI_VERSION) return null;
-  return <Notice tone="warning">Katalog KPI di database masih {catalog.version}. Terapkan migrasi <code>20260929150000_d4_kpi_catalog_v51.sql</code> agar scorecard baru memakai KPI Scorecard {ACTIVE_KPI_VERSION} (FR-D4-002).</Notice>;
+  return <Notice tone="warning">Katalog KPI di database masih {catalog.version}. Terapkan migrasi <code>20260929150000_d4_kpi_catalog_v51.sql</code> agar scorecard baru memakai KPI Scorecard {ACTIVE_KPI_VERSION} (FR-D4-001).</Notice>;
 }
 
 type Row = { employee: EmployeeReference; position: string; hasKpi: boolean; scorecard?: KpiAssessment };
@@ -46,7 +46,7 @@ export function KpiListPage() {
     .sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName)), [snapshot, catalog, search, position, department, period, status]);
 
   return <>
-    <PageHeader title="KPI Scorecard" subtitle="Lima Core KPI per position dan periode, dengan bobot 100% dan total skor terbobot (FR-D4-002)."
+    <PageHeader title="KPI Scorecard" subtitle="Lima Core KPI per position dan periode, dengan bobot 100% dan total skor terbobot (FR-D4-001)."
       actions={writer && <Button icon={<Plus className="size-4" />} onClick={() => setModalFor("")}>Add Scorecard</Button>} />
     <CatalogNotice />
     <FilterBar canReset={Boolean(search || position || department || period || status)} onReset={() => { setSearch(""); setPosition(""); setDepartment(""); setPeriod(""); setStatus(""); }}>
