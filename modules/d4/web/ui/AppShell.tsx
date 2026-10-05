@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, Box, ChevronUp, Contact, LayoutGrid, LogOut, Menu, Phone, Settings, ShoppingBag, Terminal, Users, X } from "lucide-react";
+import { Bell, BriefcaseBusiness, ChevronDown, ClipboardList, Layers3, Menu, X } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { createD4BrowserClient } from "../../supabase/client";
 import { useD4 } from "../data/D4DataProvider";
@@ -19,59 +19,64 @@ export const D4_MENU = [
 
 const roleLabel: Record<string, string> = { HR: "HR", MANAGER: "Manager", EMPLOYEE: "Employee" };
 
-function Sidebar({ onNavigate }: { onNavigate: () => void }) {
+// Same look as the D3 sidebar (components/Sidebar.tsx on the D3 branches); D4 owns its own sub-menu.
+function Sidebar({ onNavigate, onClose }: { onNavigate: () => void; onClose: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const { mode } = useD4();
-  // Other modules are shown for orientation only; D4 owns the HRMS sub-menu. They are dimmed and
-  // marked disabled so they do not read as broken links.
-  const other = "flex cursor-not-allowed items-center gap-3 rounded-md px-2 py-2 text-xs font-medium text-nav-text opacity-50";
-  const pending = { "aria-disabled": true, title: "Modul squad lain — belum terhubung" } as const;
-  const section = "px-2 pb-1 pt-4 text-[9.5px] font-semibold uppercase tracking-[0.1em] text-nav-label";
+  const [hrmsOpen, setHrmsOpen] = useState(true);
+  const [d4Open, setD4Open] = useState(true);
+  const [signingOut, setSigningOut] = useState(false);
 
   async function signOut() {
-    await createD4BrowserClient().auth.signOut();
-    router.replace("/login");
-    router.refresh();
+    setSigningOut(true);
+    try {
+      await createD4BrowserClient().auth.signOut({ scope: "local" });
+      router.replace("/login");
+      router.refresh();
+    } finally {
+      setSigningOut(false);
+    }
   }
 
-  return <div className="flex h-full flex-col bg-nav px-4 pb-5 pt-9">
-    <div className="flex items-center gap-4 px-2 pb-5">
-      <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary-500 text-white"><Box className="size-5" /></span>
-      <span className="uppercase leading-none">
-        <strong className="block font-display text-xl tracking-[0.03em] text-white">Andima</strong>
-        <span className="mt-0.5 block text-base font-semibold tracking-[0.02em] text-white">Transportindo</span>
-        <span className="mt-1 block text-[7.5px] font-medium tracking-[0.1em] text-nav-label">Enterprise Digital Ecosystem</span>
-      </span>
+  return <div className="flex h-full flex-col bg-[#0f2342] px-4 py-5 text-[#d9e2fc] shadow-lg">
+    <div className="flex items-center gap-3 px-2">
+      <div className="grid size-9 place-items-center rounded-lg bg-[#155cfd] shadow-sm"><BriefcaseBusiness size={19} className="text-white" /></div>
+      <div><p className="text-xl font-bold tracking-[-0.5px] text-white">ANDIMA</p><p className="text-xs text-[#d9e2fc]/80">Logistics Suite</p></div>
+      <button type="button" onClick={onClose} className="ml-auto rounded p-1 text-[#d9e2fc] lg:hidden" aria-label="Tutup navigasi"><X size={18} /></button>
     </div>
-    <hr className="mx-2 border-nav-2" />
-    <nav aria-label="Navigasi utama" className="flex flex-1 flex-col overflow-y-auto">
-      <p className={section}>Main</p>
-      <span className={other} {...pending}><LayoutGrid aria-hidden="true" className="size-4" />General Dashboard</span>
-      <p className={section}>Business Modul</p>
-      <span className={other} {...pending}><ShoppingBag aria-hidden="true" className="size-4" />POS</span>
-      <span className={other} {...pending}><Contact aria-hidden="true" className="size-4" />CRM</span>
-      <span className="flex items-center gap-3 px-2 py-2 text-xs font-semibold text-white"><Users aria-hidden="true" className="size-4" /><span className="flex-1">HRMS</span><ChevronUp aria-hidden="true" className="size-4" /></span>
-      <div className="pb-2 pl-7">
-        <p className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-[0.05em] text-nav-text">Performance &amp; Training</p>
-        {D4_MENU.map((item) => {
-          const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
-          return <Link key={item.href} href={item.href} onClick={onNavigate} aria-current={active ? "page" : undefined}
-            className={cx("flex items-center rounded-md px-2 py-2 text-[11px]", active ? "bg-nav-active font-semibold text-white" : "text-white/85 hover:bg-nav-2 hover:text-white")}>
-            <span className="flex-1">{item.label}</span>
-            {active && <span aria-hidden="true" className="size-1.5 rounded-full bg-white" />}
-          </Link>;
-        })}
-      </div>
-      <span className={other} {...pending}><Terminal aria-hidden="true" className="size-4" />MID</span>
-      <p className={section}>System</p>
-      <span className={other} {...pending}><Settings aria-hidden="true" className="size-4" />Settings</span>
-      {mode === "live" && <button type="button" onClick={() => void signOut()} className="flex items-center gap-3 rounded-md px-2 py-2 text-left text-xs font-medium text-danger hover:bg-danger/10"><LogOut aria-hidden="true" className="size-4" />Logout</button>}
+
+    <nav aria-label="Navigasi utama" className="mt-8 flex-1 space-y-1.5 overflow-y-auto text-sm font-semibold">
+      <button type="button" onClick={() => setHrmsOpen((v) => !v)} aria-expanded={hrmsOpen}
+        className="flex w-full items-center justify-between rounded-lg bg-[#155cfd] px-3 py-2.5 text-white shadow-sm">
+        <span className="flex items-center gap-3"><ClipboardList size={17} /> HRMS</span>
+        <ChevronDown size={16} className={cx("transition-transform", hrmsOpen ? "rotate-0" : "-rotate-90")} />
+      </button>
+      {hrmsOpen && <div className="ml-5 mt-2 border-l border-[#d9e2fc]/20 pl-3">
+        <button type="button" onClick={() => setD4Open((v) => !v)} aria-expanded={d4Open}
+          className="mt-1 flex w-full items-center justify-between rounded-md bg-[#155cfd] px-3 py-2 text-xs text-white transition-colors">
+          <span className="flex items-center gap-2"><Layers3 size={14} /> D4</span>
+          <ChevronDown size={14} className={cx("transition-transform", d4Open ? "rotate-0" : "-rotate-90")} />
+        </button>
+        {d4Open && <div className="ml-4 mt-1 border-l border-[#d9e2fc]/15 pl-2">
+          {D4_MENU.map((item) => {
+            const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+            return <Link key={item.href} href={item.href} onClick={onNavigate} aria-current={active ? "page" : undefined}
+              className={cx("flex w-full items-center rounded-md px-3 py-2 text-xs transition-colors", active ? "bg-[#1e3765] text-white" : "text-[#d9e2fc]/80 hover:bg-[#1e3765] hover:text-white")}>
+              {item.label}
+            </Link>;
+          })}
+        </div>}
+      </div>}
     </nav>
-    {mode !== "live" && <p className="mb-2 rounded-lg border border-nav-2 px-3 py-1.5 text-center text-[11px] text-nav-text">Preview mode · data fiktif</p>}
-    <div className="flex items-center gap-3 rounded-lg border border-primary-500/20 bg-nav-2/60 p-3">
-      <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary-500/20 text-primary-500"><Phone className="size-4" /></span>
-      <span><strong className="block text-[11px] font-semibold text-white">Customer Support</strong><span className="block text-[9px] text-nav-label">24/7 Operations Line</span></span>
+
+    <div className="mt-auto space-y-3">
+      {mode === "live"
+        ? <button type="button" onClick={() => void signOut()} disabled={signingOut} aria-label="Logout"
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-red-600 px-3 py-1.5 text-sm font-bold text-red-500 transition hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50">
+            {signingOut ? "Keluar..." : "Logout"}
+          </button>
+        : <p className="rounded-lg border border-[#d9e2fc]/20 px-3 py-1.5 text-center text-[11px] text-[#d9e2fc]/80">Preview mode · data fiktif</p>}
     </div>
   </div>;
 }
@@ -87,10 +92,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   return <div className="min-h-screen bg-app">
     <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[90] focus:rounded-lg focus:bg-surface focus:px-4 focus:py-2">Lewati ke konten</a>
     {menuOpen && <button type="button" aria-label="Tutup menu" className="fixed inset-0 z-30 bg-ink/40 lg:hidden" onClick={() => setMenuOpen(false)} />}
-    <aside className={cx("fixed inset-y-0 left-0 z-40 w-[264px] transition-transform lg:translate-x-0", menuOpen ? "translate-x-0" : "-translate-x-full")}>
-      <Sidebar onNavigate={() => setMenuOpen(false)} />
+    <aside className={cx("fixed inset-y-0 left-0 z-40 w-[260px] transition-transform lg:translate-x-0", menuOpen ? "translate-x-0" : "-translate-x-full")}>
+      <Sidebar onNavigate={() => setMenuOpen(false)} onClose={() => setMenuOpen(false)} />
     </aside>
-    <div className="lg:pl-[264px]">
+    <div className="lg:pl-[260px]">
       <header className="sticky top-0 z-20 flex h-16 items-center gap-4 border-b border-line bg-surface px-4 sm:px-8">
         <button type="button" aria-label={menuOpen ? "Tutup menu" : "Buka menu"} className="rounded-lg p-2 text-ink-2 hover:bg-muted lg:hidden" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}</button>
         <strong className="text-sm font-semibold text-ink">ANDIMA HRMS</strong>
