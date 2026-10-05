@@ -34,7 +34,7 @@ export function TrainingListPage() {
   });
 
   return <>
-    <PageHeader title="Training Tracking" subtitle="Lacak training/development dari requirement sumber sampai hasil pelaksanaan (FR-D4-005)."
+    <PageHeader title="Training Tracking" subtitle="Lacak training/development dari requirement sumber sampai hasil pelaksanaan (FR-D4-003)."
       actions={writer && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)}>Add Training</Button>} />
     <FilterBar canReset={Boolean(search || period || status || requirement)} onReset={() => { setSearch(""); setPeriod(""); setStatus(""); setRequirement(""); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Search employee or training" />

@@ -61,7 +61,7 @@ export const sourceTypeLabel: Record<DevelopmentSourceType, string> = {
   performance_context: "Performance Evaluation",
 };
 
-/** Resolves a development need's source reference to a readable label and a link to the source record (FR-D4-007). */
+/** Resolves a development need's source reference to a readable label and a link to the source record (FR-D4-005). */
 export function describeSource(snapshot: Snapshot, need: Pick<DevelopmentNeedVersion, "sourceType" | "sourceRef" | "employeeId">): { label: string; href: string | null } {
   if (need.sourceType === "competency_gap") {
     const requirement = snapshot.reference.positionRequirements.find((item) => item.id === need.sourceRef);
