@@ -35,7 +35,7 @@ export function CompetencyListPage() {
     .sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName)), [snapshot, search, position, status]);
 
   return <>
-    <PageHeader title="Competency Gap" subtitle="Bandingkan capability/evidence employee dengan requirement position aktif (FR-D4-003)." />
+    <PageHeader title="Competency Gap" subtitle="Bandingkan capability/evidence employee dengan requirement position aktif (FR-D4-002)." />
     <FilterBar canReset={Boolean(search || position || status)} onReset={() => { setSearch(""); setPosition(""); setStatus(""); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Search employee name or ID" />
       <SelectFilter label="All positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />
