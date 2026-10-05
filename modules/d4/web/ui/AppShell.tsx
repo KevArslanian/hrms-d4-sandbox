@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, ChevronDown, Contact, Menu, Printer, SquareTerminal, Users, X } from "lucide-react";
+import { Bell, ChevronDown, LayoutGrid, Menu, Users, X } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { createD4BrowserClient } from "../../supabase/client";
 import { useD4 } from "../data/D4DataProvider";
@@ -19,7 +19,7 @@ export const D4_MENU = [
 
 const roleLabel: Record<string, string> = { HR: "HR", MANAGER: "Manager", EMPLOYEE: "Employee" };
 
-// Matches Figma PISD D3 "sidebar report ticket" (node 2025:217); D4 owns the HRMS sub-menu.
+// Matches Figma PISD D2 HR sidebar (node 1101:3390): HRMS only, Dashboard on top, Logout at the bottom.
 function Sidebar({ onNavigate, onClose }: { onNavigate: () => void; onClose: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -38,27 +38,29 @@ function Sidebar({ onNavigate, onClose }: { onNavigate: () => void; onClose: () 
     }
   }
 
-  const moduleItem = (Icon: typeof Users, label: string) =>
-    <span className="flex items-center gap-3 px-3 py-2.5 text-white"><Icon size={18} /> {label}</span>;
+  const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
   return <div className="flex h-full flex-col bg-[#0f2342] px-4 py-6 text-white">
     <div className="flex items-center gap-3 px-2">
-      <span aria-hidden="true" className="size-9 rounded-lg bg-[#155dfc]" />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/andima-logo.png" alt="" className="h-9 w-auto" />
       <div><p className="text-lg font-bold leading-6">ANDIMA</p><p className="text-xs text-[#d9e2fc]/80">Logistics Suite</p></div>
       <button type="button" onClick={onClose} className="ml-auto rounded p-1 text-[#d9e2fc] lg:hidden" aria-label="Tutup navigasi"><X size={18} /></button>
     </div>
 
-    <nav aria-label="Navigasi utama" className="mt-20 flex-1 space-y-1 overflow-y-auto text-sm font-semibold">
-      {moduleItem(Printer, "POS")}
-      {moduleItem(Contact, "CRM")}
+    <nav aria-label="Navigasi utama" className="mt-8 flex-1 space-y-1 overflow-y-auto text-sm font-semibold">
+      <Link href="/dashboard" onClick={onNavigate} aria-current={isActive("/dashboard") ? "page" : undefined}
+        className={cx("flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors", isActive("/dashboard") ? "bg-white/10 text-white" : "text-white hover:bg-white/5")}>
+        <LayoutGrid size={18} /> Dashboard
+      </Link>
       <button type="button" onClick={() => setHrmsOpen((v) => !v)} aria-expanded={hrmsOpen}
         className="flex w-full items-center justify-between rounded-lg bg-[#155dfc] px-3 py-2 text-white">
         <span className="flex items-center gap-3"><Users size={18} /> HRMS</span>
         <ChevronDown size={16} className={cx("transition-transform", hrmsOpen ? "rotate-0" : "-rotate-90")} />
       </button>
       {hrmsOpen && <div className="ml-5 space-y-1 border-l border-[#50607e] py-2 pl-2.5">
-        {D4_MENU.map((item) => {
-          const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+        {D4_MENU.filter((item) => item.href !== "/dashboard").map((item) => {
+          const active = isActive(item.href);
           return <Link key={item.href} href={item.href} onClick={onNavigate} aria-current={active ? "page" : undefined}
             className={cx("flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors",
               active ? "bg-[#b0c6d4] text-[#4b5b7a]" : "text-[#8b97ad] hover:text-white")}>
@@ -67,7 +69,6 @@ function Sidebar({ onNavigate, onClose }: { onNavigate: () => void; onClose: () 
           </Link>;
         })}
       </div>}
-      {moduleItem(SquareTerminal, "MID")}
     </nav>
 
     {mode === "live"
