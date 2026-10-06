@@ -1,6 +1,6 @@
 "use client";
 
-import { FileSearch, History, Plus, RefreshCw } from "lucide-react";
+import { FileSearch, History, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { TrainingVersion } from "../../../training/types";
 import { useSnapshot } from "../../data/D4DataProvider";
@@ -10,7 +10,7 @@ import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
 import { Button, ButtonLink, Card, InfoGrid, Notice, SourceChip, statusLabel, StatusBadge } from "../../ui/primitives";
-import { TrainingFormModal, TrainingProgressModal } from "./TrainingModals";
+import { TrainingProgressModal } from "./TrainingModals";
 
 export function TrainingListPage() {
   const snapshot = useSnapshot();
@@ -19,7 +19,6 @@ export function TrainingListPage() {
   const [department, setDepartment] = useState("");
   const [period, setPeriod] = useState("");
   const [status, setStatus] = useState("");
-  const [adding, setAdding] = useState(false);
   const [progressFor, setProgressFor] = useState<string | null>(null);
   const all = useMemo(() => {
     const visible = new Set(visibleEmployees(snapshot).map((item) => item.id));
@@ -34,8 +33,7 @@ export function TrainingListPage() {
   });
 
   return <>
-    <PageHeader title="Training Tracking" subtitle="Track training and development from the source requirement to the outcome."
-      actions={writer && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)} data-testid="btn-add-training">Add Training</Button>} />
+    <PageHeader title="Training Tracking" subtitle="Track training and development from the source requirement to the outcome." />
     <FilterBar canReset={Boolean(search || department || period || status)} onReset={() => { setSearch(""); setDepartment(""); setPeriod(""); setStatus(""); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Search keyword" />
       <SelectFilter label="All departments" testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />
@@ -43,7 +41,7 @@ export function TrainingListPage() {
       <SelectFilter label="All status" testId="all-status" value={status} onChange={setStatus} options={["Planned", "In Progress", "Completed", "Cancelled"].map((item) => ({ value: item, label: statusLabel(item) }))} />
     </FilterBar>
     <DataTable<TrainingVersion> rows={rows} noun="training" rowKey={(row) => row.trainingId} rowHref={(row) => `/training/${row.trainingId}`}
-      emptyTitle="No matching training" emptyText="Training is created from a development requirement. Change the filters or add a new training."
+      emptyTitle="No matching training" emptyText="Training is created from a development requirement (Create Training). Change the filters or open Development Requirement."
       columns={[
         { key: "employee", header: "Employee", cell: (row) => { const employee = employeeById(snapshot, row.employeeId); return <PersonCell name={employee?.fullName ?? "—"} code={employee?.employeeId ?? ""} />; } },
         { key: "activity", header: "Training", wrap: true, cell: (row) => <span className="font-semibold">{row.activity}</span> },
@@ -56,7 +54,6 @@ export function TrainingListPage() {
         { label: "Update Progress", testId: "update-progress", icon: <RefreshCw />, onSelect: () => setProgressFor(row.trainingId), hidden: !writer },
         { label: "Open Source Requirement", testId: "open-source-requirement", icon: <FileSearch />, href: `/development/${row.developmentNeedId}` },
       ]} />} />
-    {adding && <TrainingFormModal onClose={() => setAdding(false)} />}
     {progressFor && <TrainingProgressModal trainingId={progressFor} onClose={() => setProgressFor(null)} />}
   </>;
 }

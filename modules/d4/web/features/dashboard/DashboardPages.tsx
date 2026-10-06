@@ -62,7 +62,8 @@ export function DashboardPage() {
       <SearchInput value={search} onChange={setSearch} placeholder="Search name or ID" />
       <SelectFilter label="All positions" testId="all-positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />
       <SelectFilter label="All departments" testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />
-      <SelectFilter label="Latest period" testId="latest-period" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
+      {/* The dashboard always shows one period, so there is no "All periods" choice; it starts on the latest one. */}
+      <SelectFilter label="Period" testId="latest-period" emptyOption={false} value={period || periods[0] || ""} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
     </FilterBar>
     <DataTable<Row> rows={rows} noun="employees" rowKey={(row) => row.employee.id} rowHref={profileHref}
       emptyTitle="No matching employees" emptyText="Change the keyword, position, department, or period, then try again."
@@ -109,7 +110,7 @@ export function EmployeeProfilePage({ employeeId, initialPeriod = "" }: { employ
     <DetailHeader crumbs={[{ label: "HRMS" }, { label: "People Dashboard", href: "/dashboard" }, { label: "Employee" }]} backHref="/dashboard"
       name={employee.fullName} meta={employeeMeta(snapshot, employee)} />
     <FilterBar>
-      <SelectFilter label="Latest period" testId="latest-period" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
+      <SelectFilter label="Period" testId="latest-period" emptyOption={false} value={shown ?? ""} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
       <p className="text-sm text-ink-3">Showing period <strong className="text-ink">{formatPeriod(shown)}</strong> for KPI and performance.</p>
     </FilterBar>
     {scorecard && !validScorecard(scorecard) && <Notice tone="warning">This period’s scorecard does not have five KPIs with a total weight of 100%. Check the data on the KPI Scorecard page before using it.</Notice>}
