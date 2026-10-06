@@ -26,47 +26,36 @@ export function SearchInput({ value, onChange, placeholder }: { value: string; o
   </label>;
 }
 
-/** `emptyOption={false}` drops the "All …" choice for filters that always show one value (the dashboard period). */
+const FILTER_MIN_CHARS = 2;
+
+/**
+ * Filter as type-ahead (reviewer feedback): no full list up front; matching options appear after
+ * FILTER_MIN_CHARS letters. `emptyOption={false}` is for filters that always show one value (the dashboard
+ * period): typing never clears it, and leaving the field restores the chosen label.
+ */
 export function SelectFilter({ label, testId, value, onChange, options, emptyOption = true }: { label: string; testId?: string; value: string; onChange: (value: string) => void; options: { value: string; label: string }[]; emptyOption?: boolean }) {
-  return <label className="relative min-w-[172px] flex-[1_1_172px]">
-    <span className="sr-only">{label}</span>
-    <select data-testid={`filter-${testId ?? slug(label)}`} value={value} onChange={(event) => onChange(event.target.value)} className={cx(control, "appearance-none pr-9", !value && "text-ink-2")}>
-      {emptyOption && <option value="">{label}</option>}
-      {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-    </select>
-    <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 top-3 size-4 text-ink-3" />
-  </label>;
-}
-
-const POSITION_MIN_CHARS = 2;
-
-/** Position filter as type-ahead: no full list; matching positions appear after POSITION_MIN_CHARS letters. */
-export function PositionFilter({ positions, value, onChange }: { positions: readonly { id: string; title: string }[]; value: string; onChange: (value: string) => void }) {
   const listId = useId();
-  const [text, setText] = useState(() => positions.find((item) => item.id === value)?.title ?? "");
-  const [open, setOpen] = useState(false);
-  // "Reset filter" clears the value from outside while the picked title is still shown: clear the text too.
-  const [prevValue, setPrevValue] = useState(value);
-  if (value !== prevValue) {
-    setPrevValue(value);
-    if (!value && text === positions.find((item) => item.id === prevValue)?.title) setText("");
-  }
-  const term = text.trim().toLowerCase();
-  const matches = term.length >= POSITION_MIN_CHARS ? positions.filter((item) => item.title.toLowerCase().includes(term)).slice(0, 8) : [];
-  const pick = (item: { id: string; title: string }) => { setText(item.title); setOpen(false); onChange(item.id); };
-  return <div className="relative min-w-[172px] flex-[1_1_172px]" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}>
+  // null = not editing: the field shows the chosen option's label.
+  const [text, setText] = useState<string | null>(null);
+  const selectedLabel = options.find((option) => option.value === value)?.label ?? "";
+  const term = (text ?? "").trim().toLowerCase();
+  const open = text !== null && term.length >= FILTER_MIN_CHARS;
+  const matches = open ? options.filter((option) => option.label.toLowerCase().includes(term)).slice(0, 8) : [];
+  const pick = (option: { value: string }) => { setText(null); onChange(option.value); };
+  return <div className="relative min-w-[172px] flex-[1_1_172px]" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setText(null); }}>
     <label className="relative block">
-      <span className="sr-only">Position</span>
+      <span className="sr-only">{label}</span>
       <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-3 size-4 text-ink-3" />
-      <input data-testid="filter-all-positions" role="combobox" aria-controls={listId} aria-expanded={open && term.length >= POSITION_MIN_CHARS} aria-autocomplete="list" value={text}
-        onChange={(event) => { setText(event.target.value); setOpen(true); if (value) onChange(""); }} onFocus={() => setOpen(true)}
-        onKeyDown={(event) => { if (event.key === "Escape") setOpen(false); if (event.key === "Enter" && matches[0]) { event.preventDefault(); pick(matches[0]); } }}
-        placeholder="Position" className={cx(control, "pl-9")} />
+      <input data-testid={`filter-${testId ?? slug(label)}`} role="combobox" aria-controls={listId} aria-expanded={open} aria-autocomplete="list" value={text ?? selectedLabel}
+        onFocus={() => setText(selectedLabel)}
+        onChange={(event) => { setText(event.target.value); if (emptyOption && value) onChange(""); }}
+        onKeyDown={(event) => { if (event.key === "Escape") setText(null); if (event.key === "Enter" && matches[0]) { event.preventDefault(); pick(matches[0]); } }}
+        placeholder={label} className={cx(control, "pl-9")} />
     </label>
-    {open && term.length >= POSITION_MIN_CHARS && <ul id={listId} role="listbox" data-testid="position-options" className="absolute inset-x-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-[10px] border border-line bg-surface py-1 text-sm shadow-card">
-      {matches.length ? matches.map((item) => <li key={item.id} role="option" aria-selected={item.id === value}>
-        <button type="button" onClick={() => pick(item)} className="block w-full px-3 py-2 text-left text-ink hover:bg-primary-50 focus:bg-primary-50 focus:outline-none">{item.title}</button>
-      </li>) : <li className="px-3 py-2 text-ink-3">No matching position</li>}
+    {open && <ul id={listId} role="listbox" data-testid={`options-${testId ?? slug(label)}`} className="absolute inset-x-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-[10px] border border-line bg-surface py-1 text-sm shadow-card">
+      {matches.length ? matches.map((option) => <li key={option.value} role="option" aria-selected={option.value === value}>
+        <button type="button" onClick={() => pick(option)} className="block w-full px-3 py-2 text-left text-ink hover:bg-primary-50 focus:bg-primary-50 focus:outline-none">{option.label}</button>
+      </li>) : <li className="px-3 py-2 text-ink-3">No match</li>}
     </ul>}
   </div>;
 }
