@@ -6,7 +6,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import type { EmployeeReference } from "../../../shared/types";
 import type { D4LiveSnapshot, KpiAssessment } from "../../../supabase/types";
 import { useSnapshot } from "../../data/D4DataProvider";
-import { currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, evaluationsOf, formatDate, formatPeriod, formatScore, includesText, positionOf, scorecardsOf, trainings, visibleEmployees } from "../../data/selectors";
+import { currentCompetencyStatus, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, evaluationsOf, formatDate, formatPeriod, formatScore, includesText, positionOf, scorecardsOf, trainings, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader } from "../../ui/layout";
@@ -43,12 +43,11 @@ export function DashboardPage() {
   const rows = useMemo<Row[]>(() => visibleEmployees(snapshot).map((employee) => {
     // Every row shows the same period: the chosen one, else the latest period in the data (bug 20).
     const data = periodData(snapshot, employee.id, period || periods[0] || "");
-    const gap = currentGap(snapshot, employee);
     return {
       employee, position: positionOf(snapshot, employee)?.title ?? "—", period: data.period, scorecard: data.scorecard,
       // Evaluations are notes only, so the dashboard shows whether one exists for the period, not a score.
       performance: data.evaluation ? "Completed" : "Not Evaluated",
-      gap: gap?.overallStatus ?? "Belum Ada Persyaratan",
+      gap: currentCompetencyStatus(snapshot, employee),
       openNeeds: developmentNeeds(snapshot).filter((item) => item.employeeId === employee.id && item.status !== "Completed").length,
       training: trainings(snapshot).find((item) => item.employeeId === employee.id)?.status,
     };
