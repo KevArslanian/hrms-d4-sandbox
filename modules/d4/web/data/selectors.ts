@@ -17,6 +17,8 @@ export function visibleEmployees(snapshot: Snapshot): readonly EmployeeReference
 }
 
 /** Employees the signed-in evaluator may assess: never themselves. */
+/** Writer acting on someone else's record: nobody adds a scorecard or evaluation for themselves. */
+export const canAssess = (snapshot: Snapshot, employeeId: string) => canWrite(snapshot) && employeeId !== snapshot.actorEmployeeId;
 export const assessableEmployees = (snapshot: Snapshot) => visibleEmployees(snapshot).filter((item) => item.id !== snapshot.actorEmployeeId);
 
 export const employeeById = (snapshot: Snapshot, id: string) => snapshot.reference.employees.find((item) => item.id === id);

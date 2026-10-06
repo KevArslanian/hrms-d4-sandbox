@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { isTrainingRollback, localMonth, localToday, revisionNumber } from "@/modules/d4/shared/rules";
+import { assertDevelopmentChange, assertNotFutureDate, isTrainingRollback, localMonth, localToday, revisionNumber } from "@/modules/d4/shared/rules";
 import { assessableEmployees, canWrite, revisionTag, visibleEmployees } from "@/modules/d4/web/data/selectors";
 import type { TrainingStatus } from "@/modules/d4/training/types";
 
@@ -64,5 +64,25 @@ describe("role views (fixture)", () => {
     expect(records.length).toBeGreaterThan(0);
     expect(records.every((item) => item.employeeId === ALFA)).toBe(true);
     await expect(source.createEvaluation({ employeeId: MERCURY, period: "2026-10", evaluationDate: "2026-10-01", evaluator: "x", status: "completed", reviewStatus: "Needs Review", overallScore: 4, aspects: [], generalNotes: "", evidenceReference: null })).rejects.toThrow(/Hanya HR/);
+  });
+});
+
+describe("development status change", () => {
+  it("rejects the same status and a rollback without a reason", () => {
+    expect(() => assertDevelopmentChange("Planned", "Planned", "")).toThrow(/sudah Planned/);
+    expect(() => assertDevelopmentChange("In Progress", "Planned", " ")).toThrow(/Alasan/);
+    expect(() => assertDevelopmentChange("In Progress", "Planned", "Jadwal mundur")).not.toThrow();
+    expect(() => assertDevelopmentChange("Planned", "In Progress", "")).not.toThrow();
+  });
+});
+
+describe("future evaluation date", () => {
+  it("allows today and earlier, rejects tomorrow", () => {
+    const today = localToday();
+    const tomorrow = new Date(`${today}T12:00:00Z`);
+    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+    expect(() => assertNotFutureDate(today)).not.toThrow();
+    expect(() => assertNotFutureDate("2020-01-01")).not.toThrow();
+    expect(() => assertNotFutureDate(tomorrow.toISOString().slice(0, 10))).toThrow(/melebihi hari ini/);
   });
 });
