@@ -37,23 +37,23 @@ export function CompetencyListPage() {
   return <>
     <PageHeader title="Competency Gap" subtitle="Bandingkan capability/evidence employee dengan requirement position aktif." />
     <FilterBar canReset={Boolean(search || position || status)} onReset={() => { setSearch(""); setPosition(""); setStatus(""); }}>
-      <SearchInput value={search} onChange={setSearch} placeholder="Search employee name or ID" />
-      <SelectFilter label="All positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />
-      <SelectFilter label="All gap status" value={status} onChange={setStatus} options={STATUS_FILTER.map((item) => ({ value: item, label: item }))} />
+      <SearchInput value={search} onChange={setSearch} placeholder="Cari nama atau ID karyawan" />
+      <SelectFilter label="Semua posisi" testId="all-positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />
+      <SelectFilter label="Semua status gap" testId="all-gap-status" value={status} onChange={setStatus} options={STATUS_FILTER.map((item) => ({ value: item, label: item }))} />
     </FilterBar>
-    <DataTable<Row> rows={rows} noun="employees" rowKey={(row) => row.employee.id} rowHref={(row) => `/competency/${row.employee.id}`}
-      emptyTitle="Tidak ada employee yang cocok" emptyText="Ubah kata kunci atau reset filter."
+    <DataTable<Row> rows={rows} noun="karyawan" rowKey={(row) => row.employee.id} rowHref={(row) => `/competency/${row.employee.id}`}
+      emptyTitle="Tidak ada karyawan yang cocok" emptyText="Ubah kata kunci atau reset filter."
       columns={[
-        { key: "employee", header: "Employee", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
-        { key: "position", header: "Position", wrap: true, cell: (row) => row.position },
-        { key: "requirements", header: "Requirements", className: "tabular-nums", cell: (row) => row.findings.length || "—" },
+        { key: "employee", header: "Karyawan", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
+        { key: "position", header: "Posisi", wrap: true, cell: (row) => row.position },
+        { key: "requirements", header: "Requirement", className: "tabular-nums", cell: (row) => row.findings.length || "—" },
         { key: "gaps", header: "Gap", className: "tabular-nums", cell: (row) => row.findings.filter((item) => item.status === "Gap").length || "—" },
         { key: "status", header: "Status", cell: (row) => <StatusBadge status={row.status} /> },
-        { key: "assessed", header: "Last saved", cell: (row) => formatDate(row.lastAssessed) },
+        { key: "assessed", header: "Terakhir disimpan", cell: (row) => formatDate(row.lastAssessed) },
       ]}
       actions={(row) => <RowActionMenu label={`Aksi untuk ${row.employee.fullName}`} actions={[
-        { label: "View History", icon: <History />, href: `/competency/${row.employee.id}/history` },
-        { label: "Create Development Requirement", icon: <FilePlus2 />, onSelect: () => setDevFor(row.employee.id),
+        { label: "Lihat Riwayat", testId: "view-history", icon: <History />, href: `/competency/${row.employee.id}/history` },
+        { label: "Buat Development Requirement", testId: "create-development-requirement", icon: <FilePlus2 />, onSelect: () => setDevFor(row.employee.id),
           hidden: !writer || row.status !== "Gap" || row.findings.filter((item) => item.status === "Gap").every((item) => openNeedFor(allNeeds, row.employee.id, "competency_gap", item.requirementId)) },
       ]} />} />
     {devFor && <DevelopmentFormModal employeeId={devFor} sourceType="competency_gap" onClose={() => setDevFor(null)} />}
@@ -93,7 +93,7 @@ export function CompetencyDetailPage({ employeeId }: { employeeId: string }) {
   const [devRef, setDevRef] = useState<string | null>(null);
   const [changing, setChanging] = useState(false);
   const employee = employeeById(snapshot, employeeId);
-  if (!employee || !visibleEmployees(snapshot).some((item) => item.id === employeeId)) return <NotFound what="Employee" backHref="/competency" backLabel="Kembali ke Competency Gap" />;
+  if (!employee || !visibleEmployees(snapshot).some((item) => item.id === employeeId)) return <NotFound what="Karyawan" backHref="/competency" backLabel="Kembali ke Competency Gap" />;
   const gap = currentGap(snapshot, employee);
   const needs = developmentNeeds(snapshot).filter((item) => item.employeeId === employee.id && item.sourceType === "competency_gap");
   const saveSnapshot = () => employee.positionId && void run((source) => source.saveCompetency({ employeeId: employee.id, positionId: employee.positionId!, effectiveDate: today() }), "Assessment kompetensi tersimpan ke riwayat.");
@@ -103,15 +103,15 @@ export function CompetencyDetailPage({ employeeId }: { employeeId: string }) {
       name={employee.fullName} meta={[positionOf(snapshot, employee)?.title ?? "Belum ada posisi", employee.employeeId, departmentOf(snapshot, employee)?.name ?? ""]}
       status={gap?.overallStatus}
       actions={<>
-        <ButtonLink href={`/competency/${employee.id}/history`} icon={<History className="size-4" />}>View History</ButtonLink>
-        {writer && <Button variant="secondary" icon={<ArrowRightLeft className="size-4" />} onClick={() => setChanging(true)}>Assess Position Change</Button>}
-        {writer && gap && gap.findings.length > 0 && <Button icon={<Save className="size-4" />} disabled={busy} onClick={saveSnapshot}>Save Assessment</Button>}
+        <ButtonLink href={`/competency/${employee.id}/history`} icon={<History className="size-4" />} testId="view-history">Lihat Riwayat</ButtonLink>
+        {writer && <Button variant="secondary" icon={<ArrowRightLeft className="size-4" />} onClick={() => setChanging(true)} data-testid="btn-assess-position-change">Nilai Perubahan Posisi</Button>}
+        {writer && gap && gap.findings.length > 0 && <Button icon={<Save className="size-4" />} disabled={busy} onClick={saveSnapshot} data-testid="btn-save-assessment">Simpan Assessment</Button>}
       </>} />
     <Notice>Ketiadaan evidence ditandai <strong>Data Belum Cukup</strong>, bukan otomatis Gap. Gap tidak otomatis menugaskan training, promosi, atau sertifikasi.</Notice>
-    <Card title="Requirement vs capability" padded={false}>
+    <Card title="Requirement vs kemampuan" testId="requirement-vs-capability" padded={false}>
       <div className="overflow-x-auto">
         <table data-testid="competency-gap-table" className="w-full min-w-[760px] text-left text-sm">
-          <thead className="bg-app text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3"><tr><th className="px-5 py-2.5">Competency</th><th className="px-5 py-2.5">Required</th><th className="px-5 py-2.5">Actual</th><th className="px-5 py-2.5">Evidence</th><th className="px-5 py-2.5">Status</th><th className="px-5 py-2.5 text-right">Action</th></tr></thead>
+          <thead className="bg-app text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3"><tr><th className="px-5 py-2.5">Kompetensi</th><th className="px-5 py-2.5">Dibutuhkan</th><th className="px-5 py-2.5">Aktual</th><th className="px-5 py-2.5">Bukti</th><th className="px-5 py-2.5">Status</th><th className="px-5 py-2.5 text-right">Aksi</th></tr></thead>
           <tbody>{(gap?.findings ?? []).map((finding) => {
             // Prefer the unfinished need; a completed one does not block raising a new need for a gap that remains.
             const open = needs.find((need) => need.sourceRef === finding.requirementId && need.status !== "Completed");
@@ -120,14 +120,14 @@ export function CompetencyDetailPage({ employeeId }: { employeeId: string }) {
               <td className="px-5 py-3 font-semibold">{finding.competencyName}</td>
               <td className="px-5 py-3 tabular-nums">Level {finding.requiredLevel}</td>
               <td className="px-5 py-3 tabular-nums">{finding.actualLevel === null ? "—" : `Level ${finding.actualLevel}`}</td>
-              <td className="max-w-[280px] px-5 py-3 text-ink-2">{finding.evidenceNotes?.trim() || "Belum ada evidence"}</td>
+              <td className="max-w-[280px] px-5 py-3 text-ink-2">{finding.evidenceNotes?.trim() || "Belum ada bukti"}</td>
               <td className="px-5 py-3"><StatusBadge status={finding.status} /></td>
-              <td className="px-5 py-3 text-right">{linked && (open || finding.status !== "Gap" || !writer) ? <SourceChip label="Development" reference={linked.status} href={`/development/${linked.needId}`} />
-                : finding.status === "Gap" && writer ? <Button variant="ghost" className="h-9" icon={<FilePlus2 className="size-4" />} onClick={() => setDevRef(finding.requirementId)}>Create Development Requirement</Button> : "—"}</td>
+              <td className="px-5 py-3 text-right">{linked && (open || finding.status !== "Gap" || !writer) ? <SourceChip label="Development" reference={statusLabel(linked.status)} href={`/development/${linked.needId}`} />
+                : finding.status === "Gap" && writer ? <Button variant="ghost" className="h-9" icon={<FilePlus2 className="size-4" />} onClick={() => setDevRef(finding.requirementId)} data-testid="btn-create-development-requirement">Buat Development Requirement</Button> : "—"}</td>
             </tr>;
           })}</tbody>
         </table>
-        {!gap?.findings.length && <p className="px-5 py-10 text-center text-sm text-ink-3">{gap ? "Position ini belum memiliki requirement kompetensi." : "Employee belum memiliki position aktif."}</p>}
+        {!gap?.findings.length && <p className="px-5 py-10 text-center text-sm text-ink-3">{gap ? "Posisi ini belum memiliki requirement kompetensi." : "Karyawan belum memiliki posisi aktif."}</p>}
       </div>
     </Card>
     {devRef && <DevelopmentFormModal employeeId={employee.id} sourceType="competency_gap" sourceRef={devRef} onClose={() => setDevRef(null)} />}
@@ -138,15 +138,15 @@ export function CompetencyDetailPage({ employeeId }: { employeeId: string }) {
 export function CompetencyHistoryPage({ employeeId }: { employeeId: string }) {
   const snapshot = useSnapshot();
   const employee = employeeById(snapshot, employeeId);
-  if (!employee || !visibleEmployees(snapshot).some((item) => item.id === employeeId)) return <NotFound what="Employee" backHref="/competency" backLabel="Kembali ke Competency Gap" />;
+  if (!employee || !visibleEmployees(snapshot).some((item) => item.id === employeeId)) return <NotFound what="Karyawan" backHref="/competency" backLabel="Kembali ke Competency Gap" />;
   const saved = snapshot.competency.filter((item) => item.employeeId === employee.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   return <>
-    <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Competency Gap", href: "/competency" }, { label: "History" }]} backHref={`/competency/${employee.id}`}
+    <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Competency Gap", href: "/competency" }, { label: "Riwayat" }]} backHref={`/competency/${employee.id}`}
       name={employee.fullName} meta={[positionOf(snapshot, employee)?.title ?? "", employee.employeeId, `${saved.length} assessment tersimpan`]} />
-    <Card title="Assessment history">
-      <Timeline empty="Belum ada assessment kompetensi yang disimpan untuk employee ini." entries={saved.map((item) => ({
+    <Card title="Riwayat assessment" testId="assessment-history">
+      <Timeline empty="Belum ada assessment kompetensi yang disimpan untuk karyawan ini." entries={saved.map((item) => ({
         id: item.id, date: formatDate(item.effectiveDate), status: item.overallStatus, actor: item.actor,
-        title: `${positionById(snapshot, item.positionId)?.title ?? "Position"} — ${item.context === "role-change" ? "perubahan posisi" : "posisi saat ini"}`,
+        title: `${positionById(snapshot, item.positionId)?.title ?? "Posisi"} — ${item.context === "role-change" ? "perubahan posisi" : "posisi saat ini"}`,
         body: `${item.findings.length} requirement · ${item.findings.filter((finding) => finding.status === "Gap").length} gap · ${item.findings.filter((finding) => finding.status === "Bukti Belum Cukup").length} data belum cukup`,
       }))} />
     </Card>

@@ -13,7 +13,7 @@ export function FilterBar({ children, onReset, canReset }: { children: ReactNode
   return <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-surface p-3 shadow-card">
     {children}
     {onReset && <button type="button" data-testid="btn-filter-reset" onClick={onReset} disabled={!canReset} className="ml-auto inline-flex h-10 items-center gap-1.5 rounded-[10px] px-3 text-sm font-semibold text-primary-600 hover:bg-primary-50 disabled:text-ink-3 disabled:hover:bg-transparent">
-      <X aria-hidden="true" className="size-4" />Reset
+      <X aria-hidden="true" className="size-4" />Reset filter
     </button>}
   </div>;
 }
@@ -26,10 +26,10 @@ export function SearchInput({ value, onChange, placeholder }: { value: string; o
   </label>;
 }
 
-export function SelectFilter({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: { value: string; label: string }[] }) {
+export function SelectFilter({ label, testId, value, onChange, options }: { label: string; testId?: string; value: string; onChange: (value: string) => void; options: { value: string; label: string }[] }) {
   return <label className="relative min-w-[160px] flex-[1_1_160px]">
     <span className="sr-only">{label}</span>
-    <select data-testid={`filter-${slug(label)}`} value={value} onChange={(event) => onChange(event.target.value)} className={cx(control, "appearance-none pr-9", !value && "text-ink-2")}>
+    <select data-testid={`filter-${testId ?? slug(label)}`} value={value} onChange={(event) => onChange(event.target.value)} className={cx(control, "appearance-none pr-9", !value && "text-ink-2")}>
       <option value="">{label}</option>
       {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
     </select>
