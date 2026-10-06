@@ -85,6 +85,7 @@ Butuh `D4_SEED_EMAIL` dan `D4_SEED_PASSWORD` akun HR/MANAGER di `.env.local`. Se
 | `20260929130000_retire_d4_figma_demo_access.sql` | Diterapkan |
 | `20260929140000_d4_kpi_assessments_v31.sql` | Diterapkan |
 | `20260929150000_d4_kpi_catalog_v51.sql` | **Belum**. Menambah katalog V5.1 dan `definition_version`; perlu persetujuan sebelum diterapkan |
+| `20261006120000_d4_evaluation_score_optional.sql` | **Belum**. Evaluasi completed tidak lagi wajib punya `overall_score`; tanpa migrasi ini simpan evaluasi di mode live ditolak database |
 
 Status dicek dengan `list_migrations` pada 29 Sep 2026. Nama migrasi di database sama, tetapi timestamp versinya berbeda dari nama file (misalnya `d4_kpi_role_catalog_v31` tercatat sebagai `20260929043134`).
 

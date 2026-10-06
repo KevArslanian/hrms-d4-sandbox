@@ -129,6 +129,15 @@ Tidak diterjemahkan: nama KPI katalog V5.1, data D3 (karyawan, posisi, kompetens
 - **Training Tracking**: tombol **Add Training** di header dihapus; training dibuat dari Development Requirement → **Create Training**.
 - **Tombol detail**: Assess Position Change (Competency) dan Update Status (Development) menjadi primer biru seperti Add Evaluation / Add Scorecard / Update Progress. View History dan link navigasi tetap putih.
 
+## Evaluasi kinerja tanpa skor · 6 Okt 2026
+
+Keputusan pemilik produk: Performance Evaluation hanya berisi catatan; skor hanya di KPI Scorecard.
+
+- Form Add Evaluation tidak lagi punya field **Evaluation result**; API mengabaikan `overallScore` dan menyimpan `null`.
+- Tabel Performance: kolom Result diganti **Notes**. Detail: Evaluation result dan Criteria dihapus. Riwayat: judul tanpa skor.
+- People Dashboard: kolom Performance (skor) menjadi **Evaluation** (Completed / Not Evaluated); kartu profil menampilkan catatan evaluasi.
+- Database: migrasi `20261006120000_d4_evaluation_score_optional.sql` melonggarkan check `d4_performance_evaluations_check` (skor tidak wajib untuk status completed). Kolom `overall_score` tetap ada untuk evaluasi lama. **Belum diterapkan**; sampai diterapkan, simpan evaluasi di mode live ditolak database.
+
 ## Belum selesai
 
 | Item | Alasan | Langkah berikut |

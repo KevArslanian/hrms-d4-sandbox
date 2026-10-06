@@ -39,7 +39,8 @@ export async function createEvaluation(request: Request) {
     status,
     // Legacy columns of d4_performance_evaluations: FR-D4-001 defines no review label or aspects, so the API stores neutral values.
     reviewStatus: "Needs Review",
-    overallScore: field.score(body.overallScore, "Evaluation result", { required: completed }),
+    // Evaluations are notes only; scoring lives in the KPI Scorecard. Any submitted score is ignored.
+    overallScore: null,
     aspects: [],
     generalNotes: field.text(body, "generalNotes", { required: completed, max: 4000 }),
     evidenceReference: field.text(body, "evidenceReference", { required: false, max: 500 }) || null,
