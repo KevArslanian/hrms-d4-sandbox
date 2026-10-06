@@ -6,7 +6,7 @@ import { useD4, useSnapshot } from "../../data/D4DataProvider";
 import { developmentNeeds, today, trainingById, visibleEmployees } from "../../data/selectors";
 import { isTrainingRollback } from "../../../shared/rules";
 import { FormError, FormModal, ModalActions, SelectField, TextAreaField, TextField } from "../../ui/forms";
-import { Notice } from "../../ui/primitives";
+import { Notice, statusLabel } from "../../ui/primitives";
 
 const STATUSES: TrainingStatus[] = ["Planned", "In Progress", "Completed", "Cancelled"];
 
@@ -47,11 +47,11 @@ export function TrainingFormModal({ employeeId, developmentNeedId, onClose }: { 
         <SelectField label="Requirement sumber" testId="source-requirement" required value={need} onChange={(event) => setNeed(event.target.value)} error={touched && !needOpen ? "Pilih development requirement yang masih terbuka." : undefined} className="sm:col-span-2"
           helper="Requirement berstatus Completed tidak ditampilkan.">
           <option value="">{needs.length ? "Pilih development requirement" : "Karyawan belum memiliki development requirement yang terbuka"}</option>
-          {needs.map((item) => <option key={item.needId} value={item.needId}>{item.objective} · {item.status}</option>)}
+          {needs.map((item) => <option key={item.needId} value={item.needId}>{item.objective} · {statusLabel(item.status)}</option>)}
         </SelectField>
         <TextField label="Training / aktivitas" testId="training-activity" required value={activity} onChange={(event) => setActivity(event.target.value)} error={touched && !activity.trim() ? "Nama aktivitas wajib diisi." : undefined} className="sm:col-span-2" />
         <TextField label="Tanggal" testId="date" required type="date" value={date} onChange={(event) => setDate(event.target.value)} />
-        <SelectField label="Status" required value={status} onChange={(event) => setStatus(event.target.value as TrainingStatus)}>{STATUSES.map((item) => <option key={item}>{item}</option>)}</SelectField>
+        <SelectField label="Status" required value={status} onChange={(event) => setStatus(event.target.value as TrainingStatus)}>{STATUSES.map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}</SelectField>
         <TextField label="Hasil" testId="result" required={status === "Completed"} value={result} onChange={(event) => setResult(event.target.value)} error={touched && status === "Completed" && !result.trim() ? "Hasil wajib diisi saat Completed." : undefined} className="sm:col-span-2" />
       </div>
       <TextAreaField label="Catatan" testId="notes" value={notes} onChange={(event) => setNotes(event.target.value)} />
@@ -75,18 +75,18 @@ export function TrainingProgressModal({ trainingId, onClose }: { trainingId: str
     event.preventDefault();
     setTouched(true);
     if (status === "Completed" && !result.trim()) { setError("Hasil wajib diisi saat training Completed."); return; }
-    if (rollback && !notes.trim()) { setError(`Alasan perubahan wajib diisi saat status kembali dari ${record?.status} ke ${status}.`); return; }
+    if (rollback && !notes.trim()) { setError(`Alasan perubahan wajib diisi saat status kembali dari ${statusLabel(record?.status ?? "")} ke ${statusLabel(status)}.`); return; }
     const saved = await run((source) => source.updateTraining(trainingId, status, result, notes), "Progress training disimpan sebagai versi baru.");
     if (saved.ok) onClose(); else setError(saved.error);
   }
   return <FormModal title="Perbarui Progress" description={record?.activity} onClose={onClose} footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Simpan Progress" disabled={unchanged} />}>
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />
-      <SelectField label="Status" required value={status} onChange={(event) => setStatus(event.target.value as TrainingStatus)}>{STATUSES.map((item) => <option key={item}>{item}</option>)}</SelectField>
+      <SelectField label="Status" required value={status} onChange={(event) => setStatus(event.target.value as TrainingStatus)}>{STATUSES.map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}</SelectField>
       <TextField label="Hasil" testId="result" required={status === "Completed"} value={result} onChange={(event) => setResult(event.target.value)} />
       <TextAreaField label={rollback ? "Alasan perubahan" : "Catatan update"} testId={rollback ? "alasan-perubahan" : "update-notes"} required={rollback} value={notes} onChange={(event) => setNotes(event.target.value)}
         error={touched && rollback && !notes.trim() ? "Alasan wajib diisi." : undefined}
-        helper={rollback ? `Status mundur dari ${record?.status}; alasan tersimpan di riwayat versi.` : undefined} />
+        helper={rollback ? `Status mundur dari ${statusLabel(record?.status ?? "")}; alasan tersimpan di riwayat versi.` : undefined} />
       <Notice tone="warning">Menandai training Completed tidak menutup competency gap secara otomatis; perlu reassessment.</Notice>
     </form>
   </FormModal>;
