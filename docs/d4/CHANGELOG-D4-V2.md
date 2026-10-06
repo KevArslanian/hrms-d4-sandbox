@@ -123,6 +123,12 @@ Keputusan pemilik produk: tampilan D4 di Vercel memakai bahasa Inggris dan font 
 
 Tidak diterjemahkan: nama KPI katalog V5.1, data D3 (karyawan, posisi, kompetensi), isi data seed live, dan pesan error yang dibangkitkan fungsi database (`raise exception` di migrasi Supabase).
 
+## Konsistensi filter dan tombol · 6 Okt 2026
+
+- **Filter**: label seragam `All …` dan urutan Position → Department → Source → Period → Status. "Latest period" di Performance/KPI menjadi **All periods**; "All gap status" di Competency menjadi **All status**. Filter periode People Dashboard (daftar dan profil) tidak lagi punya pilihan kosong dan langsung menampilkan periode terbaru (mis. "Sep 2026"). `data-testid` tetap.
+- **Training Tracking**: tombol **Add Training** di header dihapus; training dibuat dari Development Requirement → **Create Training**.
+- **Tombol detail**: Assess Position Change (Competency) dan Update Status (Development) menjadi primer biru seperti Add Evaluation / Add Scorecard / Update Progress. View History dan link navigasi tetap putih.
+
 ## Belum selesai
 
 | Item | Alasan | Langkah berikut |

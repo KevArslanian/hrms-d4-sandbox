@@ -42,7 +42,7 @@ export function CompetencyListPage() {
       <SearchInput value={search} onChange={setSearch} placeholder="Search name or ID" />
       <SelectFilter label="All positions" testId="all-positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />
       <SelectFilter label="All departments" testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />
-      <SelectFilter label="All gap status" testId="all-gap-status" value={status} onChange={setStatus} options={STATUS_FILTER.map((item) => ({ value: item, label: item }))} />
+      <SelectFilter label="All status" testId="all-gap-status" value={status} onChange={setStatus} options={STATUS_FILTER.map((item) => ({ value: item, label: item }))} />
     </FilterBar>
     <DataTable<Row> rows={rows} noun="employees" rowKey={(row) => row.employee.id} rowHref={(row) => `/competency/${row.employee.id}`}
       emptyTitle="No matching employees" emptyText="Change the keyword or reset the filters."
@@ -108,7 +108,7 @@ export function CompetencyDetailPage({ employeeId }: { employeeId: string }) {
       status={gap?.overallStatus}
       actions={<>
         <ButtonLink href={`/competency/${employee.id}/history`} icon={<History className="size-4" />} testId="view-history">View History</ButtonLink>
-        {writer && <Button variant="secondary" icon={<ArrowRightLeft className="size-4" />} onClick={() => setChanging(true)} data-testid="btn-assess-position-change">Assess Position Change</Button>}
+        {writer && <Button icon={<ArrowRightLeft className="size-4" />} onClick={() => setChanging(true)} data-testid="btn-assess-position-change">Assess Position Change</Button>}
         {writer && gap && gap.findings.length > 0 && <Button icon={<Save className="size-4" />} disabled={busy} onClick={saveSnapshot} data-testid="btn-save-assessment">Save Assessment</Button>}
       </>} />
     <Notice>Missing evidence is marked <strong>Insufficient Data</strong>, not automatically Gap. A gap never assigns training, promotion, or certification automatically.</Notice>
