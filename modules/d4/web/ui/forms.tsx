@@ -47,36 +47,37 @@ function FieldShell({ label, required, error, helper, children, id, className }:
   </div>;
 }
 
-type Common = { label: string; required?: boolean; error?: string; helper?: string; className?: string };
+/** testId: keeps the Katalon id from the original English label when the visible label is translated. */
+type Common = { label: string; testId?: string; required?: boolean; error?: string; helper?: string; className?: string };
 
-export function TextField({ label, required, error, helper, className, ...props }: Common & InputHTMLAttributes<HTMLInputElement>) {
+export function TextField({ label, testId, required, error, helper, className, ...props }: Common & InputHTMLAttributes<HTMLInputElement>) {
   const id = useId();
   return <FieldShell {...{ label, required, error, helper, id, className }}>
-    <input id={id} data-testid={`input-${slug(label)}`} aria-invalid={Boolean(error)} aria-describedby={error || helper ? `${id}-message` : undefined} required={required} {...props} className={control} />
+    <input id={id} data-testid={`input-${testId ?? slug(label)}`} aria-invalid={Boolean(error)} aria-describedby={error || helper ? `${id}-message` : undefined} required={required} {...props} className={control} />
   </FieldShell>;
 }
 
-export function SelectField({ label, required, error, helper, className, children, ...props }: Common & SelectHTMLAttributes<HTMLSelectElement>) {
+export function SelectField({ label, testId, required, error, helper, className, children, ...props }: Common & SelectHTMLAttributes<HTMLSelectElement>) {
   const id = useId();
   return <FieldShell {...{ label, required, error, helper, id, className }}>
     <div className="relative">
-      <select id={id} data-testid={`input-${slug(label)}`} aria-invalid={Boolean(error)} aria-describedby={error || helper ? `${id}-message` : undefined} required={required} {...props} className={cx(control, "appearance-none pr-9")}>{children}</select>
+      <select id={id} data-testid={`input-${testId ?? slug(label)}`} aria-invalid={Boolean(error)} aria-describedby={error || helper ? `${id}-message` : undefined} required={required} {...props} className={cx(control, "appearance-none pr-9")}>{children}</select>
       <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 top-3 size-4 text-ink-3" />
     </div>
   </FieldShell>;
 }
 
-export function TextAreaField({ label, required, error, helper, className, ...props }: Common & TextareaHTMLAttributes<HTMLTextAreaElement>) {
+export function TextAreaField({ label, testId, required, error, helper, className, ...props }: Common & TextareaHTMLAttributes<HTMLTextAreaElement>) {
   const id = useId();
   return <FieldShell {...{ label, required, error, helper, id, className }}>
-    <textarea id={id} data-testid={`input-${slug(label)}`} aria-invalid={Boolean(error)} aria-describedby={error || helper ? `${id}-message` : undefined} required={required} rows={3} {...props} className={cx(control, "h-auto py-2.5")} />
+    <textarea id={id} data-testid={`input-${testId ?? slug(label)}`} aria-invalid={Boolean(error)} aria-describedby={error || helper ? `${id}-message` : undefined} required={required} rows={3} {...props} className={cx(control, "h-auto py-2.5")} />
   </FieldShell>;
 }
 
-export function ReadOnlyField({ label, value, className }: { label: string; value: ReactNode; className?: string }) {
+export function ReadOnlyField({ label, testId, value, className }: { label: string; testId?: string; value: ReactNode; className?: string }) {
   return <div className={cx("min-w-0", className)}>
     <p className="mb-1.5 text-sm font-semibold text-ink-2">{label}</p>
-    <div data-testid={`readonly-${slug(label)}`} className="flex min-h-10 items-center rounded-[10px] bg-muted px-3 text-sm text-ink">{value}</div>
+    <div data-testid={`readonly-${testId ?? slug(label)}`} className="flex min-h-10 items-center rounded-[10px] bg-muted px-3 text-sm text-ink">{value}</div>
   </div>;
 }
 
@@ -151,9 +152,9 @@ export function FormModal({ title, description, size = "md", onClose, children, 
 
 export function ModalActions({ onCancel, busy, submitLabel, secondary, disabled = false }: { onCancel: () => void; busy: boolean; submitLabel: string; secondary?: ReactNode; disabled?: boolean }) {
   return <>
-    <Button variant="secondary" data-testid="btn-modal-cancel" onClick={onCancel}>Cancel</Button>
+    <Button variant="secondary" data-testid="btn-modal-cancel" onClick={onCancel}>Batal</Button>
     {secondary}
-    <Button type="submit" form="d4-modal-form" data-testid="btn-modal-submit" disabled={busy || disabled}>{busy ? "Saving…" : submitLabel}</Button>
+    <Button type="submit" form="d4-modal-form" data-testid="btn-modal-submit" disabled={busy || disabled}>{busy ? "Menyimpan…" : submitLabel}</Button>
   </>;
 }
 

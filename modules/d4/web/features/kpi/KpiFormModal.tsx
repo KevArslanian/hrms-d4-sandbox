@@ -56,10 +56,10 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
   async function submit(event: FormEvent) {
     event.preventDefault();
     setTouched(true);
-    if (!employee) { setError("Pilih employee terlebih dahulu."); return; }
-    if (!roleOrder || lines.length !== 5 || totalWeight !== 100) { setError("KPI untuk position ini belum tersedia di KPI Scorecard; scorecard tidak dapat disimpan."); return; }
-    if (!allScored || !period || !date) { setError("Lengkapi periode, evaluation date, dan skor 1–5 untuk kelima KPI."); return; }
-    if (date > today()) { setError("Evaluation date tidak boleh melebihi hari ini."); return; }
+    if (!employee) { setError("Pilih karyawan terlebih dahulu."); return; }
+    if (!roleOrder || lines.length !== 5 || totalWeight !== 100) { setError("KPI untuk posisi ini belum tersedia di KPI Scorecard; scorecard tidak dapat disimpan."); return; }
+    if (!allScored || !period || !date) { setError("Lengkapi periode, tanggal evaluasi, dan skor 1–5 untuk kelima KPI."); return; }
+    if (date > today()) { setError("Tanggal evaluasi tidak boleh melebihi hari ini."); return; }
     if (existing && !revise) { setError("Scorecard periode ini sudah ada. Centang “Simpan sebagai revisi” atau ganti periode."); return; }
     setError("");
     const result = await run((source) => source.createKpiAssessment({ employeeId: employee, roleOrder, period, evaluationDate: date, evaluatorName: evaluator, status: "completed", lines, generalNotes: notes, revisionOf: existing?.id ?? null }),
@@ -67,26 +67,26 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
     if (result.ok) { onSaved?.(result.value); onClose(); } else setError(result.error);
   }
 
-  return <FormModal size="lg" title="Add Scorecard" description={`Lima Core KPI dan bobot mengikuti KPI Scorecard ${catalog?.version ?? ""} sesuai position employee.`} onClose={onClose}
-    footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Scorecard" disabled={Boolean(employee) && !lines.length} />}>
+  return <FormModal size="lg" title="Tambah Scorecard" description={`Lima Core KPI dan bobot mengikuti KPI Scorecard ${catalog?.version ?? ""} sesuai posisi karyawan.`} onClose={onClose}
+    footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Simpan Scorecard" disabled={Boolean(employee) && !lines.length} />}>
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />
       <div className="grid gap-4 sm:grid-cols-3">
-        <SelectField label="Employee" required value={employee} onChange={(event) => chooseEmployee(event.target.value)} error={touched && !employee ? "Employee wajib dipilih." : undefined} className="sm:col-span-2">
-          <option value="">Select employee</option>
+        <SelectField label="Karyawan" testId="employee" required value={employee} onChange={(event) => chooseEmployee(event.target.value)} error={touched && !employee ? "Karyawan wajib dipilih." : undefined} className="sm:col-span-2">
+          <option value="">Pilih karyawan</option>
           {assessableEmployees(snapshot).map((item) => <option key={item.id} value={item.id}>{item.fullName} · {item.employeeId}</option>)}
         </SelectField>
-        <TextField label="Period" required type="month" value={period} onChange={(event) => setPeriod(event.target.value)} error={touched && !period ? "Periode wajib dipilih." : undefined} />
-        <ReadOnlyField label="Position" value={position?.title ?? "—"} />
-        <ReadOnlyField label="Department" value={departmentOf(snapshot, selected)?.name ?? "—"} />
+        <TextField label="Periode" testId="period" required type="month" value={period} onChange={(event) => setPeriod(event.target.value)} error={touched && !period ? "Periode wajib dipilih." : undefined} />
+        <ReadOnlyField label="Posisi" testId="position" value={position?.title ?? "—"} />
+        <ReadOnlyField label="Departemen" testId="department" value={departmentOf(snapshot, selected)?.name ?? "—"} />
         <ReadOnlyField label="KPI jabatan" value={!employee ? "—" : roleName ?? `Belum ada di katalog ${catalog?.version ?? ACTIVE_KPI_VERSION}`} />
-        <TextField label="Evaluation date" required type="date" max={today()} value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? "Tanggal wajib diisi." : touched && date > today() ? "Tidak boleh melebihi hari ini." : undefined} />
-        <ReadOnlyField label="Evaluator" value={evaluator || "—"} className="sm:col-span-2" />
+        <TextField label="Tanggal evaluasi" testId="evaluation-date" required type="date" max={today()} value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? "Tanggal wajib diisi." : touched && date > today() ? "Tidak boleh melebihi hari ini." : undefined} />
+        <ReadOnlyField label="Penilai" testId="evaluator" value={evaluator || "—"} className="sm:col-span-2" />
       </div>
       {existing && <RevisionConfirm what="Scorecard" existing={`${existing.evaluatorName}, ${formatDate(existing.evaluationDate)}`} checked={revise} onChange={setRevise}
         error={touched && !revise ? "Centang untuk menyimpan sebagai revisi, atau ganti periode." : undefined} />}
 
-      {employee && !lines.length ? <Notice tone="warning">{position ? noKpiText(catalog?.version) : "Employee belum memiliki position aktif, sehingga KPI belum dapat ditentukan."}</Notice> : <div className="overflow-x-auto rounded-2xl border border-line">
+      {employee && !lines.length ? <Notice tone="warning">{position ? noKpiText(catalog?.version) : "Karyawan belum memiliki posisi aktif, sehingga KPI belum dapat ditentukan."}</Notice> : <div className="overflow-x-auto rounded-2xl border border-line">
         <table data-testid="kpi-lines-table" className="w-full min-w-[920px] text-left text-sm">
           <thead className="bg-app text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3">
             <tr><th className="w-10 px-3 py-2.5">No</th><th className="px-3 py-2.5">Core KPI</th><th className="w-20 px-3 py-2.5">Bobot</th><th className="w-36 px-3 py-2.5">Target</th><th className="w-36 px-3 py-2.5">Realisasi</th><th className="w-24 px-3 py-2.5">Skor 1–5</th><th className="w-24 px-3 py-2.5 text-right">Terbobot</th><th className="w-44 px-3 py-2.5">Komentar</th></tr>
@@ -106,7 +106,7 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
           <tfoot className="border-t border-line bg-app">
             <tr><td colSpan={2} className="px-3 py-3 font-semibold">Total</td>
               <td className="px-3 py-3"><span className={cx("inline-flex items-center gap-1 text-xs font-semibold", totalWeight === 100 ? "text-success" : "text-danger")}>{totalWeight === 100 ? <CheckCircle2 className="size-3.5" /> : <CircleAlert className="size-3.5" />}{lines.length ? `${totalWeight}%` : "—"}</span></td>
-              <td colSpan={3} className="px-3 py-3 text-xs text-ink-3">{lines.length ? (totalWeight === 100 ? "Total bobot 100%" : "Total bobot harus 100%") : "Pilih employee untuk menampilkan KPI position-nya."}</td>
+              <td colSpan={3} className="px-3 py-3 text-xs text-ink-3">{lines.length ? (totalWeight === 100 ? "Total bobot 100%" : "Total bobot harus 100%") : "Pilih karyawan untuk menampilkan KPI posisinya."}</td>
               <td className="px-3 py-3 text-right font-display text-base tabular-nums">{total === null ? "—" : `${total.toFixed(2)} / 5`}</td><td /></tr>
           </tfoot>
         </table>
