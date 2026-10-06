@@ -58,3 +58,10 @@ body {
   color: var(--color-ink);
   font-family: var(--font-sans);
 }
+
+/* Click feedback: only the button background darkens while pressed; text colour stays. */
+@layer base {
+  button:not(:disabled):active {
+    background-image: linear-gradient(rgb(15 35 66 / 0.1), rgb(15 35 66 / 0.1));
+  }
+}

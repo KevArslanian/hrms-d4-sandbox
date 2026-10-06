@@ -278,6 +278,25 @@ describe("POST /kpi-assessments", () => {
     expect(writes).toHaveLength(0);
   });
 
+  // Core KPI names are editable; weights always come from the catalog, not the request.
+  it("keeps an edited Core KPI name and the catalog weight", async () => {
+    const body = kpiBody();
+    body.lines = body.lines.map((line, index) => index ? line : { ...line, kpi_name: "Nama KPI baru", weight_percent: 1 });
+    const res = await call(kpi.POST(post(body)));
+    expect(res.status).toBe(201);
+    const saved = (writes[0].args[0] as { lines: { kpi_name: string; weight_percent: number }[] }).lines[0];
+    expect(saved.kpi_name).toBe("Nama KPI baru");
+    expect(saved.weight_percent).toBe(kpiBody().lines[0].weight_percent);
+  });
+
+  it("rejects an empty Core KPI name", async () => {
+    const body = kpiBody();
+    body.lines = body.lines.map((line, index) => index ? line : { ...line, kpi_name: " " });
+    const res = await call(kpi.POST(post(body)));
+    expect(res.status).toBe(422);
+    expect(writes).toHaveLength(0);
+  });
+
   it("accepts a revision of the current scorecard", async () => {
     const res = await call(kpi.POST(post(kpiBody({ period: "2026-09", revisionOf: KPI_ALFA }))));
     expect(res.status).toBe(201);

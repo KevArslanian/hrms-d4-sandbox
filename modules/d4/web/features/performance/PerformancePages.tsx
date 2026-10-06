@@ -7,7 +7,7 @@ import type { EmployeeReference } from "../../../shared/types";
 import { useSnapshot } from "../../data/D4DataProvider";
 import { canAssess, canWrite, departmentOf, describeSource, developmentNeeds, employeeById, employeeMeta, evaluationsOf, formatDate, formatPeriod, includesText, latestEvaluation, positionOf, revisionTag, scorecardsOf, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
-import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
+import { FilterBar, PositionFilter, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
 import { Button, ButtonLink, Card, InfoGrid, SourceChip, statusLabel, StatusBadge } from "../../ui/primitives";
@@ -43,12 +43,12 @@ export function PerformanceListPage() {
       actions={writer && <Button icon={<Plus className="size-4" />} onClick={() => setModalFor("")} data-testid="btn-add-evaluation">Add Evaluation</Button>} />
     <FilterBar canReset={Boolean(search || position || department || period || status)} onReset={() => { setSearch(""); setPosition(""); setDepartment(""); setPeriod(""); setStatus(""); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Search name or ID" />
-      <SelectFilter label="All positions" testId="all-positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />
+      <PositionFilter positions={snapshot.reference.positions} value={position} onChange={setPosition} />
       <SelectFilter label="All departments" testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />
       <SelectFilter label="All periods" testId="latest-period" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
       <SelectFilter label="All status" testId="all-status" value={status} onChange={setStatus} options={statuses.map((item) => ({ value: item, label: statusLabel(item) }))} />
     </FilterBar>
-    <DataTable<Row> rows={rows} noun="employees" rowKey={(row) => row.employee.id}
+    <DataTable<Row> rows={rows} noun="pegawai" rowKey={(row) => row.employee.id}
       emptyTitle="No matching employees" emptyText="Change the keyword or reset the filters to see all employees."
       rowHref={(row) => row.evaluation ? `/performance/${row.evaluation.id}` : `/performance/history/${row.employee.id}`}
       columns={[

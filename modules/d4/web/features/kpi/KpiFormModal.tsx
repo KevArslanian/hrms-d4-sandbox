@@ -58,6 +58,7 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
     setTouched(true);
     if (!employee) { setError("Complete employee before saving."); return; }
     if (!roleOrder || lines.length !== 5 || totalWeight !== 100) { setError("KPIs for this position are not available in the KPI Scorecard yet; the scorecard cannot be saved."); return; }
+    if (lines.some((line) => !line.kpi_name.trim())) { setError("Every Core KPI needs a name."); return; }
     if (!allScored || !period || !date) { setError("Complete the period, evaluation date, and a 1–5 score for all five KPIs."); return; }
     if (date > today()) { setError("The evaluation date cannot be later than today."); return; }
     if (existing && !revise) { setError("A scorecard for this period already exists. Tick “Save as revision” or choose another period."); return; }
@@ -67,7 +68,7 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
     if (result.ok) { onSaved?.(result.value); onClose(); } else setError(result.error);
   }
 
-  return <FormModal size="lg" title="Add Scorecard" description={`The five Core KPIs and their weights follow KPI Scorecard ${catalog?.version ?? ""} for the employee's position.`} onClose={onClose}
+  return <FormModal size="lg" title="Add Scorecard" description={`The five Core KPIs start from KPI Scorecard ${catalog?.version ?? ""} for the employee's position and can be renamed; weights stay as in the catalog.`} onClose={onClose}
     footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Scorecard" disabled={Boolean(employee) && !lines.length} />}>
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />
@@ -87,14 +88,14 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
         error={touched && !revise ? "Tick to save as a revision, or choose another period." : undefined} />}
 
       {employee && !lines.length ? <Notice tone="warning">{position ? noKpiText(catalog?.version) : "The employee has no active position, so their KPIs cannot be determined yet."}</Notice> : <div className="overflow-x-auto rounded-2xl border border-line">
-        <table data-testid="kpi-lines-table" className="w-full min-w-[920px] text-left text-sm">
+        <table data-testid="kpi-lines-table" className="w-full min-w-[1100px] text-left text-sm">
           <thead className="bg-app text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3">
-            <tr><th className="w-10 px-3 py-2.5">No</th><th className="px-3 py-2.5">Core KPI</th><th className="w-20 px-3 py-2.5">Weight</th><th className="w-36 px-3 py-2.5">Target</th><th className="w-36 px-3 py-2.5">Actual</th><th className="w-24 px-3 py-2.5">Score 1–5</th><th className="w-24 px-3 py-2.5 text-right">Weighted</th><th className="w-44 px-3 py-2.5">Comment</th></tr>
+            <tr><th className="w-10 px-3 py-2.5">No</th><th className="min-w-[260px] px-3 py-2.5">Core KPI</th><th className="w-20 px-3 py-2.5">Weight</th><th className="w-36 px-3 py-2.5">Target</th><th className="w-36 px-3 py-2.5">Actual</th><th className="w-24 px-3 py-2.5">Score 1–5</th><th className="w-24 px-3 py-2.5 text-right">Weighted</th><th className="w-44 px-3 py-2.5">Comment</th></tr>
           </thead>
           <tbody>
             {lines.map((line, index) => <tr key={`${roleOrder}-${line.indicator_order}`} data-testid={`kpi-line-${line.indicator_order}`} className="border-t border-line align-middle">
               <td className="px-3 py-2.5 text-ink-3">{line.indicator_order}</td>
-              <td className="px-3 py-2.5 font-semibold leading-5">{line.kpi_name}</td>
+              <td className="px-3 py-2"><input data-testid={`input-core-kpi-${line.indicator_order}`} aria-label={`Core KPI ${line.indicator_order}`} aria-invalid={touched && !line.kpi_name.trim()} maxLength={200} value={line.kpi_name} onChange={(event) => setLine(index, { kpi_name: event.target.value })} className="h-9 w-full rounded-lg border border-line-strong px-2 text-sm font-semibold aria-[invalid=true]:border-danger" /></td>
               <td className="px-3 py-2.5 tabular-nums">{line.weight_percent}%</td>
               <td className="px-3 py-2"><input data-testid={`input-target-${line.indicator_order}`} aria-label={`Target ${line.kpi_name}`} value={line.target} onChange={(event) => setLine(index, { target: event.target.value })} className="h-9 w-full rounded-lg border border-line-strong px-2 text-sm" /></td>
               <td className="px-3 py-2"><input data-testid={`input-realisasi-${line.indicator_order}`} aria-label={`Actual ${line.kpi_name}`} value={line.actual} onChange={(event) => setLine(index, { actual: event.target.value })} className="h-9 w-full rounded-lg border border-line-strong px-2 text-sm" /></td>
@@ -106,12 +107,12 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
           <tfoot className="border-t border-line bg-app">
             <tr><td colSpan={2} className="px-3 py-3 font-semibold">Total</td>
               <td className="px-3 py-3"><span className={cx("inline-flex items-center gap-1 text-xs font-semibold", totalWeight === 100 ? "text-success" : "text-danger")}>{totalWeight === 100 ? <CheckCircle2 className="size-3.5" /> : <CircleAlert className="size-3.5" />}{lines.length ? `${totalWeight}%` : "—"}</span></td>
-              <td colSpan={3} className="px-3 py-3 text-xs text-ink-3">{lines.length ? (totalWeight === 100 ? "Total weight 100%" : "Total weight must be 100%") : "Select an employee to show their position's KPIs."}</td>
+              <td colSpan={3} className="px-3 py-3 text-xs text-ink-3">{lines.length ? (totalWeight === 100 ? "Total bobot 100%" : "Total bobot harus 100%") : "Pilih pegawai untuk menampilkan KPI posisinya."}</td>
               <td className="px-3 py-3 text-right font-display font-semibold text-base tabular-nums">{total === null ? "—" : `${total.toFixed(2)} / 5`}</td><td /></tr>
           </tfoot>
         </table>
       </div>}
-      <p className="text-xs text-ink-3">Score criteria: {[1, 2, 3, 4, 5].map((value) => `${value} ${SCORE_LABELS[value]}`).join(" · ")}. The evaluator enters the raw score; the system does not convert actuals into scores and gives no achieved/not-achieved label.</p>
+      <p className="text-xs text-ink-3">Kriteria skor: {[1, 2, 3, 4, 5].map((value) => `${value} ${SCORE_LABELS[value]}`).join(" · ")}. Skor terbobot = bobot × skor mentah; total = jumlah skor terbobot. Penilai mengisi skor mentah; sistem tidak mengubah realisasi menjadi skor dan tidak memberi label tercapai/tidak tercapai.</p>
       <TextAreaField label="Notes / manager recommendation" testId="catatan-rekomendasi-atasan" value={notes} onChange={(event) => setNotes(event.target.value)} />
     </form>
   </FormModal>;

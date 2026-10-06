@@ -66,7 +66,7 @@ export function DataTable<T>({ rows, columns, rowKey, rowHref, actions, emptyTit
       </div>}
     </div>
     {rows.length > 0 && <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-3 text-xs text-ink-2">
-      <span data-testid="table-count">Showing {first}–{Math.min(current * PAGE_SIZE, rows.length)} of {rows.length} {noun}</span>
+      <span data-testid="table-count">Menampilkan {first}–{Math.min(current * PAGE_SIZE, rows.length)} dari {rows.length} {noun}</span>
       <nav aria-label="Pagination" className="flex items-center gap-1">
         <button type="button" data-testid="btn-page-prev" aria-label="Previous page" disabled={current === 1} onClick={() => setPage(current - 1)} className="inline-flex size-8 items-center justify-center rounded-lg border border-line bg-surface disabled:opacity-40"><ChevronLeft className="size-4" /></button>
         {Array.from({ length: pageCount }, (_, index) => index + 1).map((number) =>
