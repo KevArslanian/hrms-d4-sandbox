@@ -67,7 +67,7 @@ Perbaikan dari audit ulang terhadap dokumen dan flow bisnis; detail di [AUDIT-UX
 - **Evaluator = user login**: field read-only; API mengambil nama dari akun dan menolak penilaian diri sendiri (L3, L4).
 - **Training ↔ requirement**: requirement Completed tidak bisa diberi training baru; peringatan saat menyelesaikan requirement yang training-nya masih berjalan (L5).
 - **Satu requirement terbuka per gap**: gap yang sudah tertangani tidak bisa dibuatkan requirement lagi; notes menyimpan nilai gap saat dibuat (L6).
-- **Label**: "Evaluator", "Evaluation date", "Add Scorecard", "Add Evaluation" di semua layar (U1). Sejak 6 Okt 2026 diganti label Indonesia: Penilai, Tanggal evaluasi, Tambah Scorecard, Tambah Evaluasi.
+- **Label**: "Evaluator", "Evaluation date", "Add Scorecard", "Add Evaluation" di semua layar (U1). Sempat diganti ke bahasa Indonesia (PR #9, #10), lalu kembali ke bahasa Inggris pada 6 Okt 2026.
 - **Sidebar**: modul squad lain diredupkan dan ditandai belum terhubung (U2).
 - **Training rollback**: status mundur wajib disertai alasan (U4).
 
@@ -105,6 +105,23 @@ Detail di [QA-STABILITY-D4.md](QA-STABILITY-D4.md). `npm test` (Vitest) menjalan
 | Data fixture | Requirement Alfa Teridentifikasi padahal training Direncanakan; Charlie Direncanakan padahal training Sedang Berjalan bertanggal 12 Okt | Requirement Alfa Direncanakan, Charlie Sedang Berjalan; training Charlie 1 Okt 2026 | `modules/d4/development/fixtures.ts`, `modules/d4/training/fixtures.ts` |
 
 Belum diputuskan: status requirement tidak otomatis mengikuti status training, dan training Sedang Berjalan masih boleh bertanggal di masa depan. Keduanya aturan bisnis yang perlu keputusan PO.
+
+## UI bahasa Inggris dan font Poppins · 6 Okt 2026
+
+Keputusan pemilik produk: tampilan D4 di Vercel memakai bahasa Inggris dan font Poppins. Ini membalik arah PR #9/#10 (Bahasa Indonesia).
+
+| Area | Perubahan | Bukti |
+|---|---|---|
+| Font | Inter + Montserrat diganti **Poppins** (400–800) untuk teks dan judul; judul tetap SemiBold lewat `font-semibold` | `app/layout.tsx`, `app/globals.css` |
+| Teks UI | Semua label, tombol, menu ⋮, header tabel, placeholder, empty state, modal, toast, dan halaman login/register berbahasa Inggris; `<html lang="en">` | `modules/d4/web/**`, `app/login`, `app/register` |
+| Pesan error API | Pesan validasi dan error server dalam bahasa Inggris (status kode tidak berubah) | `modules/d4/shared/rules.ts`, `shared/errors.ts`, `server/**`, `supabase/repository.ts` |
+| Status | Status workflow tampil sesuai nilai database (Completed, Planned, …); status kompetensi D3 ditampilkan sebagai Met / Insufficient Data / No Requirement | `statusLabel` di `ui/primitives.tsx` |
+| Tanggal | "12 Oct 2026", "Sep 2026" | `formatDate`, `formatPeriod` |
+| Katalon | Semua `data-testid` sama persis dengan sebelum terjemahan (diverifikasi di 39 tampilan mode preview) | slug lama dipasang sebagai `testId` eksplisit |
+| Data fixture | Data contoh mode preview diterjemahkan | `*/fixtures.ts`, `shared/fixtures/reference-data.ts` |
+| Layout | Placeholder search dipersingkat; kartu KPI di profil karyawan selebar penuh di ≥1280 px agar kolom Weighted dan Total tetap terlihat dengan Poppins | `DashboardPages.tsx` |
+
+Tidak diterjemahkan: nama KPI katalog V5.1, data D3 (karyawan, posisi, kompetensi), isi data seed live, dan pesan error yang dibangkitkan fungsi database (`raise exception` di migrasi Supabase).
 
 ## Belum selesai
 

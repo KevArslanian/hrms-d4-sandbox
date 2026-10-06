@@ -7,7 +7,7 @@ import { latestDevelopment, latestTraining } from "@/modules/d4/supabase/types";
 const MERCURY = "d4000000-0000-4000-8000-000000000012";
 const ALFA = "d4000000-0000-4000-8000-000000000009";
 const HOLLY = "d4000000-0000-4000-8000-000000000016";
-const ALFA_GAP = "d4000000-0000-4000-8000-000000000028"; // Akurasi Administrasi, level 2 of min. 4
+const ALFA_GAP = "d4000000-0000-4000-8000-000000000028"; // Administrative Accuracy, level 2 of min. 4
 
 const evaluation = (patch: Partial<EvaluationDraft> = {}): EvaluationDraft => ({
   employeeId: HOLLY, period: "2026-09", evaluationDate: "2026-09-30", evaluator: "Mercury", status: "completed",
@@ -33,20 +33,20 @@ describe("performance evaluation (fixture)", () => {
 
   it("rejects a second record for the same period unless it names the current one", async () => {
     const first = await source.createEvaluation(evaluation());
-    await expect(source.createEvaluation(evaluation())).rejects.toThrow(/sudah ada/);
-    await expect(source.createEvaluation(evaluation({ revisionOf: "FIX-OTHER" }))).rejects.toThrow(/sudah ada/);
+    await expect(source.createEvaluation(evaluation())).rejects.toThrow(/already exists/);
+    await expect(source.createEvaluation(evaluation({ revisionOf: "FIX-OTHER" }))).rejects.toThrow(/already exists/);
     const second = await source.createEvaluation(evaluation({ revisionOf: first, overallScore: 3 }));
-    await expect(source.createEvaluation(evaluation({ revisionOf: first }))).rejects.toThrow(/sudah ada/); // stale revision
+    await expect(source.createEvaluation(evaluation({ revisionOf: first }))).rejects.toThrow(/already exists/); // stale revision
     await source.createEvaluation(evaluation({ revisionOf: second }));
     expect((await source.loadSnapshot()).performance.filter((item) => item.employeeId === HOLLY)).toHaveLength(3);
   });
 
   it("rejects revisionOf when nothing exists for the period", async () => {
-    await expect(source.createEvaluation(evaluation({ period: "2026-11", revisionOf: "FIX-D4-PERF-001" }))).rejects.toThrow(/tidak sesuai/);
+    await expect(source.createEvaluation(evaluation({ period: "2026-11", revisionOf: "FIX-D4-PERF-001" }))).rejects.toThrow(/does not match/);
   });
 
   it("rejects self-evaluation", async () => {
-    await expect(source.createEvaluation(evaluation({ employeeId: MERCURY, period: "2026-12" }))).rejects.toThrow(/diri sendiri/);
+    await expect(source.createEvaluation(evaluation({ employeeId: MERCURY, period: "2026-12" }))).rejects.toThrow(/Your own assessment/);
   });
 
   it.each([
@@ -70,7 +70,7 @@ describe("KPI scorecard (fixture)", () => {
   });
 
   it("requires an explicit revision for an existing period", async () => {
-    await expect(source.createKpiAssessment(await kpiDraft(ALFA, "2026-09"))).rejects.toThrow(/sudah ada/);
+    await expect(source.createKpiAssessment(await kpiDraft(ALFA, "2026-09"))).rejects.toThrow(/already exists/);
     await source.createKpiAssessment(await kpiDraft(ALFA, "2026-09", { revisionOf: "FIX-D4-KPI-001" }));
   });
 
@@ -81,14 +81,14 @@ describe("KPI scorecard (fixture)", () => {
 
   it("rejects an incomplete completed scorecard", async () => {
     const draft = await kpiDraft(ALFA, "2026-10");
-    await expect(source.createKpiAssessment({ ...draft, lines: draft.lines.map((line, index) => index ? line : { ...line, raw_score: null }) })).rejects.toThrow(/lima indikator/);
+    await expect(source.createKpiAssessment({ ...draft, lines: draft.lines.map((line, index) => index ? line : { ...line, raw_score: null }) })).rejects.toThrow(/five KPI indicators/);
   });
 });
 
 describe("development and training (fixture)", () => {
   it("allows one open requirement per competency gap and a new one after completion", async () => {
     const draft = { employeeId: ALFA, sourceType: "competency_gap" as const, sourceRef: ALFA_GAP, objective: "Uji", priority: "High" as const, notes: "" };
-    await expect(source.createDevelopment(draft)).rejects.toThrow(/belum selesai/);
+    await expect(source.createDevelopment(draft)).rejects.toThrow(/unfinished development requirement/);
     await source.updateDevelopment("FIX-D4-DEV-001", "Completed", "Selesai");
     const needId = await source.createDevelopment(draft);
     expect(latestDevelopment(await source.loadSnapshot()).find((item) => item.needId === needId)?.status).toBe("Identified");
@@ -102,13 +102,13 @@ describe("development and training (fixture)", () => {
 
   it("rejects training that points to another employee's requirement", async () => {
     await expect(source.createTraining({ employeeId: HOLLY, developmentNeedId: "FIX-D4-DEV-001", activity: "X", date: "2026-10-01", status: "Planned", result: "", notes: "" }))
-      .rejects.toThrow(/employee yang sama/);
+      .rejects.toThrow(/same employee/);
   });
 
   it("requires a result on completion and a reason on rollback", async () => {
-    await expect(source.updateTraining("FIX-D4-TRN-001", "Completed", "", "")).rejects.toThrow(/Hasil/);
+    await expect(source.updateTraining("FIX-D4-TRN-001", "Completed", "", "")).rejects.toThrow(/Result is required/);
     await source.updateTraining("FIX-D4-TRN-001", "Completed", "Lulus", "");
-    await expect(source.updateTraining("FIX-D4-TRN-001", "In Progress", "Lulus", "")).rejects.toThrow(/Alasan/);
+    await expect(source.updateTraining("FIX-D4-TRN-001", "In Progress", "Lulus", "")).rejects.toThrow(/reason is required/);
     await source.updateTraining("FIX-D4-TRN-001", "In Progress", "Lulus", "Perlu sesi ulang");
     const versions = (await source.loadSnapshot()).trainingVersions.filter((item) => item.trainingId === "FIX-D4-TRN-001");
     expect(versions.map((item) => item.revision).sort()).toEqual([1, 2, 3]);
@@ -123,7 +123,7 @@ describe("development and training (fixture)", () => {
   });
 
   it("rejects an unknown training or requirement", async () => {
-    await expect(source.updateTraining("NOPE", "Planned", "", "")).rejects.toThrow(/tidak ditemukan/);
-    await expect(source.updateDevelopment("NOPE", "Planned", "")).rejects.toThrow(/tidak ditemukan/);
+    await expect(source.updateTraining("NOPE", "Planned", "", "")).rejects.toThrow(/not found/);
+    await expect(source.updateDevelopment("NOPE", "Planned", "")).rejects.toThrow(/not found/);
   });
 });

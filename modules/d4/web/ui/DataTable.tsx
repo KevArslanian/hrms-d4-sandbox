@@ -46,7 +46,7 @@ export function DataTable<T>({ rows, columns, rowKey, rowHref, actions, emptyTit
       <table data-testid="data-table" className="w-full min-w-[760px] text-left text-sm">
         <thead className="bg-app">
           <tr>{columns.map((column) => <th key={column.key} scope="col" className={cx("px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3", secondaryCell(column), column.className)}>{column.header}</th>)}
-            {actions && <th scope="col" className="w-16 px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3">Aksi</th>}</tr>
+            {actions && <th scope="col" className="w-16 px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3">Actions</th>}</tr>
         </thead>
         <tbody>
           {visible.map((row) => {
@@ -66,13 +66,13 @@ export function DataTable<T>({ rows, columns, rowKey, rowHref, actions, emptyTit
       </div>}
     </div>
     {rows.length > 0 && <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-3 text-xs text-ink-2">
-      <span data-testid="table-count">Menampilkan {first}–{Math.min(current * PAGE_SIZE, rows.length)} dari {rows.length} {noun}</span>
+      <span data-testid="table-count">Showing {first}–{Math.min(current * PAGE_SIZE, rows.length)} of {rows.length} {noun}</span>
       <nav aria-label="Pagination" className="flex items-center gap-1">
-        <button type="button" data-testid="btn-page-prev" aria-label="Halaman sebelumnya" disabled={current === 1} onClick={() => setPage(current - 1)} className="inline-flex size-8 items-center justify-center rounded-lg border border-line bg-surface disabled:opacity-40"><ChevronLeft className="size-4" /></button>
+        <button type="button" data-testid="btn-page-prev" aria-label="Previous page" disabled={current === 1} onClick={() => setPage(current - 1)} className="inline-flex size-8 items-center justify-center rounded-lg border border-line bg-surface disabled:opacity-40"><ChevronLeft className="size-4" /></button>
         {Array.from({ length: pageCount }, (_, index) => index + 1).map((number) =>
           <button key={number} type="button" data-testid={`btn-page-${number}`} aria-current={number === current ? "page" : undefined} onClick={() => setPage(number)}
             className={cx("inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 font-semibold", number === current ? "bg-primary-600 text-white" : "border border-line bg-surface text-ink")}>{number}</button>)}
-        <button type="button" data-testid="btn-page-next" aria-label="Halaman berikutnya" disabled={current === pageCount} onClick={() => setPage(current + 1)} className="inline-flex size-8 items-center justify-center rounded-lg border border-line bg-surface disabled:opacity-40"><ChevronRight className="size-4" /></button>
+        <button type="button" data-testid="btn-page-next" aria-label="Next page" disabled={current === pageCount} onClick={() => setPage(current + 1)} className="inline-flex size-8 items-center justify-center rounded-lg border border-line bg-surface disabled:opacity-40"><ChevronRight className="size-4" /></button>
       </nav>
     </footer>}
   </section>;

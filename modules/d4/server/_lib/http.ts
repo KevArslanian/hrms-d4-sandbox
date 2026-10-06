@@ -12,7 +12,7 @@ export async function handle(run: () => Promise<unknown>, successStatus = 200) {
     // message so database details and stack traces never reach the client (TR-17).
     const error = cause instanceof ApiError ? cause
       : isNetworkFailure(cause instanceof Error ? cause.message : "") ? new ApiError("INTEGRATION_ERROR", NETWORK_ERROR_MESSAGE)
-        : new ApiError("SERVER_ERROR", "Permintaan gagal diproses. Coba lagi beberapa saat lagi.");
+        : new ApiError("SERVER_ERROR", "The request could not be processed. Please try again shortly.");
     if (error.code === "SERVER_ERROR" || error.code === "INTEGRATION_ERROR") console.error("[d4-api]", cause);
     return NextResponse.json({ error: { code: error.code, message: error.message } }, { status: error.status });
   }
@@ -24,7 +24,7 @@ export async function handle(run: () => Promise<unknown>, successStatus = 200) {
  */
 export function methodNotAllowed(allowed: string) {
   return () => {
-    const error = new ApiError("METHOD_NOT_ALLOWED", "Metode HTTP ini tidak didukung untuk endpoint tersebut.");
+    const error = new ApiError("METHOD_NOT_ALLOWED", "This HTTP method is not supported for this endpoint.");
     return NextResponse.json({ error: { code: error.code, message: error.message } }, { status: error.status, headers: { Allow: allowed } });
   };
 }
@@ -36,8 +36,8 @@ export function optionalUuid(body: Record<string, unknown>, key: string): string
 
 export async function readJson(request: Request): Promise<Record<string, unknown>> {
   let body: unknown;
-  try { body = await request.json(); } catch { throw new ApiError("BAD_REQUEST", "Body harus berupa JSON yang valid."); }
-  if (!body || typeof body !== "object" || Array.isArray(body)) throw new ApiError("BAD_REQUEST", "Body harus berupa objek JSON.");
+  try { body = await request.json(); } catch { throw new ApiError("BAD_REQUEST", "The body must be valid JSON."); }
+  if (!body || typeof body !== "object" || Array.isArray(body)) throw new ApiError("BAD_REQUEST", "The body must be a JSON object.");
   return body as Record<string, unknown>;
 }
 
@@ -46,40 +46,40 @@ export const field = {
   text(body: Record<string, unknown>, key: string, { required = true, max = 2000 } = {}): string {
     const value = body[key];
     if (value === undefined || value === null || value === "") {
-      if (required) throw new ApiError("VALIDATION_FAILED", `Field ${key} wajib diisi.`);
+      if (required) throw new ApiError("VALIDATION_FAILED", `Field ${key} is required.`);
       return "";
     }
-    if (typeof value !== "string") throw new ApiError("VALIDATION_FAILED", `Field ${key} harus berupa teks.`);
-    if (value.length > max) throw new ApiError("VALIDATION_FAILED", `Field ${key} maksimal ${max} karakter.`);
+    if (typeof value !== "string") throw new ApiError("VALIDATION_FAILED", `Field ${key} must be text.`);
+    if (value.length > max) throw new ApiError("VALIDATION_FAILED", `Field ${key} must be at most ${max} characters.`);
     return value;
   },
   uuid(body: Record<string, unknown>, key: string): string {
     const value = field.text(body, key);
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) throw new ApiError("VALIDATION_FAILED", `Field ${key} harus berupa UUID.`);
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) throw new ApiError("VALIDATION_FAILED", `Field ${key} must be a UUID.`);
     return value;
   },
   oneOf<T extends string>(body: Record<string, unknown>, key: string, options: readonly T[]): T {
     const value = field.text(body, key);
-    if (!options.includes(value as T)) throw new ApiError("VALIDATION_FAILED", `Field ${key} harus salah satu dari: ${options.join(", ")}.`);
+    if (!options.includes(value as T)) throw new ApiError("VALIDATION_FAILED", `Field ${key} must be one of: ${options.join(", ")}.`);
     return value as T;
   },
   period(body: Record<string, unknown>, key: string): string {
     const value = field.text(body, key);
-    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(value)) throw new ApiError("VALIDATION_FAILED", `Field ${key} harus berformat YYYY-MM.`);
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(value)) throw new ApiError("VALIDATION_FAILED", `Field ${key} must use the YYYY-MM format.`);
     return value;
   },
   date(body: Record<string, unknown>, key: string, { required = true } = {}): string {
     const value = field.text(body, key, { required });
-    if (value && !/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new ApiError("VALIDATION_FAILED", `Field ${key} harus berformat YYYY-MM-DD.`);
+    if (value && !/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new ApiError("VALIDATION_FAILED", `Field ${key} must use the YYYY-MM-DD format.`);
     return value;
   },
   /** Integer score 1–5 (business rule; 3.5 is rejected). */
   score(value: unknown, label: string, { required = true } = {}): number | null {
     if (value === null || value === undefined || value === "") {
-      if (required) throw new ApiError("VALIDATION_FAILED", `${label} wajib diisi.`);
+      if (required) throw new ApiError("VALIDATION_FAILED", `${label} is required.`);
       return null;
     }
-    if (typeof value !== "number" || !Number.isInteger(value) || value < 1 || value > 5) throw new ApiError("VALIDATION_FAILED", `${label} harus bilangan bulat 1 sampai 5.`);
+    if (typeof value !== "number" || !Number.isInteger(value) || value < 1 || value > 5) throw new ApiError("VALIDATION_FAILED", `${label} must be a whole number from 1 to 5.`);
     return value;
   },
 };

@@ -38,7 +38,7 @@ describe("revision numbering", () => {
   ];
   it("counts only the same employee and period", () => {
     expect(records.map((item) => revisionNumber(records, item))).toEqual([1, 2, 1]);
-    expect(records.map((item) => revisionTag(records, item))).toEqual(["", " · Revisi 2", ""]);
+    expect(records.map((item) => revisionTag(records, item))).toEqual(["", " · Revision 2", ""]);
   });
 });
 
@@ -63,14 +63,14 @@ describe("role views (fixture)", () => {
     const records = [...snapshot.performance, ...(snapshot.kpiAssessments ?? []), ...snapshot.competency, ...snapshot.developmentVersions, ...snapshot.trainingVersions];
     expect(records.length).toBeGreaterThan(0);
     expect(records.every((item) => item.employeeId === ALFA)).toBe(true);
-    await expect(source.createEvaluation({ employeeId: MERCURY, period: "2026-10", evaluationDate: "2026-10-01", evaluator: "x", status: "completed", reviewStatus: "Needs Review", overallScore: 4, aspects: [], generalNotes: "", evidenceReference: null })).rejects.toThrow(/Hanya HR/);
+    await expect(source.createEvaluation({ employeeId: MERCURY, period: "2026-10", evaluationDate: "2026-10-01", evaluator: "x", status: "completed", reviewStatus: "Needs Review", overallScore: 4, aspects: [], generalNotes: "", evidenceReference: null })).rejects.toThrow(/Only HR/);
   });
 });
 
 describe("development status change", () => {
   it("rejects the same status and a rollback without a reason", () => {
-    expect(() => assertDevelopmentChange("Planned", "Planned", "")).toThrow(/sudah Planned/);
-    expect(() => assertDevelopmentChange("In Progress", "Planned", " ")).toThrow(/Alasan/);
+    expect(() => assertDevelopmentChange("Planned", "Planned", "")).toThrow(/already Planned/);
+    expect(() => assertDevelopmentChange("In Progress", "Planned", " ")).toThrow(/reason is required/);
     expect(() => assertDevelopmentChange("In Progress", "Planned", "Jadwal mundur")).not.toThrow();
     expect(() => assertDevelopmentChange("Planned", "In Progress", "")).not.toThrow();
   });
@@ -83,6 +83,6 @@ describe("future evaluation date", () => {
     tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
     expect(() => assertNotFutureDate(today)).not.toThrow();
     expect(() => assertNotFutureDate("2020-01-01")).not.toThrow();
-    expect(() => assertNotFutureDate(tomorrow.toISOString().slice(0, 10))).toThrow(/melebihi hari ini/);
+    expect(() => assertNotFutureDate(tomorrow.toISOString().slice(0, 10))).toThrow(/later than today/);
   });
 });

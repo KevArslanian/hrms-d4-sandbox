@@ -88,10 +88,10 @@ export function ReadOnlyField({ label, testId, value, className }: { label: stri
 export function RevisionConfirm({ what, existing, checked, onChange, error }: { what: string; existing: string; checked: boolean; onChange: (checked: boolean) => void; error?: string }) {
   const id = useId();
   return <div className={cx("rounded-xl border px-4 py-3 text-xs leading-5", error ? "border-danger bg-danger-bg" : "border-warning/30 bg-warning-bg")}>
-    <p className="text-warning">{what} untuk periode ini sudah ada ({existing}). Menyimpan akan membuat <strong>revisi</strong>; versi sebelumnya tetap ada di riwayat.</p>
+    <p className="text-warning">{what} for this period already exists ({existing}). Saving creates a <strong>revision</strong>; the previous version stays in the history.</p>
     <label htmlFor={id} className="mt-2 flex items-center gap-2 font-semibold text-ink">
       <input id={id} type="checkbox" data-testid="checkbox-revision" checked={checked} onChange={(event) => onChange(event.target.checked)} className="size-4 accent-primary-600" />
-      Simpan sebagai revisi
+      Save as revision
     </label>
     {error && <p className="mt-1 text-danger">{error}</p>}
   </div>;
@@ -119,7 +119,7 @@ export function FormModal({ title, description, size = "md", onClose, children, 
   const closeRef = useRef(onClose);
   useLayoutEffect(() => { closeRef.current = onClose; });
   const dirty = useRef(false);
-  const requestClose = useCallback(() => { if (!dirty.current || window.confirm("Tutup tanpa menyimpan perubahan?")) closeRef.current(); }, []);
+  const requestClose = useCallback(() => { if (!dirty.current || window.confirm("Close without saving your changes?")) closeRef.current(); }, []);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     const body = dialog.current?.querySelector<HTMLElement>("[data-modal-body]");
@@ -141,8 +141,8 @@ export function FormModal({ title, description, size = "md", onClose, children, 
     <div ref={dialog} role="dialog" data-testid="modal" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} onInput={() => { dirty.current = true; }}
       className={cx("flex max-h-[88vh] w-full flex-col rounded-2xl bg-surface shadow-modal", size === "lg" ? "max-w-[880px]" : "max-w-[640px]")}>
       <header className="flex items-start justify-between gap-4 border-b border-line px-6 py-5">
-        <div><h2 id={titleId} data-testid="modal-title" className="font-display text-lg text-ink">{title}</h2>{description && <p className="mt-1 text-xs text-ink-3">{description}</p>}</div>
-        <button type="button" data-testid="btn-modal-close" aria-label="Tutup" onClick={requestClose} className="rounded-lg p-1.5 text-ink-3 hover:bg-muted hover:text-ink"><X className="size-5" /></button>
+        <div><h2 id={titleId} data-testid="modal-title" className="font-display font-semibold text-lg text-ink">{title}</h2>{description && <p className="mt-1 text-xs text-ink-3">{description}</p>}</div>
+        <button type="button" data-testid="btn-modal-close" aria-label="Close" onClick={requestClose} className="rounded-lg p-1.5 text-ink-3 hover:bg-muted hover:text-ink"><X className="size-5" /></button>
       </header>
       <div data-modal-body className="min-h-0 flex-1 overflow-y-auto px-6 py-5">{children}</div>
       <footer className="flex flex-wrap justify-end gap-3 border-t border-line px-6 py-4">{footer}</footer>
@@ -152,9 +152,9 @@ export function FormModal({ title, description, size = "md", onClose, children, 
 
 export function ModalActions({ onCancel, busy, submitLabel, secondary, disabled = false }: { onCancel: () => void; busy: boolean; submitLabel: string; secondary?: ReactNode; disabled?: boolean }) {
   return <>
-    <Button variant="secondary" data-testid="btn-modal-cancel" onClick={onCancel}>Batal</Button>
+    <Button variant="secondary" data-testid="btn-modal-cancel" onClick={onCancel}>Cancel</Button>
     {secondary}
-    <Button type="submit" form="d4-modal-form" data-testid="btn-modal-submit" disabled={busy || disabled}>{busy ? "Menyimpan…" : submitLabel}</Button>
+    <Button type="submit" form="d4-modal-form" data-testid="btn-modal-submit" disabled={busy || disabled}>{busy ? "Saving…" : submitLabel}</Button>
   </>;
 }
 

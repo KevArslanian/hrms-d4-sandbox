@@ -18,7 +18,7 @@ export async function getTraining(id: string) {
   const { repository } = await d4Session();
   const snapshot = await repository.loadSnapshot();
   const versions = snapshot.trainingVersions.filter((item) => item.trainingId === id).sort((a, b) => b.revision - a.revision);
-  if (!versions.length) throw new ApiError("NOT_FOUND", "Training tidak ditemukan.");
+  if (!versions.length) throw new ApiError("NOT_FOUND", "Training not found.");
   return { latest: versions[0], versions };
 }
 
@@ -45,7 +45,7 @@ export async function addTrainingVersion(request: Request, id: string) {
   const result = field.text(body, "result", { required: status === "Completed", max: 2000 });
   const notes = field.text(body, "notes", { required: false, max: 2000 });
   const current = latestTraining(await repository.loadSnapshot()).find((item) => item.trainingId === id);
-  if (!current) throw new ApiError("NOT_FOUND", "Training tidak ditemukan.");
+  if (!current) throw new ApiError("NOT_FOUND", "Training not found.");
   enforce(() => assertTrainingChange(current.status, status, notes));
   await repository.updateTraining(id, status, result, notes);
   return { trainingId: id, status };
