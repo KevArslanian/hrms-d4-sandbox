@@ -1,5 +1,5 @@
 import { compareCompetencies } from "../../competency/service";
-import type { CompetencyFinding, CompetencyOverallStatus } from "../../competency/types";
+import type { CompetencyAssessment, CompetencyFinding, CompetencyOverallStatus } from "../../competency/types";
 import type { DevelopmentNeedVersion, DevelopmentSourceType } from "../../development/types";
 import type { PerformanceEvaluation } from "../../performance/types";
 import type { EmployeeReference } from "../../shared/types";
@@ -50,6 +50,20 @@ export const latestScorecard = (snapshot: Snapshot, employeeId: string) => score
 export function currentGap(snapshot: Snapshot, employee: EmployeeReference): { findings: CompetencyFinding[]; overallStatus: CompetencyOverallStatus } | null {
   if (!employee.positionId || !snapshot.reference.positions.some((item) => item.id === employee.positionId)) return null;
   return compareCompetencies(employee.id, employee.positionId, snapshot.reference);
+}
+
+/** Latest saved assessment for the active position, including a position-change snapshot after reassignment. */
+export function latestCurrentPositionAssessment(snapshot: Snapshot, employee: EmployeeReference): CompetencyAssessment | undefined {
+  if (!positionOf(snapshot, employee)) return undefined;
+  return newestFirst(snapshot.competency.filter((item) => item.employeeId === employee.id && item.positionId === employee.positionId))[0];
+}
+
+export type CurrentCompetencyStatus = CompetencyOverallStatus | "Not Evaluated";
+
+/** Display readiness separately from evidence quality; saved assessments keep the live comparison status. */
+export function currentCompetencyStatus(snapshot: Snapshot, employee: EmployeeReference): CurrentCompetencyStatus {
+  if (!latestCurrentPositionAssessment(snapshot, employee)) return "Not Evaluated";
+  return currentGap(snapshot, employee)?.overallStatus ?? "Not Evaluated";
 }
 
 export const developmentNeeds = (snapshot: Snapshot) => latestDevelopment(snapshot);

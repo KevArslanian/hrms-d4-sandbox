@@ -2,11 +2,11 @@
 
 import { ArrowRightLeft, FilePlus2, History, Save } from "lucide-react";
 import { useMemo, useState, type FormEvent } from "react";
-import type { CompetencyFinding, CompetencyOverallStatus } from "../../../competency/types";
+import type { CompetencyFinding } from "../../../competency/types";
 import type { EmployeeReference } from "../../../shared/types";
 import { openNeedFor } from "../../../shared/rules";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { canWrite, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, formatDate, includesText, positionById, positionOf, today, visibleEmployees } from "../../data/selectors";
+import { canWrite, currentCompetencyStatus, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, formatDate, includesText, latestCurrentPositionAssessment, positionById, positionOf, today, visibleEmployees, type CurrentCompetencyStatus } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, FormError, FormModal, ModalActions, SearchInput, SelectField, SelectFilter, TextField } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
@@ -14,10 +14,10 @@ import { RowActionMenu } from "../../ui/RowActionMenu";
 import { Button, ButtonLink, Card, Notice, SourceChip, statusLabel, StatusBadge } from "../../ui/primitives";
 import { DevelopmentFormModal } from "../development/DevelopmentModals";
 
-type Row = { employee: EmployeeReference; position: string; status: CompetencyOverallStatus | "Belum Ada Posisi"; findings: CompetencyFinding[]; lastAssessed?: string };
+type Row = { employee: EmployeeReference; position: string; status: CurrentCompetencyStatus; findings: CompetencyFinding[]; lastAssessed?: string };
 
 // Compared with statusLabel(row.status), so these are the English display labels.
-const STATUS_FILTER = ["Met", "Gap", "Insufficient Data"];
+const STATUS_FILTER = ["Not Evaluated", "Met", "Gap", "Insufficient Data"];
 
 export function CompetencyListPage() {
   const snapshot = useSnapshot();
@@ -30,8 +30,8 @@ export function CompetencyListPage() {
   const [devFor, setDevFor] = useState<string | null>(null);
   const rows = useMemo<Row[]>(() => visibleEmployees(snapshot).map((employee) => {
     const gap = currentGap(snapshot, employee);
-    const saved = snapshot.competency.filter((item) => item.employeeId === employee.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
-    return { employee, position: positionOf(snapshot, employee)?.title ?? "—", status: (gap?.overallStatus ?? "Belum Ada Posisi") as Row["status"], findings: gap?.findings ?? [], lastAssessed: saved?.effectiveDate };
+    const saved = latestCurrentPositionAssessment(snapshot, employee);
+    return { employee, position: positionOf(snapshot, employee)?.title ?? "—", status: currentCompetencyStatus(snapshot, employee), findings: gap?.findings ?? [], lastAssessed: saved?.effectiveDate };
   }).filter((row) => includesText(`${row.employee.fullName} ${row.employee.employeeId}`, search)
     && (!position || row.employee.positionId === position) && (!department || row.employee.departmentId === department) && (!status || statusLabel(row.status) === status))
     .sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName)), [snapshot, search, position, department, status]);
@@ -58,7 +58,7 @@ export function CompetencyListPage() {
       actions={(row) => <RowActionMenu label={`Actions for ${row.employee.fullName}`} actions={[
         { label: "View History", testId: "view-history", icon: <History />, href: `/competency/${row.employee.id}/history` },
         { label: "Create Development Requirement", testId: "create-development-requirement", icon: <FilePlus2 />, onSelect: () => setDevFor(row.employee.id),
-          hidden: !writer || row.status !== "Gap" || row.findings.filter((item) => item.status === "Gap").every((item) => openNeedFor(allNeeds, row.employee.id, "competency_gap", item.requirementId)) },
+          hidden: !writer || row.findings.filter((item) => item.status === "Gap").every((item) => openNeedFor(allNeeds, row.employee.id, "competency_gap", item.requirementId)) },
       ]} />} />
     {devFor && <DevelopmentFormModal employeeId={devFor} sourceType="competency_gap" onClose={() => setDevFor(null)} />}
   </>;
@@ -105,13 +105,13 @@ export function CompetencyDetailPage({ employeeId }: { employeeId: string }) {
   return <>
     <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Competency Gap", href: "/competency" }, { label: "Detail" }]} backHref="/competency"
       name={employee.fullName} meta={employeeMeta(snapshot, employee)}
-      status={gap?.overallStatus}
+      status={currentCompetencyStatus(snapshot, employee)}
       actions={<>
         <ButtonLink href={`/competency/${employee.id}/history`} icon={<History className="size-4" />} testId="view-history">View History</ButtonLink>
         {writer && <Button icon={<ArrowRightLeft className="size-4" />} onClick={() => setChanging(true)} data-testid="btn-assess-position-change">Assess Position Change</Button>}
         {writer && gap && gap.findings.length > 0 && <Button icon={<Save className="size-4" />} disabled={busy} onClick={saveSnapshot} data-testid="btn-save-assessment">Save Assessment</Button>}
       </>} />
-    <Notice>Missing evidence is marked <strong>Insufficient Data</strong>, not automatically Gap. A gap never assigns training, promotion, or certification automatically.</Notice>
+    <Notice>The overall status is <strong>Not Evaluated</strong> until an assessment is saved for the active position. Missing evidence in the requirement comparison is marked <strong>Insufficient Data</strong>, not automatically Gap. A gap never assigns training, promotion, or certification automatically.</Notice>
     <Card title="Requirement vs capability" testId="requirement-vs-capability" padded={false}>
       <div className="overflow-x-auto">
         <table data-testid="competency-gap-table" className="w-full min-w-[760px] text-left text-sm">
