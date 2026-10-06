@@ -6,7 +6,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import type { EmployeeReference } from "../../../shared/types";
 import type { D4LiveSnapshot, KpiAssessment } from "../../../supabase/types";
 import { useSnapshot } from "../../data/D4DataProvider";
-import { currentGap, departmentOf, developmentNeeds, employeeById, evaluationsOf, formatDate, formatPeriod, formatScore, includesText, positionOf, SCORE_LABELS, scorecardsOf, trainings, visibleEmployees } from "../../data/selectors";
+import { currentGap, departmentOf, developmentNeeds, employeeById, evaluationsOf, formatDate, formatPeriod, formatScore, includesText, positionOf, scorecardsOf, trainings, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader } from "../../ui/layout";
@@ -14,7 +14,7 @@ import { RowActionMenu } from "../../ui/RowActionMenu";
 import { Card, Notice, statusLabel, StatusBadge } from "../../ui/primitives";
 import { weighted } from "../kpi/KpiFormModal";
 
-type Row = { employee: EmployeeReference; position: string; period?: string; scorecard?: KpiAssessment; performance: number | null; gap: string; openNeeds: number; training?: string };
+type Row = { employee: EmployeeReference; position: string; period?: string; scorecard?: KpiAssessment; gap: string; openNeeds: number; training?: string };
 
 /** FR-06.9 validation state: a scorecard is only summarised when it has five KPIs whose weights total 100%. */
 const validScorecard = (item: KpiAssessment) => item.lines.length === 5 && item.lines.reduce((sum, line) => sum + line.weight_percent, 0) === 100;
@@ -45,7 +45,6 @@ export function DashboardPage() {
     const gap = currentGap(snapshot, employee);
     return {
       employee, position: positionOf(snapshot, employee)?.title ?? "—", period: data.period, scorecard: data.scorecard,
-      performance: data.evaluation?.overallScore ?? null,
       gap: gap?.overallStatus ?? "Belum Ada Persyaratan",
       openNeeds: developmentNeeds(snapshot).filter((item) => item.employeeId === employee.id && item.status !== "Completed").length,
       training: trainings(snapshot).find((item) => item.employeeId === employee.id)?.status,
@@ -69,7 +68,6 @@ export function DashboardPage() {
         { key: "position", header: "Posisi", wrap: true, secondary: true, cell: (row) => row.position },
         { key: "period", header: "Periode", cell: (row) => formatPeriod(row.period) },
         { key: "kpi", header: "Total KPI", className: "tabular-nums", cell: (row) => <ScoreCell scorecard={row.scorecard} /> },
-        { key: "performance", header: "Kinerja", className: "tabular-nums", cell: (row) => formatScore(row.performance) },
         { key: "gap", header: "Kompetensi", cell: (row) => <StatusBadge status={row.gap} /> },
         { key: "needs", header: "Dev. terbuka", className: "tabular-nums", secondary: true, cell: (row) => row.openNeeds || "—" },
         { key: "training", header: "Training", cell: (row) => row.training ? <StatusBadge status={row.training} /> : "—" },
@@ -119,7 +117,7 @@ export function EmployeeProfilePage({ employeeId, initialPeriod = "" }: { employ
         </table></div> : <p className="px-6 pb-6 text-sm text-ink-3">Belum ada KPI scorecard pada periode ini.</p>}
       </Card>
       <Card title="Evaluasi kinerja" testId="performance-evaluation" actions={<SourceLink href={evaluation ? `/performance/${evaluation.id}` : `/performance/history/${employee.id}`} />}>
-        {evaluation ? <><p className="font-display text-2xl text-ink">{formatScore(evaluation.overallScore)} <span className="text-sm font-sans text-ink-3">{SCORE_LABELS[Math.round(evaluation.overallScore ?? 0)] ?? ""}</span></p><p className="mt-1 text-sm text-ink-2">{formatPeriod(evaluation.period)} · Evaluator {evaluation.evaluator || "—"}</p><p className="mt-4 line-clamp-3 text-sm text-ink-2">{evaluation.generalNotes || "—"}</p></>
+        {evaluation ? <><p className="text-sm text-ink-2">{formatPeriod(evaluation.period)} · Evaluator {evaluation.evaluator || "—"}</p><p className="mt-3 line-clamp-4 whitespace-pre-wrap text-sm text-ink">{evaluation.generalNotes || "—"}</p></>
           : <p className="text-sm text-ink-3">Belum ada evaluasi kinerja pada periode ini.</p>}
       </Card>
       <Card title="Gap kompetensi" testId="competency-gap" actions={<SourceLink href={`/competency/${employee.id}`} />}>

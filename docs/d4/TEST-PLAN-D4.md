@@ -71,9 +71,9 @@ Kartu Planka: **[QA] Pengujian Phase 1** (item ditambahkan 30 Sep 2026)
 
 | TC ID | Skenario | Jenis | Status | Dependency / BLOCKED bila |
 |---|---|---|---|---|
-| TC-D4-001-01 | Membuat evaluation dengan Employee, Period, Evaluation date, Evaluator, hasil 1–5, catatan | Positif | Not Run | Staging |
+| TC-D4-001-01 | Membuat evaluation dengan Employee, Period, Evaluation date, Evaluator, catatan; Hasil KPI terisi dari KPI Scorecard periode yang sama | Positif | Not Run | Staging |
 | TC-D4-001-02 | Catatan evaluasi kosong ditolak | Negatif | Not Run | Staging |
-| TC-D4-001-03 | Hasil evaluasi di luar 1–5 ditolak | Negatif | Not Run | Staging |
+| TC-D4-001-03 | Evaluasi ditolak bila KPI Scorecard periode yang sama belum selesai | Negatif | Not Run | Staging |
 | TC-D4-001-04 | Evaluation periode lama tidak tertimpa saat periode baru dibuat | Positif | Not Run | Staging |
 | TC-D4-001-05 | History per employee menampilkan semua periode | Positif | Not Run | Staging |
 | TC-D4-001-06 | Role EMPLOYEE tidak bisa membuat evaluation (403) | Negatif | Not Run | Staging |

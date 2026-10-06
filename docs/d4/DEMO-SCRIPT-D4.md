@@ -12,7 +12,7 @@
 
 ## 1. Tujuan dan format
 
-Demo ini menunjukkan alur D4 dari penilaian sampai tindak lanjut pengembangan, dalam satu cerita: **evaluasi → scorecard KPI → gap kompetensi → kebutuhan development → training → ringkasan di dashboard**. Durasi target 11 menit, maksimal 12 menit, dengan tiga sudut pandang peran.
+Demo ini menunjukkan alur D4 dari penilaian sampai tindak lanjut pengembangan, dalam satu cerita: **scorecard KPI → evaluasi → gap kompetensi → kebutuhan development → training → ringkasan di dashboard**. Durasi target 11 menit, maksimal 12 menit, dengan tiga sudut pandang peran.
 
 | Item | Nilai |
 | --- | --- |
@@ -61,8 +61,8 @@ Refresh setiap tab (sesi masih aktif), lalu pastikan topbar menampilkan peran ya
 | Segmen | Peran | Halaman | Durasi | Kumulatif |
 | --- | --- | --- | --- | --- |
 | Pembuka | HR | `/dashboard` (landing) | 0:30 | 0:30 |
-| 1 | HR | Performance Evaluation | 1:45 | 2:15 |
-| 2 | HR | KPI Scorecard | 1:45 | 4:00 |
+| 1 | HR | KPI Scorecard | 1:45 | 2:15 |
+| 2 | HR | Performance Evaluation | 1:45 | 4:00 |
 | 3 | HR | Competency Gap | 1:30 | 5:30 |
 | 4 | HR | Development Requirement | 1:15 | 6:45 |
 | 5 | HR | Training Tracking | 1:15 | 8:00 |
@@ -83,25 +83,25 @@ Setiap langkah menyebut data untuk mode live (seed) dan mode fixture. Kolom "Fal
 | --- | --- | --- | --- |
 | Tampilkan profil HR yang sudah login di `/dashboard` | Topbar: nama employee akun HR dan label peran HR. Sidebar: enam menu D4 | "D4 mencatat kinerja dan pengembangan karyawan. Kami akan mengikuti satu karyawan dari evaluasi sampai training, lalu melihat hasilnya dari sisi manager dan karyawan." | Sesi habis: login ulang dari `/login` (±15 detik). Login gagal total: pindah ke mode fixture (§5) |
 
-### 4.1 Performance Evaluation (HR, 1:45)
-
-| # | Klik | Data yang muncul | Yang diucapkan | Fallback |
-| --- | --- | --- | --- | --- |
-| 1 | Menu **Performance Evaluation** | Tabel Employee, Position, Period, Hasil, Evaluator, Status. Live: tiga employee seed berstatus Completed untuk periode seed. Fixture: tujuh evaluasi periode Sep 2026 (Alfa 4, Bravo 4, Charlie 4, Mercury 4 oleh Oscar, Delta 5, Echo 3, Fanta 4). Holly "Not Evaluated" | "Satu baris per karyawan, menampilkan evaluasi terakhirnya. Periode lama tidak pernah ditimpa." | Tabel kosong: cek filter (tombol reset), lalu cek apakah seed sudah diterapkan |
-| 2 | **Add Evaluation** | Modal: Employee, Position dan Department (otomatis), Period (bulan), Evaluation date, Evaluator (otomatis, read-only), Hasil evaluasi 5–1 berlabel (5 Sangat Baik … 1 Sangat Kurang), Catatan evaluasi (wajib), Evidence / reference | "Evaluator diisi otomatis dari akun yang login, jadi tidak bisa dipalsukan. Skala 1–5 berlabel sesuai FR-D4-001." | – |
-| 3 | Pilih employee "kosong" (fixture: **Holly**), Period bulan berjalan, Hasil **4 – Baik**, Catatan "Target periode tercapai; perlu penguatan administrasi." → **Save Evaluation** | Toast "Evaluasi kinerja tersimpan." Baris Holly menjadi Completed, Hasil 4 | "Begitu disimpan, data langsung jadi riwayat." | 422 "untuk periode ini sudah ada": centang konfirmasi revisi yang muncul, atau pilih employee lain. 403 "belum terhubung dengan data employee": akun HR belum punya `employee_id`, lanjut ke fixture |
-| 4 | Menu ⋮ pada baris employee demo → **View History** | Daftar evaluasi per periode beserta label revisi | "Kalau ada koreksi, kami simpan sebagai revisi baru, bukan menimpa yang lama. Jejak audit tetap utuh." | Lewati jika waktu habis |
-
-Catatan untuk presenter: nilai seed live bisa berupa desimal (misalnya 4.15) karena dibuat oleh `scripts/seed-d4.mjs` dengan bobot aspek lama. Evaluasi baru dari form selalu bilangan bulat 1–5. Jika ditanya, jelaskan bahwa itu data seed.
-
-### 4.2 KPI Scorecard (HR, 1:45)
+### 4.1 KPI Scorecard (HR, 1:45)
 
 | # | Klik | Data yang muncul | Yang diucapkan | Fallback |
 | --- | --- | --- | --- | --- |
 | 1 | Menu **KPI Scorecard** | Daftar scorecard per employee dan periode. Fixture: Alfa, Sep 2026, total 4,10, dan Jun 2026. Live: scorecard seed untuk tiga employee | "Setiap posisi punya lima Core KPI dari KPI Scorecard V5.1, dengan total bobot 100%." | Muncul peringatan katalog lama: katakan "migrasi katalog V5.1 dijadwalkan", lalu lanjut |
 | 2 | Buka scorecard Alfa (fixture) atau employee demo (live) | Tabel "Core KPI": lima indikator, Bobot, Target, Realisasi, Skor 1–5, Terbobot. Kartu "Scorecard summary". Fixture Alfa: skor 4, 5, 4, 3, 4 dengan bobot 25/25/20/15/15 | "Skor 1–5 diisi atasan secara manual. Sistem hanya menghitung nilai terbobot dan total; realisasi tidak dikonversi otomatis menjadi skor." | – |
-| 3 | Kembali, **Add Scorecard** → pilih employee yang sama dengan langkah 4.1.3 | Modal 880 px. "KPI jabatan" terisi otomatis dari posisi, lima baris Core KPI terisi | "KPI tidak bisa dipilih bebas. Sistem mengambil KPI sesuai jabatan karyawan." | "KPI untuk position ini belum tersedia": posisi tidak terpetakan di katalog. Batalkan, cukup tunjukkan scorecard yang sudah ada |
-| 4 | Isi Skor kelima baris (mis. 4, 4, 3, 4, 5) → **Save Scorecard** | Toast "KPI scorecard tersimpan." | "Total ini nanti muncul di dashboard bersama hasil evaluasi." | Simpan gagal: tutup modal dan lanjut. Data yang sudah ada cukup untuk cerita |
+| 3 | Kembali, **Add Scorecard** → pilih employee yang belum punya scorecard bulan berjalan (fixture: **Holly**), Period bulan berjalan | Modal 880 px. "KPI jabatan" terisi otomatis dari posisi, lima baris Core KPI terisi | "KPI tidak bisa dipilih bebas. Sistem mengambil KPI sesuai jabatan karyawan." | "KPI untuk position ini belum tersedia": posisi tidak terpetakan di katalog. Batalkan, cukup tunjukkan scorecard yang sudah ada |
+| 4 | Isi Skor kelima baris (mis. 4, 4, 3, 4, 5) → **Save Scorecard** | Toast "KPI scorecard tersimpan." | "Total ini menjadi angka hasil evaluasi kinerja di langkah berikutnya, dan muncul di dashboard." | Simpan gagal: tutup modal dan lanjut. Data yang sudah ada cukup untuk cerita |
+
+### 4.2 Performance Evaluation (HR, 1:45)
+
+| # | Klik | Data yang muncul | Yang diucapkan | Fallback |
+| --- | --- | --- | --- | --- |
+| 1 | Menu **Performance Evaluation** | Tabel Karyawan, Posisi, Departemen, Periode, Catatan, Hasil KPI, Penilai, Status. Live: tiga employee seed berstatus Selesai untuk periode seed. Fixture: tujuh evaluasi periode Sep 2026; hanya Alfa yang punya Hasil KPI (KPI Scorecard Sep 2026). Holly "Belum Dievaluasi" | "Evaluasi berisi catatan penilai. Evaluasi tidak memberi angka sendiri; angkanya diambil dari KPI Scorecard periode yang sama." | Tabel kosong: cek filter (tombol reset), lalu cek apakah seed sudah diterapkan |
+| 2 | **Tambah Evaluasi** | Modal: Karyawan, Posisi dan Departemen (otomatis), Periode (bulan), Tanggal evaluasi, Penilai (otomatis, read-only), Hasil KPI periode ini (read-only), Catatan evaluasi (wajib), Bukti / referensi | "Penilai diisi otomatis dari akun yang login. Angka hasil dibaca dari KPI Scorecard, jadi penilai cukup menulis catatan: kekuatan, yang perlu diperbaiki, dan rekomendasi pelatihan." | – |
+| 3 | Pilih employee dari langkah 4.1.3 (fixture: **Holly**), Period bulan berjalan. Hasil KPI terisi dari scorecard tadi. Catatan "Target periode tercapai; perlu penguatan administrasi." → **Simpan Evaluasi** | Toast "Evaluasi kinerja tersimpan." Baris Holly menjadi Selesai, Hasil KPI sama dengan total scorecard | "Begitu disimpan, data langsung jadi riwayat." | "Belum ada KPI Scorecard selesai": scorecard langkah 4.1.4 belum tersimpan atau periode berbeda. 422 "untuk periode ini sudah ada": centang konfirmasi revisi. 403 "belum terhubung dengan data employee": akun HR belum punya `employee_id`, lanjut ke fixture |
+| 4 | Menu ⋮ pada baris employee demo → **Lihat Riwayat** | Daftar evaluasi per periode beserta catatan dan label revisi | "Kalau ada koreksi, kami simpan sebagai revisi baru, bukan menimpa yang lama. Jejak audit tetap utuh." | Lewati jika waktu habis |
+
+Catatan untuk presenter: evaluasi lama yang dibuat sebelum perubahan ini masih menyimpan angka sendiri di database, tetapi layar selalu menampilkan total KPI Scorecard periode yang sama. Evaluasi tanpa KPI Scorecard menampilkan "—".
 
 ### 4.3 Competency Gap (HR, 1:30)
 
@@ -118,7 +118,7 @@ Catatan: seed live tidak membuat competency assessment, jadi "Last saved" kosong
 
 | # | Klik | Data yang muncul | Yang diucapkan | Fallback |
 | --- | --- | --- | --- | --- |
-| 1 | Menu **Development Requirement** | Fixture: Alfa "Meningkatkan akurasi administrasi…" (High, Identified, sumber competency gap); Charlie (Medium, Planned). Live: seed "Perkuat ketelitian dokumen operasional" (performance context, Identified) | "Setiap kebutuhan development wajib punya sumber: gap kompetensi, perubahan posisi, atau hasil evaluasi." | Tabel kosong: buat satu lewat **Add Requirement** (Source type Performance context, sumber = evaluasi dari langkah 4.1.3) |
+| 1 | Menu **Development Requirement** | Fixture: Alfa "Meningkatkan akurasi administrasi…" (High, Identified, sumber competency gap); Charlie (Medium, Planned). Live: seed "Perkuat ketelitian dokumen operasional" (performance context, Identified) | "Setiap kebutuhan development wajib punya sumber: gap kompetensi, perubahan posisi, atau hasil evaluasi." | Tabel kosong: buat satu lewat **Add Requirement** (Source type Performance context, sumber = evaluasi dari langkah 4.2.3) |
 | 2 | Buka requirement Alfa / employee demo | Kartu "Source (traceability)" yang tertaut ke sumbernya, dan "Linked training" | "Klik sumbernya dan kita kembali ke gap atau evaluasi asalnya. Inilah jejak kenapa training ini ada." | – |
 | 3 | **Update Status** → Planned → simpan | Status menjadi Planned. Revision history bertambah satu | "Status berubah lewat revisi, bukan menimpa data." | Gagal: lanjut, revisi bukan inti cerita |
 
@@ -136,8 +136,8 @@ Hindari menekan **Create Training** pada requirement berstatus Completed. Tombol
 
 | # | Klik | Data yang muncul | Yang diucapkan | Fallback |
 | --- | --- | --- | --- | --- |
-| 1 | Menu **People Dashboard** | Kolom Employee, Position, Period, KPI total, Performance, Competency, Open dev., Training. Employee dari langkah 4.1–4.2 kini terisi | "Satu baris merangkum lima fitur tadi untuk periode yang sama. Dashboard tidak membuat data sendiri." | – |
-| 2 | Buka profil employee demo (`/dashboard/employee/[id]?period=…`) | Kartu KPI scorecard, Performance evaluation, Competency gap, Development & training | "Ini yang dibaca HR sebelum diskusi pengembangan karyawan." | Muncul peringatan scorecard tidak valid: scorecard lama dari katalog lama. Sebut bahwa dashboard menolak meringkas scorecard yang bobotnya bukan 100% |
+| 1 | Menu **People Dashboard** | Kolom Karyawan, Posisi, Periode, Total KPI, Kompetensi, Dev. terbuka, Training. Kolom angka evaluasi tidak ada lagi karena sama dengan Total KPI. Employee dari langkah 4.1–4.2 kini terisi | "Satu baris merangkum lima fitur tadi untuk periode yang sama. Dashboard tidak membuat data sendiri." | – |
+| 2 | Buka profil employee demo (`/dashboard/employee/[id]?period=…`) | Kartu KPI scorecard, Evaluasi kinerja (catatan penilai), Gap kompetensi, Development & training | "Ini yang dibaca HR sebelum diskusi pengembangan karyawan." | Muncul peringatan scorecard tidak valid: scorecard lama dari katalog lama. Sebut bahwa dashboard menolak meringkas scorecard yang bobotnya bukan 100% |
 
 ### 4.7 MANAGER (0:45)
 
@@ -186,7 +186,7 @@ Mode fixture hanya berjalan dengan `next dev`. `next start` atau build produksi 
 | 11 | Apakah D4 mengubah data karyawan atau posisi di D3? | Tidak. D4 hanya membaca data D3 (karyawan, posisi, requirement, skill). Assess Position Change pun tidak mengubah posisi karyawan. |
 | 12 | Apakah ada laporan agregat atau export? | Belum. Dashboard D4 sengaja per karyawan, tanpa metrik agregat manajemen, karena agregat berada di luar scope FR-D4-006. |
 | 13 | Siapa yang mengubah data dan kapan? | Setiap record dan revisi menyimpan aktor dan waktu pembuatan, terlihat di halaman riwayat. |
-| 14 | Kenapa ada nilai evaluasi desimal? | Itu data seed uji. Form evaluasi hanya menerima bilangan bulat 1–5. |
+| 14 | Kenapa evaluasi tidak punya angka sendiri? | Angka hasil kerja sudah ada di KPI Scorecard. Evaluasi fokus pada catatan penilai (kekuatan, perbaikan, rekomendasi pelatihan), dan angkanya diambil dari total KPI periode yang sama supaya tidak ada dua angka yang berbeda untuk orang dan bulan yang sama. |
 | 15 | Kapan bisa dipakai di staging/produksi? | Setelah deployment staging dan eksekusi TEST-PLAN-D4 (milestone M4 di RN-D4-001). |
 
 ## 7. Risiko yang diketahui
@@ -194,7 +194,7 @@ Mode fixture hanya berjalan dengan `next dev`. `next start` atau build produksi 
 | Risiko | Dampak saat demo | Mitigasi |
 | --- | --- | --- |
 | Seed tidak membuat competency assessment (`scripts/seed-d4.mjs`) | "Last saved" kosong; sumber role change tidak tersedia | Tekan Save Assessment di langkah 4.3.3 |
-| Nilai evaluasi seed desimal, mis. 4.15 (`scripts/seed-d4.mjs:67-68`) | Terlihat tidak konsisten dengan skala 1–5 | Jawaban pertanyaan #14 |
+| Evaluasi wajib didahului KPI Scorecard selesai pada periode yang sama | Tambah Evaluasi ditolak untuk employee tanpa scorecard | Ikuti urutan 4.1 → 4.2; pakai periode yang sama |
 | Seed bisa memilih KPI jabatan cadangan yang tidak cocok dengan posisi (`scripts/seed-d4.mjs:70`) | Scorecard seed tidak sesuai KPI posisi; revisi dari form ditolak | Pakai scorecard fixture, atau employee yang scorecard-nya sesuai |
 | Seed bisa menilai employee milik akun seed sendiri (`scripts/seed-d4.mjs:48`) | Ada evaluasi "diri sendiri" di data | Jangan pakai employee tersebut sebagai contoh |
 | Periode dan tanggal seed memakai UTC, aplikasi memakai WIB (`scripts/seed-d4.mjs:16-17`) | Di awal bulan, periode seed bisa berbeda satu bulan dengan default form | Pilih periode secara eksplisit |

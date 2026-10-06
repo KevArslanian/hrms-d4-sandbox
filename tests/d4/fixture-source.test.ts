@@ -25,6 +25,9 @@ async function kpiDraft(employeeId: string, period: string, patch: Partial<KpiAs
 }
 
 describe("performance evaluation (fixture)", () => {
+  // An evaluation needs the completed KPI scorecard of its period; Holly gets one for 2026-09 (all scores 4).
+  beforeEach(async () => { await source.createKpiAssessment(await kpiDraft(HOLLY, "2026-09")); });
+
   it("saves a first evaluation and stores the signed-in actor as evaluator", async () => {
     const id = await source.createEvaluation(evaluation({ evaluator: "Nama Palsu" }));
     const saved = (await source.loadSnapshot()).performance.find((item) => item.id === id)!;
@@ -41,6 +44,15 @@ describe("performance evaluation (fixture)", () => {
     expect((await source.loadSnapshot()).performance.filter((item) => item.employeeId === HOLLY)).toHaveLength(3);
   });
 
+  it("stores the KPI total of the period, ignoring any submitted score", async () => {
+    const id = await source.createEvaluation(evaluation({ overallScore: 1 }));
+    expect((await source.loadSnapshot()).performance.find((item) => item.id === id)!.overallScore).toBe(4);
+  });
+
+  it("rejects an evaluation until the KPI scorecard of the period is completed", async () => {
+    await expect(source.createEvaluation(evaluation({ period: "2026-08", evaluationDate: "2026-08-30" }))).rejects.toThrow(/KPI Scorecard periode ini belum selesai/);
+  });
+
   it("rejects revisionOf when nothing exists for the period", async () => {
     await expect(source.createEvaluation(evaluation({ period: "2026-11", revisionOf: "FIX-D4-PERF-001" }))).rejects.toThrow(/tidak sesuai/);
   });
@@ -50,9 +62,6 @@ describe("performance evaluation (fixture)", () => {
   });
 
   it.each([
-    ["score out of range", { overallScore: 6 }],
-    ["fractional score", { overallScore: 3.5 }],
-    ["missing score", { overallScore: null }],
     ["empty notes", { generalNotes: "  " }],
     ["bad period", { period: "2026-13" }],
     ["missing date", { evaluationDate: "" }],

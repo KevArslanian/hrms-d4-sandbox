@@ -3,15 +3,19 @@
 import { History, Plus, Target } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { PerformanceEvaluation } from "../../../performance/types";
+import { kpiResultFor } from "../../../shared/rules";
 import type { EmployeeReference } from "../../../shared/types";
 import { useSnapshot } from "../../data/D4DataProvider";
-import { canAssess, canWrite, departmentOf, describeSource, developmentNeeds, employeeById, evaluationsOf, formatDate, formatPeriod, formatScore, includesText, latestEvaluation, positionOf, revisionTag, SCORE_LABELS, scorecardsOf, visibleEmployees } from "../../data/selectors";
+import { canAssess, canWrite, departmentOf, describeSource, developmentNeeds, employeeById, evaluationsOf, formatDate, formatPeriod, formatScore, includesText, latestEvaluation, positionOf, revisionTag, scorecardsOf, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
 import { Button, ButtonLink, Card, InfoGrid, SourceChip, statusLabel, StatusBadge } from "../../ui/primitives";
 import { EvaluationFormModal } from "./EvaluationFormModal";
+
+/** An evaluation has no score of its own; the number shown is the KPI scorecard total of its period. */
+const kpiOf = (snapshot: ReturnType<typeof useSnapshot>, evaluation?: PerformanceEvaluation) => evaluation && kpiResultFor(snapshot.kpiAssessments ?? [], evaluation.employeeId, evaluation.period);
 
 const evaluationStatus = (evaluation?: PerformanceEvaluation) => !evaluation ? "Not Evaluated" : evaluation.status === "completed" ? "Completed" : "Draft";
 
@@ -53,7 +57,8 @@ export function PerformanceListPage() {
         { key: "employee", header: "Karyawan", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
         { key: "position", header: "Posisi", wrap: true, cell: (row) => row.position },
         { key: "period", header: "Periode", cell: (row) => formatPeriod(row.evaluation?.period) },
-        { key: "score", header: "Hasil", className: "tabular-nums", cell: (row) => formatScore(row.evaluation?.overallScore) },
+        { key: "notes", header: "Catatan", wrap: true, cell: (row) => row.evaluation?.generalNotes ? <span className="line-clamp-2 max-w-[360px] text-sm text-ink-2">{row.evaluation.generalNotes}</span> : "—" },
+        { key: "kpi", header: "Hasil KPI", className: "tabular-nums", cell: (row) => formatScore(kpiOf(snapshot, row.evaluation)?.overallScore) },
         { key: "evaluator", header: "Penilai", cell: (row) => row.evaluation?.evaluator || "—" },
         { key: "status", header: "Status", cell: (row) => <StatusBadge status={evaluationStatus(row.evaluation)} /> },
       ]}
@@ -71,7 +76,7 @@ export function PerformanceDetailPage({ id }: { id: string }) {
   const evaluation = snapshot.performance.find((item) => item.id === id);
   const employee = evaluation && employeeById(snapshot, evaluation.employeeId);
   if (!evaluation || !employee) return <NotFound what="Evaluasi" backHref="/performance" backLabel="Kembali ke Performance Evaluation" />;
-  const scorecard = scorecardsOf(snapshot, employee.id).find((item) => item.period === evaluation.period);
+  const scorecard = kpiOf(snapshot, evaluation) ?? scorecardsOf(snapshot, employee.id).find((item) => item.period === evaluation.period);
   const needs = developmentNeeds(snapshot).filter((item) => item.sourceType === "performance_context" && item.sourceRef === evaluation.id);
 
   return <>
@@ -89,12 +94,12 @@ export function PerformanceDetailPage({ id }: { id: string }) {
           { label: "Periode", testId: "period", value: formatPeriod(evaluation.period) },
           { label: "Tanggal evaluasi", testId: "evaluation-date", value: formatDate(evaluation.evaluationDate) },
           { label: "Penilai", testId: "evaluator", value: evaluation.evaluator || "—" },
-          { label: "Hasil evaluasi", value: <strong className="font-display text-lg">{formatScore(evaluation.overallScore)}</strong> },
-          { label: "Kriteria", value: evaluation.overallScore ? SCORE_LABELS[Math.round(evaluation.overallScore)] ?? "—" : "—" },
+          { label: "Hasil KPI", testId: "kpi-result", value: formatScore(kpiOf(snapshot, evaluation)?.overallScore) },
           { label: "Departemen", testId: "department", value: departmentOf(snapshot, employee)?.name ?? "—" },
         ]} />
         <h3 className="mb-2 mt-8 text-sm font-semibold text-ink-2">Catatan evaluasi</h3>
-        <p className="whitespace-pre-wrap text-sm text-ink-2">{evaluation.generalNotes || "Belum ada catatan evaluasi."}</p>
+        <p className="whitespace-pre-wrap text-base leading-relaxed text-ink">{evaluation.generalNotes || "Belum ada catatan evaluasi."}</p>
+        <p className="mt-4 text-xs text-ink-3">Evaluasi tidak memberi angka sendiri. Hasil KPI diambil dari KPI Scorecard periode yang sama.</p>
       </Card>
       <div className="space-y-6">
         <Card title="Bukti" testId="evidence">
@@ -106,7 +111,7 @@ export function PerformanceDetailPage({ id }: { id: string }) {
             {scorecard ? <SourceChip label="KPI Scorecard" reference={formatPeriod(scorecard.period)} href={`/kpi/${scorecard.id}`} /> : <p className="text-sm text-ink-3">Belum ada KPI scorecard untuk periode ini.</p>}
             {needs.map((need) => <SourceChip key={need.needId} label="Development Requirement" reference={need.objective} href={`/development/${need.needId}`} />)}
           </div>
-          <p className="mt-4 text-xs text-ink-3">Evaluasi menjadi konteks development bila relevan; tidak ada keputusan HR otomatis dari skor.</p>
+          <p className="mt-4 text-xs text-ink-3">Catatan evaluasi menjadi konteks development bila relevan; tidak ada keputusan HR otomatis.</p>
         </Card>
       </div>
     </div>
@@ -126,7 +131,7 @@ export function PerformanceHistoryPage({ employeeId }: { employeeId: string }) {
     <Card title="Riwayat evaluasi" testId="evaluation-history">
       <Timeline empty="Karyawan ini belum memiliki evaluasi kinerja." entries={evaluations.map((item) => ({
         id: item.id, date: `${formatPeriod(item.period)} · ${formatDate(item.evaluationDate || item.createdAt)}`,
-        title: `Evaluasi ${formatPeriod(item.period)} — ${formatScore(item.overallScore)}${revisionTag(evaluations, item)}`,
+        title: `Evaluasi ${formatPeriod(item.period)}${revisionTag(evaluations, item)}`,
         status: evaluationStatus(item), actor: item.actor, href: `/performance/${item.id}`,
         body: <>Evaluator: {item.evaluator || "—"}{item.generalNotes ? ` · ${item.generalNotes}` : ""}</>,
       }))} />

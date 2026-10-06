@@ -1,5 +1,5 @@
 import type { EvaluationInput } from "../../performance/types";
-import { assertNotFutureDate, assertNotSelf, assertPeriodRevision } from "../../shared/rules";
+import { assertNotFutureDate, assertNotSelf, assertPeriodRevision, requireKpiResult } from "../../shared/rules";
 import { ApiError, employeeFilter, enforce, field, optionalUuid, readJson } from "../_lib/http";
 import { d4Session, requireWriter } from "../_lib/session";
 
@@ -21,7 +21,8 @@ export async function getEvaluation(id: string) {
 /**
  * POST /api/d4/performance-evaluations — saves a new evaluation; earlier periods are never overwritten.
  * The evaluator is the signed-in user, never self; a second record for the same period must name the
- * current one in `revisionOf`.
+ * current one in `revisionOf`. The evaluation is the evaluator's notes; its result is the completed KPI
+ * scorecard total of the same period, so a scorecard must exist first.
  */
 export async function createEvaluation(request: Request) {
   const { repository, access } = await requireWriter();
@@ -31,21 +32,25 @@ export async function createEvaluation(request: Request) {
   if (!evaluator) throw new ApiError("FORBIDDEN", "Akun belum terhubung dengan data employee.");
   const status = field.oneOf(body, "status", ["completed"] as const); // FR-D4-001 defines no draft evaluation.
   const completed = status === "completed";
+  const employeeId = field.uuid(body, "employeeId");
+  const period = field.period(body, "period");
+  enforce(() => assertNotSelf(access.employeeId, employeeId));
   const input: EvaluationInput = {
-    employeeId: field.uuid(body, "employeeId"),
-    period: field.period(body, "period"),
+    employeeId,
+    period,
     evaluationDate: field.date(body, "evaluationDate", { required: completed }),
     evaluator,
     status,
     // Legacy columns of d4_performance_evaluations: FR-D4-001 defines no review label or aspects, so the API stores neutral values.
     reviewStatus: "Needs Review",
-    overallScore: field.score(body.overallScore, "Hasil evaluasi", { required: completed }),
+    // The evaluator enters no score; any overallScore in the body is ignored and the KPI total is stored below.
+    overallScore: null,
     aspects: [],
     generalNotes: field.text(body, "generalNotes", { required: completed, max: 4000 }),
     evidenceReference: field.text(body, "evidenceReference", { required: false, max: 500 }) || null,
   };
-  enforce(() => assertNotSelf(access.employeeId, input.employeeId));
   enforce(() => assertNotFutureDate(input.evaluationDate));
   enforce(() => assertPeriodRevision(snapshot.performance, input.employeeId, input.period, optionalUuid(body, "revisionOf"), "Evaluasi"));
-  return { id: await repository.savePerformance(input, snapshot.reference) };
+  const overallScore = requireKpiResult(snapshot.kpiAssessments ?? [], employeeId, period);
+  return { id: await repository.savePerformance({ ...input, overallScore }, snapshot.reference) };
 }

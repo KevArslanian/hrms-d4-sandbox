@@ -27,15 +27,12 @@ if (!url || !key || !email || !password) {
 const supabase = createClient(url, key, { auth: { persistSession: false } });
 const take = ({ data, error }, step) => { if (error) throw new Error(`${step}: ${error.message}`); return data; };
 
-const ASPECTS = [
-  ["Work Quality", 20], ["Productivity", 15], ["Accuracy", 15], ["Team Collaboration", 15],
-  ["Initiative & Growth", 10], ["Discipline", 15], ["Attendance", 10],
-];
-// Deterministic sample scores per employee slot; the raw 1–5 scores are chosen by the "evaluator", never derived.
+// Deterministic sample KPI scores per employee slot; the raw 1–5 scores are chosen by the "evaluator", never derived.
+// The evaluation has no score of its own: it stores the KPI total of the same period, as the app does.
 const SAMPLES = [
-  { aspects: [4, 4, 4, 4, 5, 4, 5], review: "On Track", kpi: [4, 5, 4, 3, 4] },
-  { aspects: [3, 3, 4, 3, 3, 4, 4], review: "Needs Attention", kpi: [3, 3, 4, 3, 3] },
-  { aspects: [4, 5, 4, 4, 4, 5, 4], review: "On Track", kpi: [5, 4, 4, 4, 5] },
+  { kpi: [4, 5, 4, 3, 4], notes: "Hasil kerja konsisten. Rekomendasi: pelatihan ketelitian dokumen." },
+  { kpi: [3, 3, 4, 3, 3], notes: "Beberapa target belum tercapai. Perlu pendampingan rekonsiliasi." },
+  { kpi: [5, 4, 4, 4, 5], notes: "Melampaui target dan membantu rekan tim." },
 ];
 
 async function main() {
@@ -64,22 +61,13 @@ async function main() {
     if (seeded.has(employee.id)) { console.log(`- skip ${label}: already seeded`); continue; }
     const sample = SAMPLES[index];
     const position = positions.find((item) => item.id === employee.position_id);
-    const aspects = ASPECTS.map(([name, weight], i) => ({ name, weight, score: sample.aspects[i], notes: "" }));
-    const overall = Math.round(aspects.reduce((sum, item) => sum + item.weight * item.score, 0) / 100 * 100) / 100;
     // Same position → KPI role mapping as the scorecard form; unmapped positions fall back to a spread of roles.
     const roleOrder = roleForPositionTitle({ version, rows }, position?.title) || roles[(index * 3) % roles.length];
     const indicators = rows.filter((row) => row.role_order === roleOrder);
-    console.log(`- ${label}: evaluation ${overall.toFixed(2)} · KPI role ${indicators[0]?.role_name} · development + training`);
+    console.log(`- ${label}: KPI role ${indicators[0]?.role_name} · evaluation notes · development + training`);
     if (!apply) continue;
 
-    const evaluationId = take(await supabase.from("d4_performance_evaluations").insert({
-      employee_id: employee.id, position_id: position.id, position_title_snapshot: position.title,
-      period: PERIOD, evaluation_date: TODAY, evaluator_name_snapshot: evaluator, status: "completed",
-      review_status: sample.review, overall_score: overall, aspects,
-      general_notes: `Evaluasi contoh untuk demo D4. ${MARKER}`, evidence_reference: null,
-    }).select("id").single(), "Evaluation").id;
-
-    take(await supabase.from("d4_kpi_assessments").insert({
+    const kpiTotal = take(await supabase.from("d4_kpi_assessments").insert({
       ...(version === "V3.1" ? {} : { definition_version: version }),
       employee_id: employee.id, role_order: roleOrder, role_name: indicators[0].role_name,
       period: PERIOD, evaluation_date: TODAY, evaluator_name: evaluator, status: "completed",
@@ -88,7 +76,14 @@ async function main() {
         target: row.target ?? "Sesuai target periode", actual: "Lihat laporan periode", raw_score: sample.kpi[i], comment: "",
       })),
       general_notes: `Scorecard contoh untuk demo D4. ${MARKER}`,
-    }).select("id").single(), "KPI assessment");
+    }).select("overall_score").single(), "KPI assessment").overall_score;
+
+    const evaluationId = take(await supabase.from("d4_performance_evaluations").insert({
+      employee_id: employee.id, position_id: position.id, position_title_snapshot: position.title,
+      period: PERIOD, evaluation_date: TODAY, evaluator_name_snapshot: evaluator, status: "completed",
+      review_status: "Needs Review", overall_score: kpiTotal, aspects: [],
+      general_notes: `${sample.notes} ${MARKER}`, evidence_reference: null,
+    }).select("id").single(), "Evaluation").id;
 
     const needId = take(await supabase.rpc("d4_create_development_need", {
       p_employee_id: employee.id, p_source_type: "performance_context", p_source_ref: evaluationId,

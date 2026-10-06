@@ -27,7 +27,7 @@ Status: ✅ diperbaiki dan diverifikasi · ⏳ sisa, butuh keputusan di luar tim
 
 | # | Temuan | Teori yang dilanggar | Perbaikan | Status |
 |---|---|---|---|---|
-| F1 | Form evaluasi meminta 7 aspek berbobot + review status manual, padahal FR-D4-001 hanya meminta hasil evaluasi, catatan, evidence | Cognitive load, ISO 9241-110 *suitability for the task* | Form hanya: Employee, Period, Evaluation date, Evaluator, **Hasil evaluasi 1–5** berlabel, Catatan (wajib), Evidence | ✅ `41d44b8` |
+| F1 | Form evaluasi meminta 7 aspek berbobot + review status manual, padahal FR-D4-001 hanya meminta hasil evaluasi, catatan, evidence | Cognitive load, ISO 9241-110 *suitability for the task* | Form hanya: Employee, Period, Evaluation date, Evaluator, Catatan (wajib), Evidence. Skala 1–5 sempat ditambahkan lalu dihapus (lihat F11) | ✅ `41d44b8` |
 | F2 | Ada `Save Draft` dan `Save`, padahal FR tidak mengenal draft; pengguna harus menebak bedanya | Hick, Nielsen #4 consistency | Satu tombol simpan per form | ✅ `41d44b8` |
 | F3 | Role KPI dipilih manual, padahal FR-02.1 menyatakan KPI mengikuti position; pengguna bisa memilih KPI jabatan lain | Norman (affordance palsu), error prevention | Field **KPI jabatan** read-only, diturunkan dari position; server menolak bila tidak cocok | ✅ `41d44b8` |
 | F4 | Halaman katalog KPI `/kpi/catalog` berdiri sebagai halaman sendiri tanpa FR | Minimalist design, K9 (jumlah fitur membingungkan) | Halaman dihapus; katalog hanya dipakai form | ✅ `41d44b8` |
@@ -37,6 +37,7 @@ Status: ✅ diperbaiki dan diverifikasi · ⏳ sisa, butuh keputusan di luar tim
 | F8 | Di 1280 px kolom Employee dashboard terjepit (≈60 px) sehingga nama menimpa kolom Position | Fitts, WCAG reflow, K4 | Kolom sekunder (Position, Open dev.) disembunyikan di bawah 1400 px di web (`Column.secondary`) dan di Figma frame 28 | ✅ `49467b5`, Figma |
 | F9 | ⋮ membuka panel quick view lebih dulu, lalu aksi ("kerja dua kali") | Hick, Shneiderman (kurangi langkah) | ⋮ langsung membuka 3–4 aksi | ✅ V2 |
 | F10 | Detail tiap fitur berbeda (modal, popover, page) | Consistency, conformity with expectations | Detail dan History selalu route sendiri dengan breadcrumb dan Back | ✅ V2 |
+| F11 | Evaluasi punya angka 1–5 sendiri yang dipilih penilai tanpa kriteria, padahal FR-D4-001 tidak menyebut skala; hasilnya dobel dengan KPI Scorecard untuk orang dan bulan yang sama | Redundansi, cognitive load, konsistensi data | Dropdown 1–5 dihapus. Evaluasi fokus pada catatan; Hasil KPI (read-only) diambil dari KPI Scorecard `completed` periode yang sama dan disimpan ke `overall_score` agar skema tidak perlu diubah. Kolom "Kinerja" di People Dashboard dihapus | ✅ branch `claude/trusting-brahmagupta-oduiqg` |
 
 ### 2.2 Konten dan etika data
 
