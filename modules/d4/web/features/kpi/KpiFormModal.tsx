@@ -56,7 +56,7 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
   async function submit(event: FormEvent) {
     event.preventDefault();
     setTouched(true);
-    if (!employee) { setError("Pilih karyawan terlebih dahulu."); return; }
+    if (!employee) { setError("Lengkapi karyawan sebelum menyimpan."); return; }
     if (!roleOrder || lines.length !== 5 || totalWeight !== 100) { setError("KPI untuk posisi ini belum tersedia di KPI Scorecard; scorecard tidak dapat disimpan."); return; }
     if (!allScored || !period || !date) { setError("Lengkapi periode, tanggal evaluasi, dan skor 1–5 untuk kelima KPI."); return; }
     if (date > today()) { setError("Tanggal evaluasi tidak boleh melebihi hari ini."); return; }

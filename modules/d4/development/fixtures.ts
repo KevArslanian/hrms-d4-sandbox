@@ -7,7 +7,7 @@ export const developmentFixtureVersions: readonly DevelopmentNeedVersion[] = [
     employeeId: "d4000000-0000-4000-8000-000000000009", sourceType: "competency_gap",
     sourceRef: "d4000000-0000-4000-8000-000000000028",
     objective: "Meningkatkan akurasi administrasi ke level yang dibutuhkan posisi.",
-    priority: "High", status: "Identified", notes: "Kebutuhan contoh dari gap pada fixture.",
+    priority: "High", status: "Planned", notes: "Kebutuhan contoh dari gap pada fixture; workshop sudah dijadwalkan.",
     createdAt: "2026-09-24T09:00:00.000Z", actor: "Fixture D4",
   },
   {
@@ -15,7 +15,7 @@ export const developmentFixtureVersions: readonly DevelopmentNeedVersion[] = [
     employeeId: "d4000000-0000-4000-8000-000000000011", sourceType: "competency_gap",
     sourceRef: "d4000000-0000-4000-8000-000000000031",
     objective: "Memperkuat kemampuan keselamatan operasi.",
-    priority: "Medium", status: "Planned", notes: "Rencana contoh, belum memilih training.",
+    priority: "Medium", status: "In Progress", notes: "Briefing keselamatan contoh sedang berjalan.",
     createdAt: "2026-09-23T09:00:00.000Z", actor: "Fixture D4",
   },
 ];

@@ -25,6 +25,8 @@ export const employeeById = (snapshot: Snapshot, id: string) => snapshot.referen
 export const positionOf = (snapshot: Snapshot, employee?: EmployeeReference) => snapshot.reference.positions.find((item) => item.id === employee?.positionId);
 export const positionById = (snapshot: Snapshot, id?: string | null) => snapshot.reference.positions.find((item) => item.id === id);
 export const departmentOf = (snapshot: Snapshot, employee?: EmployeeReference) => snapshot.reference.departments.find((item) => item.id === employee?.departmentId);
+/** Header line shared by every detail/history page: position · employee ID · department. */
+export const employeeMeta = (snapshot: Snapshot, employee: EmployeeReference) => [positionOf(snapshot, employee)?.title ?? "Belum ada posisi", employee.employeeId, departmentOf(snapshot, employee)?.name ?? ""];
 
 const newestFirst = <T extends { createdAt: string }>(items: readonly T[]) => [...items].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
@@ -85,13 +87,13 @@ export function trainingSource(snapshot: Snapshot, record: TrainingVersion) {
 export function formatPeriod(period: string | undefined): string {
   if (!period) return "—";
   const date = new Date(`${period.slice(0, 7)}-01T00:00:00Z`);
-  return Number.isNaN(date.getTime()) ? period : new Intl.DateTimeFormat("en-GB", { month: "short", year: "numeric", timeZone: "UTC" }).format(date);
+  return Number.isNaN(date.getTime()) ? period : new Intl.DateTimeFormat("id-ID", { month: "short", year: "numeric", timeZone: "UTC" }).format(date);
 }
 
 export function formatDate(value: string | undefined): string {
   if (!value) return "—";
   const date = new Date(value.length === 10 ? `${value}T12:00:00` : value);
-  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" }).format(date);
+  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", year: "numeric" }).format(date);
 }
 
 export function formatScore(value: number | null | undefined, scale = 5): string {

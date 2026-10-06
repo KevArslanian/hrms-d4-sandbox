@@ -6,7 +6,7 @@ import type { CompetencyFinding, CompetencyOverallStatus } from "../../../compet
 import type { EmployeeReference } from "../../../shared/types";
 import { openNeedFor } from "../../../shared/rules";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { canWrite, currentGap, departmentOf, developmentNeeds, employeeById, formatDate, includesText, positionById, positionOf, today, visibleEmployees } from "../../data/selectors";
+import { canWrite, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, formatDate, includesText, positionById, positionOf, today, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, FormError, FormModal, ModalActions, SearchInput, SelectField, SelectFilter, TextField } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
@@ -36,7 +36,7 @@ export function CompetencyListPage() {
     .sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName)), [snapshot, search, position, department, status]);
 
   return <>
-    <PageHeader title="Competency Gap" subtitle="Bandingkan capability/evidence employee dengan requirement position aktif." />
+    <PageHeader title="Competency Gap" subtitle="Bandingkan kemampuan dan bukti karyawan dengan requirement posisi aktif." />
     <FilterBar canReset={Boolean(search || position || department || status)} onReset={() => { setSearch(""); setPosition(""); setDepartment(""); setStatus(""); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Cari nama atau ID karyawan" />
       <SelectFilter label="Semua posisi" testId="all-positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />
@@ -75,7 +75,7 @@ function PositionChangeModal({ employee, onClose }: { employee: EmployeeReferenc
     const result = await run((source) => source.saveCompetency({ employeeId: employee.id, positionId: position, effectiveDate: date }), "Assessment perubahan posisi tersimpan.");
     if (result.ok) onClose(); else setError(result.error);
   }
-  return <FormModal title="Assessment Perubahan Posisi" description="Bandingkan capability karyawan dengan requirement posisi baru. Riwayat gap posisi lama tetap tersimpan." onClose={onClose}
+  return <FormModal title="Assessment Perubahan Posisi" description="Bandingkan kemampuan karyawan dengan requirement posisi baru. Riwayat gap posisi lama tetap tersimpan." onClose={onClose}
     footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Simpan Assessment" />}>
     <form id="d4-modal-form" onSubmit={submit} className="space-y-5">
       <FormError message={error} />
@@ -103,14 +103,14 @@ export function CompetencyDetailPage({ employeeId }: { employeeId: string }) {
 
   return <>
     <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Competency Gap", href: "/competency" }, { label: "Detail" }]} backHref="/competency"
-      name={employee.fullName} meta={[positionOf(snapshot, employee)?.title ?? "Belum ada posisi", employee.employeeId, departmentOf(snapshot, employee)?.name ?? ""]}
+      name={employee.fullName} meta={employeeMeta(snapshot, employee)}
       status={gap?.overallStatus}
       actions={<>
         <ButtonLink href={`/competency/${employee.id}/history`} icon={<History className="size-4" />} testId="view-history">Lihat Riwayat</ButtonLink>
         {writer && <Button variant="secondary" icon={<ArrowRightLeft className="size-4" />} onClick={() => setChanging(true)} data-testid="btn-assess-position-change">Nilai Perubahan Posisi</Button>}
         {writer && gap && gap.findings.length > 0 && <Button icon={<Save className="size-4" />} disabled={busy} onClick={saveSnapshot} data-testid="btn-save-assessment">Simpan Assessment</Button>}
       </>} />
-    <Notice>Ketiadaan evidence ditandai <strong>Data Belum Cukup</strong>, bukan otomatis Gap. Gap tidak otomatis menugaskan training, promosi, atau sertifikasi.</Notice>
+    <Notice>Ketiadaan bukti ditandai <strong>Data Belum Cukup</strong>, bukan otomatis Gap. Gap tidak otomatis menugaskan training, promosi, atau sertifikasi.</Notice>
     <Card title="Requirement vs kemampuan" testId="requirement-vs-capability" padded={false}>
       <div className="overflow-x-auto">
         <table data-testid="competency-gap-table" className="w-full min-w-[760px] text-left text-sm">
@@ -145,7 +145,7 @@ export function CompetencyHistoryPage({ employeeId }: { employeeId: string }) {
   const saved = snapshot.competency.filter((item) => item.employeeId === employee.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   return <>
     <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Competency Gap", href: "/competency" }, { label: "Riwayat" }]} backHref={`/competency/${employee.id}`}
-      name={employee.fullName} meta={[positionOf(snapshot, employee)?.title ?? "", employee.employeeId, `${saved.length} assessment tersimpan`]} />
+      name={employee.fullName} meta={[...employeeMeta(snapshot, employee), `${saved.length} assessment tersimpan`]} />
     <Card title="Riwayat assessment" testId="assessment-history">
       <Timeline empty="Belum ada assessment kompetensi yang disimpan untuk karyawan ini." entries={saved.map((item) => ({
         id: item.id, date: formatDate(item.effectiveDate), status: item.overallStatus, actor: item.actor,

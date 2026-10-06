@@ -105,9 +105,9 @@ export function DevelopmentStatusModal({ needId, onClose }: { needId: string; on
       <SelectField label="Status" required value={status} onChange={(event) => setStatus(event.target.value as DevelopmentStatus)}>
         {(["Identified", "Planned", "In Progress", "Completed"] as const).map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}
       </SelectField>
-      {status === "Completed" && openTrainings.length > 0 && <Notice tone="warning">Masih ada {openTrainings.length} training berstatus Planned/In Progress untuk requirement ini ({openTrainings.map((item) => item.activity).join(", ")}). Selesaikan atau batalkan training tersebut dulu, atau jelaskan alasannya di Catatan.</Notice>}
+      {status === "Completed" && openTrainings.length > 0 && <Notice tone="warning">Masih ada {openTrainings.length} training berstatus Direncanakan/Sedang Berjalan untuk requirement ini ({openTrainings.map((item) => item.activity).join(", ")}). Selesaikan atau batalkan training tersebut dulu, atau jelaskan alasannya di Catatan.</Notice>}
       <TextAreaField label="Catatan" testId="notes" required={rollback} value={notes} onChange={(event) => setNotes(event.target.value)} helper={status === current?.status ? `Status sekarang ${status}. Pilih status lain untuk menyimpan.` : rollback ? "Wajib diisi: status kembali ke tahap sebelumnya." : undefined} />
-      <Notice>Perubahan disimpan sebagai revisi baru; riwayat sebelumnya tetap tersedia. Status Completed tidak menutup competency gap secara otomatis.</Notice>
+      <Notice>Perubahan disimpan sebagai revisi baru; riwayat sebelumnya tetap tersedia. Status Selesai tidak menutup competency gap secara otomatis.</Notice>
     </form>
   </FormModal>;
 }

@@ -4,7 +4,7 @@ import { FileSearch, History, Plus, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { TrainingVersion } from "../../../training/types";
 import { useSnapshot } from "../../data/D4DataProvider";
-import { canWrite, employeeById, formatDate, formatPeriod, includesText, positionOf, trainingById, trainingHistory, trainings, trainingSource, visibleEmployees } from "../../data/selectors";
+import { canWrite, employeeById, employeeMeta, formatDate, formatPeriod, includesText, trainingById, trainingHistory, trainings, trainingSource, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
@@ -70,7 +70,7 @@ export function TrainingDetailPage({ trainingId }: { trainingId: string }) {
   const need = trainingSource(snapshot, record);
   return <>
     <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Training Tracking", href: "/training" }, { label: "Detail" }]} backHref="/training"
-      name={employee.fullName} meta={[positionOf(snapshot, employee)?.title ?? "", employee.employeeId, record.activity]} status={record.status}
+      name={employee.fullName} meta={[...employeeMeta(snapshot, employee), record.activity]} status={record.status}
       actions={<>
         <ButtonLink href={`/training/${record.trainingId}/history`} icon={<History className="size-4" />} testId="view-history">Lihat Riwayat</ButtonLink>
         {canWrite(snapshot) && <Button icon={<RefreshCw className="size-4" />} onClick={() => setProgressOpen(true)} data-testid="btn-update-progress">Ubah Progres</Button>}
@@ -106,7 +106,7 @@ export function TrainingHistoryPage({ trainingId }: { trainingId: string }) {
   if (!record || !employee || !visibleEmployees(snapshot).some((item) => item.id === employee.id)) return <NotFound what="Training" backHref="/training" backLabel="Kembali ke Training Tracking" />;
   return <>
     <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Training Tracking", href: "/training" }, { label: "Riwayat" }]} backHref={`/training/${record.trainingId}`}
-      name={employee.fullName} meta={[record.activity]} status={record.status} />
+      name={employee.fullName} meta={[...employeeMeta(snapshot, employee), record.activity]} status={record.status} />
     <Card title="Riwayat status" testId="status-history">
       <Timeline empty="Belum ada riwayat status." entries={trainingHistory(snapshot, record.trainingId).map((item) => ({
         id: item.id, date: formatDate(item.createdAt), title: `Versi ${item.revision}`, status: item.status, actor: item.actor,

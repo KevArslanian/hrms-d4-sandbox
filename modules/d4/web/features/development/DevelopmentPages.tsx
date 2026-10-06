@@ -4,7 +4,7 @@ import { GraduationCap, History, Plus, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { DevelopmentNeedVersion, DevelopmentSourceType } from "../../../development/types";
 import { useSnapshot } from "../../data/D4DataProvider";
-import { canWrite, describeSource, developmentById, developmentHistory, developmentNeeds, employeeById, formatDate, formatPeriod, includesText, positionOf, sourceTypeLabel, trainings, visibleEmployees } from "../../data/selectors";
+import { canWrite, describeSource, developmentById, developmentHistory, developmentNeeds, employeeById, employeeMeta, formatDate, formatPeriod, includesText, sourceTypeLabel, trainings, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
@@ -80,7 +80,7 @@ export function DevelopmentDetailPage({ needId }: { needId: string }) {
   const history = developmentHistory(snapshot, need.needId);
   return <>
     <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Development Requirement", href: "/development" }, { label: "Detail" }]} backHref="/development"
-      name={employee.fullName} meta={[positionOf(snapshot, employee)?.title ?? "", employee.employeeId, `Revisi ${need.revision}`]} status={need.status}
+      name={employee.fullName} meta={[...employeeMeta(snapshot, employee), `Revisi ${need.revision}`]} status={need.status}
       actions={<>
         <ButtonLink href={`/development/${need.needId}/history`} icon={<History className="size-4" />} testId="view-history">Lihat Riwayat</ButtonLink>
         {writer && <Button variant="secondary" icon={<RefreshCw className="size-4" />} onClick={() => setStatusOpen(true)} data-testid="btn-update-status">Ubah Status</Button>}
@@ -125,7 +125,7 @@ export function DevelopmentHistoryPage({ needId }: { needId: string }) {
   if (!need || !employee || !visibleEmployees(snapshot).some((item) => item.id === employee.id)) return <NotFound what="Development requirement" backHref="/development" backLabel="Kembali ke Development Requirement" />;
   return <>
     <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Development Requirement", href: "/development" }, { label: "Riwayat" }]} backHref={`/development/${need.needId}`}
-      name={employee.fullName} meta={[need.objective]} status={need.status} />
+      name={employee.fullName} meta={employeeMeta(snapshot, employee)} status={need.status} />
     <Card title="Riwayat revisi" testId="revision-history">
       <Timeline empty="Belum ada revisi." entries={developmentHistory(snapshot, need.needId).map((item) => ({
         id: item.id, date: formatDate(item.createdAt), title: `Revisi ${item.revision}`, status: item.status, actor: item.actor, body: item.notes || undefined,
