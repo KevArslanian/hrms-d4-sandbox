@@ -6,7 +6,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import type { EmployeeReference } from "../../../shared/types";
 import type { D4LiveSnapshot, KpiAssessment } from "../../../supabase/types";
 import { useSnapshot } from "../../data/D4DataProvider";
-import { currentCompetencyStatus, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, evaluationsOf, formatDate, formatPeriod, formatScore, includesText, positionOf, scorecardsOf, trainings, visibleEmployees } from "../../data/selectors";
+import { currentCompetencyStatus, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, evaluationsOf, formatDate, formatPeriod, formatScore, includesText, needsOf, positionOf, scorecardsOf, trainings, trainingsOf, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader } from "../../ui/layout";
@@ -48,8 +48,8 @@ export function DashboardPage() {
       // Evaluations are notes only, so the dashboard shows whether one exists for the period, not a score.
       performance: data.evaluation ? "Completed" : "Not Evaluated",
       gap: currentCompetencyStatus(snapshot, employee),
-      openNeeds: developmentNeeds(snapshot).filter((item) => item.employeeId === employee.id && item.status !== "Completed").length,
-      training: trainings(snapshot).find((item) => item.employeeId === employee.id)?.status,
+      openNeeds: needsOf(snapshot, employee.id).filter((item) => item.status !== "Completed").length,
+      training: trainingsOf(snapshot, employee.id)[0]?.status,
     };
   }).filter((row) => includesText(`${row.employee.fullName} ${row.employee.employeeId}`, search) && (!position || row.employee.positionId === position) && (!department || row.employee.departmentId === department))
     .sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName)), [snapshot, search, position, department, period, periods]);

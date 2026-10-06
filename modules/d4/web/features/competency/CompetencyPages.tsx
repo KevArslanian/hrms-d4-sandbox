@@ -8,7 +8,7 @@ import { openNeedFor } from "../../../shared/rules";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
 import { canWrite, currentCompetencyStatus, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, formatDate, includesText, latestCurrentPositionAssessment, positionById, positionOf, today, visibleEmployees, type CurrentCompetencyStatus } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
-import { FilterBar, FormError, FormModal, ModalActions, SearchInput, SelectField, SelectFilter, TextField } from "../../ui/forms";
+import { FilterBar, FormError, FormModal, ModalActions, SearchInput, SearchSelectField, SelectFilter, TextField } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
 import { Button, ButtonLink, Card, Notice, SourceChip, statusLabel, StatusBadge } from "../../ui/primitives";
@@ -80,10 +80,8 @@ function PositionChangeModal({ employee, onClose }: { employee: EmployeeReferenc
     footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Assessment" />}>
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />
-      <SelectField label="New position" testId="new-position" required value={position} onChange={(event) => setPosition(event.target.value)}>
-        <option value="">Select position</option>
-        {snapshot.reference.positions.filter((item) => item.id !== employee.positionId).map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
-      </SelectField>
+      <SearchSelectField label="New position" testId="new-position" required value={position} onChange={(value) => setPosition(value)} placeholder="Select position"
+        options={snapshot.reference.positions.filter((item) => item.id !== employee.positionId).map((item) => ({ value: item.id, label: `${item.title}` }))} />
       <TextField label="Effective date" testId="effective-date" required type="date" value={date} onChange={(event) => setDate(event.target.value)} />
       <Notice>This assessment does not change the employee’s position master data and does not reassign anyone automatically.</Notice>
     </form>

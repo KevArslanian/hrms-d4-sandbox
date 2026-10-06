@@ -5,7 +5,7 @@ import type { DevelopmentPriority, DevelopmentSourceType, DevelopmentStatus } fr
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
 import { isDevelopmentRollback, openNeedFor } from "../../../shared/rules";
 import { currentGap, developmentNeeds, employeeById, formatDate, formatPeriod, latestCurrentPositionAssessment, positionOf, sourceTypeLabel, today, trainings, visibleEmployees } from "../../data/selectors";
-import { FormError, FormModal, ModalActions, ReadOnlyField, SelectField, TextAreaField, TextField } from "../../ui/forms";
+import { FormError, FormModal, ModalActions, ReadOnlyField, SearchSelectField, SelectField, TextAreaField, TextField } from "../../ui/forms";
 import { Notice, statusLabel } from "../../ui/primitives";
 
 type SourceOption = { ref: string; label: string; covered?: boolean };
@@ -62,10 +62,8 @@ export function DevelopmentFormModal({ employeeId, sourceType, sourceRef, onClos
       <FormError message={error} />
       <div className="grid gap-4 sm:grid-cols-2">
         {employeeId ? <ReadOnlyField label="Employee" testId="employee" value={`${selectedEmployee?.fullName ?? "—"} · ${selectedEmployee?.employeeId ?? ""}`} className="sm:col-span-2" />
-          : <SelectField label="Employee" testId="employee" required value={employee} onChange={(event) => { setEmployee(event.target.value); setReference(""); }} error={touched && !employee ? "Employee is required." : undefined} className="sm:col-span-2">
-            <option value="">Select employee</option>
-            {visibleEmployees(snapshot).map((item) => <option key={item.id} value={item.id}>{item.fullName} · {item.employeeId}</option>)}
-          </SelectField>}
+          : <SearchSelectField label="Employee" testId="employee" required value={employee} onChange={(value) => { setEmployee(value); setReference(""); }} error={touched && !employee ? "Employee is required." : undefined} className="sm:col-span-2" placeholder="Select employee"
+            options={visibleEmployees(snapshot).map((item) => ({ value: item.id, label: `${item.fullName} · ${item.employeeId}` }))} />}
         <ReadOnlyField label="Position" testId="position" value={positionOf(snapshot, selectedEmployee)?.title ?? "—"} />
         {sourceType ? <ReadOnlyField label="Source type" testId="source-type" value={sourceTypeLabel[type]} /> : <SelectField label="Source type" testId="source-type" required value={type} onChange={(event) => { setType(event.target.value as DevelopmentSourceType); setReference(""); }}>
           {(Object.keys(sourceTypeLabel) as DevelopmentSourceType[]).map((key) => <option key={key} value={key}>{sourceTypeLabel[key]}</option>)}

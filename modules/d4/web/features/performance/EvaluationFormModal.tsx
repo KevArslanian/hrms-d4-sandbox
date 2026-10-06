@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
 import { latestForPeriod } from "../../../shared/rules";
 import { assessableEmployees, departmentOf, employeeById, formatDate, positionOf, thisMonth, today } from "../../data/selectors";
-import { FormError, FormModal, ModalActions, ReadOnlyField, RevisionConfirm, SelectField, TextAreaField, TextField } from "../../ui/forms";
+import { FormError, FormModal, ModalActions, ReadOnlyField, RevisionConfirm, SearchSelectField, TextAreaField, TextField } from "../../ui/forms";
 
 /**
  * Employee, period, date, evaluator, notes, optional evidence. An evaluation is a written record only:
@@ -45,10 +45,8 @@ export function EvaluationFormModal({ employeeId, onClose, onSaved }: { employee
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />
       <div className="grid gap-4 sm:grid-cols-2">
-        <SelectField label="Employee" testId="employee" required value={employee} onChange={(event) => setEmployee(event.target.value)} error={touched && !employee ? "Employee is required." : undefined} className="sm:col-span-2">
-          <option value="">Select employee</option>
-          {assessableEmployees(snapshot).map((item) => <option key={item.id} value={item.id}>{item.fullName} · {item.employeeId}</option>)}
-        </SelectField>
+        <SearchSelectField label="Employee" testId="employee" required value={employee} onChange={(value) => setEmployee(value)} error={touched && !employee ? "Employee is required." : undefined} className="sm:col-span-2" placeholder="Select employee"
+          options={assessableEmployees(snapshot).map((item) => ({ value: item.id, label: `${item.fullName} · ${item.employeeId}` }))} />
         <ReadOnlyField label="Position" testId="position" value={positionOf(snapshot, selected)?.title ?? "—"} />
         <ReadOnlyField label="Department" testId="department" value={departmentOf(snapshot, selected)?.name ?? "—"} />
         <TextField label="Period" testId="period" required type="month" value={period} onChange={(event) => setPeriod(event.target.value)} error={touched && !period ? "Period is required." : undefined} />

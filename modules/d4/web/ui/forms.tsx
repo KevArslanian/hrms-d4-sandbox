@@ -26,18 +26,27 @@ export function SearchInput({ value, onChange, placeholder }: { value: string; o
   </label>;
 }
 
+const FILTER_VISIBLE = 10;
+
+type Option = { value: string; label: string };
+
 /**
- * Filter dropdown with a search box on top (reviewer feedback): opening it lists every option, typing narrows
- * the list. `emptyOption={false}` drops the "All …" choice for filters that always show one value (the dashboard period).
+ * Dropdown with a search box on top (reviewer feedback), shared by list filters and form fields: opening it
+ * lists the options, typing narrows them. Only FILTER_VISIBLE options are rendered at once (load test:
+ * 1000 departments/employees); the rest are reached by typing. `emptyLabel` adds a "no value" choice.
  */
-export function SelectFilter({ label, testId, value, onChange, options, emptyOption = true }: { label: string; testId?: string; value: string; onChange: (value: string) => void; options: { value: string; label: string }[]; emptyOption?: boolean }) {
+function SearchableSelect({ label, value, onChange, options, emptyLabel, testId, triggerId, invalid, describedBy, className, wrapperClassName }: {
+  label: string; value: string; onChange: (value: string) => void; options: readonly Option[]; emptyLabel?: string; testId: string;
+  triggerId?: string; invalid?: boolean; describedBy?: string; className?: string; wrapperClassName?: string;
+}) {
   const listId = useId();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const id = testId ?? slug(label);
-  const all = emptyOption ? [{ value: "", label }, ...options] : options;
+  const all = emptyLabel === undefined ? options : [{ value: "", label: emptyLabel }, ...options];
   const term = query.trim().toLowerCase();
-  const matches = term ? all.filter((option) => option.label.toLowerCase().includes(term)) : all;
+  const allMatches = term ? all.filter((option) => option.label.toLowerCase().includes(term)) : all;
+  const matches = allMatches.slice(0, FILTER_VISIBLE);
+  const hidden = allMatches.length - matches.length;
   const selected = options.find((option) => option.value === value);
   const close = () => { setOpen(false); setQuery(""); };
   const pick = (next: string) => { onChange(next); close(); };
@@ -49,30 +58,37 @@ export function SelectFilter({ label, testId, value, onChange, options, emptyOpt
     const next = items[Math.min(items.length - 1, Math.max(0, at + (event.key === "ArrowDown" ? 1 : -1)))];
     if (next) { event.preventDefault(); next.focus(); }
   };
-  return <div className="relative min-w-[172px] flex-[1_1_172px]" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) close(); }}
+  return <div className={cx("relative", wrapperClassName)} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) close(); }}
     onKeyDown={(event) => { if (event.key === "Escape" && open) { event.stopPropagation(); close(); } else if (open) moveFocus(event); else if (event.key === "ArrowDown") { event.preventDefault(); setOpen(true); } }}>
-    <button type="button" data-testid={`filter-${id}`} aria-label={label} aria-haspopup="listbox" aria-expanded={open} onClick={() => open ? close() : setOpen(true)}
-      className={cx(control, "flex items-center justify-between gap-2 text-left", !selected && "text-ink-2")}>
-      <span className="truncate">{selected?.label ?? label}</span>
+    <button type="button" id={triggerId} data-testid={testId} aria-label={triggerId ? undefined : label} aria-haspopup="listbox" aria-expanded={open} aria-describedby={describedBy}
+      onClick={() => open ? close() : setOpen(true)} className={cx(control, "flex items-center justify-between gap-2 text-left", !selected && "text-ink-2", invalid && "border-danger", className)}>
+      <span className="truncate">{selected?.label ?? emptyLabel ?? label}</span>
       <ChevronDown aria-hidden="true" className={cx("size-4 shrink-0 text-ink-3 transition-transform", open && "rotate-180")} />
     </button>
     {open && <div className="absolute inset-x-0 top-full z-30 mt-1 rounded-[10px] border border-line bg-surface p-1.5 shadow-card">
       <label className="relative block">
         <span className="sr-only">Search {label}</span>
         <Search aria-hidden="true" className="pointer-events-none absolute left-2.5 top-2.5 size-4 text-ink-3" />
-        <input autoFocus data-search data-testid={`search-${id}`} role="combobox" aria-controls={listId} aria-expanded aria-autocomplete="list" value={query} onChange={(event) => setQuery(event.target.value)}
+        <input autoFocus data-search data-testid={testId.replace(/^(filter|input)-/, "search-")} role="combobox" aria-controls={listId} aria-expanded aria-autocomplete="list" value={query} onChange={(event) => setQuery(event.target.value)}
           onKeyDown={(event) => { if (event.key === "Enter" && matches[0]) { event.preventDefault(); pick(matches[0].value); } }}
           placeholder="Type to filter…" className="h-9 w-full rounded-lg border border-line-strong bg-app pl-8 pr-2 text-sm text-ink outline-none placeholder:text-ink-3 focus:border-primary-500" />
       </label>
-      <ul id={listId} role="listbox" data-testid={`options-${id}`} aria-label={label} className="mt-1.5 max-h-64 overflow-y-auto text-sm">
-        {matches.length ? matches.map((option) => <li key={option.value || "all"} role="option" aria-selected={option.value === value}>
+      <ul id={listId} role="listbox" data-testid={testId.replace(/^(filter|input)-/, "options-")} aria-label={label} className="mt-1.5 max-h-64 overflow-y-auto text-sm">
+        {matches.length ? matches.map((option) => <li key={option.value || "empty"} role="option" aria-selected={option.value === value}>
           <button type="button" onClick={() => pick(option.value)} className={cx("flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-ink hover:bg-primary-50 focus:bg-primary-50 focus:outline-none", option.value === value && "font-semibold text-primary-600")}>
             <Check aria-hidden="true" className={cx("size-4 shrink-0", option.value !== value && "invisible")} />{option.label}
           </button>
         </li>) : <li className="px-2.5 py-2 text-ink-3">No match</li>}
+        {hidden > 0 && <li data-testid={testId.replace(/^(filter|input)-/, "more-")} className="px-2.5 py-2 text-xs text-ink-3">+{hidden} more — type to narrow</li>}
       </ul>
     </div>}
   </div>;
+}
+
+/** List filter. `emptyOption={false}` drops the "All …" choice for filters that always show one value (the dashboard period). */
+export function SelectFilter({ label, testId, value, onChange, options, emptyOption = true }: { label: string; testId?: string; value: string; onChange: (value: string) => void; options: Option[]; emptyOption?: boolean }) {
+  return <SearchableSelect label={label} value={value} onChange={onChange} options={options} emptyLabel={emptyOption ? label : undefined}
+    testId={`filter-${testId ?? slug(label)}`} wrapperClassName="min-w-[172px] flex-[1_1_172px]" />;
 }
 
 /* ---------- Form fields ---------- */
@@ -102,6 +118,15 @@ export function SelectField({ label, testId, required, error, helper, className,
       <select id={id} data-testid={`input-${testId ?? slug(label)}`} aria-invalid={Boolean(error)} aria-describedby={error || helper ? `${id}-message` : undefined} required={required} {...props} className={cx(control, "appearance-none pr-9")}>{children}</select>
       <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 top-3 size-4 text-ink-3" />
     </div>
+  </FieldShell>;
+}
+
+/** Form field for long lists (employees, positions): same searchable dropdown as the filters. */
+export function SearchSelectField({ label, testId, required, error, helper, className, value, onChange, options, placeholder }: Common & { value: string; onChange: (value: string) => void; options: readonly Option[]; placeholder: string }) {
+  const id = useId();
+  return <FieldShell {...{ label, required, error, helper, id, className }}>
+    <SearchableSelect label={label} value={value} onChange={onChange} options={options} emptyLabel={placeholder} testId={`input-${testId ?? slug(label)}`}
+      triggerId={id} invalid={Boolean(error)} describedBy={error || helper ? `${id}-message` : undefined} />
   </FieldShell>;
 }
 

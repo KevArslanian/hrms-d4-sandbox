@@ -5,7 +5,7 @@ import type { TrainingStatus } from "../../../training/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
 import { developmentNeeds, employeeById, today, trainingById, visibleEmployees } from "../../data/selectors";
 import { isTrainingRollback } from "../../../shared/rules";
-import { FormError, FormModal, ModalActions, ReadOnlyField, SelectField, TextAreaField, TextField } from "../../ui/forms";
+import { FormError, FormModal, ModalActions, ReadOnlyField, SearchSelectField, SelectField, TextAreaField, TextField } from "../../ui/forms";
 import { Notice, statusLabel } from "../../ui/primitives";
 
 const STATUSES: TrainingStatus[] = ["Planned", "In Progress", "Completed", "Cancelled"];
@@ -47,10 +47,8 @@ export function TrainingFormModal({ employeeId, developmentNeedId, onClose }: { 
       <FormError message={error} />
       <div className="grid gap-4 sm:grid-cols-2">
         {lockedEmployee ? <ReadOnlyField label="Employee" testId="employee" value={`${lockedEmployee.fullName} · ${lockedEmployee.employeeId}`} className="sm:col-span-2" />
-          : <SelectField label="Employee" testId="employee" required value={employee} onChange={(event) => { setEmployee(event.target.value); setNeed(""); }} error={touched && !employee ? "Employee is required." : undefined} className="sm:col-span-2">
-            <option value="">Select employee</option>
-            {visibleEmployees(snapshot).map((item) => <option key={item.id} value={item.id}>{item.fullName} · {item.employeeId}</option>)}
-          </SelectField>}
+          : <SearchSelectField label="Employee" testId="employee" required value={employee} onChange={(value) => { setEmployee(value); setNeed(""); }} error={touched && !employee ? "Employee is required." : undefined} className="sm:col-span-2" placeholder="Select employee"
+            options={visibleEmployees(snapshot).map((item) => ({ value: item.id, label: `${item.fullName} · ${item.employeeId}` }))} />}
         {lockedNeed ? <ReadOnlyField label="Source requirement" testId="source-requirement" value={`${lockedNeed.objective} · ${statusLabel(lockedNeed.status)}`} className="sm:col-span-2" /> :
         <SelectField label="Source requirement" testId="source-requirement" required value={need} onChange={(event) => setNeed(event.target.value)} error={touched && employee && !needOpen ? "Select a development requirement that is still open." : undefined} className="sm:col-span-2"
           helper="Completed requirements are not listed.">
