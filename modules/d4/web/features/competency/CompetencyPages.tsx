@@ -68,20 +68,20 @@ function PositionChangeModal({ employee, onClose }: { employee: EmployeeReferenc
   const [error, setError] = useState("");
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (!position) { setError("Pilih position baru."); return; }
+    if (!position) { setError("Pilih posisi baru."); return; }
     const result = await run((source) => source.saveCompetency({ employeeId: employee.id, positionId: position, effectiveDate: date }), "Assessment perubahan posisi tersimpan.");
     if (result.ok) onClose(); else setError(result.error);
   }
-  return <FormModal title="Assess Position Change" description="Bandingkan capability employee dengan requirement position baru. Riwayat gap position lama tetap tersimpan." onClose={onClose}
-    footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Assessment" />}>
+  return <FormModal title="Assessment Perubahan Posisi" description="Bandingkan capability karyawan dengan requirement posisi baru. Riwayat gap posisi lama tetap tersimpan." onClose={onClose}
+    footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Simpan Assessment" />}>
     <form id="d4-modal-form" onSubmit={submit} className="space-y-5">
       <FormError message={error} />
-      <SelectField label="New position" required value={position} onChange={(event) => setPosition(event.target.value)}>
-        <option value="">Select position</option>
+      <SelectField label="Posisi baru" testId="new-position" required value={position} onChange={(event) => setPosition(event.target.value)}>
+        <option value="">Pilih posisi</option>
         {snapshot.reference.positions.filter((item) => item.id !== employee.positionId).map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
       </SelectField>
-      <TextField label="Effective date" required type="date" value={date} onChange={(event) => setDate(event.target.value)} />
-      <Notice>Assessment ini tidak mengubah master position employee dan tidak melakukan reassignment otomatis.</Notice>
+      <TextField label="Tanggal efektif" testId="effective-date" required type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+      <Notice>Assessment ini tidak mengubah master posisi karyawan dan tidak melakukan reassignment otomatis.</Notice>
     </form>
   </FormModal>;
 }
