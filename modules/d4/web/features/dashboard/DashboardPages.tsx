@@ -36,6 +36,7 @@ export function DashboardPage() {
   const snapshot = useSnapshot();
   const [search, setSearch] = useState("");
   const [position, setPosition] = useState("");
+  const [department, setDepartment] = useState("");
   const [period, setPeriod] = useState("");
   const periods = useMemo(() => [...new Set([...(snapshot.kpiAssessments ?? []), ...snapshot.performance].map((item) => item.period))].sort().reverse(), [snapshot]);
 
@@ -50,16 +51,17 @@ export function DashboardPage() {
       openNeeds: developmentNeeds(snapshot).filter((item) => item.employeeId === employee.id && item.status !== "Completed").length,
       training: trainings(snapshot).find((item) => item.employeeId === employee.id)?.status,
     };
-  }).filter((row) => includesText(`${row.employee.fullName} ${row.employee.employeeId}`, search) && (!position || row.employee.positionId === position))
-    .sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName)), [snapshot, search, position, period, periods]);
+  }).filter((row) => includesText(`${row.employee.fullName} ${row.employee.employeeId}`, search) && (!position || row.employee.positionId === position) && (!department || row.employee.departmentId === department))
+    .sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName)), [snapshot, search, position, department, period, periods]);
 
   const profileHref = (row: Row) => `/dashboard/employee/${row.employee.id}${row.period ? `?period=${row.period}` : ""}`;
 
   return <>
     <PageHeader title="People Dashboard" subtitle="Ringkasan KPI, kinerja, competency gap, development, dan training per karyawan pada periode yang sama." />
-    <FilterBar canReset={Boolean(search || position || period)} onReset={() => { setSearch(""); setPosition(""); setPeriod(""); }}>
+    <FilterBar canReset={Boolean(search || position || department || period)} onReset={() => { setSearch(""); setPosition(""); setDepartment(""); setPeriod(""); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Cari nama atau ID karyawan" />
       <SelectFilter label="Semua posisi" testId="all-positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />
+      <SelectFilter label="Semua departemen" testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />
       <SelectFilter label="Periode terbaru" testId="latest-period" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
     </FilterBar>
     <DataTable<Row> rows={rows} noun="karyawan" rowKey={(row) => row.employee.id} rowHref={profileHref}
@@ -67,6 +69,7 @@ export function DashboardPage() {
       columns={[
         { key: "employee", header: "Karyawan", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
         { key: "position", header: "Posisi", wrap: true, secondary: true, cell: (row) => row.position },
+        { key: "department", header: "Departemen", wrap: true, secondary: true, cell: (row) => departmentOf(snapshot, row.employee)?.name ?? "—" },
         { key: "period", header: "Periode", cell: (row) => formatPeriod(row.period) },
         { key: "kpi", header: "Total KPI", className: "tabular-nums", cell: (row) => <ScoreCell scorecard={row.scorecard} /> },
         { key: "performance", header: "Kinerja", className: "tabular-nums", cell: (row) => formatScore(row.performance) },

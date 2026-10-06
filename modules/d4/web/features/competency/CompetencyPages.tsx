@@ -24,6 +24,7 @@ export function CompetencyListPage() {
   const allNeeds = developmentNeeds(snapshot);
   const [search, setSearch] = useState("");
   const [position, setPosition] = useState("");
+  const [department, setDepartment] = useState("");
   const [status, setStatus] = useState("");
   const [devFor, setDevFor] = useState<string | null>(null);
   const rows = useMemo<Row[]>(() => visibleEmployees(snapshot).map((employee) => {
@@ -31,14 +32,15 @@ export function CompetencyListPage() {
     const saved = snapshot.competency.filter((item) => item.employeeId === employee.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
     return { employee, position: positionOf(snapshot, employee)?.title ?? "—", status: (gap?.overallStatus ?? "Belum Ada Posisi") as Row["status"], findings: gap?.findings ?? [], lastAssessed: saved?.effectiveDate };
   }).filter((row) => includesText(`${row.employee.fullName} ${row.employee.employeeId}`, search)
-    && (!position || row.employee.positionId === position) && (!status || statusLabel(row.status) === status))
-    .sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName)), [snapshot, search, position, status]);
+    && (!position || row.employee.positionId === position) && (!department || row.employee.departmentId === department) && (!status || statusLabel(row.status) === status))
+    .sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName)), [snapshot, search, position, department, status]);
 
   return <>
     <PageHeader title="Competency Gap" subtitle="Bandingkan capability/evidence employee dengan requirement position aktif." />
-    <FilterBar canReset={Boolean(search || position || status)} onReset={() => { setSearch(""); setPosition(""); setStatus(""); }}>
+    <FilterBar canReset={Boolean(search || position || department || status)} onReset={() => { setSearch(""); setPosition(""); setDepartment(""); setStatus(""); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Cari nama atau ID karyawan" />
       <SelectFilter label="Semua posisi" testId="all-positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />
+      <SelectFilter label="Semua departemen" testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />
       <SelectFilter label="Semua status gap" testId="all-gap-status" value={status} onChange={setStatus} options={STATUS_FILTER.map((item) => ({ value: item, label: item }))} />
     </FilterBar>
     <DataTable<Row> rows={rows} noun="karyawan" rowKey={(row) => row.employee.id} rowHref={(row) => `/competency/${row.employee.id}`}
@@ -46,6 +48,7 @@ export function CompetencyListPage() {
       columns={[
         { key: "employee", header: "Karyawan", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
         { key: "position", header: "Posisi", wrap: true, cell: (row) => row.position },
+        { key: "department", header: "Departemen", wrap: true, cell: (row) => departmentOf(snapshot, row.employee)?.name ?? "—" },
         { key: "requirements", header: "Requirement", className: "tabular-nums", cell: (row) => row.findings.length || "—" },
         { key: "gaps", header: "Gap", className: "tabular-nums", cell: (row) => row.findings.filter((item) => item.status === "Gap").length || "—" },
         { key: "status", header: "Status", cell: (row) => <StatusBadge status={row.status} /> },

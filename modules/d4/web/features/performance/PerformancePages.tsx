@@ -22,6 +22,7 @@ export function PerformanceListPage() {
   const writer = canWrite(snapshot);
   const [search, setSearch] = useState("");
   const [position, setPosition] = useState("");
+  const [department, setDepartment] = useState("");
   const [period, setPeriod] = useState("");
   const [status, setStatus] = useState("");
   const [modalFor, setModalFor] = useState<string | null>(null);
@@ -33,16 +34,17 @@ export function PerformanceListPage() {
     const evaluation = period ? evaluationsOf(snapshot, employee.id).find((item) => item.period === period) : latestEvaluation(snapshot, employee.id);
     return { employee, position: positionOf(snapshot, employee)?.title ?? "—", evaluation };
   }).filter((row) => includesText(`${row.employee.fullName} ${row.employee.employeeId}`, search)
-    && (!position || row.employee.positionId === position)
+    && (!position || row.employee.positionId === position) && (!department || row.employee.departmentId === department)
     && (!status || evaluationStatus(row.evaluation) === status))
-    .sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName)), [snapshot, search, position, period, status]);
+    .sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName)), [snapshot, search, position, department, period, status]);
 
   return <>
     <PageHeader title="Performance Evaluation" subtitle="Catat dan telusuri evaluasi kinerja per karyawan dan periode."
       actions={writer && <Button icon={<Plus className="size-4" />} onClick={() => setModalFor("")} data-testid="btn-add-evaluation">Tambah Evaluasi</Button>} />
-    <FilterBar canReset={Boolean(search || position || period || status)} onReset={() => { setSearch(""); setPosition(""); setPeriod(""); setStatus(""); }}>
+    <FilterBar canReset={Boolean(search || position || department || period || status)} onReset={() => { setSearch(""); setPosition(""); setDepartment(""); setPeriod(""); setStatus(""); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Cari nama atau ID karyawan" />
       <SelectFilter label="Semua posisi" testId="all-positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />
+      <SelectFilter label="Semua departemen" testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />
       <SelectFilter label="Periode terbaru" testId="latest-period" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
       <SelectFilter label="Semua status" testId="all-status" value={status} onChange={setStatus} options={statuses.map((item) => ({ value: item, label: statusLabel(item) }))} />
     </FilterBar>
@@ -52,6 +54,7 @@ export function PerformanceListPage() {
       columns={[
         { key: "employee", header: "Karyawan", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
         { key: "position", header: "Posisi", wrap: true, cell: (row) => row.position },
+        { key: "department", header: "Departemen", wrap: true, cell: (row) => departmentOf(snapshot, row.employee)?.name ?? "—" },
         { key: "period", header: "Periode", cell: (row) => formatPeriod(row.evaluation?.period) },
         { key: "score", header: "Hasil", className: "tabular-nums", cell: (row) => formatScore(row.evaluation?.overallScore) },
         { key: "evaluator", header: "Penilai", cell: (row) => row.evaluation?.evaluator || "—" },

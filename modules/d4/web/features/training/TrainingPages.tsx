@@ -16,6 +16,7 @@ export function TrainingListPage() {
   const snapshot = useSnapshot();
   const writer = canWrite(snapshot);
   const [search, setSearch] = useState("");
+  const [department, setDepartment] = useState("");
   const [period, setPeriod] = useState("");
   const [status, setStatus] = useState("");
   const [adding, setAdding] = useState(false);
@@ -28,14 +29,16 @@ export function TrainingListPage() {
   const rows = all.filter((item) => {
     const employee = employeeById(snapshot, item.employeeId);
     return includesText(`${employee?.fullName ?? ""} ${employee?.employeeId ?? ""} ${item.activity}`, search)
+      && (!department || employee?.departmentId === department)
       && (!period || item.date.startsWith(period)) && (!status || item.status === status);
   });
 
   return <>
     <PageHeader title="Training Tracking" subtitle="Lacak training/development dari requirement sumber sampai hasil pelaksanaan."
       actions={writer && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)} data-testid="btn-add-training">Tambah Training</Button>} />
-    <FilterBar canReset={Boolean(search || period || status)} onReset={() => { setSearch(""); setPeriod(""); setStatus(""); }}>
+    <FilterBar canReset={Boolean(search || department || period || status)} onReset={() => { setSearch(""); setDepartment(""); setPeriod(""); setStatus(""); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Cari karyawan atau training" />
+      <SelectFilter label="Semua departemen" testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />
       <SelectFilter label="Semua periode" testId="all-periods" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
       <SelectFilter label="Semua status" testId="all-status" value={status} onChange={setStatus} options={["Planned", "In Progress", "Completed", "Cancelled"].map((item) => ({ value: item, label: statusLabel(item) }))} />
     </FilterBar>
