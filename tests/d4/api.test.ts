@@ -12,7 +12,7 @@ const BRAVO = "d4000000-0000-4000-8000-000000000010"; // used as a manager
 const ALFA = "d4000000-0000-4000-8000-000000000009";
 const HOLLY = "d4000000-0000-4000-8000-000000000016";
 const ALFA_GAP = "d4000000-0000-4000-8000-000000000028";
-const FINANCE_STAFF = "d4000000-0000-4000-8000-000000000008";
+const SALES_ADMIN = "d4000000-0000-4000-8000-000000000008"; // Sales Administration Associate
 const uuid = (n: number) => `e4000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const NEED = uuid(1), TRAINING = uuid(2), PERF_ALFA = uuid(3), KPI_ALFA = uuid(4);
 const AUTH_USER = "a4000000-0000-4000-8000-000000000001";
@@ -122,7 +122,7 @@ const kpiBody = (patch: Record<string, unknown> = {}) => {
 const writeRoutes: [string, () => Promise<Response>][] = [
   ["POST /performance-evaluations", () => perf.POST(post(evaluationBody()))],
   ["POST /kpi-assessments", () => kpi.POST(post(kpiBody()))],
-  ["POST /competency-assessments", () => competency.POST(post({ employeeId: ALFA, positionId: FINANCE_STAFF, effectiveDate: "2026-10-01" }))],
+  ["POST /competency-assessments", () => competency.POST(post({ employeeId: ALFA, positionId: SALES_ADMIN, effectiveDate: "2026-10-01" }))],
   ["POST /development-needs", () => dev.POST(post({ employeeId: ALFA, sourceType: "performance_context", sourceRef: PERF_ALFA, objective: "Uji", priority: "High" }))],
   ["POST /development-needs/:id/versions", () => devVersions.POST(post({ status: "Planned", notes: "Uji" }), params(NEED))],
   ["POST /training-records", () => training.POST(post({ employeeId: ALFA, developmentNeedId: NEED, activity: "Uji", date: "2026-10-01", status: "Planned" }))],

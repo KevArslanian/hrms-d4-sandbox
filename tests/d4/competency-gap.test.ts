@@ -12,7 +12,7 @@ import type { D4DataSource } from "@/modules/d4/web/data/source";
 // evaluation/KPI, never closes it. It only changes when a person records new skill evidence and a
 // reassessment is saved.
 const ALFA = "d4000000-0000-4000-8000-000000000009";
-const FINANCE_STAFF = "d4000000-0000-4000-8000-000000000008";
+const SALES_ADMIN = "d4000000-0000-4000-8000-000000000008"; // Sales Administration Associate (Andima org structure)
 const ALFA_GAP = "d4000000-0000-4000-8000-000000000028"; // Akurasi Administrasi: level 2, min. 4
 const ADMIN_ACCURACY = "d4000000-0000-4000-8000-000000000022";
 const THIRD_REQUIREMENT_COMPETENCY = "d4000000-0000-4000-8000-000000000023"; // Alfa has no skill record yet
@@ -41,8 +41,8 @@ describe("competency gap is not resolved automatically", () => {
     await source.updateTraining("FIX-D4-TRN-001", "Completed", "Lulus workshop", "");
     await source.updateDevelopment("FIX-D4-DEV-001", "Completed", "Training selesai");
     await source.createEvaluation({ employeeId: ALFA, period: "2026-11", evaluationDate: "2026-10-01", evaluator: "x", status: "completed", reviewStatus: "Needs Review", overallScore: 5, aspects: [], generalNotes: "Sangat baik.", evidenceReference: null });
-    const lines = indicatorsFor(selectCatalog(KPI_V51_CATALOG), 10).map((row) => ({ indicator_order: row.indicator_order, kpi_name: row.kpi_name, weight_percent: row.weight_percent, target: "", actual: "", raw_score: 5, comment: "" }));
-    await source.createKpiAssessment({ employeeId: ALFA, roleOrder: 10, period: "2026-11", evaluationDate: "2026-10-01", evaluatorName: "x", status: "completed", lines, generalNotes: "" });
+    const lines = indicatorsFor(selectCatalog(KPI_V51_CATALOG), 9).map((row) => ({ indicator_order: row.indicator_order, kpi_name: row.kpi_name, weight_percent: row.weight_percent, target: "", actual: "", raw_score: 5, comment: "" }));
+    await source.createKpiAssessment({ employeeId: ALFA, roleOrder: 9, period: "2026-11", evaluationDate: "2026-10-01", evaluatorName: "x", status: "completed", lines, generalNotes: "" });
 
     const snapshot = await source.loadSnapshot();
     expect(latestTraining(snapshot).find((item) => item.trainingId === "FIX-D4-TRN-001")?.status).toBe("Completed");
@@ -52,7 +52,7 @@ describe("competency gap is not resolved automatically", () => {
     expect(before.overallStatus).toBe("Gap");
 
     // Reassessment without new skill evidence: a new snapshot is appended, and the gap is still open.
-    const id = await source.saveCompetency({ employeeId: ALFA, positionId: FINANCE_STAFF, effectiveDate: "2026-11-30" });
+    const id = await source.saveCompetency({ employeeId: ALFA, positionId: SALES_ADMIN, effectiveDate: "2026-11-30" });
     const after = (await source.loadSnapshot()).competency.find((item) => item.id === id)!;
     expect(gapFinding(after.findings)).toBe("Gap");
     expect(after.overallStatus).toBe("Gap");
@@ -61,7 +61,7 @@ describe("competency gap is not resolved automatically", () => {
 
   it("the comparison ignores development, training and score data entirely", () => {
     // compareCompetencies only reads reference data; there is no input through which a completed training could close a gap.
-    expect(gapFinding(compareCompetencies(ALFA, FINANCE_STAFF, d4ReferenceFixture).findings)).toBe("Gap");
+    expect(gapFinding(compareCompetencies(ALFA, SALES_ADMIN, d4ReferenceFixture).findings)).toBe("Gap");
   });
 });
 
@@ -75,17 +75,17 @@ describe("explicit resolution: new skill evidence + reassessment", () => {
   });
 
   it("closes the gap only when the recorded level reaches the minimum and has evidence", () => {
-    expect(gapFinding(compareCompetencies(ALFA, FINANCE_STAFF, withSkill(ADMIN_ACCURACY, 3, "Penilaian ulang")).findings)).toBe("Gap");
-    expect(gapFinding(compareCompetencies(ALFA, FINANCE_STAFF, withSkill(ADMIN_ACCURACY, 4, "Penilaian ulang")).findings)).toBe("Terpenuhi");
+    expect(gapFinding(compareCompetencies(ALFA, SALES_ADMIN, withSkill(ADMIN_ACCURACY, 3, "Penilaian ulang")).findings)).toBe("Gap");
+    expect(gapFinding(compareCompetencies(ALFA, SALES_ADMIN, withSkill(ADMIN_ACCURACY, 4, "Penilaian ulang")).findings)).toBe("Terpenuhi");
   });
 
   it("a higher level without evidence is not a resolution: it becomes Bukti Belum Cukup, not Terpenuhi", () => {
-    expect(gapFinding(compareCompetencies(ALFA, FINANCE_STAFF, withSkill(ADMIN_ACCURACY, 5, "  ")).findings)).toBe("Bukti Belum Cukup");
+    expect(gapFinding(compareCompetencies(ALFA, SALES_ADMIN, withSkill(ADMIN_ACCURACY, 5, "  ")).findings)).toBe("Bukti Belum Cukup");
   });
 
   it("overall status turns Terpenuhi only when every requirement is met with evidence", () => {
     const resolved = withSkill(ADMIN_ACCURACY, 4, "Penilaian ulang");
-    expect(compareCompetencies(ALFA, FINANCE_STAFF, resolved).overallStatus).toBe("Bukti Belum Cukup"); // third requirement has no skill record
-    expect(compareCompetencies(ALFA, FINANCE_STAFF, withSkill(THIRD_REQUIREMENT_COMPETENCY, 3, "Bukti", resolved)).overallStatus).toBe("Terpenuhi");
+    expect(compareCompetencies(ALFA, SALES_ADMIN, resolved).overallStatus).toBe("Bukti Belum Cukup"); // third requirement has no skill record
+    expect(compareCompetencies(ALFA, SALES_ADMIN, withSkill(THIRD_REQUIREMENT_COMPETENCY, 3, "Bukti", resolved)).overallStatus).toBe("Terpenuhi");
   });
 });

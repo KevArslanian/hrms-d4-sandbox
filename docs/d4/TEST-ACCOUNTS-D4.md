@@ -102,8 +102,8 @@ Cara mengambil cookie untuk smoke test: login di browser, buka DevTools → Netw
 Jika akun live bermasalah, aplikasi bisa dijalankan dengan data fiktif tanpa login. Mode ini hanya berlaku pada `next dev`.
 
 ```bash
-NEXT_PUBLIC_D4_DATA_MODE=fixture NEXT_PUBLIC_D4_FIXTURE_ROLE=HR npm run dev        # aktor: Mercury (HR)
-NEXT_PUBLIC_D4_DATA_MODE=fixture NEXT_PUBLIC_D4_FIXTURE_ROLE=MANAGER npm run dev   # aktor: Mercury, label Manager
+NEXT_PUBLIC_D4_DATA_MODE=fixture NEXT_PUBLIC_D4_FIXTURE_ROLE=HR npm run dev        # aktor: Mercury (HR Associate Officer)
+NEXT_PUBLIC_D4_DATA_MODE=fixture NEXT_PUBLIC_D4_FIXTURE_ROLE=MANAGER npm run dev   # aktor: Romeo (Sales Executive, atasan Sales Admin Team 2)
 NEXT_PUBLIC_D4_DATA_MODE=fixture NEXT_PUBLIC_D4_FIXTURE_ROLE=EMPLOYEE npm run dev  # tampilan Alfa, read-only
 ```
 
