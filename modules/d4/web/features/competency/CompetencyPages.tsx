@@ -40,8 +40,8 @@ export function CompetencyListPage() {
     <PageHeader title="Competency Gap" subtitle="Compare employee capabilities and evidence with the active position requirements." />
     <FilterBar canReset={Boolean(search || position || department || status)} onReset={() => { setSearch(""); setPosition(""); setDepartment(""); setStatus(""); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Search name or ID" />
-      <SelectFilter label="All positions" testId="all-positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />
-      <SelectFilter label="All departments" testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />
+      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All positions" testId="all-positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />}
+      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All departments" testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />}
       <SelectFilter label="All status" testId="all-gap-status" value={status} onChange={setStatus} options={STATUS_FILTER.map((item) => ({ value: item, label: item }))} />
     </FilterBar>
     <DataTable<Row> rows={rows} noun="pegawai" rowKey={(row) => row.employee.id} rowHref={(row) => `/competency/${row.employee.id}`}
@@ -58,7 +58,7 @@ export function CompetencyListPage() {
       actions={(row) => <RowActionMenu label={`Actions for ${row.employee.fullName}`} actions={[
         { label: "View History", testId: "view-history", icon: <History />, href: `/competency/${row.employee.id}/history` },
         { label: "Create Development Requirement", testId: "create-development-requirement", icon: <FilePlus2 />, onSelect: () => setDevFor(row.employee.id),
-          hidden: !writer || row.findings.filter((item) => item.status === "Gap").every((item) => openNeedFor(allNeeds, row.employee.id, "competency_gap", item.requirementId)) },
+          hidden: !writer || row.status === "Not Evaluated" || row.findings.filter((item) => item.status === "Gap").every((item) => openNeedFor(allNeeds, row.employee.id, "competency_gap", item.requirementId)) },
       ]} />} />
     {devFor && <DevelopmentFormModal employeeId={devFor} sourceType="competency_gap" onClose={() => setDevFor(null)} />}
   </>;
@@ -100,6 +100,12 @@ export function CompetencyDetailPage({ employeeId }: { employeeId: string }) {
   if (!employee || !visibleEmployees(snapshot).some((item) => item.id === employeeId)) return <NotFound what="Employee" backHref="/competency" backLabel="Back to Competency Gap" />;
   const gap = currentGap(snapshot, employee);
   const needs = developmentNeeds(snapshot).filter((item) => item.employeeId === employee.id && item.sourceType === "competency_gap");
+  const saved = latestCurrentPositionAssessment(snapshot, employee);
+  const assessed = Boolean(saved);
+  // Saving again the same day with the same result only duplicates history.
+  const sameAsSaved = (item: CompetencyFinding) => `${item.requirementId}:${item.actualLevel}:${item.status}`;
+  const savedToday = Boolean(saved && gap && saved.effectiveDate === today()
+    && saved.findings.map(sameAsSaved).sort().join("|") === gap.findings.map(sameAsSaved).sort().join("|"));
   const saveSnapshot = () => employee.positionId && void run((source) => source.saveCompetency({ employeeId: employee.id, positionId: employee.positionId!, effectiveDate: today() }), "Competency assessment saved to history.");
 
   return <>
@@ -109,9 +115,9 @@ export function CompetencyDetailPage({ employeeId }: { employeeId: string }) {
       actions={<>
         <ButtonLink href={`/competency/${employee.id}/history`} icon={<History className="size-4" />} testId="view-history">View History</ButtonLink>
         {writer && <Button icon={<ArrowRightLeft className="size-4" />} onClick={() => setChanging(true)} data-testid="btn-assess-position-change">Assess Position Change</Button>}
-        {writer && gap && gap.findings.length > 0 && <Button icon={<Save className="size-4" />} disabled={busy} onClick={saveSnapshot} data-testid="btn-save-assessment">Save Assessment</Button>}
+        {writer && gap && gap.findings.length > 0 && <Button icon={<Save className="size-4" />} disabled={busy || savedToday} title={savedToday ? "Already saved today with the same result." : undefined} onClick={saveSnapshot} data-testid="btn-save-assessment">{savedToday ? "Saved Today" : "Save Assessment"}</Button>}
       </>} />
-    <Notice>Status keseluruhan tetap <strong>Not Evaluated</strong> sampai penilaian untuk posisi aktif disimpan. Bukti yang belum ada pada perbandingan persyaratan ditandai <strong>Insufficient Data</strong>, bukan otomatis Gap. Gap tidak pernah otomatis menetapkan training, promosi, atau sertifikasi.</Notice>
+    <Notice>{!assessed && <>Status keseluruhan tetap <strong>Not Evaluated</strong> sampai penilaian untuk posisi aktif disimpan; Development Requirement dari gap baru bisa dibuat setelah itu. </>}Bukti yang belum ada pada perbandingan persyaratan ditandai <strong>Insufficient Data</strong>, bukan otomatis Gap. Gap tidak pernah otomatis menetapkan training, promosi, atau sertifikasi.</Notice>
     <Card title="Requirement vs capability" testId="requirement-vs-capability" padded={false}>
       <div className="overflow-x-auto">
         <table data-testid="competency-gap-table" className="w-full min-w-[760px] text-left text-sm">
@@ -127,6 +133,7 @@ export function CompetencyDetailPage({ employeeId }: { employeeId: string }) {
               <td className="max-w-[280px] px-5 py-3 text-ink-2">{finding.evidenceNotes?.trim() || "No evidence yet"}</td>
               <td className="px-5 py-3"><StatusBadge status={finding.status} /></td>
               <td className="px-5 py-3 text-right">{linked && (open || finding.status !== "Gap" || !writer) ? <SourceChip label="Development" reference={statusLabel(linked.status)} href={`/development/${linked.needId}`} />
+                : finding.status === "Gap" && writer && !assessed ? <span className="text-xs text-ink-3">Save assessment first</span>
                 : finding.status === "Gap" && writer ? <Button variant="ghost" className="h-9" icon={<FilePlus2 className="size-4" />} onClick={() => setDevRef(finding.requirementId)} data-testid="btn-create-development-requirement">Create Development Requirement</Button> : "—"}</td>
             </tr>;
           })}</tbody>

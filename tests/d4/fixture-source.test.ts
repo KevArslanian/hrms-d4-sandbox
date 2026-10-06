@@ -97,7 +97,9 @@ describe("development and training (fixture)", () => {
   });
 
   it("rejects new training for a completed requirement", async () => {
-    await source.updateDevelopment("FIX-D4-DEV-001", "Completed", "");
+    // DEV-001 still has a Planned training, so completing it needs a reason.
+    await expect(source.updateDevelopment("FIX-D4-DEV-001", "Completed", "")).rejects.toThrow(/still Planned or In Progress/);
+    await source.updateDevelopment("FIX-D4-DEV-001", "Completed", "Workshop dibatalkan, diganti coaching");
     await expect(source.createTraining({ employeeId: ALFA, developmentNeedId: "FIX-D4-DEV-001", activity: "X", date: "2026-10-01", status: "Planned", result: "", notes: "" }))
       .rejects.toThrow(/Completed/);
   });

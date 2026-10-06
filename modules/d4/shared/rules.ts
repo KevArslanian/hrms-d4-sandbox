@@ -77,9 +77,21 @@ const DEVELOPMENT_STEP: Record<DevelopmentStatus, number> = { Identified: 0, Pla
 export const isDevelopmentRollback = (from: DevelopmentStatus, to: DevelopmentStatus) => DEVELOPMENT_STEP[to] < DEVELOPMENT_STEP[from];
 
 /** A status update must change the status, and moving back needs a reason (same rule as training). */
-export function assertDevelopmentChange(from: DevelopmentStatus, to: DevelopmentStatus, notes: string) {
+export function assertDevelopmentChange(from: DevelopmentStatus, to: DevelopmentStatus, notes: string, openTrainings = 0) {
   if (from === to) throw new ApiError("VALIDATION_FAILED", `The status is already ${to}. Choose another status.`);
   if (isDevelopmentRollback(from, to) && !notes.trim()) throw new ApiError("VALIDATION_FAILED", `A reason is required when the status moves back from ${from} to ${to}.`);
+  if (to === "Completed" && openTrainings > 0 && !notes.trim()) throw new ApiError("VALIDATION_FAILED", "Training for this requirement is still Planned or In Progress. Complete or cancel it first, or explain why in Notes.");
+}
+
+/** Planned/In Progress trainings of a need: completing the need while these run needs a reason. */
+export const openTrainingCount = (trainings: readonly { developmentNeedId: string; status: TrainingStatus }[], needId: string) =>
+  trainings.filter((item) => item.developmentNeedId === needId && (item.status === "Planned" || item.status === "In Progress")).length;
+
+/** A gap-based need is raised only after a competency assessment is saved for the employee's active position. */
+export function assertGapAssessed(competency: readonly { employeeId: string; positionId: string }[], employee: { id: string; positionId?: string | null } | undefined, sourceType: DevelopmentSourceType) {
+  if (sourceType !== "competency_gap") return;
+  if (!employee?.positionId || !competency.some((item) => item.employeeId === employee.id && item.positionId === employee.positionId))
+    throw new ApiError("VALIDATION_FAILED", "Save the competency assessment for the active position before raising a development requirement from its gap.");
 }
 
 /** Evaluation dates are when the evaluation happened, so they cannot be later than today (WIB). */

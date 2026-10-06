@@ -4,7 +4,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import type { DevelopmentPriority, DevelopmentSourceType, DevelopmentStatus } from "../../../development/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
 import { isDevelopmentRollback, openNeedFor } from "../../../shared/rules";
-import { currentGap, developmentNeeds, employeeById, formatDate, formatPeriod, positionOf, sourceTypeLabel, today, trainings, visibleEmployees } from "../../data/selectors";
+import { currentGap, developmentNeeds, employeeById, formatDate, formatPeriod, latestCurrentPositionAssessment, positionOf, sourceTypeLabel, today, trainings, visibleEmployees } from "../../data/selectors";
 import { FormError, FormModal, ModalActions, ReadOnlyField, SelectField, TextAreaField, TextField } from "../../ui/forms";
 import { Notice, statusLabel } from "../../ui/primitives";
 
@@ -18,6 +18,8 @@ export function sourceOptions(snapshot: ReturnType<typeof useSnapshot>, employee
   const employee = employeeById(snapshot, employeeId);
   if (!employee) return [];
   if (type === "competency_gap") {
+    // Same rule as the server: gap-based needs come only after the assessment for the active position is saved.
+    if (!latestCurrentPositionAssessment(snapshot, employee)) return [];
     const needs = developmentNeeds(snapshot);
     return (currentGap(snapshot, employee)?.findings ?? []).filter((item) => item.status === "Gap")
       .map((item) => ({ ref: item.requirementId, label: `${item.competencyName} · level ${item.actualLevel ?? "—"} of min. ${item.requiredLevel}`, covered: Boolean(openNeedFor(needs, employeeId, type, item.requirementId)) }));
@@ -40,6 +42,7 @@ export function DevelopmentFormModal({ employeeId, sourceType, sourceRef, onClos
   const [error, setError] = useState("");
   const [touched, setTouched] = useState(false);
   const options = useMemo(() => sourceOptions(snapshot, employee, type), [snapshot, employee, type]);
+  const selectedEmployee = employeeById(snapshot, employee);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -58,21 +61,24 @@ export function DevelopmentFormModal({ employeeId, sourceType, sourceRef, onClos
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />
       <div className="grid gap-4 sm:grid-cols-2">
-        <SelectField label="Employee" testId="employee" required value={employee} onChange={(event) => { setEmployee(event.target.value); setReference(""); }} error={touched && !employee ? "Employee is required." : undefined} className="sm:col-span-2">
-          <option value="">Select employee</option>
-          {visibleEmployees(snapshot).map((item) => <option key={item.id} value={item.id}>{item.fullName} · {item.employeeId}</option>)}
-        </SelectField>
-        <ReadOnlyField label="Position" testId="position" value={positionOf(snapshot, employeeById(snapshot, employee))?.title ?? "—"} />
-        <SelectField label="Source type" testId="source-type" required value={type} onChange={(event) => { setType(event.target.value as DevelopmentSourceType); setReference(""); }}>
+        {employeeId ? <ReadOnlyField label="Employee" testId="employee" value={`${selectedEmployee?.fullName ?? "—"} · ${selectedEmployee?.employeeId ?? ""}`} className="sm:col-span-2" />
+          : <SelectField label="Employee" testId="employee" required value={employee} onChange={(event) => { setEmployee(event.target.value); setReference(""); }} error={touched && !employee ? "Employee is required." : undefined} className="sm:col-span-2">
+            <option value="">Select employee</option>
+            {visibleEmployees(snapshot).map((item) => <option key={item.id} value={item.id}>{item.fullName} · {item.employeeId}</option>)}
+          </SelectField>}
+        <ReadOnlyField label="Position" testId="position" value={positionOf(snapshot, selectedEmployee)?.title ?? "—"} />
+        {sourceType ? <ReadOnlyField label="Source type" testId="source-type" value={sourceTypeLabel[type]} /> : <SelectField label="Source type" testId="source-type" required value={type} onChange={(event) => { setType(event.target.value as DevelopmentSourceType); setReference(""); }}>
           {(Object.keys(sourceTypeLabel) as DevelopmentSourceType[]).map((key) => <option key={key} value={key}>{sourceTypeLabel[key]}</option>)}
-        </SelectField>
+        </SelectField>}
         <SelectField label="Source reference" testId="source-reference" required value={reference} onChange={(event) => setReference(event.target.value)} className="sm:col-span-2"
           error={touched && !reference ? "Source reference is required." : undefined}>
           <option value="">{options.some((item) => !item.covered) ? "Select source reference" : "No valid source yet"}</option>
           {options.map((item) => <option key={item.ref} value={item.ref} disabled={item.covered}>{item.label}{item.covered ? " · already has an open requirement" : ""}</option>)}
         </SelectField>
         {employee && options.length > 0 && options.every((item) => item.covered) && <div className="sm:col-span-2"><Notice tone="warning">Every competency gap of this employee already has an unfinished development requirement. Update the existing one in Development Requirement.</Notice></div>}
-        {employee && !options.length && <div className="sm:col-span-2"><Notice tone="warning">This employee has no source of type {sourceTypeLabel[type]} yet. Development is not created just because time has passed.</Notice></div>}
+        {employee && !options.length && <div className="sm:col-span-2"><Notice tone="warning">{type === "competency_gap" && selectedEmployee && !latestCurrentPositionAssessment(snapshot, selectedEmployee)
+          ? "Save the competency assessment for this employee's active position first (Competency Gap → Save Assessment); a development requirement is raised from a saved gap."
+          : <>This employee has no source of type {sourceTypeLabel[type]} yet. Development is not created just because time has passed.</>}</Notice></div>}
         <TextField label="Development objective" testId="development-objective" required value={objective} onChange={(event) => setObjective(event.target.value)} error={touched && !objective.trim() ? "Development objective is required." : undefined} className="sm:col-span-2" />
         <SelectField label="Priority" testId="priority" value={priority} onChange={(event) => setPriority(event.target.value as DevelopmentPriority)}>
           {(["High", "Medium", "Low"] as const).map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}
@@ -93,9 +99,13 @@ export function DevelopmentStatusModal({ needId, onClose }: { needId: string; on
   const [error, setError] = useState("");
   const openTrainings = trainings(snapshot).filter((item) => item.developmentNeedId === needId && (item.status === "Planned" || item.status === "In Progress"));
   const rollback = current ? isDevelopmentRollback(current.status, status) : false;
+  // Same rule as the server: completing while training still runs needs a reason.
+  const completingOpen = status === "Completed" && openTrainings.length > 0;
+  const needsReason = rollback || completingOpen;
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (rollback && !notes.trim()) { setError(`A reason is required when the status moves back from ${statusLabel(current?.status ?? "")} to ${statusLabel(status)}.`); return; }
+    if (completingOpen && !notes.trim()) { setError("Training for this requirement is still Planned or In Progress. Complete or cancel it first, or explain why in Notes."); return; }
     const result = await run((source) => source.updateDevelopment(needId, status, notes), "Development status updated as a new revision.");
     if (result.ok) onClose(); else setError(result.error);
   }
@@ -106,7 +116,7 @@ export function DevelopmentStatusModal({ needId, onClose }: { needId: string; on
         {(["Identified", "Planned", "In Progress", "Completed"] as const).map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}
       </SelectField>
       {status === "Completed" && openTrainings.length > 0 && <Notice tone="warning">There {openTrainings.length === 1 ? "is" : "are"} still {openTrainings.length} Planned/In Progress training{openTrainings.length === 1 ? "" : "s"} for this requirement ({openTrainings.map((item) => item.activity).join(", ")}). Complete or cancel them first, or explain why in Notes.</Notice>}
-      <TextAreaField label="Notes" testId="notes" required={rollback} value={notes} onChange={(event) => setNotes(event.target.value)} helper={status === current?.status ? `The status is already ${status}. Choose another status to save.` : rollback ? "Required: the status is moving back to an earlier stage." : undefined} />
+      <TextAreaField label="Notes" testId="notes" required={needsReason} value={notes} onChange={(event) => setNotes(event.target.value)} helper={status === current?.status ? `The status is already ${status}. Choose another status to save.` : rollback ? "Required: the status is moving back to an earlier stage." : completingOpen ? "Required: explain why the requirement is completed while training is still open." : undefined} />
       <Notice>Changes are saved as a new revision; earlier history stays available. A Completed status does not close the competency gap automatically.</Notice>
     </form>
   </FormModal>;

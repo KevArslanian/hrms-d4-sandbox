@@ -4,7 +4,7 @@ import { indicatorsFor, KPI_V51_CATALOG, roleForPositionTitle, selectCatalog } f
 import { performanceFixtureRecords } from "../../performance/fixtures";
 import { validatePerformanceInput } from "../../performance/validation";
 import { d4ReferenceFixture } from "../../shared/fixtures";
-import { assertDevelopmentChange, assertNeedOpen, assertNoOpenNeed, assertNotFutureDate, assertNotSelf, assertPeriodRevision, assertTrainingChange } from "../../shared/rules";
+import { assertDevelopmentChange, assertGapAssessed, assertNeedOpen, assertNoOpenNeed, openTrainingCount, assertNotFutureDate, assertNotSelf, assertPeriodRevision, assertTrainingChange } from "../../shared/rules";
 import type { D4LiveSnapshot, KpiAssessment, KpiAssessmentLine } from "../../supabase/types";
 import { latestDevelopment, latestTraining } from "../../supabase/types";
 import { trainingFixtureVersions } from "../../training/fixtures";
@@ -44,6 +44,9 @@ function initialSnapshot(): D4LiveSnapshot {
   const alfa = ALFA;
   const finance = "d4000000-0000-4000-8000-000000000008";
   const comparison = compareCompetencies(alfa, finance, d4ReferenceFixture);
+  // Charlie's development need (FIX-D4-DEV-002) comes from a saved gap, so the assessment exists too.
+  const charlie = "d4000000-0000-4000-8000-000000000011", operations = "d4000000-0000-4000-8000-000000000018";
+  const charlieGap = compareCompetencies(charlie, operations, d4ReferenceFixture);
   return {
     reference: d4ReferenceFixture,
     role: FIXTURE_ROLE,
@@ -58,6 +61,10 @@ function initialSnapshot(): D4LiveSnapshot {
       id: "FIX-D4-COMP-ASSESS-001", source: "local-demo", employeeId: alfa, positionId: finance, effectiveDate: "2026-09-21",
       context: "current-position", findings: comparison.findings, overallStatus: comparison.overallStatus,
       createdAt: "2026-09-21T09:00:00.000Z", actor: "Mercury",
+    }, {
+      id: "FIX-D4-COMP-ASSESS-002", source: "local-demo", employeeId: charlie, positionId: operations, effectiveDate: "2026-09-22",
+      context: "current-position", findings: charlieGap.findings, overallStatus: charlieGap.overallStatus,
+      createdAt: "2026-09-22T09:00:00.000Z", actor: "Mercury",
     }],
     developmentVersions: developmentFixtureVersions,
     trainingVersions: trainingFixtureVersions,
@@ -129,6 +136,7 @@ export function createFixtureSource(): D4DataSource {
       if (!input.objective.trim()) throw new Error("Development objective is required.");
       if (!input.sourceRef) throw new Error("Source reference is required.");
       assertNoOpenNeed(latestDevelopment(state), input.employeeId, input.sourceType, input.sourceRef);
+      assertGapAssessed(state.competency, state.reference.employees.find((item) => item.id === input.employeeId), input.sourceType);
       const needId = newId("FIX-D4-DEV");
       update({ developmentVersions: [{ ...input, id: newId("FIX-D4-DEV-V"), needId, revision: 1, source: "local-demo", status: "Identified", createdAt: now(), actor: actorName() }, ...state.developmentVersions] });
       return needId;
@@ -137,7 +145,7 @@ export function createFixtureSource(): D4DataSource {
       assertWriter();
       const current = latestDevelopment(state).find((item) => item.needId === needId);
       if (!current) throw new Error("Development need not found.");
-      assertDevelopmentChange(current.status, status, notes);
+      assertDevelopmentChange(current.status, status, notes, openTrainingCount(latestTraining(state), needId));
       update({ developmentVersions: [{ ...current, id: newId("FIX-D4-DEV-V"), revision: current.revision + 1, status, notes, createdAt: now(), actor: actorName() }, ...state.developmentVersions] });
     },
     async createTraining(input) {

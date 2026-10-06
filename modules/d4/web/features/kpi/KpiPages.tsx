@@ -2,7 +2,7 @@
 
 import { ClipboardCheck, History, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
-import { ACTIVE_KPI_VERSION, roleForPositionTitle } from "../../../kpi/catalog";
+import { ACTIVE_KPI_VERSION, roleForPositionTitle, rolesOf } from "../../../kpi/catalog";
 import type { EmployeeReference } from "../../../shared/types";
 import type { KpiAssessment } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
@@ -22,7 +22,7 @@ function CatalogNotice() {
   return <Notice tone="warning">The KPI catalog in the database is still {catalog.version}. Apply migration <code>20260929150000_d4_kpi_catalog_v51.sql</code> so new scorecards use KPI Scorecard {ACTIVE_KPI_VERSION}.</Notice>;
 }
 
-type Row = { employee: EmployeeReference; position: string; hasKpi: boolean; scorecard?: KpiAssessment };
+type Row = { employee: EmployeeReference; position: string; hasKpi: boolean; roleName?: string; scorecard?: KpiAssessment };
 
 export function KpiListPage() {
   const snapshot = useSnapshot();
@@ -37,8 +37,10 @@ export function KpiListPage() {
   const periods = useMemo(() => [...new Set((snapshot.kpiAssessments ?? []).map((item) => item.period))].sort().reverse(), [snapshot]);
   const rows = useMemo<Row[]>(() => visibleEmployees(snapshot).map((employee) => {
     const title = positionOf(snapshot, employee)?.title;
+    const roleOrder = catalog && title ? roleForPositionTitle(catalog, title) : 0;
     return {
-      employee, position: title ?? "—", hasKpi: !catalog || !title || roleForPositionTitle(catalog, title) > 0,
+      employee, position: title ?? "—", hasKpi: !catalog || !title || roleOrder > 0,
+      roleName: catalog && roleOrder ? rolesOf(catalog).find((role) => role.order === roleOrder)?.name : undefined,
       scorecard: period ? scorecardsOf(snapshot, employee.id).find((item) => item.period === period) : latestScorecard(snapshot, employee.id),
     };
   }).filter((row) => includesText(`${row.employee.fullName} ${row.employee.employeeId}`, search)
@@ -51,8 +53,8 @@ export function KpiListPage() {
     <CatalogNotice />
     <FilterBar canReset={Boolean(search || position || department || period || status)} onReset={() => { setSearch(""); setPosition(""); setDepartment(""); setPeriod(""); setStatus(""); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Search name or ID" />
-      <SelectFilter label="All positions" testId="all-positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />
-      <SelectFilter label="All departments" testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />
+      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All positions" testId="all-positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />}
+      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All departments" testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />}
       <SelectFilter label="All periods" testId="latest-period" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
       <SelectFilter label="All status" testId="all-status" value={status} onChange={setStatus} options={["Completed", "Draft", "Not Evaluated"].map((item) => ({ value: item, label: statusLabel(item) }))} />
     </FilterBar>
@@ -63,7 +65,7 @@ export function KpiListPage() {
         { key: "employee", header: "Employee", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
         { key: "position", header: "Position", wrap: true, cell: (row) => row.position },
         { key: "department", header: "Department", wrap: true, cell: (row) => departmentOf(snapshot, row.employee)?.name ?? "—" },
-        { key: "role", header: "KPI Role", wrap: true, cell: (row) => row.scorecard?.roleName ?? (row.hasKpi ? "—" : <span className="text-ink-3">Not in catalog {catalog?.version} yet</span>) },
+        { key: "role", header: "KPI Role", wrap: true, cell: (row) => row.scorecard?.roleName ?? row.roleName ?? (row.hasKpi ? "—" : <span className="text-ink-3">Not in catalog {catalog?.version} yet</span>) },
         { key: "period", header: "Period", cell: (row) => formatPeriod(row.scorecard?.period) },
         { key: "total", header: "Total Score", className: "tabular-nums", cell: (row) => formatScore(row.scorecard?.overallScore) },
         { key: "status", header: "Status", cell: (row) => <StatusBadge status={scorecardStatus(row.scorecard)} /> },

@@ -1,6 +1,6 @@
 import type { DevelopmentPriority, DevelopmentSourceType, DevelopmentStatus } from "../../development/types";
-import { latestDevelopment } from "../../supabase/types";
-import { assertDevelopmentChange, assertNoOpenNeed } from "../../shared/rules";
+import { latestDevelopment, latestTraining } from "../../supabase/types";
+import { assertDevelopmentChange, assertGapAssessed, assertNoOpenNeed, openTrainingCount } from "../../shared/rules";
 import { ApiError, employeeFilter, enforce, field, readJson } from "../_lib/http";
 import { d4Session, requireWriter } from "../_lib/session";
 
@@ -35,6 +35,7 @@ export async function createDevelopment(request: Request) {
   };
   const snapshot = await repository.loadSnapshot();
   enforce(() => assertNoOpenNeed(latestDevelopment(snapshot), input.employeeId, input.sourceType, input.sourceRef));
+  enforce(() => assertGapAssessed(snapshot.competency, snapshot.reference.employees.find((item) => item.id === input.employeeId), input.sourceType));
   return { id: await repository.createDevelopment(input, snapshot) };
 }
 
@@ -45,9 +46,10 @@ export async function addDevelopmentVersion(request: Request, id: string) {
   const status = field.oneOf(body, "status", statuses);
   const notes = field.text(body, "notes", { required: false, max: 2000 });
   // Checked here so an unknown or malformed id is a 404, not a database error.
-  const current = latestDevelopment(await repository.loadSnapshot()).find((item) => item.needId === id);
+  const snapshot = await repository.loadSnapshot();
+  const current = latestDevelopment(snapshot).find((item) => item.needId === id);
   if (!current) throw new ApiError("NOT_FOUND", "Development need not found.");
-  enforce(() => assertDevelopmentChange(current.status, status, notes));
+  enforce(() => assertDevelopmentChange(current.status, status, notes, openTrainingCount(latestTraining(snapshot), id)));
   await repository.updateDevelopment(id, status, notes);
   return { developmentNeedId: id, status };
 }
