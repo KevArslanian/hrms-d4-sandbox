@@ -9,6 +9,7 @@ Semua file di folder ini adalah **draft siap tempel**. Draft **Planka sudah dite
 | [docmost/03-fr-d4-002-catatan-kpi-v51.md](docmost/03-fr-d4-002-catatan-kpi-v51.md) | FR-D4-002 | Selisih katalog V5.1 (dokumen) vs V3.1 (database) |
 | [docmost/04-halaman-baru-ui-api.md](docmost/04-halaman-baru-ui-api.md) | Halaman baru UI-D4-001 dan API-D4-001 | K6, TR-21 |
 | [docmost/05-perbaikan-metadata-dan-link.md](docmost/05-perbaikan-metadata-dan-link.md) | US-D4-001…006, SD/FR/TR/TA, halaman duplikat | Kerapian dokumen |
+| [docmost/06-prompt-gabung-kpi-evaluasi.md](docmost/06-prompt-gabung-kpi-evaluasi.md) | Prompt untuk Claude ber-MCP Docmost: gabungkan FR-D4-001 dan FR-D4-002 (usulan, menunggu PO) | Menu KPI dan evaluasi tumpang tindih |
 | [planka/01-label.md](planka/01-label.md) | Label board Squad D4 | K7 |
 | [planka/02-sinkron-checklist.md](planka/02-sinkron-checklist.md) | Checklist semua kartu WebDev dan UI/UX | K7 |
 | [planka/03-kartu-dan-komentar.md](planka/03-kartu-dan-komentar.md) | Deskripsi dan komentar kartu | K7, K8 |
