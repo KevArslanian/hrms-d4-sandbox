@@ -17,7 +17,7 @@ import { DevelopmentFormModal } from "../development/DevelopmentModals";
 type Row = { employee: EmployeeReference; position: string; status: CompetencyOverallStatus | "Belum Ada Posisi"; findings: CompetencyFinding[]; lastAssessed?: string };
 
 // Compared with statusLabel(row.status), so these are the English display labels.
-const STATUS_FILTER = ["Met", "Gap", "Insufficient Data", "No Requirement"];
+const STATUS_FILTER = ["Met", "Gap", "Insufficient Data"];
 
 export function CompetencyListPage() {
   const snapshot = useSnapshot();

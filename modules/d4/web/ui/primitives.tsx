@@ -50,7 +50,8 @@ const statusTone: Record<string, Tone> = {
 // Indonesian and are translated here only for display.
 const STATUS_LABELS: Record<string, string> = {
   Terpenuhi: "Met", "Data Belum Cukup": "Insufficient Data", "Bukti Belum Cukup": "Insufficient Data",
-  "Belum Ada Persyaratan": "No Requirement", "Belum Ada Posisi": "No Position",
+  // No requirement or no position means nothing can be concluded, so it reads as Insufficient Data (3 competency statuses).
+  "Belum Ada Persyaratan": "Insufficient Data", "Belum Ada Posisi": "Insufficient Data",
 };
 
 export const statusLabel = (status: string) => STATUS_LABELS[status] ?? status;
