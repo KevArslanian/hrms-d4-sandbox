@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, Search, X } from "lucide-react";
+import { Check, ChevronDown, Search, X } from "lucide-react";
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { createPortal } from "react-dom";
 import { Button, cx, slug } from "./primitives";
@@ -26,37 +26,44 @@ export function SearchInput({ value, onChange, placeholder }: { value: string; o
   </label>;
 }
 
-const FILTER_MIN_CHARS = 2;
-
 /**
- * Filter as type-ahead (reviewer feedback): no full list up front; matching options appear after
- * FILTER_MIN_CHARS letters. `emptyOption={false}` is for filters that always show one value (the dashboard
- * period): typing never clears it, and leaving the field restores the chosen label.
+ * Filter dropdown with a search box on top (reviewer feedback): opening it lists every option, typing narrows
+ * the list. `emptyOption={false}` drops the "All …" choice for filters that always show one value (the dashboard period).
  */
 export function SelectFilter({ label, testId, value, onChange, options, emptyOption = true }: { label: string; testId?: string; value: string; onChange: (value: string) => void; options: { value: string; label: string }[]; emptyOption?: boolean }) {
   const listId = useId();
-  // null = not editing: the field shows the chosen option's label.
-  const [text, setText] = useState<string | null>(null);
-  const selectedLabel = options.find((option) => option.value === value)?.label ?? "";
-  const term = (text ?? "").trim().toLowerCase();
-  const open = text !== null && term.length >= FILTER_MIN_CHARS;
-  const matches = open ? options.filter((option) => option.label.toLowerCase().includes(term)).slice(0, 8) : [];
-  const pick = (option: { value: string }) => { setText(null); onChange(option.value); };
-  return <div className="relative min-w-[172px] flex-[1_1_172px]" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setText(null); }}>
-    <label className="relative block">
-      <span className="sr-only">{label}</span>
-      <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-3 size-4 text-ink-3" />
-      <input data-testid={`filter-${testId ?? slug(label)}`} role="combobox" aria-controls={listId} aria-expanded={open} aria-autocomplete="list" value={text ?? selectedLabel}
-        onFocus={() => setText(selectedLabel)}
-        onChange={(event) => { setText(event.target.value); if (emptyOption && value) onChange(""); }}
-        onKeyDown={(event) => { if (event.key === "Escape") setText(null); if (event.key === "Enter" && matches[0]) { event.preventDefault(); pick(matches[0]); } }}
-        placeholder={label} className={cx(control, "pl-9")} />
-    </label>
-    {open && <ul id={listId} role="listbox" data-testid={`options-${testId ?? slug(label)}`} className="absolute inset-x-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-[10px] border border-line bg-surface py-1 text-sm shadow-card">
-      {matches.length ? matches.map((option) => <li key={option.value} role="option" aria-selected={option.value === value}>
-        <button type="button" onClick={() => pick(option)} className="block w-full px-3 py-2 text-left text-ink hover:bg-primary-50 focus:bg-primary-50 focus:outline-none">{option.label}</button>
-      </li>) : <li className="px-3 py-2 text-ink-3">No match</li>}
-    </ul>}
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const id = testId ?? slug(label);
+  const all = emptyOption ? [{ value: "", label }, ...options] : options;
+  const term = query.trim().toLowerCase();
+  const matches = term ? all.filter((option) => option.label.toLowerCase().includes(term)) : all;
+  const selected = options.find((option) => option.value === value);
+  const close = () => { setOpen(false); setQuery(""); };
+  const pick = (next: string) => { onChange(next); close(); };
+  return <div className="relative min-w-[172px] flex-[1_1_172px]" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) close(); }}
+    onKeyDown={(event) => { if (event.key === "Escape" && open) { event.stopPropagation(); close(); } }}>
+    <button type="button" data-testid={`filter-${id}`} aria-label={label} aria-haspopup="listbox" aria-expanded={open} onClick={() => open ? close() : setOpen(true)}
+      className={cx(control, "flex items-center justify-between gap-2 text-left", !selected && "text-ink-2")}>
+      <span className="truncate">{selected?.label ?? label}</span>
+      <ChevronDown aria-hidden="true" className={cx("size-4 shrink-0 text-ink-3 transition-transform", open && "rotate-180")} />
+    </button>
+    {open && <div className="absolute inset-x-0 top-full z-30 mt-1 rounded-[10px] border border-line bg-surface p-1.5 shadow-card">
+      <label className="relative block">
+        <span className="sr-only">Search {label}</span>
+        <Search aria-hidden="true" className="pointer-events-none absolute left-2.5 top-2.5 size-4 text-ink-3" />
+        <input autoFocus data-testid={`search-${id}`} role="combobox" aria-controls={listId} aria-expanded aria-autocomplete="list" value={query} onChange={(event) => setQuery(event.target.value)}
+          onKeyDown={(event) => { if (event.key === "Enter" && matches[0]) { event.preventDefault(); pick(matches[0].value); } }}
+          placeholder="Type to filter…" className="h-9 w-full rounded-lg border border-line-strong bg-app pl-8 pr-2 text-sm text-ink outline-none placeholder:text-ink-3 focus:border-primary-500" />
+      </label>
+      <ul id={listId} role="listbox" data-testid={`options-${id}`} aria-label={label} className="mt-1.5 max-h-64 overflow-y-auto text-sm">
+        {matches.length ? matches.map((option) => <li key={option.value || "all"} role="option" aria-selected={option.value === value}>
+          <button type="button" onClick={() => pick(option.value)} className={cx("flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-ink hover:bg-primary-50 focus:bg-primary-50 focus:outline-none", option.value === value && "font-semibold text-primary-600")}>
+            <Check aria-hidden="true" className={cx("size-4 shrink-0", option.value !== value && "invisible")} />{option.label}
+          </button>
+        </li>) : <li className="px-2.5 py-2 text-ink-3">No match</li>}
+      </ul>
+    </div>}
   </div>;
 }
 
