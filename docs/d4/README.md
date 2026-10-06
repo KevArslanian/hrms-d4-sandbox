@@ -10,6 +10,7 @@
 | [AUDIT-UX-D4.md](AUDIT-UX-D4.md) | Audit UX, flow, dan traceability FR → route → Figma → Planka |
 | [TEST-PLAN-D4.md](TEST-PLAN-D4.md) | Test plan + Requirement Traceability Matrix (117 TC/TS), format PASS/FAIL/BLOCKED, dependency |
 | [QA-STABILITY-D4.md](QA-STABILITY-D4.md) | Uji stabilitas (`npm test`, 90 tes + crawl browser) dan bug log BUG-D4-001…004 |
+| [PANDUAN-BELAJAR-D4.md](PANDUAN-BELAJAR-D4.md) | Panduan belajar: bukti per kartu Planka dan cara membukanya, alur program, 19 endpoint API, project Vercel, akun, data demo Andima, hasil smoke test 6 Okt 2026 |
 | [PLANKA-D4.md](PLANKA-D4.md) | Konvensi board Planka "Squad D4" (layout, nama, label peran) + matriks kartu ↔ bukti |
 | [drafts/](drafts/README.md) | Teks siap tempel untuk Docmost (belum diterapkan) dan Planka (diterapkan 30 Sep 2026) |
 
