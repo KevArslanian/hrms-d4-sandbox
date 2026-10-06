@@ -71,7 +71,7 @@ export function Timeline({ entries, empty }: { entries: TimelineEntry[]; empty: 
         </div>
         <p className="mt-1.5 font-semibold text-ink">{entry.href ? <Link href={entry.href} className="hover:text-primary-600 hover:underline">{entry.title}</Link> : entry.title}</p>
         {entry.body && <div className="mt-1.5 text-sm text-ink-2">{entry.body}</div>}
-        <p className="mt-2 text-xs text-ink-3">Dicatat oleh {entry.actor}</p>
+        <p className="mt-2 text-xs text-ink-3">Recorded by {entry.actor}</p>
       </div>
     </li>)}
   </ol>;

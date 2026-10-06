@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, ChevronDown, Search, X } from "lucide-react";
-import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
+import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type InputHTMLAttributes, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { createPortal } from "react-dom";
 import { Button, cx, slug } from "./primitives";
 
@@ -41,8 +41,16 @@ export function SelectFilter({ label, testId, value, onChange, options, emptyOpt
   const selected = options.find((option) => option.value === value);
   const close = () => { setOpen(false); setQuery(""); };
   const pick = (next: string) => { onChange(next); close(); };
+  // Arrow keys move between the search box and the options (keyboard use without Tab).
+  const moveFocus = (event: ReactKeyboardEvent<HTMLElement>) => {
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    const items = [...event.currentTarget.querySelectorAll<HTMLElement>(`[data-search], #${CSS.escape(listId)} button`)];
+    const at = items.indexOf(document.activeElement as HTMLElement);
+    const next = items[Math.min(items.length - 1, Math.max(0, at + (event.key === "ArrowDown" ? 1 : -1)))];
+    if (next) { event.preventDefault(); next.focus(); }
+  };
   return <div className="relative min-w-[172px] flex-[1_1_172px]" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) close(); }}
-    onKeyDown={(event) => { if (event.key === "Escape" && open) { event.stopPropagation(); close(); } }}>
+    onKeyDown={(event) => { if (event.key === "Escape" && open) { event.stopPropagation(); close(); } else if (open) moveFocus(event); else if (event.key === "ArrowDown") { event.preventDefault(); setOpen(true); } }}>
     <button type="button" data-testid={`filter-${id}`} aria-label={label} aria-haspopup="listbox" aria-expanded={open} onClick={() => open ? close() : setOpen(true)}
       className={cx(control, "flex items-center justify-between gap-2 text-left", !selected && "text-ink-2")}>
       <span className="truncate">{selected?.label ?? label}</span>
@@ -52,7 +60,7 @@ export function SelectFilter({ label, testId, value, onChange, options, emptyOpt
       <label className="relative block">
         <span className="sr-only">Search {label}</span>
         <Search aria-hidden="true" className="pointer-events-none absolute left-2.5 top-2.5 size-4 text-ink-3" />
-        <input autoFocus data-testid={`search-${id}`} role="combobox" aria-controls={listId} aria-expanded aria-autocomplete="list" value={query} onChange={(event) => setQuery(event.target.value)}
+        <input autoFocus data-search data-testid={`search-${id}`} role="combobox" aria-controls={listId} aria-expanded aria-autocomplete="list" value={query} onChange={(event) => setQuery(event.target.value)}
           onKeyDown={(event) => { if (event.key === "Enter" && matches[0]) { event.preventDefault(); pick(matches[0].value); } }}
           placeholder="Type to filter…" className="h-9 w-full rounded-lg border border-line-strong bg-app pl-8 pr-2 text-sm text-ink outline-none placeholder:text-ink-3 focus:border-primary-500" />
       </label>

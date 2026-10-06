@@ -4,7 +4,7 @@ import { indicatorsFor, KPI_V51_CATALOG, roleForPositionTitle, selectCatalog } f
 import { performanceFixtureRecords } from "../../performance/fixtures";
 import { validatePerformanceInput } from "../../performance/validation";
 import { d4ReferenceFixture } from "../../shared/fixtures";
-import { assertDevelopmentChange, assertGapAssessed, assertNeedOpen, assertNoOpenNeed, openTrainingCount, assertNotFutureDate, assertNotSelf, assertPeriodRevision, assertTrainingChange } from "../../shared/rules";
+import { assertDevelopmentChange, assertGapAssessed, assertTrainingDate, assertNeedOpen, assertNoOpenNeed, openTrainingCount, assertNotFutureDate, assertNotSelf, assertPeriodRevision, assertTrainingChange } from "../../shared/rules";
 import type { D4LiveSnapshot, KpiAssessment, KpiAssessmentLine } from "../../supabase/types";
 import { latestDevelopment, latestTraining } from "../../supabase/types";
 import { trainingFixtureVersions } from "../../training/fixtures";
@@ -153,6 +153,7 @@ export function createFixtureSource(): D4DataSource {
       const need = latestDevelopment(state).find((item) => item.needId === input.developmentNeedId);
       if (!need || need.employeeId !== input.employeeId) throw new Error("Training must refer to a development need of the same employee.");
       assertNeedOpen(need);
+      assertTrainingDate(input.status, input.date);
       if (input.status === "Completed" && !input.result.trim()) throw new Error("Result is required when the training is completed.");
       const trainingId = newId("FIX-D4-TRN");
       update({ trainingVersions: [{ ...input, id: newId("FIX-D4-TRN-V"), trainingId, revision: 1, source: "local-demo", createdAt: now(), actor: actorName() }, ...state.trainingVersions] });
