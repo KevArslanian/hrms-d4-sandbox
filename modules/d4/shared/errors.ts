@@ -15,9 +15,9 @@ export class ApiError extends Error {
 }
 
 /** Duplicate or concurrent write (double click, two tabs) of a record that must be unique. */
-export const DUPLICATE_MESSAGE = "Data yang sama sudah tersimpan atau sedang diproses. Muat ulang halaman untuk melihat data terbaru.";
+export const DUPLICATE_MESSAGE = "The same data is already saved or being processed. Reload the page to see the latest data.";
 
-export const NETWORK_ERROR_MESSAGE = "Layanan data HRMS sedang tidak dapat dihubungi. Coba lagi beberapa saat lagi.";
+export const NETWORK_ERROR_MESSAGE = "The HRMS data service is unreachable right now. Please try again shortly.";
 
 /** Transport failures reported by fetch / Node (English system text, not D4 messages). */
 export const isNetworkFailure = (message: string) => /fetch failed|ECONNREFUSED|ECONNRESET|ENOTFOUND|ETIMEDOUT|network ?error|timed? ?out/i.test(message);
@@ -31,7 +31,7 @@ export const isNetworkFailure = (message: string) => /fetch failed|ECONNREFUSED|
 export function databaseError(error: { message: string; code?: string }, label: string): Error {
   if (error.code === "23505") return new ApiError("CONFLICT", DUPLICATE_MESSAGE); // unique_violation
   if (error.code === "P0001") return new ApiError("VALIDATION_FAILED", error.message); // raise_exception
-  if (error.code === "42501" || /row-level security/i.test(error.message)) return new ApiError("FORBIDDEN", "Akun ini tidak memiliki izin untuk tindakan tersebut.");
+  if (error.code === "42501" || /row-level security/i.test(error.message)) return new ApiError("FORBIDDEN", "This account is not allowed to perform that action.");
   if (isNetworkFailure(error.message)) return new ApiError("INTEGRATION_ERROR", NETWORK_ERROR_MESSAGE);
   return new Error(`${label}: ${error.message}`);
 }
@@ -40,6 +40,6 @@ export function databaseError(error: { message: string; code?: string }, label: 
 export function enforce(check: () => void) {
   try { check(); } catch (cause) {
     if (cause instanceof ApiError) throw cause;
-    throw new ApiError("VALIDATION_FAILED", cause instanceof Error ? cause.message : "Data tidak valid.");
+    throw new ApiError("VALIDATION_FAILED", cause instanceof Error ? cause.message : "Invalid data.");
   }
 }

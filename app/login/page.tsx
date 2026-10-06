@@ -96,22 +96,22 @@ export default function LoginPage() {
       .then(({ error }) => {
         if (error) {
           const message = error.message.toLowerCase().includes('email not confirmed')
-            ? 'Email belum dikonfirmasi. Selesaikan konfirmasi melalui email terlebih dahulu.'
-            : 'Email atau password salah.';
+            ? 'Email not confirmed yet. Please confirm it from your inbox first.'
+            : 'Incorrect email or password.';
           handleFailedAttempt(message);
           return;
         }
 
         setLoginAttempts(0);
-        setSuccessMessage('Login berhasil! Mengalihkan ke dashboard...');
+        setSuccessMessage('Login successful! Redirecting to the dashboard...');
         window.setTimeout(() => { router.push('/dashboard'); }, 1200);
       })
-      .catch(() => setErrorMessage('Tidak dapat menghubungi server login. Silakan coba lagi.'))
+      .catch(() => setErrorMessage('Cannot reach the login server. Please try again.'))
       .finally(() => setIsSigningIn(false));
   };
 
   return (
-    <main className="relative min-h-screen w-full overflow-x-hidden bg-[#07111F] text-[#0D1B2A] selection:bg-[#3B6FF5] selection:text-white font-[family-name:var(--font-montserrat)]">
+    <main className="relative min-h-screen w-full overflow-x-hidden bg-[#07111F] text-[#0D1B2A] selection:bg-[#3B6FF5] selection:text-white font-[family-name:var(--font-poppins)]">
       {/* 1. BACKGROUND GAMBAR LOGISTIK FULL SCREEN */}
       <div className="absolute inset-0 z-0">
         <img
@@ -131,9 +131,9 @@ export default function LoginPage() {
       {/* 2. BRAND TEXT (TITLE) MENGGUNAKAN FONT SYNE */}
       <div className="hidden md:flex absolute top-1/2 -translate-y-1/2 right-8 lg:right-16 xl:right-24 z-20 pointer-events-none flex-col items-end text-right max-w-lg">
         <span className="mb-4 rounded-2xl bg-white p-2 shadow-xl"><img src="/andima-logo.png" alt="Logo Andima" width={77} height={52} data-testid="login-logo" /></span>
-        <h1 className="font-[family-name:var(--font-syne)] text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-wider text-white drop-shadow-[0_4px_20px_rgba(0,0,0,0.9)] leading-tight">
+        <h1 className="font-[family-name:var(--font-poppins)] text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-wider text-white drop-shadow-[0_4px_20px_rgba(0,0,0,0.9)] leading-tight">
           PT. ANDIMA<br />
-          <span className="font-[family-name:var(--font-syne)] text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-wider text-white drop-shadow-[0_4px_20px_rgba(0,0,0,0.9)] leading-tight">TRANSPORTINDO</span>
+          <span className="font-[family-name:var(--font-poppins)] text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-wider text-white drop-shadow-[0_4px_20px_rgba(0,0,0,0.9)] leading-tight">TRANSPORTINDO</span>
         </h1>
       </div>
 
@@ -149,16 +149,16 @@ export default function LoginPage() {
 
             {/* Greeting */}
             <div className="mb-7 text-left relative z-10">
-              <h2 suppressHydrationWarning className="font-[family-name:var(--font-syne)] text-xl sm:text-2xl font-bold text-[#0D1B2A] tracking-tight">
+              <h2 suppressHydrationWarning className="font-[family-name:var(--font-poppins)] text-xl sm:text-2xl font-bold text-[#0D1B2A] tracking-tight">
                 {greeting},
               </h2>
-              <p className="font-[family-name:var(--font-montserrat)] text-sm text-[#334155] mt-1.5 font-medium">
+              <p className="font-[family-name:var(--font-poppins)] text-sm text-[#334155] mt-1.5 font-medium">
                 Please sign in with your registered account to access the dashboard.
               </p>
             </div>
 
             {/* Form Fields */}
-            <form id="login-form" data-testid="login-form" onSubmit={handleSubmit} className="space-y-6 font-[family-name:var(--font-montserrat)] relative z-10" noValidate>
+            <form id="login-form" data-testid="login-form" onSubmit={handleSubmit} className="space-y-6 font-[family-name:var(--font-poppins)] relative z-10" noValidate>
               <div>
                 <label htmlFor="email" className="block text-xs font-bold uppercase tracking-wider text-[#0F172A] mb-2.5">
                   Username
@@ -197,7 +197,7 @@ export default function LoginPage() {
                     type="button"
                     id="toggle-password"
                     data-testid="toggle-password"
-                    aria-label="Tampilkan password"
+                    aria-label="Show password"
                     onMouseDown={() => setShowPassword(true)}
                     onMouseUp={() => setShowPassword(false)}
                     onMouseLeave={() => setShowPassword(false)}
@@ -246,7 +246,7 @@ export default function LoginPage() {
                 data-testid="btn-login"
                 type="submit"
                 disabled={isLocked || isPermanentlyBlocked || isSigningIn}
-                className="w-full py-4 px-5 text-white font-extrabold rounded-xl text-sm tracking-wider uppercase transition-all mt-2 disabled:opacity-50 bg-[#3B6FF5] hover:bg-[#2B5CE5] shadow-[0_8px_25px_rgba(59,111,245,0.4)] active:scale-[0.99] cursor-pointer disabled:cursor-not-allowed font-[family-name:var(--font-montserrat)]"
+                className="w-full py-4 px-5 text-white font-extrabold rounded-xl text-sm tracking-wider uppercase transition-all mt-2 disabled:opacity-50 bg-[#3B6FF5] hover:bg-[#2B5CE5] shadow-[0_8px_25px_rgba(59,111,245,0.4)] active:scale-[0.99] cursor-pointer disabled:cursor-not-allowed font-[family-name:var(--font-poppins)]"
               >
                 {isPermanentlyBlocked
                   ? 'ACCOUNT BLOCKED'

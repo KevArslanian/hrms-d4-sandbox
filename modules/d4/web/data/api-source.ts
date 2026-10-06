@@ -10,10 +10,10 @@ export class D4RequestError extends Error {
 const REQUEST_TIMEOUT_MS = 20_000;
 
 const MESSAGES = {
-  NETWORK_ERROR: "Tidak dapat terhubung ke server. Periksa koneksi internet lalu coba lagi.",
-  TIMEOUT: "Server terlalu lama merespons. Coba lagi beberapa saat lagi.",
-  INTEGRATION_ERROR: "Layanan data HRMS sedang tidak dapat dihubungi. Coba lagi beberapa saat lagi.",
-  SERVER_ERROR: "Permintaan ke server gagal. Coba lagi beberapa saat lagi.",
+  NETWORK_ERROR: "Cannot connect to the server. Check your internet connection and try again.",
+  TIMEOUT: "The server took too long to respond. Please try again shortly.",
+  INTEGRATION_ERROR: "The HRMS data service is unreachable right now. Please try again shortly.",
+  SERVER_ERROR: "The request to the server failed. Please try again shortly.",
 } as const;
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
