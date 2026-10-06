@@ -8,7 +8,7 @@ import type { D4LiveSnapshot, KpiAssessment } from "../../../supabase/types";
 import { useSnapshot } from "../../data/D4DataProvider";
 import { currentCompetencyStatus, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, evaluationsOf, formatDate, formatPeriod, formatScore, includesText, positionOf, scorecardsOf, trainings, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
-import { FilterBar, PositionFilter, SearchInput, SelectFilter } from "../../ui/forms";
+import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
 import { Card, Notice, statusLabel, StatusBadge } from "../../ui/primitives";
@@ -60,7 +60,7 @@ export function DashboardPage() {
     <PageHeader title="People Dashboard" subtitle="KPI, performance, competency gap, development, and training per employee for the same period." />
     <FilterBar canReset={Boolean(search || position || department || period)} onReset={() => { setSearch(""); setPosition(""); setDepartment(""); setPeriod(""); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Search name or ID" />
-      <PositionFilter positions={snapshot.reference.positions} value={position} onChange={setPosition} />
+      <SelectFilter label="All positions" testId="all-positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />
       <SelectFilter label="All departments" testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />
       {/* The dashboard always shows one period, so there is no "All periods" choice; it starts on the latest one. */}
       <SelectFilter label="Period" testId="latest-period" emptyOption={false} value={period || periods[0] || ""} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
