@@ -17,6 +17,24 @@ function take<T>(result: QueryResult<T>, label: string): T {
   return result.data;
 }
 
+const PAGE_ROWS = 1000;
+type Pageable = { range: (from: number, to: number) => PromiseLike<QueryResult<unknown[]>> };
+
+/**
+ * PostgREST returns at most 1000 rows per request (Supabase default max-rows), so a bigger table would be cut
+ * off without an error. Reads every page; the query is rebuilt per page because a builder runs only once.
+ * Each query needs a stable order (ends with the primary key) so pages do not overlap.
+ */
+async function allRows(query: () => Pageable): Promise<QueryResult<unknown[]>> {
+  const rows: unknown[] = [];
+  for (let from = 0; ; from += PAGE_ROWS) {
+    const page = await query().range(from, from + PAGE_ROWS - 1);
+    if (page.error) return page;
+    rows.push(...(page.data ?? []));
+    if (!page.data || page.data.length < PAGE_ROWS) return { data: rows, error: null };
+  }
+}
+
 interface RawDepartment { id: string; code: string; name: string }
 interface RawPosition { id: string; code: string; title: string; department_id: string | null }
 interface RawEmployee { id: string; employee_id: string; full_name: string; position_id: string | null; department_id: string | null }
@@ -56,12 +74,12 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
   async loadReferenceData(): Promise<ReferenceDataSnapshot> {
     await this.requireUser();
     const [departmentsResult, positionsResult, employeesResult, competenciesResult, requirementsResult, skillsResult] = await Promise.all([
-      this.client.from("d3_departments").select("id,code,name"),
-      this.client.from("d3_positions").select("id,code,title,department_id"),
-      this.client.from("d3_employee").select("id,employee_id,full_name,position_id,department_id"),
-      this.client.from("d3_competencies").select("id,code,name,category"),
-      this.client.from("position_requirements").select("id,position_id,competency_id,min_proficiency_level,is_mandatory"),
-      this.client.from("d3_employee_skills").select("id,employee_id,competency_id,proficiency_level,evidence_notes"),
+      allRows(() => this.client.from("d3_departments").select("id,code,name").order("id")),
+      allRows(() => this.client.from("d3_positions").select("id,code,title,department_id").order("id")),
+      allRows(() => this.client.from("d3_employee").select("id,employee_id,full_name,position_id,department_id").order("id")),
+      allRows(() => this.client.from("d3_competencies").select("id,code,name,category").order("id")),
+      allRows(() => this.client.from("position_requirements").select("id,position_id,competency_id,min_proficiency_level,is_mandatory").order("id")),
+      allRows(() => this.client.from("d3_employee_skills").select("id,employee_id,competency_id,proficiency_level,evidence_notes").order("id")),
     ]);
     const departments = take(departmentsResult, "Departments") as RawDepartment[];
     const positions = take(positionsResult, "Positions") as RawPosition[];
@@ -88,15 +106,15 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
     if (!access) throw new ApiError("FORBIDDEN", "You are signed in, but this account has no access to HRMS data yet. Contact the HRMS admin to activate your role.");
     const reference = await this.loadReferenceData();
     const [kpiResult, kpiAssessmentResult, performanceResult, assessmentResult, developmentResult, developmentVersionResult, trainingResult, trainingVersionResult] = await Promise.all([
-      this.client.from("employee_kpi").select("id,employee_id,period,kpi_score,notes,created_at").order("period", { ascending: false }),
+      allRows(() => this.client.from("employee_kpi").select("id,employee_id,period,kpi_score,notes,created_at").order("period", { ascending: false }).order("id")),
       // "*" keeps this working before and after the V5.1 migration adds definition_version.
-      this.client.from("d4_kpi_assessments").select("*").order("created_at", { ascending: false }),
-      this.client.from("d4_performance_evaluations").select("id,employee_id,period,evaluation_date,evaluator_name_snapshot,status,review_status,overall_score,aspects,general_notes,evidence_reference,actor_employee_id,created_at").order("created_at", { ascending: false }),
-      this.client.from("d4_competency_assessments").select("id,employee_id,position_id,effective_date,context,overall_status,findings,actor_employee_id,created_at").order("created_at", { ascending: false }),
-      this.client.from("d4_development_needs").select("id,employee_id,source_type,position_requirement_id,competency_assessment_id,performance_evaluation_id,objective,priority"),
-      this.client.from("d4_development_need_versions").select("id,development_need_id,revision,status,notes,actor_employee_id,created_at").order("created_at", { ascending: false }),
-      this.client.from("d4_training_records").select("id,employee_id,development_need_id,activity,activity_date"),
-      this.client.from("d4_training_versions").select("id,training_id,revision,status,result,notes,actor_employee_id,created_at").order("created_at", { ascending: false }),
+      allRows(() => this.client.from("d4_kpi_assessments").select("*").order("created_at", { ascending: false }).order("id")),
+      allRows(() => this.client.from("d4_performance_evaluations").select("id,employee_id,period,evaluation_date,evaluator_name_snapshot,status,review_status,overall_score,aspects,general_notes,evidence_reference,actor_employee_id,created_at").order("created_at", { ascending: false }).order("id")),
+      allRows(() => this.client.from("d4_competency_assessments").select("id,employee_id,position_id,effective_date,context,overall_status,findings,actor_employee_id,created_at").order("created_at", { ascending: false }).order("id")),
+      allRows(() => this.client.from("d4_development_needs").select("id,employee_id,source_type,position_requirement_id,competency_assessment_id,performance_evaluation_id,objective,priority").order("id")),
+      allRows(() => this.client.from("d4_development_need_versions").select("id,development_need_id,revision,status,notes,actor_employee_id,created_at").order("created_at", { ascending: false }).order("id")),
+      allRows(() => this.client.from("d4_training_records").select("id,employee_id,development_need_id,activity,activity_date").order("id")),
+      allRows(() => this.client.from("d4_training_versions").select("id,training_id,revision,status,result,notes,actor_employee_id,created_at").order("created_at", { ascending: false }).order("id")),
     ]);
     const kpiRows = take(kpiResult, "KPI") as RawKpi[];
     const kpiAssessmentRows = take(kpiAssessmentResult, "Penilaian KPI") as RawKpiAssessment[];
