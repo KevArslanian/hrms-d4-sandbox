@@ -11,7 +11,7 @@ import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
-import { Card, Notice, slug, StatusBadge } from "../../ui/primitives";
+import { Card, Notice, statusLabel, StatusBadge } from "../../ui/primitives";
 import { weighted } from "../kpi/KpiFormModal";
 
 type Row = { employee: EmployeeReference; position: string; period?: string; scorecard?: KpiAssessment; performance: number | null; gap: string; openNeeds: number; training?: string };
@@ -56,27 +56,27 @@ export function DashboardPage() {
   const profileHref = (row: Row) => `/dashboard/employee/${row.employee.id}${row.period ? `?period=${row.period}` : ""}`;
 
   return <>
-    <PageHeader title="People Dashboard" subtitle="Ringkasan KPI, performance, competency gap, development, dan training per employee pada periode yang sama." />
+    <PageHeader title="People Dashboard" subtitle="Ringkasan KPI, kinerja, competency gap, development, dan training per karyawan pada periode yang sama." />
     <FilterBar canReset={Boolean(search || position || period)} onReset={() => { setSearch(""); setPosition(""); setPeriod(""); }}>
-      <SearchInput value={search} onChange={setSearch} placeholder="Search employee name or ID" />
-      <SelectFilter label="All positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />
-      <SelectFilter label="Latest period" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
+      <SearchInput value={search} onChange={setSearch} placeholder="Cari nama atau ID karyawan" />
+      <SelectFilter label="Semua posisi" testId="all-positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />
+      <SelectFilter label="Periode terbaru" testId="latest-period" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
     </FilterBar>
-    <DataTable<Row> rows={rows} noun="employees" rowKey={(row) => row.employee.id} rowHref={profileHref}
-      emptyTitle="Tidak ada employee yang cocok" emptyText="Ubah kata kunci, position, atau periode, lalu coba lagi."
+    <DataTable<Row> rows={rows} noun="karyawan" rowKey={(row) => row.employee.id} rowHref={profileHref}
+      emptyTitle="Tidak ada karyawan yang cocok" emptyText="Ubah kata kunci, position, atau periode, lalu coba lagi."
       columns={[
-        { key: "employee", header: "Employee", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
-        { key: "position", header: "Position", wrap: true, secondary: true, cell: (row) => row.position },
-        { key: "period", header: "Period", cell: (row) => formatPeriod(row.period) },
-        { key: "kpi", header: "KPI total", className: "tabular-nums", cell: (row) => <ScoreCell scorecard={row.scorecard} /> },
-        { key: "performance", header: "Performance", className: "tabular-nums", cell: (row) => formatScore(row.performance) },
-        { key: "gap", header: "Competency", cell: (row) => <StatusBadge status={row.gap} /> },
-        { key: "needs", header: "Open dev.", className: "tabular-nums", secondary: true, cell: (row) => row.openNeeds || "—" },
+        { key: "employee", header: "Karyawan", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
+        { key: "position", header: "Posisi", wrap: true, secondary: true, cell: (row) => row.position },
+        { key: "period", header: "Periode", cell: (row) => formatPeriod(row.period) },
+        { key: "kpi", header: "Total KPI", className: "tabular-nums", cell: (row) => <ScoreCell scorecard={row.scorecard} /> },
+        { key: "performance", header: "Kinerja", className: "tabular-nums", cell: (row) => formatScore(row.performance) },
+        { key: "gap", header: "Kompetensi", cell: (row) => <StatusBadge status={row.gap} /> },
+        { key: "needs", header: "Dev. terbuka", className: "tabular-nums", secondary: true, cell: (row) => row.openNeeds || "—" },
         { key: "training", header: "Training", cell: (row) => row.training ? <StatusBadge status={row.training} /> : "—" },
       ]}
       actions={(row) => <RowActionMenu label={`Aksi untuk ${row.employee.fullName}`} actions={[
-        { label: "View KPI Scorecard", icon: <Target />, href: row.scorecard ? `/kpi/${row.scorecard.id}` : `/kpi/history/${row.employee.id}` },
-        { label: "View Evaluation", icon: <ClipboardCheck />, href: `/performance/history/${row.employee.id}` },
+        { label: "Lihat KPI Scorecard", testId: "view-kpi-scorecard", icon: <Target />, href: row.scorecard ? `/kpi/${row.scorecard.id}` : `/kpi/history/${row.employee.id}` },
+        { label: "Lihat Evaluasi", testId: "view-evaluation", icon: <ClipboardCheck />, href: `/performance/history/${row.employee.id}` },
       ]} />} />
   </>;
 }
@@ -87,15 +87,15 @@ function ScoreCell({ scorecard }: { scorecard?: KpiAssessment }) {
   return <span className="font-semibold text-ink">{formatScore(scorecard.overallScore)}</span>;
 }
 
-function SourceLink({ href, children = "View source" }: { href: string; children?: ReactNode }) {
-  return <Link href={href} data-testid={`link-${slug(typeof children === "string" ? children : "view source")}`} className="inline-flex items-center gap-1 text-sm font-semibold text-primary-600 hover:underline">{children}<ArrowUpRight aria-hidden="true" className="size-4" /></Link>;
+function SourceLink({ href, children = "Lihat sumber" }: { href: string; children?: ReactNode }) {
+  return <Link href={href} data-testid="link-view-source" className="inline-flex items-center gap-1 text-sm font-semibold text-primary-600 hover:underline">{children}<ArrowUpRight aria-hidden="true" className="size-4" /></Link>;
 }
 
 export function EmployeeProfilePage({ employeeId, initialPeriod = "" }: { employeeId: string; initialPeriod?: string }) {
   const snapshot = useSnapshot();
   const [period, setPeriod] = useState(initialPeriod);
   const employee = employeeById(snapshot, employeeId);
-  if (!employee || !visibleEmployees(snapshot).some((item) => item.id === employeeId)) return <NotFound what="Employee" backHref="/dashboard" backLabel="Kembali ke People Dashboard" />;
+  if (!employee || !visibleEmployees(snapshot).some((item) => item.id === employeeId)) return <NotFound what="Karyawan" backHref="/dashboard" backLabel="Kembali ke People Dashboard" />;
   const { period: shown, scorecard, evaluation } = periodData(snapshot, employee.id, period);
   const periods = [...new Set([...scorecardsOf(snapshot, employee.id), ...evaluationsOf(snapshot, employee.id)].filter((item) => item.status === "completed").map((item) => item.period))].sort().reverse();
   const gap = currentGap(snapshot, employee);
@@ -103,10 +103,10 @@ export function EmployeeProfilePage({ employeeId, initialPeriod = "" }: { employ
   const employeeTraining = trainings(snapshot).filter((item) => item.employeeId === employee.id);
 
   return <>
-    <DetailHeader crumbs={[{ label: "HRMS" }, { label: "People Dashboard", href: "/dashboard" }, { label: "Employee" }]} backHref="/dashboard"
+    <DetailHeader crumbs={[{ label: "HRMS" }, { label: "People Dashboard", href: "/dashboard" }, { label: "Karyawan" }]} backHref="/dashboard"
       name={employee.fullName} meta={[positionOf(snapshot, employee)?.title ?? "", employee.employeeId, departmentOf(snapshot, employee)?.name ?? ""]} />
     <FilterBar>
-      <SelectFilter label="Latest period" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
+      <SelectFilter label="Periode terbaru" testId="latest-period" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
       <p className="text-sm text-ink-3">Menampilkan periode <strong className="text-ink">{formatPeriod(shown)}</strong> untuk KPI dan performance.</p>
     </FilterBar>
     {scorecard && !validScorecard(scorecard) && <Notice tone="warning">Scorecard periode ini tidak memiliki lima KPI dengan total bobot 100%. Periksa data di halaman KPI Scorecard sebelum dipakai.</Notice>}
@@ -118,20 +118,20 @@ export function EmployeeProfilePage({ employeeId, initialPeriod = "" }: { employ
           <tfoot className="border-t border-line bg-app"><tr><td colSpan={5} className="px-5 py-2.5 font-semibold">Total ({formatPeriod(scorecard.period)})</td><td className="px-5 py-2.5 text-right font-display tabular-nums">{formatScore(scorecard.overallScore)}</td></tr></tfoot>
         </table></div> : <p className="px-6 pb-6 text-sm text-ink-3">Belum ada KPI scorecard pada periode ini.</p>}
       </Card>
-      <Card title="Performance evaluation" actions={<SourceLink href={evaluation ? `/performance/${evaluation.id}` : `/performance/history/${employee.id}`} />}>
+      <Card title="Evaluasi kinerja" testId="performance-evaluation" actions={<SourceLink href={evaluation ? `/performance/${evaluation.id}` : `/performance/history/${employee.id}`} />}>
         {evaluation ? <><p className="font-display text-2xl text-ink">{formatScore(evaluation.overallScore)} <span className="text-sm font-sans text-ink-3">{SCORE_LABELS[Math.round(evaluation.overallScore ?? 0)] ?? ""}</span></p><p className="mt-1 text-sm text-ink-2">{formatPeriod(evaluation.period)} · Evaluator {evaluation.evaluator || "—"}</p><p className="mt-4 line-clamp-3 text-sm text-ink-2">{evaluation.generalNotes || "—"}</p></>
           : <p className="text-sm text-ink-3">Belum ada evaluasi kinerja pada periode ini.</p>}
       </Card>
-      <Card title="Competency gap" actions={<SourceLink href={`/competency/${employee.id}`} />}>
+      <Card title="Gap kompetensi" testId="competency-gap" actions={<SourceLink href={`/competency/${employee.id}`} />}>
         {gap?.findings.length ? <ul className="space-y-2.5">{gap.findings.map((item) => <li key={item.requirementId} className="flex flex-wrap items-center justify-between gap-2 text-sm"><span>{item.competencyName} <span className="text-ink-3">· level {item.actualLevel ?? "—"} / min. {item.requiredLevel}</span></span><StatusBadge status={item.status} /></li>)}</ul>
-          : <p className="text-sm text-ink-3">Belum ada requirement untuk position ini.</p>}
+          : <p className="text-sm text-ink-3">Belum ada requirement untuk posisi ini.</p>}
       </Card>
       <Card title="Development & training" actions={<SourceLink href="/development" />}>
         {needs.length ? <ul className="space-y-3">{needs.map((need) => {
           const linked = employeeTraining.filter((item) => item.developmentNeedId === need.needId);
           return <li key={need.needId} className="rounded-xl border border-line p-3">
             <div className="flex flex-wrap items-center justify-between gap-2"><Link href={`/development/${need.needId}`} data-testid={`dev-need-${need.needId}`} className="text-sm font-semibold hover:text-primary-600 hover:underline">{need.objective}</Link><StatusBadge status={need.status} /></div>
-            <p className="mt-1.5 text-xs text-ink-3">{linked.length ? linked.map((item) => `${item.activity} (${item.status}, ${formatDate(item.date)})`).join(" · ") : "Belum ada training"}</p>
+            <p className="mt-1.5 text-xs text-ink-3">{linked.length ? linked.map((item) => `${item.activity} (${statusLabel(item.status)}, ${formatDate(item.date)})`).join(" · ") : "Belum ada training"}</p>
           </li>;
         })}</ul> : <p className="text-sm text-ink-3">Belum ada development requirement.</p>}
       </Card>
