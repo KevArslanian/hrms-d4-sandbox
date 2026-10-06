@@ -8,6 +8,8 @@ import { slug } from "./primitives";
 
 export type RowAction = {
   label: string;
+  /** Keeps the Katalon id from the original English label. */
+  testId?: string;
   icon: ReactNode;
   href?: string;
   onSelect?: () => void;
@@ -78,8 +80,8 @@ export function RowActionMenu({ label, actions }: { label: string; actions: RowA
     {open && createPortal(<div ref={menu} id={menuId} role="menu" data-testid="row-menu" aria-label={label} onKeyDown={onMenuKey} onClick={(event) => event.stopPropagation()}
       style={{ top: position.top, left: position.left, width: MENU_WIDTH }} className="fixed z-[70] rounded-xl border border-line bg-surface p-1.5 shadow-modal">
       {visible.map((action) => action.href
-        ? <Link key={action.label} role="menuitem" data-testid={`menu-${slug(action.label)}`} href={action.href} className={item} onClick={() => setPosition(null)}>{action.icon}{action.label}</Link>
-        : <button key={action.label} type="button" role="menuitem" data-testid={`menu-${slug(action.label)}`} className={item} onClick={() => { setPosition(null); action.onSelect?.(); }}>{action.icon}{action.label}</button>)}
+        ? <Link key={action.label} role="menuitem" data-testid={`menu-${action.testId ?? slug(action.label)}`} href={action.href} className={item} onClick={() => setPosition(null)}>{action.icon}{action.label}</Link>
+        : <button key={action.label} type="button" role="menuitem" data-testid={`menu-${action.testId ?? slug(action.label)}`} className={item} onClick={() => { setPosition(null); action.onSelect?.(); }}>{action.icon}{action.label}</button>)}
     </div>, document.body)}
   </>;
 }

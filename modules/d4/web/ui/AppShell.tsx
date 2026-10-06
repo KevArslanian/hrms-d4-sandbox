@@ -17,7 +17,7 @@ export const D4_MENU = [
   { href: "/dashboard", label: "People Dashboard" },
 ] as const;
 
-const roleLabel: Record<string, string> = { HR: "HR", MANAGER: "Manager", EMPLOYEE: "Employee" };
+const roleLabel: Record<string, string> = { HR: "HR", MANAGER: "Manager", EMPLOYEE: "Karyawan" };
 
 // Matches Figma PISD D2 HR sidebar (node 1101:3390): HRMS only, Dashboard on top, Logout at the bottom.
 function Sidebar({ onNavigate, onClose }: { onNavigate: () => void; onClose: () => void }) {
@@ -74,7 +74,7 @@ function Sidebar({ onNavigate, onClose }: { onNavigate: () => void; onClose: () 
     {mode === "live"
       ? <button type="button" data-testid="btn-logout" onClick={() => void signOut()} disabled={signingOut}
           className="mt-4 w-full rounded-2xl border-2 border-[#d9364f] py-1.5 text-lg font-bold text-[#d9364f] transition hover:bg-[#d9364f]/10 disabled:cursor-not-allowed disabled:opacity-50">
-          {signingOut ? "Keluar..." : "Logout"}
+          {signingOut ? "Keluar..." : "Keluar"}
         </button>
       : <p className="mt-4 rounded-lg border border-[#d9e2fc]/20 px-3 py-1.5 text-center text-[11px] text-[#d9e2fc]/80">Preview mode · data fiktif</p>}
   </div>;

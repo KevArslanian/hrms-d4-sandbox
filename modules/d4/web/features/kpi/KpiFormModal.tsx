@@ -111,7 +111,7 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
           </tfoot>
         </table>
       </div>}
-      <p className="text-xs text-ink-3">Kriteria skor: {[1, 2, 3, 4, 5].map((value) => `${value} ${SCORE_LABELS[value]}`).join(" · ")}. Skor mentah diisi evaluator; sistem tidak mengonversi realisasi menjadi skor dan tidak memberi label tercapai/tidak tercapai.</p>
+      <p className="text-xs text-ink-3">Kriteria skor: {[1, 2, 3, 4, 5].map((value) => `${value} ${SCORE_LABELS[value]}`).join(" · ")}. Skor mentah diisi penilai; sistem tidak mengonversi realisasi menjadi skor dan tidak memberi label tercapai/tidak tercapai.</p>
       <TextAreaField label="Catatan / rekomendasi atasan" value={notes} onChange={(event) => setNotes(event.target.value)} />
     </form>
   </FormModal>;

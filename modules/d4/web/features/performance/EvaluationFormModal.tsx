@@ -57,7 +57,7 @@ export function EvaluationFormModal({ employeeId, onClose, onSaved }: { employee
         <TextField label="Tanggal evaluasi" testId="evaluation-date" required type="date" max={today()} value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? "Tanggal wajib diisi." : touched && date > today() ? "Tidak boleh melebihi hari ini." : undefined} />
         <ReadOnlyField label="Penilai" testId="evaluator" value={evaluator || "—"} />
         <SelectField label="Hasil evaluasi" required value={score ?? ""} onChange={(event) => setScore(event.target.value ? Number(event.target.value) : null)}
-          error={touched && score === null ? "Hasil evaluasi wajib dipilih." : undefined} helper="Diisi evaluator; tidak memicu keputusan HR otomatis.">
+          error={touched && score === null ? "Hasil evaluasi wajib dipilih." : undefined} helper="Diisi penilai; tidak memicu keputusan HR otomatis.">
           <option value="">Pilih hasil</option>
           {[5, 4, 3, 2, 1].map((value) => <option key={value} value={value}>{value} · {SCORE_LABELS[value]}</option>)}
         </SelectField>
