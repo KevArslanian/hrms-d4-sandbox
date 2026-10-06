@@ -4,7 +4,7 @@ import { indicatorsFor, KPI_V51_CATALOG, roleForPositionTitle, selectCatalog } f
 import { performanceFixtureRecords } from "../../performance/fixtures";
 import { validatePerformanceInput } from "../../performance/validation";
 import { d4ReferenceFixture } from "../../shared/fixtures";
-import { assertNeedOpen, assertNoOpenNeed, assertNotSelf, assertPeriodRevision, assertTrainingChange } from "../../shared/rules";
+import { assertDevelopmentChange, assertNeedOpen, assertNoOpenNeed, assertNotFutureDate, assertNotSelf, assertPeriodRevision, assertTrainingChange } from "../../shared/rules";
 import type { D4LiveSnapshot, KpiAssessment, KpiAssessmentLine } from "../../supabase/types";
 import { latestDevelopment, latestTraining } from "../../supabase/types";
 import { trainingFixtureVersions } from "../../training/fixtures";
@@ -92,6 +92,7 @@ export function createFixtureSource(): D4DataSource {
       const input = { ...draft, evaluator: actorName() };
       validatePerformanceInput(input);
       assertNotSelf(state.actorEmployeeId, input.employeeId);
+      assertNotFutureDate(input.evaluationDate);
       assertPeriodRevision(state.performance, input.employeeId, input.period, revisionOf, "Evaluasi");
       const id = newId("FIX-D4-PERF");
       update({ performance: [{ ...input, id, source: "local-demo", createdAt: now(), actor: actorName() }, ...state.performance] });
@@ -101,6 +102,7 @@ export function createFixtureSource(): D4DataSource {
       assertWriter();
       const input = { ...draft, evaluatorName: actorName() };
       assertNotSelf(state.actorEmployeeId, input.employeeId);
+      assertNotFutureDate(input.evaluationDate);
       assertPeriodRevision(state.kpiAssessments ?? [], input.employeeId, input.period, revisionOf, "Scorecard");
       const indicators = indicatorsFor(catalog, input.roleOrder);
       if (indicators.length !== 5) throw new Error("Jabatan KPI tidak ditemukan pada katalog.");
@@ -135,6 +137,7 @@ export function createFixtureSource(): D4DataSource {
       assertWriter();
       const current = latestDevelopment(state).find((item) => item.needId === needId);
       if (!current) throw new Error("Development need tidak ditemukan.");
+      assertDevelopmentChange(current.status, status, notes);
       update({ developmentVersions: [{ ...current, id: newId("FIX-D4-DEV-V"), revision: current.revision + 1, status, notes, createdAt: now(), actor: actorName() }, ...state.developmentVersions] });
     },
     async createTraining(input) {

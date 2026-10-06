@@ -1,6 +1,6 @@
 import type { DevelopmentPriority, DevelopmentSourceType, DevelopmentStatus } from "../../development/types";
 import { latestDevelopment } from "../../supabase/types";
-import { assertNoOpenNeed } from "../../shared/rules";
+import { assertDevelopmentChange, assertNoOpenNeed } from "../../shared/rules";
 import { ApiError, employeeFilter, enforce, field, readJson } from "../_lib/http";
 import { d4Session, requireWriter } from "../_lib/session";
 
@@ -45,7 +45,9 @@ export async function addDevelopmentVersion(request: Request, id: string) {
   const status = field.oneOf(body, "status", statuses);
   const notes = field.text(body, "notes", { required: false, max: 2000 });
   // Checked here so an unknown or malformed id is a 404, not a database error.
-  if (!latestDevelopment(await repository.loadSnapshot()).some((item) => item.needId === id)) throw new ApiError("NOT_FOUND", "Development need tidak ditemukan.");
+  const current = latestDevelopment(await repository.loadSnapshot()).find((item) => item.needId === id);
+  if (!current) throw new ApiError("NOT_FOUND", "Development need tidak ditemukan.");
+  enforce(() => assertDevelopmentChange(current.status, status, notes));
   await repository.updateDevelopment(id, status, notes);
   return { developmentNeedId: id, status };
 }

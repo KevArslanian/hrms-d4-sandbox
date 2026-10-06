@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronDown, Search, X } from "lucide-react";
-import { useEffect, useId, useLayoutEffect, useRef, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { createPortal } from "react-dom";
 import { Button, cx, slug } from "./primitives";
 
@@ -100,7 +100,8 @@ export function RevisionConfirm({ what, existing, checked, onChange, error }: { 
 
 /**
  * Centered form modal (reviewer note K1). 640 px by default, 880 px for the KPI scorecard.
- * Escape and the overlay close it; focus starts in the dialog and returns to the page on close.
+ * Escape, the overlay and X close it — after a confirm once a field was edited, so typed data is not lost
+ * by a stray click. Focus starts in the dialog and returns to the page on close.
  */
 export function FormModal({ title, description, size = "md", onClose, children, footer }: {
   title: string;
@@ -116,12 +117,14 @@ export function FormModal({ title, description, size = "md", onClose, children, 
   // effect below run once per open; otherwise each re-render (busy flag, toast) would refocus the first field.
   const closeRef = useRef(onClose);
   useLayoutEffect(() => { closeRef.current = onClose; });
+  const dirty = useRef(false);
+  const requestClose = useCallback(() => { if (!dirty.current || window.confirm("Tutup tanpa menyimpan perubahan?")) closeRef.current(); }, []);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     const body = dialog.current?.querySelector<HTMLElement>("[data-modal-body]");
     (body?.querySelector<HTMLElement>("input:not([disabled]), select:not([disabled]), textarea:not([disabled])") ?? dialog.current)?.focus();
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") closeRef.current();
+      if (event.key === "Escape") requestClose();
       if (event.key !== "Tab" || !dialog.current) return;
       const focusable = [...dialog.current.querySelectorAll<HTMLElement>("input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), a[href]")];
       const first = focusable[0], last = focusable[focusable.length - 1];
@@ -131,14 +134,14 @@ export function FormModal({ title, description, size = "md", onClose, children, 
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
     return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = ""; previous?.focus(); };
-  }, []);
+  }, [requestClose]);
 
-  return createPortal(<div className="fixed inset-0 z-[60] flex items-center justify-center bg-ink/40 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-    <div ref={dialog} role="dialog" data-testid="modal" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}
+  return createPortal(<div className="fixed inset-0 z-[60] flex items-center justify-center bg-ink/40 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) requestClose(); }}>
+    <div ref={dialog} role="dialog" data-testid="modal" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} onInput={() => { dirty.current = true; }}
       className={cx("flex max-h-[88vh] w-full flex-col rounded-2xl bg-surface shadow-modal", size === "lg" ? "max-w-[880px]" : "max-w-[640px]")}>
       <header className="flex items-start justify-between gap-4 border-b border-line px-6 py-5">
         <div><h2 id={titleId} data-testid="modal-title" className="font-display text-lg text-ink">{title}</h2>{description && <p className="mt-1 text-xs text-ink-3">{description}</p>}</div>
-        <button type="button" data-testid="btn-modal-close" aria-label="Tutup" onClick={onClose} className="rounded-lg p-1.5 text-ink-3 hover:bg-muted hover:text-ink"><X className="size-5" /></button>
+        <button type="button" data-testid="btn-modal-close" aria-label="Tutup" onClick={requestClose} className="rounded-lg p-1.5 text-ink-3 hover:bg-muted hover:text-ink"><X className="size-5" /></button>
       </header>
       <div data-modal-body className="min-h-0 flex-1 overflow-y-auto px-6 py-5">{children}</div>
       <footer className="flex flex-wrap justify-end gap-3 border-t border-line px-6 py-4">{footer}</footer>

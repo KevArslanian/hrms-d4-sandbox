@@ -28,7 +28,7 @@ export function EvaluationFormModal({ employeeId, onClose, onSaved }: { employee
   const [revise, setRevise] = useState(false);
   const selected = employeeById(snapshot, employee);
   const existing = employee && period ? latestForPeriod(snapshot.performance, employee, period) : undefined;
-  const missing = [!employee && "employee", !period && "periode", !date && "tanggal", score === null && "hasil evaluasi", !notes.trim() && "catatan evaluasi", existing && !revise && "konfirmasi revisi"].filter(Boolean);
+  const missing = [!employee && "employee", !period && "periode", !date && "tanggal", date > today() && "tanggal tidak melebihi hari ini", score === null && "hasil evaluasi", !notes.trim() && "catatan evaluasi", existing && !revise && "konfirmasi revisi"].filter(Boolean);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -54,7 +54,7 @@ export function EvaluationFormModal({ employeeId, onClose, onSaved }: { employee
         <ReadOnlyField label="Position" value={positionOf(snapshot, selected)?.title ?? "—"} />
         <ReadOnlyField label="Department" value={departmentOf(snapshot, selected)?.name ?? "—"} />
         <TextField label="Period" required type="month" value={period} onChange={(event) => setPeriod(event.target.value)} error={touched && !period ? "Periode wajib dipilih." : undefined} />
-        <TextField label="Evaluation date" required type="date" value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? "Tanggal wajib diisi." : undefined} />
+        <TextField label="Evaluation date" required type="date" max={today()} value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? "Tanggal wajib diisi." : touched && date > today() ? "Tidak boleh melebihi hari ini." : undefined} />
         <ReadOnlyField label="Evaluator" value={evaluator || "—"} />
         <SelectField label="Hasil evaluasi" required value={score ?? ""} onChange={(event) => setScore(event.target.value ? Number(event.target.value) : null)}
           error={touched && score === null ? "Hasil evaluasi wajib dipilih." : undefined} helper="Diisi evaluator; tidak memicu keputusan HR otomatis.">

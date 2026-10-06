@@ -59,6 +59,7 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
     if (!employee) { setError("Pilih employee terlebih dahulu."); return; }
     if (!roleOrder || lines.length !== 5 || totalWeight !== 100) { setError("KPI untuk position ini belum tersedia di KPI Scorecard; scorecard tidak dapat disimpan."); return; }
     if (!allScored || !period || !date) { setError("Lengkapi periode, evaluation date, dan skor 1–5 untuk kelima KPI."); return; }
+    if (date > today()) { setError("Evaluation date tidak boleh melebihi hari ini."); return; }
     if (existing && !revise) { setError("Scorecard periode ini sudah ada. Centang “Simpan sebagai revisi” atau ganti periode."); return; }
     setError("");
     const result = await run((source) => source.createKpiAssessment({ employeeId: employee, roleOrder, period, evaluationDate: date, evaluatorName: evaluator, status: "completed", lines, generalNotes: notes, revisionOf: existing?.id ?? null }),
@@ -79,16 +80,16 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
         <ReadOnlyField label="Position" value={position?.title ?? "—"} />
         <ReadOnlyField label="Department" value={departmentOf(snapshot, selected)?.name ?? "—"} />
         <ReadOnlyField label="KPI jabatan" value={!employee ? "—" : roleName ?? `Belum ada di katalog ${catalog?.version ?? ACTIVE_KPI_VERSION}`} />
-        <TextField label="Evaluation date" required type="date" value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? "Tanggal wajib diisi." : undefined} />
+        <TextField label="Evaluation date" required type="date" max={today()} value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? "Tanggal wajib diisi." : touched && date > today() ? "Tidak boleh melebihi hari ini." : undefined} />
         <ReadOnlyField label="Evaluator" value={evaluator || "—"} className="sm:col-span-2" />
       </div>
       {existing && <RevisionConfirm what="Scorecard" existing={`${existing.evaluatorName}, ${formatDate(existing.evaluationDate)}`} checked={revise} onChange={setRevise}
         error={touched && !revise ? "Centang untuk menyimpan sebagai revisi, atau ganti periode." : undefined} />}
 
       {employee && !lines.length ? <Notice tone="warning">{position ? noKpiText(catalog?.version) : "Employee belum memiliki position aktif, sehingga KPI belum dapat ditentukan."}</Notice> : <div className="overflow-x-auto rounded-2xl border border-line">
-        <table data-testid="kpi-lines-table" className="w-full min-w-[760px] text-left text-sm">
+        <table data-testid="kpi-lines-table" className="w-full min-w-[920px] text-left text-sm">
           <thead className="bg-app text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3">
-            <tr><th className="w-10 px-3 py-2.5">No</th><th className="px-3 py-2.5">Core KPI</th><th className="w-20 px-3 py-2.5">Bobot</th><th className="w-36 px-3 py-2.5">Target</th><th className="w-36 px-3 py-2.5">Realisasi</th><th className="w-24 px-3 py-2.5">Skor 1–5</th><th className="w-24 px-3 py-2.5 text-right">Terbobot</th></tr>
+            <tr><th className="w-10 px-3 py-2.5">No</th><th className="px-3 py-2.5">Core KPI</th><th className="w-20 px-3 py-2.5">Bobot</th><th className="w-36 px-3 py-2.5">Target</th><th className="w-36 px-3 py-2.5">Realisasi</th><th className="w-24 px-3 py-2.5">Skor 1–5</th><th className="w-24 px-3 py-2.5 text-right">Terbobot</th><th className="w-44 px-3 py-2.5">Komentar</th></tr>
           </thead>
           <tbody>
             {lines.map((line, index) => <tr key={`${roleOrder}-${line.indicator_order}`} data-testid={`kpi-line-${line.indicator_order}`} className="border-t border-line align-middle">
@@ -99,13 +100,14 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
               <td className="px-3 py-2"><input data-testid={`input-realisasi-${line.indicator_order}`} aria-label={`Realisasi ${line.kpi_name}`} value={line.actual} onChange={(event) => setLine(index, { actual: event.target.value })} className="h-9 w-full rounded-lg border border-line-strong px-2 text-sm" /></td>
               <td className="px-3 py-2"><select data-testid={`input-skor-${line.indicator_order}`} aria-label={`Skor ${line.kpi_name}`} aria-invalid={touched && !validScore(line.raw_score)} value={line.raw_score ?? ""} onChange={(event) => setLine(index, { raw_score: event.target.value ? Number(event.target.value) : null })} className="h-9 w-full rounded-lg border border-line-strong px-2 text-sm aria-[invalid=true]:border-danger"><option value="">—</option>{[1, 2, 3, 4, 5].map((value) => <option key={value}>{value}</option>)}</select></td>
               <td className="px-3 py-2.5 text-right font-semibold tabular-nums">{weighted(line)?.toFixed(2) ?? "—"}</td>
+              <td className="px-3 py-2"><input data-testid={`input-komentar-${line.indicator_order}`} aria-label={`Komentar ${line.kpi_name}`} maxLength={500} value={line.comment} onChange={(event) => setLine(index, { comment: event.target.value })} className="h-9 w-full rounded-lg border border-line-strong px-2 text-sm" /></td>
             </tr>)}
           </tbody>
           <tfoot className="border-t border-line bg-app">
             <tr><td colSpan={2} className="px-3 py-3 font-semibold">Total</td>
               <td className="px-3 py-3"><span className={cx("inline-flex items-center gap-1 text-xs font-semibold", totalWeight === 100 ? "text-success" : "text-danger")}>{totalWeight === 100 ? <CheckCircle2 className="size-3.5" /> : <CircleAlert className="size-3.5" />}{lines.length ? `${totalWeight}%` : "—"}</span></td>
               <td colSpan={3} className="px-3 py-3 text-xs text-ink-3">{lines.length ? (totalWeight === 100 ? "Total bobot 100%" : "Total bobot harus 100%") : "Pilih employee untuk menampilkan KPI position-nya."}</td>
-              <td className="px-3 py-3 text-right font-display text-base tabular-nums">{total === null ? "—" : `${total.toFixed(2)} / 5`}</td></tr>
+              <td className="px-3 py-3 text-right font-display text-base tabular-nums">{total === null ? "—" : `${total.toFixed(2)} / 5`}</td><td /></tr>
           </tfoot>
         </table>
       </div>}
