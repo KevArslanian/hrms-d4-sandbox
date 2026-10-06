@@ -6,7 +6,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import type { EmployeeReference } from "../../../shared/types";
 import type { D4LiveSnapshot, KpiAssessment } from "../../../supabase/types";
 import { useSnapshot } from "../../data/D4DataProvider";
-import { currentGap, departmentOf, developmentNeeds, employeeById, evaluationsOf, formatDate, formatPeriod, formatScore, includesText, positionOf, SCORE_LABELS, scorecardsOf, trainings, visibleEmployees } from "../../data/selectors";
+import { currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, evaluationsOf, formatDate, formatPeriod, formatScore, includesText, positionOf, SCORE_LABELS, scorecardsOf, trainings, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader } from "../../ui/layout";
@@ -65,11 +65,11 @@ export function DashboardPage() {
       <SelectFilter label="Periode terbaru" testId="latest-period" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
     </FilterBar>
     <DataTable<Row> rows={rows} noun="karyawan" rowKey={(row) => row.employee.id} rowHref={profileHref}
-      emptyTitle="Tidak ada karyawan yang cocok" emptyText="Ubah kata kunci, position, atau periode, lalu coba lagi."
+      emptyTitle="Tidak ada karyawan yang cocok" emptyText="Ubah kata kunci, posisi, departemen, atau periode, lalu coba lagi."
       columns={[
         { key: "employee", header: "Karyawan", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
-        { key: "position", header: "Posisi", wrap: true, secondary: true, cell: (row) => row.position },
-        { key: "department", header: "Departemen", wrap: true, secondary: true, cell: (row) => departmentOf(snapshot, row.employee)?.name ?? "—" },
+        // Position and department share one column so the nine summary columns fit at 1440px.
+        { key: "position", header: "Posisi / Departemen", wrap: true, secondary: true, cell: (row) => <><span className="block">{row.position}</span><span className="block text-xs text-ink-3">{departmentOf(snapshot, row.employee)?.name ?? "—"}</span></> },
         { key: "period", header: "Periode", cell: (row) => formatPeriod(row.period) },
         { key: "kpi", header: "Total KPI", className: "tabular-nums", cell: (row) => <ScoreCell scorecard={row.scorecard} /> },
         { key: "performance", header: "Kinerja", className: "tabular-nums", cell: (row) => formatScore(row.performance) },
@@ -107,7 +107,7 @@ export function EmployeeProfilePage({ employeeId, initialPeriod = "" }: { employ
 
   return <>
     <DetailHeader crumbs={[{ label: "HRMS" }, { label: "People Dashboard", href: "/dashboard" }, { label: "Karyawan" }]} backHref="/dashboard"
-      name={employee.fullName} meta={[positionOf(snapshot, employee)?.title ?? "", employee.employeeId, departmentOf(snapshot, employee)?.name ?? ""]} />
+      name={employee.fullName} meta={employeeMeta(snapshot, employee)} />
     <FilterBar>
       <SelectFilter label="Periode terbaru" testId="latest-period" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
       <p className="text-sm text-ink-3">Menampilkan periode <strong className="text-ink">{formatPeriod(shown)}</strong> untuk KPI dan performance.</p>
@@ -115,14 +115,14 @@ export function EmployeeProfilePage({ employeeId, initialPeriod = "" }: { employ
     {scorecard && !validScorecard(scorecard) && <Notice tone="warning">Scorecard periode ini tidak memiliki lima KPI dengan total bobot 100%. Periksa data di halaman KPI Scorecard sebelum dipakai.</Notice>}
     <div className="grid gap-6 xl:grid-cols-2">
       <Card title="KPI scorecard" actions={<SourceLink href={scorecard ? `/kpi/${scorecard.id}` : `/kpi/history/${employee.id}`} />} padded={false}>
-        {scorecard ? <div className="overflow-x-auto"><table data-testid="dashboard-kpi-table" className="w-full min-w-[520px] text-left text-sm">
-          <thead className="bg-app text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3"><tr><th className="px-5 py-2.5">Core KPI</th><th className="px-5 py-2.5">Bobot</th><th className="px-5 py-2.5">Target</th><th className="px-5 py-2.5">Realisasi</th><th className="px-5 py-2.5">Skor</th><th className="px-5 py-2.5 text-right">Terbobot</th></tr></thead>
-          <tbody>{scorecard.lines.map((line) => <tr key={line.indicator_order} data-testid={`kpi-line-${line.indicator_order}`} className="border-t border-line"><td className="px-5 py-2.5 font-semibold">{line.kpi_name}</td><td className="px-5 py-2.5 tabular-nums">{line.weight_percent}%</td><td className="px-5 py-2.5">{line.target || "—"}</td><td className="px-5 py-2.5">{line.actual || "—"}</td><td className="px-5 py-2.5 tabular-nums">{line.raw_score ?? "—"}</td><td className="px-5 py-2.5 text-right tabular-nums">{weighted(line)?.toFixed(2) ?? "—"}</td></tr>)}</tbody>
-          <tfoot className="border-t border-line bg-app"><tr><td colSpan={5} className="px-5 py-2.5 font-semibold">Total ({formatPeriod(scorecard.period)})</td><td className="px-5 py-2.5 text-right font-display tabular-nums">{formatScore(scorecard.overallScore)}</td></tr></tfoot>
+        {scorecard ? <div className="overflow-x-auto"><table data-testid="dashboard-kpi-table" className="w-full min-w-[480px] text-left text-sm">
+          <thead className="bg-app text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3"><tr><th className="py-2.5 pl-5 pr-2.5">Core KPI</th><th className="px-2.5 py-2.5">Bobot</th><th className="px-2.5 py-2.5">Target</th><th className="px-2.5 py-2.5">Realisasi</th><th className="px-2.5 py-2.5">Skor</th><th className="py-2.5 pl-2.5 pr-5 text-right">Terbobot</th></tr></thead>
+          <tbody>{scorecard.lines.map((line) => <tr key={line.indicator_order} data-testid={`kpi-line-${line.indicator_order}`} className="border-t border-line"><td className="py-2.5 pl-5 pr-2.5 font-semibold">{line.kpi_name}</td><td className="px-2.5 py-2.5 tabular-nums">{line.weight_percent}%</td><td className="px-2.5 py-2.5">{line.target || "—"}</td><td className="px-2.5 py-2.5">{line.actual || "—"}</td><td className="px-2.5 py-2.5 tabular-nums">{line.raw_score ?? "—"}</td><td className="py-2.5 pl-2.5 pr-5 text-right tabular-nums">{weighted(line)?.toFixed(2) ?? "—"}</td></tr>)}</tbody>
+          <tfoot className="border-t border-line bg-app"><tr><td colSpan={5} className="py-2.5 pl-5 pr-2.5 font-semibold">Total ({formatPeriod(scorecard.period)})</td><td className="whitespace-nowrap py-2.5 pl-2.5 pr-5 text-right font-display tabular-nums">{formatScore(scorecard.overallScore)}</td></tr></tfoot>
         </table></div> : <p className="px-6 pb-6 text-sm text-ink-3">Belum ada KPI scorecard pada periode ini.</p>}
       </Card>
       <Card title="Evaluasi kinerja" testId="performance-evaluation" actions={<SourceLink href={evaluation ? `/performance/${evaluation.id}` : `/performance/history/${employee.id}`} />}>
-        {evaluation ? <><p className="font-display text-2xl text-ink">{formatScore(evaluation.overallScore)} <span className="text-sm font-sans text-ink-3">{SCORE_LABELS[Math.round(evaluation.overallScore ?? 0)] ?? ""}</span></p><p className="mt-1 text-sm text-ink-2">{formatPeriod(evaluation.period)} · Evaluator {evaluation.evaluator || "—"}</p><p className="mt-4 line-clamp-3 text-sm text-ink-2">{evaluation.generalNotes || "—"}</p></>
+        {evaluation ? <><p className="font-display text-2xl text-ink">{formatScore(evaluation.overallScore)} <span className="text-sm font-sans text-ink-3">{SCORE_LABELS[Math.round(evaluation.overallScore ?? 0)] ?? ""}</span></p><p className="mt-1 text-sm text-ink-2">{formatPeriod(evaluation.period)} · Penilai {evaluation.evaluator || "—"}</p><p className="mt-4 line-clamp-3 text-sm text-ink-2">{evaluation.generalNotes || "—"}</p></>
           : <p className="text-sm text-ink-3">Belum ada evaluasi kinerja pada periode ini.</p>}
       </Card>
       <Card title="Gap kompetensi" testId="competency-gap" actions={<SourceLink href={`/competency/${employee.id}`} />}>

@@ -124,7 +124,7 @@ const writeRoutes: [string, () => Promise<Response>][] = [
   ["POST /kpi-assessments", () => kpi.POST(post(kpiBody()))],
   ["POST /competency-assessments", () => competency.POST(post({ employeeId: ALFA, positionId: FINANCE_STAFF, effectiveDate: "2026-10-01" }))],
   ["POST /development-needs", () => dev.POST(post({ employeeId: ALFA, sourceType: "performance_context", sourceRef: PERF_ALFA, objective: "Uji", priority: "High" }))],
-  ["POST /development-needs/:id/versions", () => devVersions.POST(post({ status: "Planned", notes: "Uji" }), params(NEED))],
+  ["POST /development-needs/:id/versions", () => devVersions.POST(post({ status: "In Progress", notes: "Uji" }), params(NEED))],
   ["POST /training-records", () => training.POST(post({ employeeId: ALFA, developmentNeedId: NEED, activity: "Uji", date: "2026-10-01", status: "Planned" }))],
   ["POST /training-records/:id/versions", () => trainingVersions.POST(post({ status: "In Progress", notes: "Uji" }), params(TRAINING))],
 ];
@@ -336,8 +336,8 @@ describe("unknown or malformed ids", () => {
   });
 
   it("returns 201 for a status update of an existing development need", async () => {
-    const res = await call(devVersions.POST(post({ status: "Planned", notes: "Dijadwalkan" }), params(NEED)));
+    const res = await call(devVersions.POST(post({ status: "In Progress", notes: "Dimulai" }), params(NEED)));
     expect(res.status).toBe(201);
-    expect(writes[0]).toMatchObject({ method: "updateDevelopment", args: [NEED, "Planned", "Dijadwalkan"] });
+    expect(writes[0]).toMatchObject({ method: "updateDevelopment", args: [NEED, "In Progress", "Dimulai"] });
   });
 });

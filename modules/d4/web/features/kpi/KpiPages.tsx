@@ -6,7 +6,7 @@ import { ACTIVE_KPI_VERSION, roleForPositionTitle } from "../../../kpi/catalog";
 import type { EmployeeReference } from "../../../shared/types";
 import type { KpiAssessment } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { canAssess, canWrite, departmentOf, employeeById, evaluationsOf, formatDate, formatPeriod, formatScore, includesText, latestScorecard, positionOf, revisionTag, scorecardsOf, visibleEmployees } from "../../data/selectors";
+import { canAssess, canWrite, departmentOf, employeeById, employeeMeta, evaluationsOf, formatDate, formatPeriod, formatScore, includesText, latestScorecard, positionOf, revisionTag, scorecardsOf, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
@@ -86,7 +86,7 @@ export function KpiDetailPage({ id }: { id: string }) {
   const totalWeight = scorecard.lines.reduce((sum, line) => sum + line.weight_percent, 0);
   return <>
     <DetailHeader crumbs={[{ label: "HRMS" }, { label: "KPI Scorecard", href: "/kpi" }, { label: "Detail" }]} backHref="/kpi"
-      name={employee.fullName} meta={[positionOf(snapshot, employee)?.title ?? "", employee.employeeId, `Periode ${formatPeriod(scorecard.period)}`]} status={scorecardStatus(scorecard)}
+      name={employee.fullName} meta={[...employeeMeta(snapshot, employee), `Periode ${formatPeriod(scorecard.period)}`]} status={scorecardStatus(scorecard)}
       actions={<><ButtonLink href={`/kpi/history/${employee.id}`} icon={<History className="size-4" />} testId="view-history">Lihat Riwayat</ButtonLink>{canAssess(snapshot, employee.id) && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)} data-testid="btn-add-scorecard">Tambah Scorecard</Button>}</>} />
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(300px,1fr)]">
       <Card title="Core KPI" padded={false}>
@@ -130,14 +130,14 @@ export function KpiHistoryPage({ employeeId }: { employeeId: string }) {
   const title = positionOf(snapshot, employee)?.title;
   return <>
     <DetailHeader crumbs={[{ label: "HRMS" }, { label: "KPI Scorecard", href: "/kpi" }, { label: "Riwayat" }]} backHref="/kpi"
-      name={employee.fullName} meta={[title ?? "", employee.employeeId, `${scorecards.length} scorecard`]}
+      name={employee.fullName} meta={[...employeeMeta(snapshot, employee), `${scorecards.length} scorecard`]}
       actions={canAssess(snapshot, employee.id) && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)} data-testid="btn-add-scorecard">Tambah Scorecard</Button>} />
     {title && catalog && !roleForPositionTitle(catalog, title) && <Notice tone="warning">{noKpiText(catalog.version)}</Notice>}
     <Card title="Riwayat scorecard" testId="scorecard-history">
       <Timeline empty="Karyawan ini belum memiliki KPI scorecard." entries={scorecards.map((item) => ({
         id: item.id, date: `${formatPeriod(item.period)} · ${formatDate(item.evaluationDate || item.createdAt)}`,
         title: `${item.roleName} — ${formatScore(item.overallScore)}${revisionTag(scorecards, item)}`, status: scorecardStatus(item), actor: item.actor, href: `/kpi/${item.id}`,
-        body: `Katalog ${item.definitionVersion} · Evaluator ${item.evaluatorName || "—"}`,
+        body: `Katalog ${item.definitionVersion} · Penilai ${item.evaluatorName || "—"}`,
       }))} />
     </Card>
     {adding && <KpiFormModal employeeId={employee.id} onClose={() => setAdding(false)} />}

@@ -116,10 +116,10 @@ describe("development and training (fixture)", () => {
   });
 
   it("keeps history append-only across status changes", async () => {
-    await source.updateDevelopment("FIX-D4-DEV-001", "Planned", "a");
-    await source.updateDevelopment("FIX-D4-DEV-001", "In Progress", "b");
+    await source.updateDevelopment("FIX-D4-DEV-001", "In Progress", "a");
+    await source.updateDevelopment("FIX-D4-DEV-001", "Completed", "b");
     const versions = (await source.loadSnapshot()).developmentVersions.filter((item) => item.needId === "FIX-D4-DEV-001");
-    expect(versions.map((item) => item.status)).toEqual(expect.arrayContaining(["Identified", "Planned", "In Progress"]));
+    expect(versions.map((item) => item.status)).toEqual(expect.arrayContaining(["Planned", "In Progress", "Completed"]));
   });
 
   it("rejects an unknown training or requirement", async () => {

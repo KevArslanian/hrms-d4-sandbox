@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import type { PerformanceEvaluation } from "../../../performance/types";
 import type { EmployeeReference } from "../../../shared/types";
 import { useSnapshot } from "../../data/D4DataProvider";
-import { canAssess, canWrite, departmentOf, describeSource, developmentNeeds, employeeById, evaluationsOf, formatDate, formatPeriod, formatScore, includesText, latestEvaluation, positionOf, revisionTag, SCORE_LABELS, scorecardsOf, visibleEmployees } from "../../data/selectors";
+import { canAssess, canWrite, departmentOf, describeSource, developmentNeeds, employeeById, employeeMeta, evaluationsOf, formatDate, formatPeriod, formatScore, includesText, latestEvaluation, positionOf, revisionTag, SCORE_LABELS, scorecardsOf, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
@@ -49,7 +49,7 @@ export function PerformanceListPage() {
       <SelectFilter label="Semua status" testId="all-status" value={status} onChange={setStatus} options={statuses.map((item) => ({ value: item, label: statusLabel(item) }))} />
     </FilterBar>
     <DataTable<Row> rows={rows} noun="karyawan" rowKey={(row) => row.employee.id}
-      emptyTitle="Tidak ada karyawan yang cocok" emptyText="Ubah kata kunci atau reset filter untuk melihat seluruh employee."
+      emptyTitle="Tidak ada karyawan yang cocok" emptyText="Ubah kata kunci atau reset filter untuk melihat seluruh karyawan."
       rowHref={(row) => row.evaluation ? `/performance/${row.evaluation.id}` : `/performance/history/${row.employee.id}`}
       columns={[
         { key: "employee", header: "Karyawan", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
@@ -79,7 +79,7 @@ export function PerformanceDetailPage({ id }: { id: string }) {
 
   return <>
     <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Performance Evaluation", href: "/performance" }, { label: "Detail" }]} backHref="/performance"
-      name={employee.fullName} meta={[positionOf(snapshot, employee)?.title ?? "", employee.employeeId, `Periode ${formatPeriod(evaluation.period)}`]}
+      name={employee.fullName} meta={[...employeeMeta(snapshot, employee), `Periode ${formatPeriod(evaluation.period)}`]}
       status={evaluationStatus(evaluation)}
       actions={<>
         <ButtonLink href={`/performance/history/${employee.id}`} icon={<History className="size-4" />} testId="view-history">Lihat Riwayat</ButtonLink>
@@ -101,7 +101,7 @@ export function PerformanceDetailPage({ id }: { id: string }) {
       </Card>
       <div className="space-y-6">
         <Card title="Bukti" testId="evidence">
-          <p className="text-sm text-ink-2">{evaluation.evidenceReference || "Belum ada bukti/reference."}</p>
+          <p className="text-sm text-ink-2">{evaluation.evidenceReference || "Belum ada bukti/referensi."}</p>
           <p className="mt-1 text-xs text-ink-3">Dicatat oleh {evaluation.actor} · {formatDate(evaluation.createdAt)}</p>
         </Card>
         <Card title="Data terkait" testId="related-records">
@@ -119,23 +119,28 @@ export function PerformanceDetailPage({ id }: { id: string }) {
 
 export function PerformanceHistoryPage({ employeeId }: { employeeId: string }) {
   const snapshot = useSnapshot();
+  const [adding, setAdding] = useState(false);
   const employee = employeeById(snapshot, employeeId);
   if (!employee || !visibleEmployees(snapshot).some((item) => item.id === employeeId)) return <NotFound what="Karyawan" backHref="/performance" backLabel="Kembali ke Performance Evaluation" />;
   const evaluations = evaluationsOf(snapshot, employee.id);
   return <>
     <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Performance Evaluation", href: "/performance" }, { label: "Riwayat" }]} backHref="/performance"
-      name={employee.fullName} meta={[positionOf(snapshot, employee)?.title ?? "", employee.employeeId, `${evaluations.length} evaluasi`]}
-      actions={<ButtonLink href={`/kpi/history/${employee.id}`} icon={<Target className="size-4" />}>KPI Scorecard</ButtonLink>} />
+      name={employee.fullName} meta={[...employeeMeta(snapshot, employee), `${evaluations.length} evaluasi`]}
+      actions={<>
+        <ButtonLink href={`/kpi/history/${employee.id}`} icon={<Target className="size-4" />}>KPI Scorecard</ButtonLink>
+        {canAssess(snapshot, employee.id) && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)} data-testid="btn-add-evaluation">Tambah Evaluasi</Button>}
+      </>} />
     <Card title="Riwayat evaluasi" testId="evaluation-history">
       <Timeline empty="Karyawan ini belum memiliki evaluasi kinerja." entries={evaluations.map((item) => ({
         id: item.id, date: `${formatPeriod(item.period)} · ${formatDate(item.evaluationDate || item.createdAt)}`,
         title: `Evaluasi ${formatPeriod(item.period)} — ${formatScore(item.overallScore)}${revisionTag(evaluations, item)}`,
         status: evaluationStatus(item), actor: item.actor, href: `/performance/${item.id}`,
-        body: <>Evaluator: {item.evaluator || "—"}{item.generalNotes ? ` · ${item.generalNotes}` : ""}</>,
+        body: <>Penilai: {item.evaluator || "—"}{item.generalNotes ? ` · ${item.generalNotes}` : ""}</>,
       }))} />
     </Card>
     {developmentNeeds(snapshot).filter((need) => need.employeeId === employee.id && need.sourceType === "performance_context").length > 0 && <Card title="Development terkait evaluasi" testId="development-linked-to-evaluations">
       <div className="flex flex-wrap gap-2">{developmentNeeds(snapshot).filter((need) => need.employeeId === employee.id && need.sourceType === "performance_context").map((need) => <SourceChip key={need.needId} label={describeSource(snapshot, need).label} reference={need.objective} href={`/development/${need.needId}`} />)}</div>
     </Card>}
+    {adding && <EvaluationFormModal employeeId={employee.id} onClose={() => setAdding(false)} />}
   </>;
 }
