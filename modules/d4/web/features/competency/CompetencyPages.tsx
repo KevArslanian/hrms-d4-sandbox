@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRightLeft, Eye, FilePlus2, History, Save } from "lucide-react";
+import { ArrowRightLeft, FilePlus2, History, Save } from "lucide-react";
 import { useMemo, useState, type FormEvent } from "react";
 import type { CompetencyFinding, CompetencyOverallStatus } from "../../../competency/types";
 import type { EmployeeReference } from "../../../shared/types";
@@ -35,7 +35,7 @@ export function CompetencyListPage() {
     .sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName)), [snapshot, search, position, status]);
 
   return <>
-    <PageHeader title="Competency Gap" subtitle="Bandingkan capability/evidence employee dengan requirement position aktif (FR-D4-002)." />
+    <PageHeader title="Competency Gap" subtitle="Bandingkan capability/evidence employee dengan requirement position aktif." />
     <FilterBar canReset={Boolean(search || position || status)} onReset={() => { setSearch(""); setPosition(""); setStatus(""); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Search employee name or ID" />
       <SelectFilter label="All positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />
@@ -52,7 +52,6 @@ export function CompetencyListPage() {
         { key: "assessed", header: "Last saved", cell: (row) => formatDate(row.lastAssessed) },
       ]}
       actions={(row) => <RowActionMenu label={`Aksi untuk ${row.employee.fullName}`} actions={[
-        { label: "View Detail", icon: <Eye />, href: `/competency/${row.employee.id}` },
         { label: "View History", icon: <History />, href: `/competency/${row.employee.id}/history` },
         { label: "Create Development Requirement", icon: <FilePlus2 />, onSelect: () => setDevFor(row.employee.id),
           hidden: !writer || row.status !== "Gap" || row.findings.filter((item) => item.status === "Gap").every((item) => openNeedFor(allNeeds, row.employee.id, "competency_gap", item.requirementId)) },

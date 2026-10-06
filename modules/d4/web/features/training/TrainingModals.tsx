@@ -35,7 +35,7 @@ export function TrainingFormModal({ employeeId, developmentNeedId, onClose }: { 
     if (saved.ok) onClose(); else setError(saved.error);
   }
 
-  return <FormModal title="Add Training" description="Training selalu terhubung ke development requirement sumber (FR-D4-003)." onClose={onClose}
+  return <FormModal title="Add Training" description="Training selalu terhubung ke development requirement sumber." onClose={onClose}
     footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Training" />}>
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />
@@ -70,6 +70,7 @@ export function TrainingProgressModal({ trainingId, onClose }: { trainingId: str
   const [touched, setTouched] = useState(false);
   // Moving back (e.g. Completed → In Progress) or reopening a cancelled training needs a reason.
   const rollback = record ? isTrainingRollback(record.status, status) : false;
+  const unchanged = status === record?.status && result === (record?.result ?? "") && !notes.trim();
   async function submit(event: FormEvent) {
     event.preventDefault();
     setTouched(true);
@@ -78,7 +79,7 @@ export function TrainingProgressModal({ trainingId, onClose }: { trainingId: str
     const saved = await run((source) => source.updateTraining(trainingId, status, result, notes), "Progress training disimpan sebagai versi baru.");
     if (saved.ok) onClose(); else setError(saved.error);
   }
-  return <FormModal title="Update Progress" description={record?.activity} onClose={onClose} footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Progress" />}>
+  return <FormModal title="Update Progress" description={record?.activity} onClose={onClose} footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Progress" disabled={unchanged} />}>
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />
       <SelectField label="Status" required value={status} onChange={(event) => setStatus(event.target.value as TrainingStatus)}>{STATUSES.map((item) => <option key={item}>{item}</option>)}</SelectField>

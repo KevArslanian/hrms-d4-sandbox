@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, GraduationCap, History, Plus, RefreshCw } from "lucide-react";
+import { GraduationCap, History, Plus, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { DevelopmentNeedVersion, DevelopmentSourceType } from "../../../development/types";
 import { useSnapshot } from "../../data/D4DataProvider";
@@ -35,7 +35,7 @@ export function DevelopmentListPage() {
   }, [snapshot, search, sourceType, status, period]);
 
   return <>
-    <PageHeader title="Development Requirement" subtitle="Kebutuhan development/training dengan alasan dan sumber yang dapat ditelusuri (FR-D4-003, FR-D4-005)."
+    <PageHeader title="Development Requirement" subtitle="Kebutuhan development/training dengan alasan dan sumber yang dapat ditelusuri."
       actions={writer && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)}>Add Requirement</Button>} />
     <FilterBar canReset={Boolean(search || sourceType || status || period)} onReset={() => { setSearch(""); setSourceType(""); setStatus(""); setPeriod(""); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Search employee or objective" />
@@ -54,7 +54,6 @@ export function DevelopmentListPage() {
         { key: "updated", header: "Updated", cell: (row) => formatDate(row.createdAt) },
       ]}
       actions={(row) => <RowActionMenu label={`Aksi untuk ${row.objective}`} actions={[
-        { label: "View Detail", icon: <Eye />, href: `/development/${row.needId}` },
         { label: "View History", icon: <History />, href: `/development/${row.needId}/history` },
         { label: "Create Training", icon: <GraduationCap />, onSelect: () => setTrainingFor(row), hidden: !writer || row.status === "Completed" },
         { label: "Update Status", icon: <RefreshCw />, onSelect: () => setStatusFor(row.needId), hidden: !writer },

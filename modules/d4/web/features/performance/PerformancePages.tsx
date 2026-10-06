@@ -1,11 +1,11 @@
 "use client";
 
-import { Eye, History, Plus, Target } from "lucide-react";
+import { History, Plus, Target } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { PerformanceEvaluation } from "../../../performance/types";
 import type { EmployeeReference } from "../../../shared/types";
 import { useSnapshot } from "../../data/D4DataProvider";
-import { canWrite, departmentOf, describeSource, developmentNeeds, employeeById, evaluationsOf, formatDate, formatPeriod, formatScore, includesText, latestEvaluation, positionOf, revisionTag, SCORE_LABELS, scorecardsOf, visibleEmployees } from "../../data/selectors";
+import { canAssess, canWrite, departmentOf, describeSource, developmentNeeds, employeeById, evaluationsOf, formatDate, formatPeriod, formatScore, includesText, latestEvaluation, positionOf, revisionTag, SCORE_LABELS, scorecardsOf, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
@@ -38,7 +38,7 @@ export function PerformanceListPage() {
     .sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName)), [snapshot, search, position, period, status]);
 
   return <>
-    <PageHeader title="Performance Evaluation" subtitle="Catat dan telusuri evaluasi kinerja per employee dan periode (FR-D4-001)."
+    <PageHeader title="Performance Evaluation" subtitle="Catat dan telusuri evaluasi kinerja per employee dan periode."
       actions={writer && <Button icon={<Plus className="size-4" />} onClick={() => setModalFor("")}>Add Evaluation</Button>} />
     <FilterBar canReset={Boolean(search || position || period || status)} onReset={() => { setSearch(""); setPosition(""); setPeriod(""); setStatus(""); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Search employee name or ID" />
@@ -58,10 +58,8 @@ export function PerformanceListPage() {
         { key: "status", header: "Status", cell: (row) => <StatusBadge status={evaluationStatus(row.evaluation)} /> },
       ]}
       actions={(row) => <RowActionMenu label={`Aksi untuk ${row.employee.fullName}`} actions={[
-        { label: "View Detail", icon: <Eye />, href: row.evaluation ? `/performance/${row.evaluation.id}` : undefined, hidden: !row.evaluation },
         { label: "View History", icon: <History />, href: `/performance/history/${row.employee.id}` },
         { label: "Open KPI Scorecard", icon: <Target />, href: `/kpi/history/${row.employee.id}` },
-        { label: "Add Evaluation", icon: <Plus />, onSelect: () => setModalFor(row.employee.id), hidden: !writer },
       ]} />} />
     {modalFor !== null && <EvaluationFormModal employeeId={modalFor || undefined} onClose={() => setModalFor(null)} />}
   </>;
@@ -83,7 +81,7 @@ export function PerformanceDetailPage({ id }: { id: string }) {
       actions={<>
         <ButtonLink href={`/performance/history/${employee.id}`} icon={<History className="size-4" />}>View History</ButtonLink>
         <ButtonLink href={scorecard ? `/kpi/${scorecard.id}` : `/kpi/history/${employee.id}`} icon={<Target className="size-4" />}>KPI Scorecard</ButtonLink>
-        {canWrite(snapshot) && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)}>Add Evaluation</Button>}
+        {canAssess(snapshot, employee.id) && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)}>Add Evaluation</Button>}
       </>} />
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
       <Card title="Evaluation summary">
