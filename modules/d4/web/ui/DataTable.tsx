@@ -18,7 +18,13 @@ export type Column<T> = {
 
 const secondaryCell = (column: { secondary?: boolean }) => column.secondary && "hidden min-[1400px]:table-cell";
 
-const PAGE_SIZE = 8;
+const PAGE_SIZE = 10;
+
+/** Page buttons to show: first, last, and the current page ±1, with gaps (load test: 1000 rows = 100 pages). */
+export function pageWindow(current: number, count: number): (number | "gap")[] {
+  const pages = [...new Set([1, current - 1, current, current + 1, count])].filter((page) => page >= 1 && page <= count).sort((a, b) => a - b);
+  return pages.flatMap((page, index) => index && page - pages[index - 1] > 1 ? ["gap" as const, page] : [page]);
+}
 
 /**
  * Standard D4 table: caps header, 56 px rows, ⋮ action column last, pagination bottom right.
@@ -69,7 +75,7 @@ export function DataTable<T>({ rows, columns, rowKey, rowHref, actions, emptyTit
       <span data-testid="table-count">Menampilkan {first}–{Math.min(current * PAGE_SIZE, rows.length)} dari {rows.length} {noun}</span>
       <nav aria-label="Pagination" className="flex items-center gap-1">
         <button type="button" data-testid="btn-page-prev" aria-label="Previous page" disabled={current === 1} onClick={() => setPage(current - 1)} className="inline-flex size-8 items-center justify-center rounded-lg border border-line bg-surface disabled:opacity-40"><ChevronLeft className="size-4" /></button>
-        {Array.from({ length: pageCount }, (_, index) => index + 1).map((number) =>
+        {pageWindow(current, pageCount).map((number, index) => number === "gap" ? <span key={`gap-${index}`} aria-hidden="true" className="px-1 text-ink-3">…</span> :
           <button key={number} type="button" data-testid={`btn-page-${number}`} aria-current={number === current ? "page" : undefined} onClick={() => setPage(number)}
             className={cx("inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 font-semibold", number === current ? "bg-primary-600 text-white" : "border border-line bg-surface text-ink")}>{number}</button>)}
         <button type="button" data-testid="btn-page-next" aria-label="Next page" disabled={current === pageCount} onClick={() => setPage(current + 1)} className="inline-flex size-8 items-center justify-center rounded-lg border border-line bg-surface disabled:opacity-40"><ChevronRight className="size-4" /></button>

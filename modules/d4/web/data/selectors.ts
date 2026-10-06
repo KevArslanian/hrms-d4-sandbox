@@ -21,22 +21,74 @@ export function visibleEmployees(snapshot: Snapshot): readonly EmployeeReference
 export const canAssess = (snapshot: Snapshot, employeeId: string) => canWrite(snapshot) && employeeId !== snapshot.actorEmployeeId;
 export const assessableEmployees = (snapshot: Snapshot) => visibleEmployees(snapshot).filter((item) => item.id !== snapshot.actorEmployeeId);
 
-export const employeeById = (snapshot: Snapshot, id: string) => snapshot.reference.employees.find((item) => item.id === id);
-export const positionOf = (snapshot: Snapshot, employee?: EmployeeReference) => snapshot.reference.positions.find((item) => item.id === employee?.positionId);
-export const positionById = (snapshot: Snapshot, id?: string | null) => snapshot.reference.positions.find((item) => item.id === id);
-export const departmentOf = (snapshot: Snapshot, employee?: EmployeeReference) => snapshot.reference.departments.find((item) => item.id === employee?.departmentId);
+const newestFirst = <T extends { createdAt: string }>(items: readonly T[]) => [...items].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+const byPeriod = <T extends { createdAt: string; period: string }>(items: readonly T[]) => newestFirst(items).sort((a, b) => b.period.localeCompare(a.period));
+function groupBy<T>(items: readonly T[], key: (item: T) => string, order: (items: T[]) => T[] = (list) => list) {
+  const groups = new Map<string, T[]>();
+  for (const item of items) { const k = key(item); const list = groups.get(k); if (list) list.push(item); else groups.set(k, [item]); }
+  for (const [k, list] of groups) groups.set(k, order(list));
+  return groups;
+}
+
+/**
+ * Lookups built once per snapshot (load test: 1000+ records per table). Without them every table row
+ * re-scanned and re-sorted whole arrays, so list pages were O(n²) and typing in a search box took
+ * over a second. A snapshot is never mutated (each change creates a new one), so a WeakMap keyed by
+ * it is invalidated automatically.
+ */
+type SnapshotIndex = {
+  employees: Map<string, EmployeeReference>;
+  positions: Map<string, Snapshot["reference"]["positions"][number]>;
+  departments: Map<string, Snapshot["reference"]["departments"][number]>;
+  evaluations: Map<string, PerformanceEvaluation[]>;
+  scorecards: Map<string, KpiAssessment[]>;
+  assessments: Map<string, CompetencyAssessment[]>;
+  needs: DevelopmentNeedVersion[];
+  trainings: TrainingVersion[];
+  needsByEmployee: Map<string, DevelopmentNeedVersion[]>;
+  trainingsByEmployee: Map<string, TrainingVersion[]>;
+  gaps: Map<string, ReturnType<typeof compareCompetencies> | null>;
+};
+const indexes = new WeakMap<Snapshot, SnapshotIndex>();
+function indexOf(snapshot: Snapshot): SnapshotIndex {
+  let index = indexes.get(snapshot);
+  if (!index) {
+    const { reference } = snapshot;
+    index = {
+      employees: new Map(reference.employees.map((item) => [item.id, item])),
+      positions: new Map(reference.positions.map((item) => [item.id, item])),
+      departments: new Map(reference.departments.map((item) => [item.id, item])),
+      evaluations: groupBy(snapshot.performance, (item) => item.employeeId, byPeriod),
+      scorecards: groupBy(snapshot.kpiAssessments ?? [], (item) => item.employeeId, byPeriod),
+      assessments: groupBy(snapshot.competency, (item) => `${item.employeeId}|${item.positionId}`, newestFirst),
+      needs: latestDevelopment(snapshot),
+      trainings: latestTraining(snapshot),
+      needsByEmployee: new Map(),
+      trainingsByEmployee: new Map(),
+      gaps: new Map(),
+    };
+    index.needsByEmployee = groupBy(index.needs, (item) => item.employeeId);
+    index.trainingsByEmployee = groupBy(index.trainings, (item) => item.employeeId);
+    indexes.set(snapshot, index);
+  }
+  return index;
+}
+
+export const employeeById = (snapshot: Snapshot, id: string) => indexOf(snapshot).employees.get(id);
+export const positionOf = (snapshot: Snapshot, employee?: EmployeeReference) => employee?.positionId ? indexOf(snapshot).positions.get(employee.positionId) : undefined;
+export const positionById = (snapshot: Snapshot, id?: string | null) => id ? indexOf(snapshot).positions.get(id) : undefined;
+export const departmentOf = (snapshot: Snapshot, employee?: EmployeeReference) => employee?.departmentId ? indexOf(snapshot).departments.get(employee.departmentId) : undefined;
 /** Header line shared by every detail/history page: position · employee ID · department. */
 export const employeeMeta = (snapshot: Snapshot, employee: EmployeeReference) => [positionOf(snapshot, employee)?.title ?? "No position yet", employee.employeeId, departmentOf(snapshot, employee)?.name ?? ""];
 
-const newestFirst = <T extends { createdAt: string }>(items: readonly T[]) => [...items].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-
+// Copies, so a caller sorting the result never reorders the shared index.
 export function evaluationsOf(snapshot: Snapshot, employeeId: string): PerformanceEvaluation[] {
-  return newestFirst(snapshot.performance.filter((item) => item.employeeId === employeeId)).sort((a, b) => b.period.localeCompare(a.period));
+  return [...(indexOf(snapshot).evaluations.get(employeeId) ?? [])];
 }
 export const latestEvaluation = (snapshot: Snapshot, employeeId: string) => evaluationsOf(snapshot, employeeId)[0];
 
 export function scorecardsOf(snapshot: Snapshot, employeeId: string): KpiAssessment[] {
-  return newestFirst((snapshot.kpiAssessments ?? []).filter((item) => item.employeeId === employeeId)).sort((a, b) => b.period.localeCompare(a.period));
+  return [...(indexOf(snapshot).scorecards.get(employeeId) ?? [])];
 }
 /** " · Revision n" for the second and later record of the same period; empty for the first. */
 export function revisionTag<T extends { id: string; employeeId: string; period: string; createdAt: string }>(records: readonly T[], record: T) {
@@ -48,14 +100,16 @@ export const latestScorecard = (snapshot: Snapshot, employeeId: string) => score
 
 /** Live comparison of the employee's current position requirements against recorded evidence. */
 export function currentGap(snapshot: Snapshot, employee: EmployeeReference): { findings: CompetencyFinding[]; overallStatus: CompetencyOverallStatus } | null {
-  if (!employee.positionId || !snapshot.reference.positions.some((item) => item.id === employee.positionId)) return null;
-  return compareCompetencies(employee.id, employee.positionId, snapshot.reference);
+  if (!employee.positionId || !positionById(snapshot, employee.positionId)) return null;
+  const { gaps } = indexOf(snapshot);
+  if (!gaps.has(employee.id)) gaps.set(employee.id, compareCompetencies(employee.id, employee.positionId, snapshot.reference));
+  return gaps.get(employee.id) ?? null;
 }
 
 /** Latest saved assessment for the active position, including a position-change snapshot after reassignment. */
 export function latestCurrentPositionAssessment(snapshot: Snapshot, employee: EmployeeReference): CompetencyAssessment | undefined {
   if (!positionOf(snapshot, employee)) return undefined;
-  return newestFirst(snapshot.competency.filter((item) => item.employeeId === employee.id && item.positionId === employee.positionId))[0];
+  return indexOf(snapshot).assessments.get(`${employee.id}|${employee.positionId}`)?.[0];
 }
 
 export type CurrentCompetencyStatus = CompetencyOverallStatus | "Not Evaluated";
@@ -66,10 +120,14 @@ export function currentCompetencyStatus(snapshot: Snapshot, employee: EmployeeRe
   return currentGap(snapshot, employee)?.overallStatus ?? "Not Evaluated";
 }
 
-export const developmentNeeds = (snapshot: Snapshot) => latestDevelopment(snapshot);
-export const trainings = (snapshot: Snapshot) => latestTraining(snapshot);
-export const developmentById = (snapshot: Snapshot, needId: string) => latestDevelopment(snapshot).find((item) => item.needId === needId);
-export const trainingById = (snapshot: Snapshot, trainingId: string) => latestTraining(snapshot).find((item) => item.trainingId === trainingId);
+// Shared arrays from the index: callers only filter/find them.
+export const developmentNeeds = (snapshot: Snapshot): readonly DevelopmentNeedVersion[] => indexOf(snapshot).needs;
+export const trainings = (snapshot: Snapshot): readonly TrainingVersion[] => indexOf(snapshot).trainings;
+/** Latest revision of each need / training of one employee, newest first. */
+export const needsOf = (snapshot: Snapshot, employeeId: string): readonly DevelopmentNeedVersion[] => indexOf(snapshot).needsByEmployee.get(employeeId) ?? [];
+export const trainingsOf = (snapshot: Snapshot, employeeId: string): readonly TrainingVersion[] => indexOf(snapshot).trainingsByEmployee.get(employeeId) ?? [];
+export const developmentById = (snapshot: Snapshot, needId: string) => developmentNeeds(snapshot).find((item) => item.needId === needId);
+export const trainingById = (snapshot: Snapshot, trainingId: string) => trainings(snapshot).find((item) => item.trainingId === trainingId);
 export const developmentHistory = (snapshot: Snapshot, needId: string) => snapshot.developmentVersions.filter((item) => item.needId === needId).sort((a, b) => b.revision - a.revision);
 export const trainingHistory = (snapshot: Snapshot, trainingId: string) => snapshot.trainingVersions.filter((item) => item.trainingId === trainingId).sort((a, b) => b.revision - a.revision);
 

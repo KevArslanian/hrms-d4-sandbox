@@ -7,7 +7,7 @@ import type { KpiAssessmentLine } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
 import { latestForPeriod } from "../../../shared/rules";
 import { assessableEmployees, departmentOf, employeeById, formatDate, positionOf, SCORE_LABELS, thisMonth, today } from "../../data/selectors";
-import { FormError, FormModal, ModalActions, ReadOnlyField, RevisionConfirm, SelectField, TextAreaField, TextField } from "../../ui/forms";
+import { FormError, FormModal, ModalActions, ReadOnlyField, RevisionConfirm, SearchSelectField, TextAreaField, TextField } from "../../ui/forms";
 import { cx, Notice } from "../../ui/primitives";
 
 /** FR-02.11: positions without a KPI role in the catalog get no scorecard; no mapping is invented for them. */
@@ -73,10 +73,8 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />
       <div className="grid gap-4 sm:grid-cols-3">
-        <SelectField label="Employee" testId="employee" required value={employee} onChange={(event) => chooseEmployee(event.target.value)} error={touched && !employee ? "Employee is required." : undefined} className="sm:col-span-2">
-          <option value="">Select employee</option>
-          {assessableEmployees(snapshot).map((item) => <option key={item.id} value={item.id}>{item.fullName} · {item.employeeId}</option>)}
-        </SelectField>
+        <SearchSelectField label="Employee" testId="employee" required value={employee} onChange={(value) => chooseEmployee(value)} error={touched && !employee ? "Employee is required." : undefined} className="sm:col-span-2" placeholder="Select employee"
+          options={assessableEmployees(snapshot).map((item) => ({ value: item.id, label: `${item.fullName} · ${item.employeeId}` }))} />
         <TextField label="Period" testId="period" required type="month" value={period} onChange={(event) => setPeriod(event.target.value)} error={touched && !period ? "Period is required." : undefined} />
         <ReadOnlyField label="Position" testId="position" value={position?.title ?? "—"} />
         <ReadOnlyField label="Department" testId="department" value={departmentOf(snapshot, selected)?.name ?? "—"} />

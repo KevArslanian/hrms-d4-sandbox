@@ -40,6 +40,39 @@ function assessment(id: string, employeeId: string, roleOrder: number, period: s
   };
 }
 
+
+// Load test (lecturer request): NEXT_PUBLIC_D4_FIXTURE_ROWS=1000 adds that many departments, positions,
+// employees and records of every kind, so list pages, filters and forms can be checked at volume.
+const BULK_ROWS = Math.min(5000, Math.max(0, Number(process.env.NEXT_PUBLIC_D4_FIXTURE_ROWS) || 0));
+
+function withBulk(snapshot: D4LiveSnapshot, n: number): D4LiveSnapshot {
+  const id = (kind: number, i: number) => `b${kind}000000-0000-4000-8000-${String(i).padStart(12, "0")}`;
+  const competencyId = snapshot.reference.competencies[0].id;
+  const range = Array.from({ length: n }, (_, i) => i + 1);
+  const label = (i: number) => String(i).padStart(4, "0");
+  const reference = {
+    ...snapshot.reference,
+    departments: [...snapshot.reference.departments, ...range.map((i) => ({ id: id(1, i), code: `BULK-DEPT-${label(i)}`, name: `Bulk Department ${label(i)}` }))],
+    positions: [...snapshot.reference.positions, ...range.map((i) => ({ id: id(2, i), code: `BULK-POS-${label(i)}`, title: `Bulk Position ${label(i)}`, departmentId: id(1, i) }))],
+    employees: [...snapshot.reference.employees, ...range.map((i) => ({ id: id(3, i), employeeId: `BULK-EMP-${label(i)}`, fullName: `Bulk Employee ${label(i)}`, positionId: id(2, i), departmentId: id(1, i) }))],
+    positionRequirements: [...snapshot.reference.positionRequirements, ...range.map((i) => ({ id: id(4, i), positionId: id(2, i), competencyId, minProficiencyLevel: 3, isMandatory: true }))],
+    employeeSkills: [...snapshot.reference.employeeSkills, ...range.map((i) => ({ id: id(5, i), employeeId: id(3, i), competencyId, proficiencyLevel: i % 5 + 1, evidenceNotes: "Bulk load-test record." }))],
+  };
+  const period = (i: number) => `2026-${String(i % 9 + 1).padStart(2, "0")}`;
+  return {
+    ...snapshot, reference,
+    competency: [...snapshot.competency, ...range.map((i) => {
+      const comparison = compareCompetencies(id(3, i), id(2, i), reference);
+      return { id: id(6, i), source: "local-demo" as const, employeeId: id(3, i), positionId: id(2, i), effectiveDate: "2026-09-01", context: "current-position" as const,
+        findings: comparison.findings, overallStatus: comparison.overallStatus, createdAt: "2026-09-01T08:00:00.000Z", actor: "Bulk" };
+    })],
+    performance: [...snapshot.performance, ...range.map((i) => ({ ...snapshot.performance[0], id: id(7, i), employeeId: id(3, i), period: period(i), evaluationDate: `${period(i)}-20`, generalNotes: `Bulk evaluation ${label(i)}.` }))],
+    kpiAssessments: [...(snapshot.kpiAssessments ?? []), ...range.map((i) => ({ ...assessment(id(8, i), id(3, i), 10, period(i), [i % 5 + 1, 4, 3, 4, 5], "completed") }))],
+    developmentVersions: [...snapshot.developmentVersions, ...range.map((i) => ({ ...snapshot.developmentVersions[0], id: id(9, i), needId: `BULK-DEV-${label(i)}`, employeeId: id(3, i), sourceRef: id(4, i), objective: `Bulk development objective ${label(i)}`, status: "Planned" as const, createdAt: `${period(i)}-21T08:00:00.000Z` }))],
+    trainingVersions: [...snapshot.trainingVersions, ...range.map((i) => ({ ...snapshot.trainingVersions[0], id: `BULK-TRN-V-${label(i)}`, trainingId: `BULK-TRN-${label(i)}`, employeeId: id(3, i), developmentNeedId: `BULK-DEV-${label(i)}`, activity: `Bulk training ${label(i)}`, date: `${period(i)}-25`, status: "Planned" as const, createdAt: `${period(i)}-22T08:00:00.000Z` }))],
+  };
+}
+
 function initialSnapshot(): D4LiveSnapshot {
   const alfa = ALFA;
   const finance = "d4000000-0000-4000-8000-000000000008";
@@ -85,7 +118,7 @@ const newId = (prefix: string) => `${prefix}-${Math.random().toString(36).slice(
 const delay = () => new Promise((resolve) => setTimeout(resolve, 250));
 
 export function createFixtureSource(): D4DataSource {
-  let state = initialSnapshot();
+  let state = BULK_ROWS ? withBulk(initialSnapshot(), BULK_ROWS) : initialSnapshot();
   const update = (patch: Partial<D4LiveSnapshot>) => { state = { ...state, ...patch }; };
   const assertWriter = () => { if (state.role === "EMPLOYEE") throw new Error("Only HR or a manager can save changes."); };
   // The evaluator is always the signed-in actor, never a free-text value from the form.
