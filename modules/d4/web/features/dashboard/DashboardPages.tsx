@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight, ClipboardCheck, Eye, Target } from "lucide-react";
+import { ArrowUpRight, ClipboardCheck, Target } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import type { EmployeeReference } from "../../../shared/types";
 import type { D4LiveSnapshot, KpiAssessment } from "../../../supabase/types";
@@ -40,7 +40,8 @@ export function DashboardPage() {
   const periods = useMemo(() => [...new Set([...(snapshot.kpiAssessments ?? []), ...snapshot.performance].map((item) => item.period))].sort().reverse(), [snapshot]);
 
   const rows = useMemo<Row[]>(() => visibleEmployees(snapshot).map((employee) => {
-    const data = periodData(snapshot, employee.id, period);
+    // Every row shows the same period: the chosen one, else the latest period in the data (bug 20).
+    const data = periodData(snapshot, employee.id, period || periods[0] || "");
     const gap = currentGap(snapshot, employee);
     return {
       employee, position: positionOf(snapshot, employee)?.title ?? "—", period: data.period, scorecard: data.scorecard,
@@ -50,12 +51,12 @@ export function DashboardPage() {
       training: trainings(snapshot).find((item) => item.employeeId === employee.id)?.status,
     };
   }).filter((row) => includesText(`${row.employee.fullName} ${row.employee.employeeId}`, search) && (!position || row.employee.positionId === position))
-    .sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName)), [snapshot, search, position, period]);
+    .sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName)), [snapshot, search, position, period, periods]);
 
   const profileHref = (row: Row) => `/dashboard/employee/${row.employee.id}${row.period ? `?period=${row.period}` : ""}`;
 
   return <>
-    <PageHeader title="People Dashboard" subtitle="Ringkasan KPI, performance, competency gap, development, dan training per employee pada periode yang sama (FR-D4-004)." />
+    <PageHeader title="People Dashboard" subtitle="Ringkasan KPI, performance, competency gap, development, dan training per employee pada periode yang sama." />
     <FilterBar canReset={Boolean(search || position || period)} onReset={() => { setSearch(""); setPosition(""); setPeriod(""); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Search employee name or ID" />
       <SelectFilter label="All positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />
@@ -74,7 +75,6 @@ export function DashboardPage() {
         { key: "training", header: "Training", cell: (row) => row.training ? <StatusBadge status={row.training} /> : "—" },
       ]}
       actions={(row) => <RowActionMenu label={`Aksi untuk ${row.employee.fullName}`} actions={[
-        { label: "View Detail", icon: <Eye />, href: profileHref(row) },
         { label: "View KPI Scorecard", icon: <Target />, href: row.scorecard ? `/kpi/${row.scorecard.id}` : `/kpi/history/${row.employee.id}` },
         { label: "View Evaluation", icon: <ClipboardCheck />, href: `/performance/history/${row.employee.id}` },
       ]} />} />

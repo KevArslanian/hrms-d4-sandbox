@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, FileSearch, History, Plus, RefreshCw } from "lucide-react";
+import { FileSearch, History, Plus, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { TrainingVersion } from "../../../training/types";
 import { useSnapshot } from "../../data/D4DataProvider";
@@ -18,7 +18,6 @@ export function TrainingListPage() {
   const [search, setSearch] = useState("");
   const [period, setPeriod] = useState("");
   const [status, setStatus] = useState("");
-  const [requirement, setRequirement] = useState("");
   const [adding, setAdding] = useState(false);
   const [progressFor, setProgressFor] = useState<string | null>(null);
   const all = useMemo(() => {
@@ -26,21 +25,19 @@ export function TrainingListPage() {
     return trainings(snapshot).filter((item) => visible.has(item.employeeId));
   }, [snapshot]);
   const periods = [...new Set(all.map((item) => item.date.slice(0, 7)))].sort().reverse();
-  const requirements = [...new Map(all.map((item) => [item.developmentNeedId, trainingSource(snapshot, item)?.objective ?? item.developmentNeedId])).entries()];
   const rows = all.filter((item) => {
     const employee = employeeById(snapshot, item.employeeId);
     return includesText(`${employee?.fullName ?? ""} ${employee?.employeeId ?? ""} ${item.activity}`, search)
-      && (!period || item.date.startsWith(period)) && (!status || item.status === status) && (!requirement || item.developmentNeedId === requirement);
+      && (!period || item.date.startsWith(period)) && (!status || item.status === status);
   });
 
   return <>
-    <PageHeader title="Training Tracking" subtitle="Lacak training/development dari requirement sumber sampai hasil pelaksanaan (FR-D4-003)."
+    <PageHeader title="Training Tracking" subtitle="Lacak training/development dari requirement sumber sampai hasil pelaksanaan."
       actions={writer && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)}>Add Training</Button>} />
-    <FilterBar canReset={Boolean(search || period || status || requirement)} onReset={() => { setSearch(""); setPeriod(""); setStatus(""); setRequirement(""); }}>
+    <FilterBar canReset={Boolean(search || period || status)} onReset={() => { setSearch(""); setPeriod(""); setStatus(""); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Search employee or training" />
       <SelectFilter label="All periods" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
       <SelectFilter label="All status" value={status} onChange={setStatus} options={["Planned", "In Progress", "Completed", "Cancelled"].map((item) => ({ value: item, label: item }))} />
-      <SelectFilter label="All source requirements" value={requirement} onChange={setRequirement} options={requirements.map(([value, label]) => ({ value, label }))} />
     </FilterBar>
     <DataTable<TrainingVersion> rows={rows} noun="training records" rowKey={(row) => row.trainingId} rowHref={(row) => `/training/${row.trainingId}`}
       emptyTitle="Belum ada training yang cocok" emptyText="Training dibuat dari development requirement. Ubah filter atau tambah training baru."
@@ -52,7 +49,6 @@ export function TrainingListPage() {
         { key: "status", header: "Status", cell: (row) => <StatusBadge status={row.status} /> },
       ]}
       actions={(row) => <RowActionMenu label={`Aksi untuk ${row.activity}`} actions={[
-        { label: "View Detail", icon: <Eye />, href: `/training/${row.trainingId}` },
         { label: "View History", icon: <History />, href: `/training/${row.trainingId}/history` },
         { label: "Update Progress", icon: <RefreshCw />, onSelect: () => setProgressFor(row.trainingId), hidden: !writer },
         { label: "Open Source Requirement", icon: <FileSearch />, href: `/development/${row.developmentNeedId}` },

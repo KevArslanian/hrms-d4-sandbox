@@ -3,7 +3,7 @@
 import { useMemo, useState, type FormEvent } from "react";
 import type { DevelopmentPriority, DevelopmentSourceType, DevelopmentStatus } from "../../../development/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { openNeedFor } from "../../../shared/rules";
+import { isDevelopmentRollback, openNeedFor } from "../../../shared/rules";
 import { currentGap, developmentNeeds, employeeById, formatDate, formatPeriod, positionOf, sourceTypeLabel, today, trainings, visibleEmployees } from "../../data/selectors";
 import { FormError, FormModal, ModalActions, ReadOnlyField, SelectField, TextAreaField, TextField } from "../../ui/forms";
 import { Notice } from "../../ui/primitives";
@@ -53,7 +53,7 @@ export function DevelopmentFormModal({ employeeId, sourceType, sourceRef, onClos
     if (result.ok) { onSaved?.(result.value); onClose(); } else setError(result.error);
   }
 
-  return <FormModal title="Add Development Requirement" description="Setiap kebutuhan wajib punya sumber yang dapat ditelusuri (FR-D4-003, FR-D4-005)." onClose={onClose}
+  return <FormModal title="Add Development Requirement" description="Setiap kebutuhan wajib punya sumber yang dapat ditelusuri." onClose={onClose}
     footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Requirement" />}>
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />
@@ -92,19 +92,21 @@ export function DevelopmentStatusModal({ needId, onClose }: { needId: string; on
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
   const openTrainings = trainings(snapshot).filter((item) => item.developmentNeedId === needId && (item.status === "Planned" || item.status === "In Progress"));
+  const rollback = current ? isDevelopmentRollback(current.status, status) : false;
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (rollback && !notes.trim()) { setError(`Alasan perubahan wajib diisi saat status kembali dari ${current?.status} ke ${status}.`); return; }
     const result = await run((source) => source.updateDevelopment(needId, status, notes), "Status development diperbarui sebagai revisi baru.");
     if (result.ok) onClose(); else setError(result.error);
   }
-  return <FormModal title="Update Status" description={current?.objective} onClose={onClose} footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Status" />}>
+  return <FormModal title="Update Status" description={current?.objective} onClose={onClose} footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Status" disabled={status === current?.status} />}>
     <form id="d4-modal-form" onSubmit={submit} className="space-y-5">
       <FormError message={error} />
       <SelectField label="Status" required value={status} onChange={(event) => setStatus(event.target.value as DevelopmentStatus)}>
         {(["Identified", "Planned", "In Progress", "Completed"] as const).map((item) => <option key={item}>{item}</option>)}
       </SelectField>
       {status === "Completed" && openTrainings.length > 0 && <Notice tone="warning">Masih ada {openTrainings.length} training berstatus Planned/In Progress untuk requirement ini ({openTrainings.map((item) => item.activity).join(", ")}). Selesaikan atau batalkan training tersebut dulu, atau jelaskan alasannya di Notes.</Notice>}
-      <TextAreaField label="Notes" value={notes} onChange={(event) => setNotes(event.target.value)} />
+      <TextAreaField label="Notes" required={rollback} value={notes} onChange={(event) => setNotes(event.target.value)} helper={status === current?.status ? `Status sekarang ${status}. Pilih status lain untuk menyimpan.` : rollback ? "Wajib diisi: status kembali ke tahap sebelumnya." : undefined} />
       <Notice>Perubahan disimpan sebagai revisi baru; riwayat sebelumnya tetap tersedia. Status Completed tidak menutup competency gap secara otomatis.</Notice>
     </form>
   </FormModal>;

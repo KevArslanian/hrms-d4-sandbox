@@ -1,4 +1,4 @@
-import type { DevelopmentNeedVersion, DevelopmentSourceType } from "../development/types";
+import type { DevelopmentNeedVersion, DevelopmentSourceType, DevelopmentStatus } from "../development/types";
 import type { TrainingStatus } from "../training/types";
 import { ApiError } from "./errors";
 
@@ -69,4 +69,20 @@ export const isTrainingRollback = (from: TrainingStatus, to: TrainingStatus) =>
 
 export function assertTrainingChange(from: TrainingStatus, to: TrainingStatus, notes: string) {
   if (isTrainingRollback(from, to) && !notes.trim()) throw new ApiError("VALIDATION_FAILED", `Alasan perubahan wajib diisi saat status kembali dari ${from} ke ${to}.`);
+}
+
+const DEVELOPMENT_STEP: Record<DevelopmentStatus, number> = { Identified: 0, Planned: 1, "In Progress": 2, Completed: 3 };
+
+/** Moving back (e.g. Completed → Planned). */
+export const isDevelopmentRollback = (from: DevelopmentStatus, to: DevelopmentStatus) => DEVELOPMENT_STEP[to] < DEVELOPMENT_STEP[from];
+
+/** A status update must change the status, and moving back needs a reason (same rule as training). */
+export function assertDevelopmentChange(from: DevelopmentStatus, to: DevelopmentStatus, notes: string) {
+  if (from === to) throw new ApiError("VALIDATION_FAILED", `Status sudah ${to}. Pilih status lain.`);
+  if (isDevelopmentRollback(from, to) && !notes.trim()) throw new ApiError("VALIDATION_FAILED", `Alasan perubahan wajib diisi saat status kembali dari ${from} ke ${to}.`);
+}
+
+/** Evaluation dates are when the evaluation happened, so they cannot be later than today (WIB). */
+export function assertNotFutureDate(date: string | null | undefined, label = "Evaluation date") {
+  if (date && date > localToday()) throw new ApiError("VALIDATION_FAILED", `${label} tidak boleh melebihi hari ini.`);
 }
