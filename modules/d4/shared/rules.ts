@@ -94,6 +94,11 @@ export function assertGapAssessed(competency: readonly { employeeId: string; pos
     throw new ApiError("VALIDATION_FAILED", "Save the competency assessment for the active position before raising a development requirement from its gap.");
 }
 
+/** A completed training already happened, so its date cannot be later than today; planned training may be in the future. */
+export function assertTrainingDate(status: TrainingStatus, date: string) {
+  if (status === "Completed") assertNotFutureDate(date, "The date of a completed training");
+}
+
 /** Evaluation dates are when the evaluation happened, so they cannot be later than today (WIB). */
 export function assertNotFutureDate(date: string | null | undefined, label = "Evaluation date") {
   if (date && date > localToday()) throw new ApiError("VALIDATION_FAILED", `${label} cannot be later than today.`);

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CompetencyAssessment } from "@/modules/d4/competency/types";
-import { assertDevelopmentChange, assertGapAssessed, assertNotFutureDate, openTrainingCount, isTrainingRollback, localMonth, localToday, revisionNumber } from "@/modules/d4/shared/rules";
+import { assertDevelopmentChange, assertGapAssessed, assertNotFutureDate, assertTrainingDate, openTrainingCount, isTrainingRollback, localMonth, localToday, revisionNumber } from "@/modules/d4/shared/rules";
 import type { EmployeeReference } from "@/modules/d4/shared/types";
 import { assessableEmployees, canWrite, currentCompetencyStatus, currentGap, latestCurrentPositionAssessment, revisionTag, visibleEmployees, type Snapshot } from "@/modules/d4/web/data/selectors";
 import type { TrainingStatus } from "@/modules/d4/training/types";
@@ -180,6 +180,12 @@ describe("development status change", () => {
     expect(() => assertGapAssessed([{ employeeId: "E1", positionId: "P0" }], employee, "competency_gap")).toThrow();
     expect(() => assertGapAssessed([{ employeeId: "E1", positionId: "P1" }], employee, "competency_gap")).not.toThrow();
     expect(() => assertGapAssessed([], employee, "performance_context")).not.toThrow();
+  });
+
+  it("allows a future date only for training that has not been completed", () => {
+    expect(() => assertTrainingDate("Completed", "2999-01-01")).toThrow(/later than today/);
+    expect(() => assertTrainingDate("Planned", "2999-01-01")).not.toThrow();
+    expect(() => assertTrainingDate("Completed", localToday())).not.toThrow();
   });
 });
 

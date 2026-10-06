@@ -3,9 +3,9 @@
 import { useState, type FormEvent } from "react";
 import type { TrainingStatus } from "../../../training/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { developmentNeeds, today, trainingById, visibleEmployees } from "../../data/selectors";
+import { developmentNeeds, employeeById, today, trainingById, visibleEmployees } from "../../data/selectors";
 import { isTrainingRollback } from "../../../shared/rules";
-import { FormError, FormModal, ModalActions, SelectField, TextAreaField, TextField } from "../../ui/forms";
+import { FormError, FormModal, ModalActions, ReadOnlyField, SelectField, TextAreaField, TextField } from "../../ui/forms";
 import { Notice, statusLabel } from "../../ui/primitives";
 
 const STATUSES: TrainingStatus[] = ["Planned", "In Progress", "Completed", "Cancelled"];
@@ -25,12 +25,17 @@ export function TrainingFormModal({ employeeId, developmentNeedId, onClose }: { 
   // A completed requirement takes no new training; a new need is raised if the gap remains.
   const needs = developmentNeeds(snapshot).filter((item) => item.employeeId === employee && item.status !== "Completed");
   const needOpen = needs.some((item) => item.needId === need);
+  const futureDone = status === "Completed" && date > today();
   const missing = [!employee && "employee", !needOpen && "source requirement", !activity.trim() && "training/activity", !date && "date", status === "Completed" && !result.trim() && "result"].filter(Boolean);
+  // Opened from a requirement or employee page: that context is fixed, not re-pickable.
+  const lockedEmployee = employeeId ? employeeById(snapshot, employeeId) : undefined;
+  const lockedNeed = developmentNeedId ? needs.find((item) => item.needId === developmentNeedId) : undefined;
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     setTouched(true);
     if (missing.length) { setError(`Complete ${missing.join(", ")} before saving.`); return; }
+    if (futureDone) { setError("A completed training cannot have a date later than today."); return; }
     setError("");
     const saved = await run((source) => source.createTraining({ employeeId: employee, developmentNeedId: need, activity, date, status, result, notes }), "Training saved and linked to its development requirement.");
     if (saved.ok) onClose(); else setError(saved.error);
@@ -41,17 +46,19 @@ export function TrainingFormModal({ employeeId, developmentNeedId, onClose }: { 
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />
       <div className="grid gap-4 sm:grid-cols-2">
-        <SelectField label="Employee" testId="employee" required value={employee} onChange={(event) => { setEmployee(event.target.value); setNeed(""); }} error={touched && !employee ? "Employee is required." : undefined} className="sm:col-span-2">
-          <option value="">Select employee</option>
-          {visibleEmployees(snapshot).map((item) => <option key={item.id} value={item.id}>{item.fullName} · {item.employeeId}</option>)}
-        </SelectField>
+        {lockedEmployee ? <ReadOnlyField label="Employee" testId="employee" value={`${lockedEmployee.fullName} · ${lockedEmployee.employeeId}`} className="sm:col-span-2" />
+          : <SelectField label="Employee" testId="employee" required value={employee} onChange={(event) => { setEmployee(event.target.value); setNeed(""); }} error={touched && !employee ? "Employee is required." : undefined} className="sm:col-span-2">
+            <option value="">Select employee</option>
+            {visibleEmployees(snapshot).map((item) => <option key={item.id} value={item.id}>{item.fullName} · {item.employeeId}</option>)}
+          </SelectField>}
+        {lockedNeed ? <ReadOnlyField label="Source requirement" testId="source-requirement" value={`${lockedNeed.objective} · ${statusLabel(lockedNeed.status)}`} className="sm:col-span-2" /> :
         <SelectField label="Source requirement" testId="source-requirement" required value={need} onChange={(event) => setNeed(event.target.value)} error={touched && employee && !needOpen ? "Select a development requirement that is still open." : undefined} className="sm:col-span-2"
           helper="Completed requirements are not listed.">
           <option value="">{!employee ? "Select an employee first" : needs.length ? "Select development requirement" : "The employee has no open development requirement"}</option>
           {needs.map((item) => <option key={item.needId} value={item.needId}>{item.objective} · {statusLabel(item.status)}</option>)}
-        </SelectField>
+        </SelectField>}
         <TextField label="Training / activity" testId="training-activity" required value={activity} onChange={(event) => setActivity(event.target.value)} error={touched && !activity.trim() ? "Activity name is required." : undefined} className="sm:col-span-2" />
-        <TextField label="Date" testId="date" required type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+        <TextField label="Date" testId="date" required type="date" max={status === "Completed" ? today() : undefined} value={date} onChange={(event) => setDate(event.target.value)} error={touched && futureDone ? "Cannot be later than today for a completed training." : undefined} />
         <SelectField label="Status" required value={status} onChange={(event) => setStatus(event.target.value as TrainingStatus)}>{STATUSES.map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}</SelectField>
         <TextField label="Result" testId="result" required={status === "Completed"} value={result} onChange={(event) => setResult(event.target.value)} error={touched && status === "Completed" && !result.trim() ? "Result is required when the status is Completed." : undefined} className="sm:col-span-2" />
       </div>
