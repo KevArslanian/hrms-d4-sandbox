@@ -44,12 +44,12 @@ export default function RegisterPage() {
       .order('created_at', { ascending: false })
       .limit(1);
 
-    if (error) throw new Error('Failed to prepare the registration ID: ' + error.message);
+    if (error) throw new Error('Gagal menyiapkan ID registrasi: ' + error.message);
     if (!data?.length) return 'AND-0001';
 
     // Data lama memakai AND-001 (3 digit), yang baru AND-0002 (4 digit): terima keduanya.
     const match = /^AND-(\d+)$/.exec(data[0].employee_id ?? '');
-    if (!match) throw new Error('The last registration ID has an invalid format. Contact an administrator.');
+    if (!match) throw new Error('Format ID registrasi terakhir tidak valid. Hubungi administrator.');
     return `AND-${String(Number(match[1]) + 1).padStart(4, '0')}`;
   };
 
@@ -153,7 +153,7 @@ export default function RegisterPage() {
         // Ambil ID user dari auth
         const userId = authData?.user?.id;
         if (!userId) {
-          throw new Error('User ID not found after auth sign-up.');
+          throw new Error('User ID tidak ditemukan setelah pendaftaran auth.');
         }
 
         // 3. Simpan data ke b2_register (diubah: tambahkan id: userId bertipe UUID)
@@ -173,7 +173,7 @@ export default function RegisterPage() {
           ]);
 
         if (dbError) {
-          throw new Error('Failed to save to b2_register: ' + dbError.message);
+          throw new Error('Gagal menyimpan ke b2_register: ' + dbError.message);
         }
 
         // 4. Berhasil
@@ -189,7 +189,7 @@ export default function RegisterPage() {
         setGeneralError(
           err instanceof Error
             ? err.message
-            : 'Something went wrong while saving. Please try again.'
+            : 'Terjadi kesalahan saat menyimpan. Silakan coba lagi.'
         );
       } finally {
         submitting.current = false;
@@ -287,7 +287,7 @@ export default function RegisterPage() {
                   type="button"
                   id="toggle-password"
                   data-testid="toggle-password"
-                  aria-label="Show password"
+                  aria-label="Tampilkan password"
                   onMouseDown={() => setShowPassword(true)}
                   onMouseUp={() => setShowPassword(false)}
                   onMouseLeave={() => setShowPassword(false)}
@@ -442,7 +442,7 @@ export default function RegisterPage() {
                   : 'bg-[#3B6FF5] hover:bg-[#2B5CE5] active:scale-[0.99] cursor-pointer'
               }`}
             >
-              {successMessage ? 'Saved' : isLoading ? 'Processing...' : 'Register'}
+              {successMessage ? 'Tersimpan' : isLoading ? 'Processing...' : 'Register'}
             </button>
           </form>
 
