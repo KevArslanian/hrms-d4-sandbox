@@ -100,12 +100,13 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
 
   async loadSnapshot(): Promise<D4LiveSnapshot> {
     const user = await this.requireUser();
-    const { data: access, error: accessError } = await this.client.from("d3_user_access")
-      .select("app_role,employee_id").eq("auth_user_id", user.id).maybeSingle();
-    if (accessError) throw databaseError(accessError, "Hak akses");
-    if (!access) throw new ApiError("FORBIDDEN", "You are signed in, but this account has no access to HRMS data yet. Contact the HRMS admin to activate your role.");
-    const reference = await this.loadReferenceData();
-    const [kpiResult, kpiAssessmentResult, performanceResult, assessmentResult, developmentResult, developmentVersionResult, trainingResult, trainingVersionResult] = await Promise.all([
+    // Access, reference data and records load in one parallel round instead of three sequential ones
+    // (each round trip to the database counts). RLS already limits what the queries return, and access
+    // is still checked before anything is returned.
+    const [{ data: access, error: accessError }, reference, [kpiResult, kpiAssessmentResult, performanceResult, assessmentResult, developmentResult, developmentVersionResult, trainingResult, trainingVersionResult]] = await Promise.all([
+      this.client.from("d3_user_access").select("app_role,employee_id").eq("auth_user_id", user.id).maybeSingle(),
+      this.loadReferenceData(),
+      Promise.all([
       allRows(() => this.client.from("employee_kpi").select("id,employee_id,period,kpi_score,notes,created_at").order("period", { ascending: false }).order("id")),
       // "*" keeps this working before and after the V5.1 migration adds definition_version.
       allRows(() => this.client.from("d4_kpi_assessments").select("*").order("created_at", { ascending: false }).order("id")),
@@ -115,7 +116,9 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
       allRows(() => this.client.from("d4_development_need_versions").select("id,development_need_id,revision,status,notes,actor_employee_id,created_at").order("created_at", { ascending: false }).order("id")),
       allRows(() => this.client.from("d4_training_records").select("id,employee_id,development_need_id,activity,activity_date").order("id")),
       allRows(() => this.client.from("d4_training_versions").select("id,training_id,revision,status,result,notes,actor_employee_id,created_at").order("created_at", { ascending: false }).order("id")),
-    ]);
+    ])]);
+    if (accessError) throw databaseError(accessError, "Hak akses");
+    if (!access) throw new ApiError("FORBIDDEN", "You are signed in, but this account has no access to HRMS data yet. Contact the HRMS admin to activate your role.");
     const kpiRows = take(kpiResult, "KPI") as RawKpi[];
     const kpiAssessmentRows = take(kpiAssessmentResult, "Penilaian KPI") as RawKpiAssessment[];
     const performanceRows = take(performanceResult, "Performance") as RawPerformance[];
