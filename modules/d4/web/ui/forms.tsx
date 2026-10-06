@@ -3,7 +3,7 @@
 import { ChevronDown, Search, X } from "lucide-react";
 import { useEffect, useId, useLayoutEffect, useRef, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { createPortal } from "react-dom";
-import { Button, cx } from "./primitives";
+import { Button, cx, slug } from "./primitives";
 
 const control = "h-10 w-full rounded-[10px] border border-line-strong bg-surface px-3 text-sm text-ink outline-none placeholder:text-ink-3 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/15 disabled:bg-muted disabled:text-ink-3 aria-[invalid=true]:border-danger";
 
@@ -12,7 +12,7 @@ const control = "h-10 w-full rounded-[10px] border border-line-strong bg-surface
 export function FilterBar({ children, onReset, canReset }: { children: ReactNode; onReset?: () => void; canReset?: boolean }) {
   return <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-surface p-3 shadow-card">
     {children}
-    {onReset && <button type="button" onClick={onReset} disabled={!canReset} className="ml-auto inline-flex h-10 items-center gap-1.5 rounded-[10px] px-3 text-sm font-semibold text-primary-600 hover:bg-primary-50 disabled:text-ink-3 disabled:hover:bg-transparent">
+    {onReset && <button type="button" data-testid="btn-filter-reset" onClick={onReset} disabled={!canReset} className="ml-auto inline-flex h-10 items-center gap-1.5 rounded-[10px] px-3 text-sm font-semibold text-primary-600 hover:bg-primary-50 disabled:text-ink-3 disabled:hover:bg-transparent">
       <X aria-hidden="true" className="size-4" />Reset
     </button>}
   </div>;
@@ -22,14 +22,14 @@ export function SearchInput({ value, onChange, placeholder }: { value: string; o
   return <label className="relative min-w-[220px] flex-[2_1_260px]">
     <span className="sr-only">{placeholder}</span>
     <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-3 size-4 text-ink-3" />
-    <input type="search" value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className={cx(control, "bg-app pl-9")} />
+    <input type="search" data-testid="input-search" value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className={cx(control, "bg-app pl-9")} />
   </label>;
 }
 
 export function SelectFilter({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: { value: string; label: string }[] }) {
   return <label className="relative min-w-[160px] flex-[1_1_160px]">
     <span className="sr-only">{label}</span>
-    <select value={value} onChange={(event) => onChange(event.target.value)} className={cx(control, "appearance-none pr-9", !value && "text-ink-2")}>
+    <select data-testid={`filter-${slug(label)}`} value={value} onChange={(event) => onChange(event.target.value)} className={cx(control, "appearance-none pr-9", !value && "text-ink-2")}>
       <option value="">{label}</option>
       {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
     </select>
@@ -52,7 +52,7 @@ type Common = { label: string; required?: boolean; error?: string; helper?: stri
 export function TextField({ label, required, error, helper, className, ...props }: Common & InputHTMLAttributes<HTMLInputElement>) {
   const id = useId();
   return <FieldShell {...{ label, required, error, helper, id, className }}>
-    <input id={id} aria-invalid={Boolean(error)} aria-describedby={error || helper ? `${id}-message` : undefined} required={required} {...props} className={control} />
+    <input id={id} data-testid={`input-${slug(label)}`} aria-invalid={Boolean(error)} aria-describedby={error || helper ? `${id}-message` : undefined} required={required} {...props} className={control} />
   </FieldShell>;
 }
 
@@ -60,7 +60,7 @@ export function SelectField({ label, required, error, helper, className, childre
   const id = useId();
   return <FieldShell {...{ label, required, error, helper, id, className }}>
     <div className="relative">
-      <select id={id} aria-invalid={Boolean(error)} aria-describedby={error || helper ? `${id}-message` : undefined} required={required} {...props} className={cx(control, "appearance-none pr-9")}>{children}</select>
+      <select id={id} data-testid={`input-${slug(label)}`} aria-invalid={Boolean(error)} aria-describedby={error || helper ? `${id}-message` : undefined} required={required} {...props} className={cx(control, "appearance-none pr-9")}>{children}</select>
       <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 top-3 size-4 text-ink-3" />
     </div>
   </FieldShell>;
@@ -69,14 +69,14 @@ export function SelectField({ label, required, error, helper, className, childre
 export function TextAreaField({ label, required, error, helper, className, ...props }: Common & TextareaHTMLAttributes<HTMLTextAreaElement>) {
   const id = useId();
   return <FieldShell {...{ label, required, error, helper, id, className }}>
-    <textarea id={id} aria-invalid={Boolean(error)} aria-describedby={error || helper ? `${id}-message` : undefined} required={required} rows={3} {...props} className={cx(control, "h-auto py-2.5")} />
+    <textarea id={id} data-testid={`input-${slug(label)}`} aria-invalid={Boolean(error)} aria-describedby={error || helper ? `${id}-message` : undefined} required={required} rows={3} {...props} className={cx(control, "h-auto py-2.5")} />
   </FieldShell>;
 }
 
 export function ReadOnlyField({ label, value, className }: { label: string; value: ReactNode; className?: string }) {
   return <div className={cx("min-w-0", className)}>
     <p className="mb-1.5 text-sm font-semibold text-ink-2">{label}</p>
-    <div className="flex min-h-10 items-center rounded-[10px] bg-muted px-3 text-sm text-ink">{value}</div>
+    <div data-testid={`readonly-${slug(label)}`} className="flex min-h-10 items-center rounded-[10px] bg-muted px-3 text-sm text-ink">{value}</div>
   </div>;
 }
 
@@ -89,7 +89,7 @@ export function RevisionConfirm({ what, existing, checked, onChange, error }: { 
   return <div className={cx("rounded-xl border px-4 py-3 text-xs leading-5", error ? "border-danger bg-danger-bg" : "border-warning/30 bg-warning-bg")}>
     <p className="text-warning">{what} untuk periode ini sudah ada ({existing}). Menyimpan akan membuat <strong>revisi</strong>; versi sebelumnya tetap ada di riwayat.</p>
     <label htmlFor={id} className="mt-2 flex items-center gap-2 font-semibold text-ink">
-      <input id={id} type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} className="size-4 accent-primary-600" />
+      <input id={id} type="checkbox" data-testid="checkbox-revision" checked={checked} onChange={(event) => onChange(event.target.checked)} className="size-4 accent-primary-600" />
       Simpan sebagai revisi
     </label>
     {error && <p className="mt-1 text-danger">{error}</p>}
@@ -134,11 +134,11 @@ export function FormModal({ title, description, size = "md", onClose, children, 
   }, []);
 
   return createPortal(<div className="fixed inset-0 z-[60] flex items-center justify-center bg-ink/40 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-    <div ref={dialog} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}
+    <div ref={dialog} role="dialog" data-testid="modal" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}
       className={cx("flex max-h-[88vh] w-full flex-col rounded-2xl bg-surface shadow-modal", size === "lg" ? "max-w-[880px]" : "max-w-[640px]")}>
       <header className="flex items-start justify-between gap-4 border-b border-line px-6 py-5">
-        <div><h2 id={titleId} className="font-display text-lg text-ink">{title}</h2>{description && <p className="mt-1 text-xs text-ink-3">{description}</p>}</div>
-        <button type="button" aria-label="Tutup" onClick={onClose} className="rounded-lg p-1.5 text-ink-3 hover:bg-muted hover:text-ink"><X className="size-5" /></button>
+        <div><h2 id={titleId} data-testid="modal-title" className="font-display text-lg text-ink">{title}</h2>{description && <p className="mt-1 text-xs text-ink-3">{description}</p>}</div>
+        <button type="button" data-testid="btn-modal-close" aria-label="Tutup" onClick={onClose} className="rounded-lg p-1.5 text-ink-3 hover:bg-muted hover:text-ink"><X className="size-5" /></button>
       </header>
       <div data-modal-body className="min-h-0 flex-1 overflow-y-auto px-6 py-5">{children}</div>
       <footer className="flex flex-wrap justify-end gap-3 border-t border-line px-6 py-4">{footer}</footer>
@@ -148,12 +148,12 @@ export function FormModal({ title, description, size = "md", onClose, children, 
 
 export function ModalActions({ onCancel, busy, submitLabel, secondary, disabled = false }: { onCancel: () => void; busy: boolean; submitLabel: string; secondary?: ReactNode; disabled?: boolean }) {
   return <>
-    <Button variant="secondary" onClick={onCancel}>Cancel</Button>
+    <Button variant="secondary" data-testid="btn-modal-cancel" onClick={onCancel}>Cancel</Button>
     {secondary}
-    <Button type="submit" form="d4-modal-form" disabled={busy || disabled}>{busy ? "Saving…" : submitLabel}</Button>
+    <Button type="submit" form="d4-modal-form" data-testid="btn-modal-submit" disabled={busy || disabled}>{busy ? "Saving…" : submitLabel}</Button>
   </>;
 }
 
 export function FormError({ message }: { message: string }) {
-  return message ? <p role="alert" className="mb-5 rounded-xl bg-danger-bg px-4 py-3 text-sm text-danger">{message}</p> : null;
+  return message ? <p role="alert" data-testid="form-error" className="mb-5 rounded-xl bg-danger-bg px-4 py-3 text-sm text-danger">{message}</p> : null;
 }

@@ -6,7 +6,7 @@ import { Bell, ChevronDown, LayoutGrid, Menu, Users, X } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { createD4BrowserClient } from "../../supabase/client";
 import { useD4 } from "../data/D4DataProvider";
-import { cx } from "./primitives";
+import { cx, slug } from "./primitives";
 
 export const D4_MENU = [
   { href: "/performance", label: "Performance Evaluation" },
@@ -43,17 +43,17 @@ function Sidebar({ onNavigate, onClose }: { onNavigate: () => void; onClose: () 
   return <div className="flex h-full flex-col bg-[#0f2342] px-4 py-6 text-white">
     <div className="flex items-center gap-3 px-2">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/andima-logo.png" alt="" className="h-9 w-auto" />
+      <img src="/andima-logo.png" alt="" data-testid="sidebar-logo" className="h-9 w-auto" />
       <div><p className="text-lg font-bold leading-6">ANDIMA</p><p className="text-xs text-[#d9e2fc]/80">Logistics Suite</p></div>
-      <button type="button" onClick={onClose} className="ml-auto rounded p-1 text-[#d9e2fc] lg:hidden" aria-label="Tutup navigasi"><X size={18} /></button>
+      <button type="button" onClick={onClose} data-testid="btn-sidebar-close" className="ml-auto rounded p-1 text-[#d9e2fc] lg:hidden" aria-label="Tutup navigasi"><X size={18} /></button>
     </div>
 
-    <nav aria-label="Navigasi utama" className="mt-8 flex-1 space-y-1 overflow-y-auto text-sm font-semibold">
-      <Link href="/dashboard" onClick={onNavigate} aria-current={isActive("/dashboard") ? "page" : undefined}
+    <nav aria-label="Navigasi utama" data-testid="sidebar" className="mt-8 flex-1 space-y-1 overflow-y-auto text-sm font-semibold">
+      <Link href="/dashboard" data-testid="nav-dashboard" onClick={onNavigate} aria-current={isActive("/dashboard") ? "page" : undefined}
         className={cx("flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors", isActive("/dashboard") ? "bg-white/10 text-white" : "text-white hover:bg-white/5")}>
         <LayoutGrid size={18} /> Dashboard
       </Link>
-      <button type="button" onClick={() => setHrmsOpen((v) => !v)} aria-expanded={hrmsOpen}
+      <button type="button" data-testid="nav-hrms" onClick={() => setHrmsOpen((v) => !v)} aria-expanded={hrmsOpen}
         className="flex w-full items-center justify-between rounded-lg bg-[#155dfc] px-3 py-2 text-white">
         <span className="flex items-center gap-3"><Users size={18} /> HRMS</span>
         <ChevronDown size={16} className={cx("transition-transform", hrmsOpen ? "rotate-0" : "-rotate-90")} />
@@ -61,7 +61,7 @@ function Sidebar({ onNavigate, onClose }: { onNavigate: () => void; onClose: () 
       {hrmsOpen && <div className="ml-5 space-y-1 border-l border-[#50607e] py-2 pl-2.5">
         {D4_MENU.filter((item) => item.href !== "/dashboard").map((item) => {
           const active = isActive(item.href);
-          return <Link key={item.href} href={item.href} onClick={onNavigate} aria-current={active ? "page" : undefined}
+          return <Link key={item.href} href={item.href} data-testid={`nav-${slug(item.label)}`} onClick={onNavigate} aria-current={active ? "page" : undefined}
             className={cx("flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors",
               active ? "bg-[#b0c6d4] text-[#4b5b7a]" : "text-[#8b97ad] hover:text-white")}>
             <span aria-hidden="true" className={cx("size-1 rounded-full", active ? "bg-[#069494]" : "bg-current")} />
@@ -72,7 +72,7 @@ function Sidebar({ onNavigate, onClose }: { onNavigate: () => void; onClose: () 
     </nav>
 
     {mode === "live"
-      ? <button type="button" onClick={() => void signOut()} disabled={signingOut}
+      ? <button type="button" data-testid="btn-logout" onClick={() => void signOut()} disabled={signingOut}
           className="mt-4 w-full rounded-2xl border-2 border-[#d9364f] py-1.5 text-lg font-bold text-[#d9364f] transition hover:bg-[#d9364f]/10 disabled:cursor-not-allowed disabled:opacity-50">
           {signingOut ? "Keluar..." : "Logout"}
         </button>
@@ -96,17 +96,17 @@ export function AppShell({ children }: { children: ReactNode }) {
     </aside>
     <div className="lg:pl-[260px]">
       <header className="sticky top-0 z-20 flex h-16 items-center gap-4 border-b border-line bg-surface px-4 sm:px-8">
-        <button type="button" aria-label={menuOpen ? "Tutup menu" : "Buka menu"} className="rounded-lg p-2 text-ink-2 hover:bg-muted lg:hidden" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}</button>
+        <button type="button" data-testid="btn-mobile-menu" aria-label={menuOpen ? "Tutup menu" : "Buka menu"} className="rounded-lg p-2 text-ink-2 hover:bg-muted lg:hidden" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}</button>
         <strong className="text-sm font-semibold text-ink">ANDIMA HRMS</strong>
         <span aria-hidden="true" className="hidden h-5 w-px bg-line-strong sm:block" />
-        <p className="hidden flex-1 truncate text-xs text-ink-2 sm:block">HRMS / {current?.label ?? "Performance & Training"}</p>
+        <p data-testid="header-breadcrumb" className="hidden flex-1 truncate text-xs text-ink-2 sm:block">HRMS / {current?.label ?? "Performance & Training"}</p>
         <span className="flex-1 sm:hidden" />
         {mode === "fixture" && <span className="hidden rounded-full bg-warning-bg px-2.5 py-1 text-[11px] font-semibold text-warning md:inline">Preview · data fiktif</span>}
         <span className="rounded-lg p-2 text-ink-2" title="Notifikasi"><Bell aria-hidden="true" className="size-5" /><span className="sr-only">Notifikasi</span></span>
         <span aria-hidden="true" className="h-8 w-px bg-line" />
         <div className="flex items-center gap-2.5">
           <span aria-hidden="true" className="flex size-9 items-center justify-center rounded-full bg-avatar-me-bg text-xs font-semibold text-avatar-me">{name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("")}</span>
-          <span className="hidden sm:block"><strong className="block text-sm font-semibold leading-5 text-ink">{name}</strong><span className="block text-xs text-ink-2">{roleLabel[snapshot?.role ?? ""] ?? "—"}</span></span>
+          <span className="hidden sm:block"><strong data-testid="header-user-name" className="block text-sm font-semibold leading-5 text-ink">{name}</strong><span data-testid="header-user-role" className="block text-xs text-ink-2">{roleLabel[snapshot?.role ?? ""] ?? "—"}</span></span>
         </div>
       </header>
       <main id="main" className="mx-auto w-full max-w-[1600px] space-y-6 px-4 py-8 sm:px-8">{children}</main>
