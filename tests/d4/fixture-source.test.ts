@@ -3,7 +3,7 @@ import { createFixtureSource } from "@/modules/d4/web/data/fixture-source";
 import type { D4DataSource, EvaluationDraft, KpiAssessmentDraft } from "@/modules/d4/web/data/source";
 import { latestDevelopment, latestTraining } from "@/modules/d4/supabase/types";
 
-// Fixture people (fictional): Mercury is the HR actor, Alfa/Echo/Holly are Finance Staff.
+// Fixture people (fictional): Mercury is the HR actor, Alfa/Echo/Holly are Sales Administration Associates (Andima org structure).
 const MERCURY = "d4000000-0000-4000-8000-000000000012";
 const ALFA = "d4000000-0000-4000-8000-000000000009";
 const HOLLY = "d4000000-0000-4000-8000-000000000016";

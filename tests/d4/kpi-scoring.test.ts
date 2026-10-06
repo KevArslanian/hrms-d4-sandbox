@@ -8,7 +8,7 @@ import type { D4DataSource } from "@/modules/d4/web/data/source";
 import { weighted } from "@/modules/d4/web/features/kpi/KpiFormModal";
 
 const catalog = selectCatalog(KPI_V51_CATALOG);
-const ALFA = "d4000000-0000-4000-8000-000000000009"; // Finance Staff → role 10 (weights 25/25/20/15/15)
+const LIMA = "d4000000-0000-4000-8000-000000000054"; // Accounting Associate (Billing) → role 10 (weights 25/25/20/15/15)
 const FINANCE_ROLE = 10;
 
 describe("KPI V5.1 catalog: weights per role (FR-02.4, FR-06.9)", () => {
@@ -66,7 +66,7 @@ describe("saved scorecard total (fixture source, mirrors the DB trigger d4_calcu
     const lines = indicatorsFor(catalog, FINANCE_ROLE).map((row, index) => ({
       indicator_order: row.indicator_order, kpi_name: row.kpi_name, weight_percent: row.weight_percent, target: "", actual: "", raw_score: scores[index], comment: "",
     }));
-    const id = await source.createKpiAssessment({ employeeId: ALFA, roleOrder: FINANCE_ROLE, period, evaluationDate: "2026-10-01", evaluatorName: "x", status: "completed", lines, generalNotes: "" });
+    const id = await source.createKpiAssessment({ employeeId: LIMA, roleOrder: FINANCE_ROLE, period, evaluationDate: "2026-10-01", evaluatorName: "x", status: "completed", lines, generalNotes: "" });
     return (await source.loadSnapshot()).kpiAssessments!.find((item) => item.id === id)!.overallScore;
   }
 
@@ -100,7 +100,7 @@ describe("roleForPositionTitle (FR-02.11)", () => {
 
   it("maps every fixture position; only the positions without a V5.1 KPI return 0", () => {
     const withoutKpi = d4ReferenceFixture.positions.filter((position) => roleForPositionTitle(catalog, position.title) === 0).map((position) => position.title);
-    expect(withoutKpi.sort()).toEqual(["HR Associate Officer", "Operations Staff", "Staf Demo D4"]);
+    expect(withoutKpi.sort()).toEqual(["HR Associate Officer", "HR Manager", "Tax Associate"]);
   });
 
   // BUG-D4-005 regression: keywords match whole words, so "edi" inside "Credit"/"Media" no longer maps to Implant Staff.
