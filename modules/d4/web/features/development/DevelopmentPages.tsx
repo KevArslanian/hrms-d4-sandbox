@@ -46,7 +46,7 @@ export function DevelopmentListPage() {
       <SelectFilter label="All periods" testId="all-periods" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
       <SelectFilter label="All status" testId="all-status" value={status} onChange={setStatus} options={["Identified", "Planned", "In Progress", "Completed"].map((item) => ({ value: item, label: statusLabel(item) }))} />
     </FilterBar>
-    <DataTable<DevelopmentNeedVersion> rows={rows} noun="requirements" rowKey={(row) => row.needId} rowHref={(row) => `/development/${row.needId}`}
+    <DataTable<DevelopmentNeedVersion> rows={rows} noun="kebutuhan pengembangan" rowKey={(row) => row.needId} rowHref={(row) => `/development/${row.needId}`}
       emptyTitle="No development requirements yet" emptyText="Create one from a competency gap, a position change, or a performance evaluation."
       columns={[
         { key: "employee", header: "Employee", cell: (row) => { const employee = employeeById(snapshot, row.employeeId); return <PersonCell name={employee?.fullName ?? "—"} code={employee?.employeeId ?? ""} />; } },
@@ -112,7 +112,7 @@ export function DevelopmentDetailPage({ needId }: { needId: string }) {
         </Card>
       </div>
     </div>
-    <Notice>A completed development or training status does not close the competency gap automatically; a person still has to reassess it.</Notice>
+    <Notice>Status development atau training yang selesai tidak otomatis menutup gap kompetensi; gap tetap harus dinilai ulang.</Notice>
     {statusOpen && <DevelopmentStatusModal needId={need.needId} onClose={() => setStatusOpen(false)} />}
     {trainingOpen && <TrainingFormModal employeeId={need.employeeId} developmentNeedId={need.needId} onClose={() => setTrainingOpen(false)} />}
   </>;

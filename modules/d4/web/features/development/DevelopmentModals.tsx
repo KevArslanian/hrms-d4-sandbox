@@ -100,7 +100,7 @@ export function DevelopmentStatusModal({ needId, onClose }: { needId: string; on
     if (result.ok) onClose(); else setError(result.error);
   }
   return <FormModal title="Update Status" description={current?.objective} onClose={onClose} footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Status" disabled={status === current?.status} />}>
-    <form id="d4-modal-form" onSubmit={submit} className="space-y-5">
+    <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />
       <SelectField label="Status" required value={status} onChange={(event) => setStatus(event.target.value as DevelopmentStatus)}>
         {(["Identified", "Planned", "In Progress", "Completed"] as const).map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}

@@ -8,7 +8,7 @@ import { openNeedFor } from "../../../shared/rules";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
 import { canWrite, currentCompetencyStatus, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, formatDate, includesText, latestCurrentPositionAssessment, positionById, positionOf, today, visibleEmployees, type CurrentCompetencyStatus } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
-import { FilterBar, FormError, FormModal, ModalActions, SearchInput, SelectField, SelectFilter, TextField } from "../../ui/forms";
+import { FilterBar, PositionFilter, FormError, FormModal, ModalActions, SearchInput, SelectField, SelectFilter, TextField } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
 import { Button, ButtonLink, Card, Notice, SourceChip, statusLabel, StatusBadge } from "../../ui/primitives";
@@ -40,11 +40,11 @@ export function CompetencyListPage() {
     <PageHeader title="Competency Gap" subtitle="Compare employee capabilities and evidence with the active position requirements." />
     <FilterBar canReset={Boolean(search || position || department || status)} onReset={() => { setSearch(""); setPosition(""); setDepartment(""); setStatus(""); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Search name or ID" />
-      <SelectFilter label="All positions" testId="all-positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />
+      <PositionFilter positions={snapshot.reference.positions} value={position} onChange={setPosition} />
       <SelectFilter label="All departments" testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />
       <SelectFilter label="All status" testId="all-gap-status" value={status} onChange={setStatus} options={STATUS_FILTER.map((item) => ({ value: item, label: item }))} />
     </FilterBar>
-    <DataTable<Row> rows={rows} noun="employees" rowKey={(row) => row.employee.id} rowHref={(row) => `/competency/${row.employee.id}`}
+    <DataTable<Row> rows={rows} noun="pegawai" rowKey={(row) => row.employee.id} rowHref={(row) => `/competency/${row.employee.id}`}
       emptyTitle="No matching employees" emptyText="Change the keyword or reset the filters."
       columns={[
         { key: "employee", header: "Employee", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
@@ -78,7 +78,7 @@ function PositionChangeModal({ employee, onClose }: { employee: EmployeeReferenc
   }
   return <FormModal title="Position Change Assessment" description="Compare the employee's capabilities with the new position's requirements. The gap history for the old position is kept." onClose={onClose}
     footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Assessment" />}>
-    <form id="d4-modal-form" onSubmit={submit} className="space-y-5">
+    <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />
       <SelectField label="New position" testId="new-position" required value={position} onChange={(event) => setPosition(event.target.value)}>
         <option value="">Select position</option>
@@ -111,7 +111,7 @@ export function CompetencyDetailPage({ employeeId }: { employeeId: string }) {
         {writer && <Button icon={<ArrowRightLeft className="size-4" />} onClick={() => setChanging(true)} data-testid="btn-assess-position-change">Assess Position Change</Button>}
         {writer && gap && gap.findings.length > 0 && <Button icon={<Save className="size-4" />} disabled={busy} onClick={saveSnapshot} data-testid="btn-save-assessment">Save Assessment</Button>}
       </>} />
-    <Notice>The overall status is <strong>Not Evaluated</strong> until an assessment is saved for the active position. Missing evidence in the requirement comparison is marked <strong>Insufficient Data</strong>, not automatically Gap. A gap never assigns training, promotion, or certification automatically.</Notice>
+    <Notice>Status keseluruhan tetap <strong>Not Evaluated</strong> sampai penilaian untuk posisi aktif disimpan. Bukti yang belum ada pada perbandingan persyaratan ditandai <strong>Insufficient Data</strong>, bukan otomatis Gap. Gap tidak pernah otomatis menetapkan training, promosi, atau sertifikasi.</Notice>
     <Card title="Requirement vs capability" testId="requirement-vs-capability" padded={false}>
       <div className="overflow-x-auto">
         <table data-testid="competency-gap-table" className="w-full min-w-[760px] text-left text-sm">

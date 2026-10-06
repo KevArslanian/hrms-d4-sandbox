@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronDown, Search, X } from "lucide-react";
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { createPortal } from "react-dom";
 import { Button, cx, slug } from "./primitives";
 
@@ -36,6 +36,39 @@ export function SelectFilter({ label, testId, value, onChange, options, emptyOpt
     </select>
     <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 top-3 size-4 text-ink-3" />
   </label>;
+}
+
+const POSITION_MIN_CHARS = 2;
+
+/** Position filter as type-ahead: no full list; matching positions appear after POSITION_MIN_CHARS letters. */
+export function PositionFilter({ positions, value, onChange }: { positions: readonly { id: string; title: string }[]; value: string; onChange: (value: string) => void }) {
+  const listId = useId();
+  const [text, setText] = useState(() => positions.find((item) => item.id === value)?.title ?? "");
+  const [open, setOpen] = useState(false);
+  // "Reset filter" clears the value from outside while the picked title is still shown: clear the text too.
+  const [prevValue, setPrevValue] = useState(value);
+  if (value !== prevValue) {
+    setPrevValue(value);
+    if (!value && text === positions.find((item) => item.id === prevValue)?.title) setText("");
+  }
+  const term = text.trim().toLowerCase();
+  const matches = term.length >= POSITION_MIN_CHARS ? positions.filter((item) => item.title.toLowerCase().includes(term)).slice(0, 8) : [];
+  const pick = (item: { id: string; title: string }) => { setText(item.title); setOpen(false); onChange(item.id); };
+  return <div className="relative min-w-[172px] flex-[1_1_172px]" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}>
+    <label className="relative block">
+      <span className="sr-only">Position</span>
+      <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-3 size-4 text-ink-3" />
+      <input data-testid="filter-all-positions" role="combobox" aria-controls={listId} aria-expanded={open && term.length >= POSITION_MIN_CHARS} aria-autocomplete="list" value={text}
+        onChange={(event) => { setText(event.target.value); setOpen(true); if (value) onChange(""); }} onFocus={() => setOpen(true)}
+        onKeyDown={(event) => { if (event.key === "Escape") setOpen(false); if (event.key === "Enter" && matches[0]) { event.preventDefault(); pick(matches[0]); } }}
+        placeholder="Position" className={cx(control, "pl-9")} />
+    </label>
+    {open && term.length >= POSITION_MIN_CHARS && <ul id={listId} role="listbox" data-testid="position-options" className="absolute inset-x-0 top-full z-30 mt-1 max-h-64 overflow-y-auto rounded-[10px] border border-line bg-surface py-1 text-sm shadow-card">
+      {matches.length ? matches.map((item) => <li key={item.id} role="option" aria-selected={item.id === value}>
+        <button type="button" onClick={() => pick(item)} className="block w-full px-3 py-2 text-left text-ink hover:bg-primary-50 focus:bg-primary-50 focus:outline-none">{item.title}</button>
+      </li>) : <li className="px-3 py-2 text-ink-3">No matching position</li>}
+    </ul>}
+  </div>;
 }
 
 /* ---------- Form fields ---------- */
@@ -120,13 +153,17 @@ export function FormModal({ title, description, size = "md", onClose, children, 
   const closeRef = useRef(onClose);
   useLayoutEffect(() => { closeRef.current = onClose; });
   const dirty = useRef(false);
-  const requestClose = useCallback(() => { if (!dirty.current || window.confirm("Close without saving your changes?")) closeRef.current(); }, []);
+  // In-app confirm instead of the browser's default window.confirm popup.
+  const [confirming, setConfirming] = useState(false);
+  const confirmingRef = useRef(false);
+  useLayoutEffect(() => { confirmingRef.current = confirming; });
+  const requestClose = useCallback(() => { if (dirty.current) setConfirming(true); else closeRef.current(); }, []);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     const body = dialog.current?.querySelector<HTMLElement>("[data-modal-body]");
     (body?.querySelector<HTMLElement>("input:not([disabled]), select:not([disabled]), textarea:not([disabled])") ?? dialog.current)?.focus();
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") requestClose();
+      if (event.key === "Escape") { if (confirmingRef.current) setConfirming(false); else requestClose(); }
       if (event.key !== "Tab" || !dialog.current) return;
       const focusable = [...dialog.current.querySelectorAll<HTMLElement>("input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), a[href]")];
       const first = focusable[0], last = focusable[focusable.length - 1];
@@ -140,13 +177,23 @@ export function FormModal({ title, description, size = "md", onClose, children, 
 
   return createPortal(<div className="fixed inset-0 z-[60] flex items-center justify-center bg-ink/40 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) requestClose(); }}>
     <div ref={dialog} role="dialog" data-testid="modal" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} onInput={() => { dirty.current = true; }}
-      className={cx("flex max-h-[88vh] w-full flex-col rounded-2xl bg-surface shadow-modal", size === "lg" ? "max-w-[880px]" : "max-w-[640px]")}>
+      className={cx("relative flex max-h-[88vh] w-full flex-col rounded-2xl bg-surface shadow-modal", size === "lg" ? "max-w-[880px]" : "max-w-[640px]")}>
       <header className="flex items-start justify-between gap-4 border-b border-line px-6 py-5">
         <div><h2 id={titleId} data-testid="modal-title" className="font-display font-semibold text-lg text-ink">{title}</h2>{description && <p className="mt-1 text-xs text-ink-3">{description}</p>}</div>
         <button type="button" data-testid="btn-modal-close" aria-label="Close" onClick={requestClose} className="rounded-lg p-1.5 text-ink-3 hover:bg-muted hover:text-ink"><X className="size-5" /></button>
       </header>
       <div data-modal-body className="min-h-0 flex-1 overflow-y-auto px-6 py-5">{children}</div>
       <footer className="flex flex-wrap justify-end gap-3 border-t border-line px-6 py-4">{footer}</footer>
+      {confirming && <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-ink/30 p-6">
+        <div role="alertdialog" data-testid="modal-discard-confirm" aria-labelledby={`${titleId}-discard`} className="w-full max-w-sm rounded-2xl bg-surface p-6 shadow-modal">
+          <h3 id={`${titleId}-discard`} className="font-display font-semibold text-base text-ink">Discard changes?</h3>
+          <p className="mt-1.5 text-sm text-ink-3">The data you entered will not be saved.</p>
+          <div className="mt-5 flex justify-end gap-3">
+            <Button variant="secondary" data-testid="btn-discard-keep" autoFocus onClick={() => setConfirming(false)}>Keep editing</Button>
+            <Button variant="danger" data-testid="btn-discard-confirm" onClick={() => closeRef.current()}>Discard</Button>
+          </div>
+        </div>
+      </div>}
     </div>
   </div>, document.body);
 }

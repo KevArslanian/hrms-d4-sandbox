@@ -40,7 +40,7 @@ export function TrainingListPage() {
       <SelectFilter label="All periods" testId="all-periods" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
       <SelectFilter label="All status" testId="all-status" value={status} onChange={setStatus} options={["Planned", "In Progress", "Completed", "Cancelled"].map((item) => ({ value: item, label: statusLabel(item) }))} />
     </FilterBar>
-    <DataTable<TrainingVersion> rows={rows} noun="training" rowKey={(row) => row.trainingId} rowHref={(row) => `/training/${row.trainingId}`}
+    <DataTable<TrainingVersion> rows={rows} noun="data training" rowKey={(row) => row.trainingId} rowHref={(row) => `/training/${row.trainingId}`}
       emptyTitle="No matching training" emptyText="Training is created from a development requirement (Create Training). Change the filters or open Development Requirement."
       columns={[
         { key: "employee", header: "Employee", cell: (row) => { const employee = employeeById(snapshot, row.employeeId); return <PersonCell name={employee?.fullName ?? "—"} code={employee?.employeeId ?? ""} />; } },
@@ -89,7 +89,7 @@ export function TrainingDetailPage({ trainingId }: { trainingId: string }) {
         <Card title="Source requirement" testId="source-requirement">
           {need ? <><SourceChip label="Development Requirement" reference={statusLabel(need.status)} href={`/development/${need.needId}`} /><p className="mt-3 text-sm text-ink">{need.objective}</p></> : <p className="text-sm text-ink-3">Source requirement is not available.</p>}
         </Card>
-        <Notice tone="warning">A Completed training does not automatically mark the competency gap as met. The gap stays open until it is reassessed.</Notice>
+        <Notice tone="warning">Training yang Completed tidak otomatis membuat gap kompetensi terpenuhi. Gap tetap terbuka sampai dinilai ulang.</Notice>
       </div>
     </div>
     {progressOpen && <TrainingProgressModal trainingId={record.trainingId} onClose={() => setProgressOpen(false)} />}
