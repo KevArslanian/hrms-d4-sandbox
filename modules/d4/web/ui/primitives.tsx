@@ -6,6 +6,10 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 export const cx = (...values: (string | false | null | undefined)[]) => values.filter(Boolean).join(" ");
 
+/** Stable data-testid part from a visible label (Katalon XPath): "Add Scorecard" -> "add-scorecard". */
+export const slug = (text: string) => text.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+const autoId = (prefix: string, children: ReactNode) => typeof children === "string" ? `${prefix}-${slug(children)}` : undefined;
+
 type ButtonVariant = "primary" | "secondary" | "danger" | "ghost";
 const buttonStyles: Record<ButtonVariant, string> = {
   primary: "bg-primary-600 text-white hover:bg-primary-700 disabled:bg-muted disabled:text-ink-3",
@@ -16,11 +20,11 @@ const buttonStyles: Record<ButtonVariant, string> = {
 const buttonBase = "inline-flex h-10 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-[10px] px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 disabled:cursor-not-allowed";
 
 export function Button({ variant = "primary", icon, children, className, ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant; icon?: ReactNode }) {
-  return <button type="button" {...props} className={cx(buttonBase, buttonStyles[variant], className)}>{icon}{children}</button>;
+  return <button type="button" data-testid={autoId("btn", children)} {...props} className={cx(buttonBase, buttonStyles[variant], className)}>{icon}{children}</button>;
 }
 
 export function ButtonLink({ href, variant = "secondary", icon, children }: { href: string; variant?: ButtonVariant; icon?: ReactNode; children: ReactNode }) {
-  return <Link href={href} className={cx(buttonBase, buttonStyles[variant])}>{icon}{children}</Link>;
+  return <Link href={href} data-testid={autoId("link", children)} className={cx(buttonBase, buttonStyles[variant])}>{icon}{children}</Link>;
 }
 
 type Tone = "success" | "info" | "warning" | "danger" | "neutral";
@@ -46,7 +50,7 @@ export const statusLabel = (status: string) => status === "Bukti Belum Cukup" ? 
 
 export function StatusBadge({ status }: { status: string }) {
   const tone = statusTone[status] ?? "neutral";
-  return <span className={cx("inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-semibold leading-none", toneStyles[tone])}>
+  return <span data-testid="status-badge" className={cx("inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-semibold leading-none", toneStyles[tone])}>
     <span aria-hidden="true" className="size-1.5 rounded-full bg-current" />{statusLabel(status)}
   </span>;
 }
@@ -58,7 +62,7 @@ export function SourceChip({ label, reference, href }: { label: string; referenc
 }
 
 export function Card({ title, actions, children, className, padded = true }: { title?: string; actions?: ReactNode; children: ReactNode; className?: string; padded?: boolean }) {
-  return <section className={cx("min-w-0 rounded-2xl border border-line bg-surface shadow-card", padded && "p-6", className)}>
+  return <section data-testid={title ? `card-${slug(title)}` : undefined} className={cx("min-w-0 rounded-2xl border border-line bg-surface shadow-card", padded && "p-6", className)}>
     {(title || actions) && <div className={cx("flex flex-wrap items-center justify-between gap-3", padded ? "mb-5" : "px-6 pt-6 pb-4")}>
       {title && <h2 className="font-display text-lg text-ink">{title}</h2>}{actions}
     </div>}
@@ -68,7 +72,7 @@ export function Card({ title, actions, children, className, padded = true }: { t
 
 export function InfoGrid({ items, columns = 2 }: { items: { label: string; value: ReactNode }[]; columns?: 2 | 3 | 4 }) {
   const cols = { 2: "sm:grid-cols-2", 3: "sm:grid-cols-2 lg:grid-cols-3", 4: "sm:grid-cols-2 xl:grid-cols-4" }[columns];
-  return <dl className={cx("grid gap-x-8 gap-y-5", cols)}>{items.map((item) => <div key={item.label} className="min-w-0">
+  return <dl className={cx("grid gap-x-8 gap-y-5", cols)}>{items.map((item) => <div key={item.label} data-testid={`info-${slug(item.label)}`} className="min-w-0">
     <dt className="text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3">{item.label}</dt>
     <dd className="mt-1 break-words text-sm text-ink">{item.value}</dd>
   </div>)}</dl>;

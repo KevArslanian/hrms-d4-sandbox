@@ -86,18 +86,18 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
         error={touched && !revise ? "Centang untuk menyimpan sebagai revisi, atau ganti periode." : undefined} />}
 
       {employee && !lines.length ? <Notice tone="warning">{position ? noKpiText(catalog?.version) : "Employee belum memiliki position aktif, sehingga KPI belum dapat ditentukan."}</Notice> : <div className="overflow-x-auto rounded-2xl border border-line">
-        <table className="w-full min-w-[760px] text-left text-sm">
+        <table data-testid="kpi-lines-table" className="w-full min-w-[760px] text-left text-sm">
           <thead className="bg-app text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3">
             <tr><th className="w-10 px-3 py-2.5">No</th><th className="px-3 py-2.5">Core KPI</th><th className="w-20 px-3 py-2.5">Bobot</th><th className="w-36 px-3 py-2.5">Target</th><th className="w-36 px-3 py-2.5">Realisasi</th><th className="w-24 px-3 py-2.5">Skor 1–5</th><th className="w-24 px-3 py-2.5 text-right">Terbobot</th></tr>
           </thead>
           <tbody>
-            {lines.map((line, index) => <tr key={`${roleOrder}-${line.indicator_order}`} className="border-t border-line align-middle">
+            {lines.map((line, index) => <tr key={`${roleOrder}-${line.indicator_order}`} data-testid={`kpi-line-${line.indicator_order}`} className="border-t border-line align-middle">
               <td className="px-3 py-2.5 text-ink-3">{line.indicator_order}</td>
               <td className="px-3 py-2.5 font-semibold leading-5">{line.kpi_name}</td>
               <td className="px-3 py-2.5 tabular-nums">{line.weight_percent}%</td>
-              <td className="px-3 py-2"><input aria-label={`Target ${line.kpi_name}`} value={line.target} onChange={(event) => setLine(index, { target: event.target.value })} className="h-9 w-full rounded-lg border border-line-strong px-2 text-sm" /></td>
-              <td className="px-3 py-2"><input aria-label={`Realisasi ${line.kpi_name}`} value={line.actual} onChange={(event) => setLine(index, { actual: event.target.value })} className="h-9 w-full rounded-lg border border-line-strong px-2 text-sm" /></td>
-              <td className="px-3 py-2"><select aria-label={`Skor ${line.kpi_name}`} aria-invalid={touched && !validScore(line.raw_score)} value={line.raw_score ?? ""} onChange={(event) => setLine(index, { raw_score: event.target.value ? Number(event.target.value) : null })} className="h-9 w-full rounded-lg border border-line-strong px-2 text-sm aria-[invalid=true]:border-danger"><option value="">—</option>{[1, 2, 3, 4, 5].map((value) => <option key={value}>{value}</option>)}</select></td>
+              <td className="px-3 py-2"><input data-testid={`input-target-${line.indicator_order}`} aria-label={`Target ${line.kpi_name}`} value={line.target} onChange={(event) => setLine(index, { target: event.target.value })} className="h-9 w-full rounded-lg border border-line-strong px-2 text-sm" /></td>
+              <td className="px-3 py-2"><input data-testid={`input-realisasi-${line.indicator_order}`} aria-label={`Realisasi ${line.kpi_name}`} value={line.actual} onChange={(event) => setLine(index, { actual: event.target.value })} className="h-9 w-full rounded-lg border border-line-strong px-2 text-sm" /></td>
+              <td className="px-3 py-2"><select data-testid={`input-skor-${line.indicator_order}`} aria-label={`Skor ${line.kpi_name}`} aria-invalid={touched && !validScore(line.raw_score)} value={line.raw_score ?? ""} onChange={(event) => setLine(index, { raw_score: event.target.value ? Number(event.target.value) : null })} className="h-9 w-full rounded-lg border border-line-strong px-2 text-sm aria-[invalid=true]:border-danger"><option value="">—</option>{[1, 2, 3, 4, 5].map((value) => <option key={value}>{value}</option>)}</select></td>
               <td className="px-3 py-2.5 text-right font-semibold tabular-nums">{weighted(line)?.toFixed(2) ?? "—"}</td>
             </tr>)}
           </tbody>

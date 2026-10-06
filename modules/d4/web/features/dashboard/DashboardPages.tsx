@@ -11,7 +11,7 @@ import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
-import { Card, Notice, StatusBadge } from "../../ui/primitives";
+import { Card, Notice, slug, StatusBadge } from "../../ui/primitives";
 import { weighted } from "../kpi/KpiFormModal";
 
 type Row = { employee: EmployeeReference; position: string; period?: string; scorecard?: KpiAssessment; performance: number | null; gap: string; openNeeds: number; training?: string };
@@ -88,7 +88,7 @@ function ScoreCell({ scorecard }: { scorecard?: KpiAssessment }) {
 }
 
 function SourceLink({ href, children = "View source" }: { href: string; children?: ReactNode }) {
-  return <Link href={href} className="inline-flex items-center gap-1 text-sm font-semibold text-primary-600 hover:underline">{children}<ArrowUpRight aria-hidden="true" className="size-4" /></Link>;
+  return <Link href={href} data-testid={`link-${slug(typeof children === "string" ? children : "view source")}`} className="inline-flex items-center gap-1 text-sm font-semibold text-primary-600 hover:underline">{children}<ArrowUpRight aria-hidden="true" className="size-4" /></Link>;
 }
 
 export function EmployeeProfilePage({ employeeId, initialPeriod = "" }: { employeeId: string; initialPeriod?: string }) {
@@ -112,9 +112,9 @@ export function EmployeeProfilePage({ employeeId, initialPeriod = "" }: { employ
     {scorecard && !validScorecard(scorecard) && <Notice tone="warning">Scorecard periode ini tidak memiliki lima KPI dengan total bobot 100%. Periksa data di halaman KPI Scorecard sebelum dipakai.</Notice>}
     <div className="grid gap-6 xl:grid-cols-2">
       <Card title="KPI scorecard" actions={<SourceLink href={scorecard ? `/kpi/${scorecard.id}` : `/kpi/history/${employee.id}`} />} padded={false}>
-        {scorecard ? <div className="overflow-x-auto"><table className="w-full min-w-[520px] text-left text-sm">
+        {scorecard ? <div className="overflow-x-auto"><table data-testid="dashboard-kpi-table" className="w-full min-w-[520px] text-left text-sm">
           <thead className="bg-app text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3"><tr><th className="px-5 py-2.5">Core KPI</th><th className="px-5 py-2.5">Bobot</th><th className="px-5 py-2.5">Target</th><th className="px-5 py-2.5">Realisasi</th><th className="px-5 py-2.5">Skor</th><th className="px-5 py-2.5 text-right">Terbobot</th></tr></thead>
-          <tbody>{scorecard.lines.map((line) => <tr key={line.indicator_order} className="border-t border-line"><td className="px-5 py-2.5 font-semibold">{line.kpi_name}</td><td className="px-5 py-2.5 tabular-nums">{line.weight_percent}%</td><td className="px-5 py-2.5">{line.target || "—"}</td><td className="px-5 py-2.5">{line.actual || "—"}</td><td className="px-5 py-2.5 tabular-nums">{line.raw_score ?? "—"}</td><td className="px-5 py-2.5 text-right tabular-nums">{weighted(line)?.toFixed(2) ?? "—"}</td></tr>)}</tbody>
+          <tbody>{scorecard.lines.map((line) => <tr key={line.indicator_order} data-testid={`kpi-line-${line.indicator_order}`} className="border-t border-line"><td className="px-5 py-2.5 font-semibold">{line.kpi_name}</td><td className="px-5 py-2.5 tabular-nums">{line.weight_percent}%</td><td className="px-5 py-2.5">{line.target || "—"}</td><td className="px-5 py-2.5">{line.actual || "—"}</td><td className="px-5 py-2.5 tabular-nums">{line.raw_score ?? "—"}</td><td className="px-5 py-2.5 text-right tabular-nums">{weighted(line)?.toFixed(2) ?? "—"}</td></tr>)}</tbody>
           <tfoot className="border-t border-line bg-app"><tr><td colSpan={5} className="px-5 py-2.5 font-semibold">Total ({formatPeriod(scorecard.period)})</td><td className="px-5 py-2.5 text-right font-display tabular-nums">{formatScore(scorecard.overallScore)}</td></tr></tfoot>
         </table></div> : <p className="px-6 pb-6 text-sm text-ink-3">Belum ada KPI scorecard pada periode ini.</p>}
       </Card>
@@ -130,7 +130,7 @@ export function EmployeeProfilePage({ employeeId, initialPeriod = "" }: { employ
         {needs.length ? <ul className="space-y-3">{needs.map((need) => {
           const linked = employeeTraining.filter((item) => item.developmentNeedId === need.needId);
           return <li key={need.needId} className="rounded-xl border border-line p-3">
-            <div className="flex flex-wrap items-center justify-between gap-2"><Link href={`/development/${need.needId}`} className="text-sm font-semibold hover:text-primary-600 hover:underline">{need.objective}</Link><StatusBadge status={need.status} /></div>
+            <div className="flex flex-wrap items-center justify-between gap-2"><Link href={`/development/${need.needId}`} data-testid={`dev-need-${need.needId}`} className="text-sm font-semibold hover:text-primary-600 hover:underline">{need.objective}</Link><StatusBadge status={need.status} /></div>
             <p className="mt-1.5 text-xs text-ink-3">{linked.length ? linked.map((item) => `${item.activity} (${item.status}, ${formatDate(item.date)})`).join(" · ") : "Belum ada training"}</p>
           </li>;
         })}</ul> : <p className="text-sm text-ink-3">Belum ada development requirement.</p>}

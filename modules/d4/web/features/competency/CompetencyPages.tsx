@@ -111,13 +111,13 @@ export function CompetencyDetailPage({ employeeId }: { employeeId: string }) {
     <Notice>Ketiadaan evidence ditandai <strong>Data Belum Cukup</strong>, bukan otomatis Gap. Gap tidak otomatis menugaskan training, promosi, atau sertifikasi.</Notice>
     <Card title="Requirement vs capability" padded={false}>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[760px] text-left text-sm">
+        <table data-testid="competency-gap-table" className="w-full min-w-[760px] text-left text-sm">
           <thead className="bg-app text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3"><tr><th className="px-5 py-2.5">Competency</th><th className="px-5 py-2.5">Required</th><th className="px-5 py-2.5">Actual</th><th className="px-5 py-2.5">Evidence</th><th className="px-5 py-2.5">Status</th><th className="px-5 py-2.5 text-right">Action</th></tr></thead>
           <tbody>{(gap?.findings ?? []).map((finding) => {
             // Prefer the unfinished need; a completed one does not block raising a new need for a gap that remains.
             const open = needs.find((need) => need.sourceRef === finding.requirementId && need.status !== "Completed");
             const linked = open ?? needs.find((need) => need.sourceRef === finding.requirementId);
-            return <tr key={finding.requirementId} className="border-t border-line align-middle">
+            return <tr key={finding.requirementId} data-testid={`gap-${finding.requirementId}`} className="border-t border-line align-middle">
               <td className="px-5 py-3 font-semibold">{finding.competencyName}</td>
               <td className="px-5 py-3 tabular-nums">Level {finding.requiredLevel}</td>
               <td className="px-5 py-3 tabular-nums">{finding.actualLevel === null ? "—" : `Level ${finding.actualLevel}`}</td>
