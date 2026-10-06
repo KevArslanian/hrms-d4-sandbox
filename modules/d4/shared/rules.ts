@@ -33,6 +33,24 @@ export function assertPeriodRevision(records: readonly PeriodRecord[], employeeI
   if (!current && revisionOf) throw new ApiError("VALIDATION_FAILED", `${label} yang direvisi tidak sesuai employee atau periode.`);
 }
 
+type ScoredRecord = PeriodRecord & { readonly status: string; readonly overallScore: number | null };
+
+/**
+ * An evaluation has no score of its own: its result is the total of the employee's current KPI
+ * scorecard for the same period, and only if that scorecard is completed.
+ */
+export function kpiResultFor<T extends ScoredRecord>(scorecards: readonly T[], employeeId: string, period: string): T | undefined {
+  const current = latestForPeriod(scorecards, employeeId, period);
+  return current?.status === "completed" && current.overallScore !== null ? current : undefined;
+}
+
+/** The KPI total an evaluation stores; the evaluation is refused until that scorecard is completed. */
+export function requireKpiResult(scorecards: readonly ScoredRecord[], employeeId: string, period: string): number {
+  const scorecard = kpiResultFor(scorecards, employeeId, period);
+  if (!scorecard) throw new ApiError("VALIDATION_FAILED", "KPI Scorecard periode ini belum selesai. Selesaikan KPI Scorecard dulu, lalu tulis evaluasinya.");
+  return scorecard.overallScore!;
+}
+
 /** Revision number of a record within its employee and period (1 = first record). */
 export function revisionNumber<T extends PeriodRecord>(records: readonly T[], record: T): number {
   return records.filter((item) => item.employeeId === record.employeeId && item.period === record.period && item.createdAt <= record.createdAt).length;

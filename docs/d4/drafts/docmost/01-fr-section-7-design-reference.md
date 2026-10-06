@@ -38,7 +38,7 @@ Fitur ini mengikuti **UI-D4-001 Interaction & Component Guideline**. Ringkasnya:
 
 - Filter: search nama/ID, Position, Period (default periode terbaru), Status (Completed · Not Evaluated; opsi Draft hanya muncul bila masih ada data draft lama).
 - Menu ⋮: View Detail · View History · Open KPI Scorecard · Add Evaluation*.
-- Form: Employee, Period, Evaluation date, Evaluator, **Hasil evaluasi 1–5** (1 Sangat Kurang · 2 Kurang · 3 Cukup · 4 Baik · 5 Sangat Baik, dipilih evaluator), Catatan evaluasi (wajib), Evidence/reference (opsional). Satu tombol `Save Evaluation`; tidak ada draft, aspek, atau label review karena tidak didefinisikan di FR-D4-001.
+- Form: Employee, Period, Evaluation date, Evaluator, **Hasil KPI periode ini** (read-only, dari KPI Scorecard FR-D4-002), Catatan evaluasi (wajib), Evidence/reference (opsional). Penilai tidak memberi angka sendiri; evaluasi ditolak bila KPI Scorecard periode itu belum selesai. Satu tombol `Save Evaluation`; tidak ada draft, aspek, atau label review karena tidak didefinisikan di FR-D4-001. *Usulan tim implementasi, perlu persetujuan PO sebelum ditempel ke FR.*
 - Position dan Department tampil read-only dari data employee.
 - Detail menampilkan KPI Scorecard periode yang sama dan Development Requirement yang bersumber dari evaluasi ini (konteks, bukan keputusan otomatis).
 

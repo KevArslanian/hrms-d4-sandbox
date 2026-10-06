@@ -102,8 +102,7 @@ async function writeAll(role, cookie, me, snapshot) {
     const latest = latestFor(snapshot.performance, evaluation.employeeId, evaluation.period);
     await check(role, cookie, "POST", "/api/d4/performance-evaluations", 201, {
       status: "completed", employeeId: latest.employeeId, period: latest.period, evaluationDate: TODAY,
-      overallScore: Math.min(5, Math.max(1, Math.round(latest.overallScore ?? 3))),
-      generalNotes: `${MARKER} revisi uji smoke (skor dibulatkan ke bilangan bulat).`, revisionOf: latest.id,
+      generalNotes: `${MARKER} revisi uji smoke (hasil diambil dari KPI Scorecard periode yang sama).`, revisionOf: latest.id,
     });
   } else skip(role, "POST", "/api/d4/performance-evaluations", 201, "tidak ada evaluasi employee lain");
 

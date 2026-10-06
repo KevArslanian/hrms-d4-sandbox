@@ -50,7 +50,7 @@ Tanggal: 29 Sep 2026 · Branch: `feature/d4-v2-d2-style`
 
 Audit ulang terhadap FR-D4-001..006 (Docmost), checklist Planka, dan catatan VN asistensi. Detail dan dasar teorinya di [AUDIT-UX-D4.md](AUDIT-UX-D4.md).
 
-- **Performance Evaluation**: form hanya berisi field FR-D4-001 — Employee, Period, Evaluation date, Evaluator, **Hasil evaluasi 1–5** (dengan label 1 Sangat Kurang … 5 Sangat Baik), Catatan evaluasi (wajib), Evidence. Tujuh aspek, review status manual, dan `Save Draft` dihapus karena tidak ada di FR.
+- **Performance Evaluation**: form hanya berisi field FR-D4-001 — Employee, Period, Evaluation date, Evaluator, Catatan evaluasi (wajib), Evidence. Evaluasi tidak punya angka sendiri; hasilnya diambil dari total KPI Scorecard periode yang sama. Tujuh aspek, review status manual, dan `Save Draft` dihapus karena tidak ada di FR.
 - **KPI Scorecard**: KPI jabatan diturunkan otomatis dari position employee dan read-only; server menolak `roleOrder` yang tidak cocok. Satu tombol `Save Scorecard`. Halaman katalog `/kpi/catalog` dihapus (bukan fitur di FR), endpoint `kpi-catalog` tetap dipakai form.
 - **People Dashboard**: satu baris = satu employee pada satu periode (FR-06.1); metric card agregat dihapus (di luar lingkup #12); profil punya pemilih periode dan peringatan bila scorecard tidak valid. Di bawah 1400 px kolom Position dan Open dev. disembunyikan.
 - **Data fiktif**: nama staf asli diganti placeholder (Alfa … Holly, Mercury sebagai HR). Label peran "HR Manager" menjadi "HR".

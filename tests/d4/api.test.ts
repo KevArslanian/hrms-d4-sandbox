@@ -14,7 +14,7 @@ const HOLLY = "d4000000-0000-4000-8000-000000000016";
 const ALFA_GAP = "d4000000-0000-4000-8000-000000000028";
 const FINANCE_STAFF = "d4000000-0000-4000-8000-000000000008";
 const uuid = (n: number) => `e4000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
-const NEED = uuid(1), TRAINING = uuid(2), PERF_ALFA = uuid(3), KPI_ALFA = uuid(4);
+const NEED = uuid(1), TRAINING = uuid(2), PERF_ALFA = uuid(3), KPI_ALFA = uuid(4), KPI_HOLLY = uuid(5);
 const AUTH_USER = "a4000000-0000-4000-8000-000000000001";
 
 type AccessRow = { app_role: "HR" | "MANAGER" | "EMPLOYEE"; employee_id: string | null };
@@ -102,7 +102,11 @@ beforeEach(() => {
   snapshot = {
     ...base,
     performance: base.performance.map((item) => item.id === "FIX-D4-PERF-001" ? { ...item, id: PERF_ALFA } : item),
-    kpiAssessments: base.kpiAssessments!.map((item) => item.id === "FIX-D4-KPI-001" ? { ...item, id: KPI_ALFA } : item),
+    kpiAssessments: [
+      ...base.kpiAssessments!.map((item) => item.id === "FIX-D4-KPI-001" ? { ...item, id: KPI_ALFA } : item),
+      // Holly's completed 2026-09 scorecard: an evaluation needs the KPI scorecard of its period.
+      { ...base.kpiAssessments!.find((item) => item.id === "FIX-D4-KPI-001")!, id: KPI_HOLLY, employeeId: HOLLY },
+    ],
     developmentVersions: base.developmentVersions.map((item) => item.needId === "FIX-D4-DEV-001" ? { ...item, needId: NEED } : item),
     trainingVersions: base.trainingVersions.map((item) => item.trainingId === "FIX-D4-TRN-001" ? { ...item, trainingId: TRAINING, developmentNeedId: NEED } : item),
   };
@@ -216,12 +220,18 @@ describe("POST /performance-evaluations", () => {
     expect((writes[0].args[0] as { evaluator: string }).evaluator).toBe("Mercury");
   });
 
+  it("stores the KPI total of the period, ignoring a submitted score", async () => {
+    const res = await call(perf.POST(post(evaluationBody({ overallScore: 1 }))));
+    expect(res.status).toBe(201);
+    const kpiTotal = snapshot.kpiAssessments!.find((item) => item.id === KPI_HOLLY)!.overallScore;
+    expect((writes[0].args[0] as { overallScore: number }).overallScore).toBe(kpiTotal);
+  });
+
   it.each([
     ["self-evaluation", { employeeId: MERCURY }, /diri sendiri/],
     ["duplicate period without revisionOf", { employeeId: ALFA }, /sudah ada/],
     ["revisionOf not a UUID", { employeeId: ALFA, revisionOf: "abc" }, /UUID/],
-    ["score as string", { overallScore: "4" }, /./],
-    ["score 0", { overallScore: 0 }, /./],
+    ["no completed KPI scorecard for the period", { period: "2026-08", evaluationDate: "2026-08-30" }, /KPI Scorecard periode ini belum selesai/],
     ["period 2026-13", { period: "2026-13" }, /YYYY-MM/],
     ["status draft", { status: "draft" }, /status/],
     ["employeeId not UUID", { employeeId: "x" }, /UUID/],

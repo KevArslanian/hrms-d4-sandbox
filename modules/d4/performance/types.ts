@@ -18,7 +18,7 @@ export interface PerformanceEvaluation {
   readonly status: EvaluationStatus;
   /** Manual review label. No automatic HR decision is inferred from a score. */
   readonly reviewStatus: ReviewStatus;
-  /** May be entered manually by a live evaluator or previewed from weighted aspects in the local form. */
+  /** Copy of the KPI scorecard total of the same period at save time (the DB requires it); the evaluator enters no score. */
   readonly overallScore: number | null;
   readonly aspects: readonly EvaluationAspect[];
   readonly generalNotes: string;

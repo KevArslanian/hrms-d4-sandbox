@@ -4,7 +4,7 @@ import { indicatorsFor, KPI_V51_CATALOG, roleForPositionTitle, selectCatalog } f
 import { performanceFixtureRecords } from "../../performance/fixtures";
 import { validatePerformanceInput } from "../../performance/validation";
 import { d4ReferenceFixture } from "../../shared/fixtures";
-import { assertDevelopmentChange, assertNeedOpen, assertNoOpenNeed, assertNotFutureDate, assertNotSelf, assertPeriodRevision, assertTrainingChange } from "../../shared/rules";
+import { assertDevelopmentChange, assertNeedOpen, assertNoOpenNeed, assertNotFutureDate, assertNotSelf, assertPeriodRevision, assertTrainingChange, requireKpiResult } from "../../shared/rules";
 import type { D4LiveSnapshot, KpiAssessment, KpiAssessmentLine } from "../../supabase/types";
 import { latestDevelopment, latestTraining } from "../../supabase/types";
 import { trainingFixtureVersions } from "../../training/fixtures";
@@ -89,11 +89,12 @@ export function createFixtureSource(): D4DataSource {
     async loadKpiCatalog() { return catalog; },
     async createEvaluation({ revisionOf, ...draft }) {
       assertWriter();
-      const input = { ...draft, evaluator: actorName() };
+      assertNotSelf(state.actorEmployeeId, draft.employeeId);
+      assertNotFutureDate(draft.evaluationDate);
+      assertPeriodRevision(state.performance, draft.employeeId, draft.period, revisionOf, "Evaluasi");
+      // Same as the API: the result is the KPI total of the period, never a submitted score.
+      const input = { ...draft, evaluator: actorName(), overallScore: requireKpiResult(state.kpiAssessments ?? [], draft.employeeId, draft.period) };
       validatePerformanceInput(input);
-      assertNotSelf(state.actorEmployeeId, input.employeeId);
-      assertNotFutureDate(input.evaluationDate);
-      assertPeriodRevision(state.performance, input.employeeId, input.period, revisionOf, "Evaluasi");
       const id = newId("FIX-D4-PERF");
       update({ performance: [{ ...input, id, source: "local-demo", createdAt: now(), actor: actorName() }, ...state.performance] });
       return id;

@@ -2,14 +2,14 @@
 
 import { useState, type FormEvent } from "react";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { latestForPeriod } from "../../../shared/rules";
-import { assessableEmployees, departmentOf, employeeById, formatDate, positionOf, SCORE_LABELS, thisMonth, today } from "../../data/selectors";
+import { kpiResultFor, latestForPeriod } from "../../../shared/rules";
+import { assessableEmployees, departmentOf, employeeById, formatDate, formatPeriod, formatScore, positionOf, thisMonth, today } from "../../data/selectors";
 import { FormError, FormModal, ModalActions, ReadOnlyField, RevisionConfirm, SelectField, TextAreaField, TextField } from "../../ui/forms";
 
 /**
- * FR-01.2: employee, period, result or notes, date, evaluator, optional evidence. The result is the
- * evaluator's own 1–5 score (same scale as the KPI scorecard); the form adds no aspects, weights or
- * review labels because FR-D4-001 defines none.
+ * FR-01.2: employee, period, result or notes, date, evaluator, optional evidence. The evaluation is
+ * the evaluator's notes; the evaluator enters no score. The result shown is the completed KPI
+ * scorecard total of the same period, so the KPI scorecard must be completed first.
  */
 export function EvaluationFormModal({ employeeId, onClose, onSaved }: { employeeId?: string; onClose: () => void; onSaved?: (id: string) => void }) {
   const snapshot = useSnapshot();
@@ -20,7 +20,6 @@ export function EvaluationFormModal({ employeeId, onClose, onSaved }: { employee
   const [date, setDate] = useState(today());
   // The evaluator is the signed-in user; the server stores that name and ignores the form value.
   const evaluator = actor?.fullName ?? "";
-  const [score, setScore] = useState<number | null>(null);
   const [notes, setNotes] = useState("");
   const [evidence, setEvidence] = useState("");
   const [error, setError] = useState("");
@@ -28,7 +27,8 @@ export function EvaluationFormModal({ employeeId, onClose, onSaved }: { employee
   const [revise, setRevise] = useState(false);
   const selected = employeeById(snapshot, employee);
   const existing = employee && period ? latestForPeriod(snapshot.performance, employee, period) : undefined;
-  const missing = [!employee && "karyawan", !period && "periode", !date && "tanggal", date > today() && "tanggal tidak melebihi hari ini", score === null && "hasil evaluasi", !notes.trim() && "catatan evaluasi", existing && !revise && "konfirmasi revisi"].filter(Boolean);
+  const kpi = employee && period ? kpiResultFor(snapshot.kpiAssessments ?? [], employee, period) : undefined;
+  const missing = [!employee && "karyawan", !period && "periode", !date && "tanggal", date > today() && "tanggal tidak melebihi hari ini", employee && period && !kpi && "KPI Scorecard periode ini", !notes.trim() && "catatan evaluasi", existing && !revise && "konfirmasi revisi"].filter(Boolean);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -37,7 +37,7 @@ export function EvaluationFormModal({ employeeId, onClose, onSaved }: { employee
     setError("");
     const result = await run((source) => source.createEvaluation({
       employeeId: employee, period, evaluationDate: date, evaluator, status: "completed", reviewStatus: "Needs Review",
-      overallScore: score, aspects: [], generalNotes: notes, evidenceReference: evidence.trim() || null, revisionOf: existing?.id ?? null,
+      overallScore: null, aspects: [], generalNotes: notes, evidenceReference: evidence.trim() || null, revisionOf: existing?.id ?? null,
     }), "Evaluasi kinerja tersimpan.");
     if (result.ok) { onSaved?.(result.value); onClose(); } else setError(result.error);
   }
@@ -56,16 +56,12 @@ export function EvaluationFormModal({ employeeId, onClose, onSaved }: { employee
         <TextField label="Periode" testId="period" required type="month" value={period} onChange={(event) => setPeriod(event.target.value)} error={touched && !period ? "Periode wajib dipilih." : undefined} />
         <TextField label="Tanggal evaluasi" testId="evaluation-date" required type="date" max={today()} value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? "Tanggal wajib diisi." : touched && date > today() ? "Tidak boleh melebihi hari ini." : undefined} />
         <ReadOnlyField label="Penilai" testId="evaluator" value={evaluator || "—"} />
-        <SelectField label="Hasil evaluasi" required value={score ?? ""} onChange={(event) => setScore(event.target.value ? Number(event.target.value) : null)}
-          error={touched && score === null ? "Hasil evaluasi wajib dipilih." : undefined} helper="Diisi penilai; tidak memicu keputusan HR otomatis.">
-          <option value="">Pilih hasil</option>
-          {[5, 4, 3, 2, 1].map((value) => <option key={value} value={value}>{value} · {SCORE_LABELS[value]}</option>)}
-        </SelectField>
+        <ReadOnlyField label="Hasil KPI periode ini" testId="kpi-result" value={kpi ? formatScore(kpi.overallScore) : !employee || !period ? "—" : `Belum ada KPI Scorecard selesai untuk ${formatPeriod(period)}`} />
       </div>
       {existing && <RevisionConfirm what="Evaluasi" existing={`${existing.evaluator}, ${formatDate(existing.evaluationDate)}`} checked={revise} onChange={setRevise}
         error={touched && !revise ? "Centang untuk menyimpan sebagai revisi, atau ganti periode." : undefined} />}
-      <TextAreaField label="Catatan evaluasi" required value={notes} onChange={(event) => setNotes(event.target.value)} error={touched && !notes.trim() ? "Catatan evaluasi wajib diisi." : undefined}
-        helper="Termasuk rekomendasi/rencana pelatihan bila ada — dapat dipakai sebagai konteks Development Requirement." />
+      <TextAreaField label="Catatan evaluasi" required rows={6} value={notes} onChange={(event) => setNotes(event.target.value)} error={touched && !notes.trim() ? "Catatan evaluasi wajib diisi." : undefined}
+        helper="Tulis kekuatan, hal yang perlu diperbaiki, dan rekomendasi pelatihan. Angka diambil dari KPI Scorecard; catatan ini menjadi konteks Development Requirement." />
       <TextField label="Bukti / referensi" testId="evidence-reference" value={evidence} onChange={(event) => setEvidence(event.target.value)} helper="Opsional: nomor dokumen atau tautan bukti." />
     </form>
   </FormModal>;
