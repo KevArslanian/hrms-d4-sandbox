@@ -19,7 +19,7 @@ export function FilterBar({ children, onReset, canReset }: { children: ReactNode
 }
 
 export function SearchInput({ value, onChange, placeholder }: { value: string; onChange: (value: string) => void; placeholder: string }) {
-  return <label className="relative min-w-[160px] flex-[2_1_180px]">
+  return <label className="relative min-w-[200px] flex-[2_1_220px]">
     <span className="sr-only">{placeholder}</span>
     <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-3 size-4 text-ink-3" />
     <input type="search" data-testid="input-search" value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className={cx(control, "bg-app pl-9")} />
@@ -28,7 +28,7 @@ export function SearchInput({ value, onChange, placeholder }: { value: string; o
 
 /** `emptyOption={false}` drops the "All …" choice for filters that always show one value (the dashboard period). */
 export function SelectFilter({ label, testId, value, onChange, options, emptyOption = true }: { label: string; testId?: string; value: string; onChange: (value: string) => void; options: { value: string; label: string }[]; emptyOption?: boolean }) {
-  return <label className="relative min-w-[180px] flex-[1_1_180px]">
+  return <label className="relative min-w-[172px] flex-[1_1_172px]">
     <span className="sr-only">{label}</span>
     <select data-testid={`filter-${testId ?? slug(label)}`} value={value} onChange={(event) => onChange(event.target.value)} className={cx(control, "appearance-none pr-9", !value && "text-ink-2")}>
       {emptyOption && <option value="">{label}</option>}

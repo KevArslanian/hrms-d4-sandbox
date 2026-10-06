@@ -210,6 +210,12 @@ describe("request envelope", () => {
 });
 
 describe("POST /performance-evaluations", () => {
+  it("ignores a submitted score: evaluations are notes only", async () => {
+    const res = await call(perf.POST(post(evaluationBody({ overallScore: 4 }))));
+    expect(res.status).toBe(201);
+    expect((writes[0].args[0] as { overallScore: number | null }).overallScore).toBeNull();
+  });
+
   it("creates with the account's name as evaluator, ignoring the body", async () => {
     const res = await call(perf.POST(post(evaluationBody({ evaluator: "Nama Palsu" }))));
     expect(res.status).toBe(201);
@@ -220,8 +226,6 @@ describe("POST /performance-evaluations", () => {
     ["self-evaluation", { employeeId: MERCURY }, /Your own assessment/],
     ["duplicate period without revisionOf", { employeeId: ALFA }, /already exists/],
     ["revisionOf not a UUID", { employeeId: ALFA, revisionOf: "abc" }, /UUID/],
-    ["score as string", { overallScore: "4" }, /./],
-    ["score 0", { overallScore: 0 }, /./],
     ["period 2026-13", { period: "2026-13" }, /YYYY-MM/],
     ["status draft", { status: "draft" }, /status/],
     ["employeeId not UUID", { employeeId: "x" }, /UUID/],

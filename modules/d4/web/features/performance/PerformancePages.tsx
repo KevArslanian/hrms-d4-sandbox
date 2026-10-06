@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import type { PerformanceEvaluation } from "../../../performance/types";
 import type { EmployeeReference } from "../../../shared/types";
 import { useSnapshot } from "../../data/D4DataProvider";
-import { canAssess, canWrite, departmentOf, describeSource, developmentNeeds, employeeById, employeeMeta, evaluationsOf, formatDate, formatPeriod, formatScore, includesText, latestEvaluation, positionOf, revisionTag, SCORE_LABELS, scorecardsOf, visibleEmployees } from "../../data/selectors";
+import { canAssess, canWrite, departmentOf, describeSource, developmentNeeds, employeeById, employeeMeta, evaluationsOf, formatDate, formatPeriod, includesText, latestEvaluation, positionOf, revisionTag, scorecardsOf, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
@@ -56,7 +56,7 @@ export function PerformanceListPage() {
         { key: "position", header: "Position", wrap: true, cell: (row) => row.position },
         { key: "department", header: "Department", wrap: true, cell: (row) => departmentOf(snapshot, row.employee)?.name ?? "—" },
         { key: "period", header: "Period", cell: (row) => formatPeriod(row.evaluation?.period) },
-        { key: "score", header: "Result", className: "tabular-nums", cell: (row) => formatScore(row.evaluation?.overallScore) },
+        { key: "notes", header: "Notes", wrap: true, className: "max-w-[320px]", cell: (row) => row.evaluation?.generalNotes ? <span className="line-clamp-2">{row.evaluation.generalNotes}</span> : "—" },
         { key: "evaluator", header: "Evaluator", cell: (row) => row.evaluation?.evaluator || "—" },
         { key: "status", header: "Status", cell: (row) => <StatusBadge status={evaluationStatus(row.evaluation)} /> },
       ]}
@@ -92,8 +92,6 @@ export function PerformanceDetailPage({ id }: { id: string }) {
           { label: "Period", testId: "period", value: formatPeriod(evaluation.period) },
           { label: "Evaluation date", testId: "evaluation-date", value: formatDate(evaluation.evaluationDate) },
           { label: "Evaluator", testId: "evaluator", value: evaluation.evaluator || "—" },
-          { label: "Evaluation result", testId: "hasil-evaluasi", value: <strong className="font-display font-semibold text-lg">{formatScore(evaluation.overallScore)}</strong> },
-          { label: "Criteria", testId: "kriteria", value: evaluation.overallScore ? SCORE_LABELS[Math.round(evaluation.overallScore)] ?? "—" : "—" },
           { label: "Department", testId: "department", value: departmentOf(snapshot, employee)?.name ?? "—" },
         ]} />
         <h3 className="mb-2 mt-8 text-sm font-semibold text-ink-2">Evaluation notes</h3>
@@ -133,7 +131,7 @@ export function PerformanceHistoryPage({ employeeId }: { employeeId: string }) {
     <Card title="Evaluation history" testId="evaluation-history">
       <Timeline empty="This employee has no performance evaluation yet." entries={evaluations.map((item) => ({
         id: item.id, date: `${formatPeriod(item.period)} · ${formatDate(item.evaluationDate || item.createdAt)}`,
-        title: `Evaluation ${formatPeriod(item.period)} — ${formatScore(item.overallScore)}${revisionTag(evaluations, item)}`,
+        title: `Evaluation ${formatPeriod(item.period)}${revisionTag(evaluations, item)}`,
         status: evaluationStatus(item), actor: item.actor, href: `/performance/${item.id}`,
         body: <>Evaluator: {item.evaluator || "—"}{item.generalNotes ? ` · ${item.generalNotes}` : ""}</>,
       }))} />

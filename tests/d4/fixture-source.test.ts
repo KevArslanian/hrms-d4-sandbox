@@ -50,14 +50,16 @@ describe("performance evaluation (fixture)", () => {
   });
 
   it.each([
-    ["score out of range", { overallScore: 6 }],
-    ["fractional score", { overallScore: 3.5 }],
-    ["missing score", { overallScore: null }],
     ["empty notes", { generalNotes: "  " }],
     ["bad period", { period: "2026-13" }],
     ["missing date", { evaluationDate: "" }],
   ])("rejects invalid input: %s", async (_name, patch) => {
     await expect(source.createEvaluation(evaluation(patch as Partial<EvaluationDraft>))).rejects.toThrow();
+  });
+
+  it("saves an evaluation without a score (scores live in the KPI Scorecard)", async () => {
+    const id = await source.createEvaluation(evaluation({ period: "2026-12", overallScore: null }));
+    expect((await source.loadSnapshot()).performance.find((item) => item.id === id)?.overallScore).toBeNull();
   });
 });
 
