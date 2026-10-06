@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CompetencyAssessment } from "@/modules/d4/competency/types";
-import { assertDevelopmentChange, assertNotFutureDate, isTrainingRollback, localMonth, localToday, revisionNumber } from "@/modules/d4/shared/rules";
+import { assertDevelopmentChange, assertGapAssessed, assertNotFutureDate, openTrainingCount, isTrainingRollback, localMonth, localToday, revisionNumber } from "@/modules/d4/shared/rules";
 import type { EmployeeReference } from "@/modules/d4/shared/types";
 import { assessableEmployees, canWrite, currentCompetencyStatus, currentGap, latestCurrentPositionAssessment, revisionTag, visibleEmployees, type Snapshot } from "@/modules/d4/web/data/selectors";
 import type { TrainingStatus } from "@/modules/d4/training/types";
@@ -164,6 +164,22 @@ describe("development status change", () => {
     expect(() => assertDevelopmentChange("In Progress", "Planned", " ")).toThrow(/reason is required/);
     expect(() => assertDevelopmentChange("In Progress", "Planned", "Jadwal mundur")).not.toThrow();
     expect(() => assertDevelopmentChange("Planned", "In Progress", "")).not.toThrow();
+    expect(() => assertDevelopmentChange("In Progress", "Completed", "", 1)).toThrow(/still Planned or In Progress/);
+    expect(() => assertDevelopmentChange("In Progress", "Completed", "Training diganti coaching", 1)).not.toThrow();
+    expect(() => assertDevelopmentChange("In Progress", "Completed", "", 0)).not.toThrow();
+  });
+
+  it("counts only Planned/In Progress training of the need", () => {
+    const list = [{ developmentNeedId: "N1", status: "Planned" as const }, { developmentNeedId: "N1", status: "Completed" as const }, { developmentNeedId: "N2", status: "In Progress" as const }];
+    expect(openTrainingCount(list, "N1")).toBe(1);
+  });
+
+  it("raises a gap-based need only after the active position assessment is saved", () => {
+    const employee = { id: "E1", positionId: "P1" };
+    expect(() => assertGapAssessed([], employee, "competency_gap")).toThrow(/Save the competency assessment/);
+    expect(() => assertGapAssessed([{ employeeId: "E1", positionId: "P0" }], employee, "competency_gap")).toThrow();
+    expect(() => assertGapAssessed([{ employeeId: "E1", positionId: "P1" }], employee, "competency_gap")).not.toThrow();
+    expect(() => assertGapAssessed([], employee, "performance_context")).not.toThrow();
   });
 });
 

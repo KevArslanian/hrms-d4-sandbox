@@ -60,8 +60,8 @@ export function DashboardPage() {
     <PageHeader title="People Dashboard" subtitle="KPI, performance, competency gap, development, and training per employee for the same period." />
     <FilterBar canReset={Boolean(search || position || department || period)} onReset={() => { setSearch(""); setPosition(""); setDepartment(""); setPeriod(""); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Search name or ID" />
-      <SelectFilter label="All positions" testId="all-positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />
-      <SelectFilter label="All departments" testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />
+      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All positions" testId="all-positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />}
+      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All departments" testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />}
       {/* The dashboard always shows one period, so there is no "All periods" choice; it starts on the latest one. */}
       <SelectFilter label="Period" testId="latest-period" emptyOption={false} value={period || periods[0] || ""} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
     </FilterBar>

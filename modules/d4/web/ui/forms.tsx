@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, ChevronDown, Search, X } from "lucide-react";
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
+import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { createPortal } from "react-dom";
 import { Button, cx, slug } from "./primitives";
 
@@ -129,6 +129,9 @@ export function RevisionConfirm({ what, existing, checked, onChange, error }: { 
 
 /* ---------- Modal ---------- */
 
+// Lets the footer Cancel button go through the same discard confirm as X / Escape / overlay.
+const ModalCloseContext = createContext<(() => void) | null>(null);
+
 /**
  * Centered form modal (reviewer note K1). 640 px by default, 880 px for the KPI scorecard.
  * Escape, the overlay and X close it — after a confirm once a field was edited, so typed data is not lost
@@ -179,7 +182,7 @@ export function FormModal({ title, description, size = "md", onClose, children, 
         <button type="button" data-testid="btn-modal-close" aria-label="Close" onClick={requestClose} className="rounded-lg p-1.5 text-ink-3 hover:bg-muted hover:text-ink"><X className="size-5" /></button>
       </header>
       <div data-modal-body className="min-h-0 flex-1 overflow-y-auto px-6 py-5">{children}</div>
-      <footer className="flex flex-wrap justify-end gap-3 border-t border-line px-6 py-4">{footer}</footer>
+      <footer className="flex flex-wrap justify-end gap-3 border-t border-line px-6 py-4"><ModalCloseContext.Provider value={requestClose}>{footer}</ModalCloseContext.Provider></footer>
       {confirming && <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-ink/30 p-6">
         <div role="alertdialog" data-testid="modal-discard-confirm" aria-labelledby={`${titleId}-discard`} className="w-full max-w-sm rounded-2xl bg-surface p-6 shadow-modal">
           <h3 id={`${titleId}-discard`} className="font-display font-semibold text-base text-ink">Discard changes?</h3>
@@ -195,8 +198,9 @@ export function FormModal({ title, description, size = "md", onClose, children, 
 }
 
 export function ModalActions({ onCancel, busy, submitLabel, secondary, disabled = false }: { onCancel: () => void; busy: boolean; submitLabel: string; secondary?: ReactNode; disabled?: boolean }) {
+  const requestClose = useContext(ModalCloseContext);
   return <>
-    <Button variant="secondary" data-testid="btn-modal-cancel" onClick={onCancel}>Cancel</Button>
+    <Button variant="secondary" data-testid="btn-modal-cancel" onClick={requestClose ?? onCancel}>Cancel</Button>
     {secondary}
     <Button type="submit" form="d4-modal-form" data-testid="btn-modal-submit" disabled={busy || disabled}>{busy ? "Saving…" : submitLabel}</Button>
   </>;
