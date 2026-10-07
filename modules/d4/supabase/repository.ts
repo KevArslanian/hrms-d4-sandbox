@@ -65,7 +65,7 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
   // At most one auth.getUser() round trip per repository; a repository lives for one request.
   private requireUser(): Promise<User> {
     this.user ??= this.client.auth.getUser().then(({ data, error }) => {
-      if (error || !data.user) throw new ApiError("UNAUTHENTICATED", "No login session found. Please sign in again.");
+      if (error || !data.user) throw new ApiError("UNAUTHENTICATED", "Sesi login tidak ditemukan. Silakan login kembali.");
       return data.user;
     });
     return this.user;
@@ -118,7 +118,7 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
       allRows(() => this.client.from("d4_training_versions").select("id,training_id,revision,status,result,notes,actor_employee_id,created_at").order("created_at", { ascending: false }).order("id")),
     ])]);
     if (accessError) throw databaseError(accessError, "Hak akses");
-    if (!access) throw new ApiError("FORBIDDEN", "You are signed in, but this account has no access to HRMS data yet. Contact the HRMS admin to activate your role.");
+    if (!access) throw new ApiError("FORBIDDEN", "Anda sudah login, tetapi akun ini belum punya akses ke data HRMS. Hubungi admin HRMS untuk mengaktifkan role Anda.");
     const kpiRows = take(kpiResult, "KPI") as RawKpi[];
     const kpiAssessmentRows = take(kpiAssessmentResult, "Penilaian KPI") as RawKpiAssessment[];
     const performanceRows = take(performanceResult, "Performance") as RawPerformance[];
@@ -183,8 +183,8 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
 
   async saveKpiAssessment(input: KpiAssessmentInput): Promise<string> {
     await this.requireUser();
-    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(input.period)) throw new ApiError("VALIDATION_FAILED", "The assessment period is required.");
-    if (input.lines.length !== 5) throw new ApiError("VALIDATION_FAILED", "An assessment must have five KPI indicators.");
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(input.period)) throw new ApiError("VALIDATION_FAILED", "Periode penilaian wajib diisi.");
+    if (input.lines.length !== 5) throw new ApiError("VALIDATION_FAILED", "Penilaian harus memiliki lima indikator KPI.");
     const result = await this.client.from("d4_kpi_assessments").insert({
       // V3.1 rows predate the definition_version column; only send it for newer catalogs.
       ...(input.definitionVersion === "V3.1" ? {} : { definition_version: input.definitionVersion }),
@@ -199,9 +199,9 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
   async savePerformance(input: EvaluationInput, reference: ReferenceDataSnapshot): Promise<string> {
     await this.requireUser();
     const employee = reference.employees.find((item) => item.id === input.employeeId);
-    if (!employee) throw new ApiError("NOT_FOUND", "Employee not found.");
+    if (!employee) throw new ApiError("NOT_FOUND", "Pegawai tidak ditemukan.");
     const position = reference.positions.find((item) => item.id === employee.positionId);
-    if (!position) throw new ApiError("VALIDATION_FAILED", "The employee's position is not available.");
+    if (!position) throw new ApiError("VALIDATION_FAILED", "Posisi pegawai tidak tersedia.");
     enforce(() => validatePerformanceInput(input));
     const result = await this.client.from("d4_performance_evaluations").insert({
       employee_id: employee.id, position_id: position.id, position_title_snapshot: position.title,
@@ -218,11 +218,11 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
     await this.requireUser();
     const employee = reference.employees.find((item) => item.id === input.employeeId);
     const position = reference.positions.find((item) => item.id === input.positionId);
-    if (!employee) throw new ApiError("NOT_FOUND", "Employee not found.");
-    if (!position) throw new ApiError("VALIDATION_FAILED", "Position not available.");
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(input.effectiveDate)) throw new ApiError("VALIDATION_FAILED", "Invalid effective date.");
+    if (!employee) throw new ApiError("NOT_FOUND", "Pegawai tidak ditemukan.");
+    if (!position) throw new ApiError("VALIDATION_FAILED", "Posisi tidak tersedia.");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(input.effectiveDate)) throw new ApiError("VALIDATION_FAILED", "Tanggal efektif tidak valid.");
     const comparison = compareCompetencies(employee.id, position.id, reference);
-    if (!comparison.findings.length) throw new ApiError("VALIDATION_FAILED", "The position has no competency requirements yet.");
+    if (!comparison.findings.length) throw new ApiError("VALIDATION_FAILED", "Posisi ini belum memiliki persyaratan kompetensi.");
     // d4_competency_assessments has no unique key yet. A double click re-sends an identical snapshot: answer
     // with the stored one instead of a second row. A changed snapshot (new evidence the same day) is still saved.
     // Narrows, not closes, the race until the database index is approved.
@@ -241,15 +241,15 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
 
   async createDevelopment(input: { employeeId: string; sourceType: DevelopmentSourceType; sourceRef: string; objective: string; priority: DevelopmentPriority; notes: string }, snapshot: D4LiveSnapshot): Promise<string> {
     await this.requireUser();
-    if (!snapshot.reference.employees.some((item) => item.id === input.employeeId)) throw new ApiError("NOT_FOUND", "Employee not found.");
-    if (!input.objective.trim()) throw new ApiError("VALIDATION_FAILED", "Development objective is required.");
+    if (!snapshot.reference.employees.some((item) => item.id === input.employeeId)) throw new ApiError("NOT_FOUND", "Pegawai tidak ditemukan.");
+    if (!input.objective.trim()) throw new ApiError("VALIDATION_FAILED", "Development objective wajib diisi.");
     const validSource = input.sourceType === "competency_gap"
       ? (() => { const employee = snapshot.reference.employees.find((item) => item.id === input.employeeId);
           return employee?.positionId ? compareCompetencies(employee.id, employee.positionId, snapshot.reference).findings.some((item) => item.requirementId === input.sourceRef && item.status === "Gap") : false; })()
       : input.sourceType === "role_change"
         ? snapshot.competency.some((item) => item.id === input.sourceRef && item.employeeId === input.employeeId && item.context === "role-change")
         : snapshot.performance.some((item) => item.id === input.sourceRef && item.employeeId === input.employeeId && item.status === "completed");
-    if (!validSource) throw new ApiError("VALIDATION_FAILED", "The source reference does not match the employee or is not available yet.");
+    if (!validSource) throw new ApiError("VALIDATION_FAILED", "Referensi sumber tidak cocok dengan pegawai atau belum tersedia.");
     const result = await this.client.rpc("d4_create_development_need", {
       p_employee_id: input.employeeId, p_source_type: input.sourceType, p_source_ref: input.sourceRef,
       p_objective: input.objective.trim(), p_priority: input.priority, p_notes: input.notes.trim(),
@@ -269,9 +269,9 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
   async createTraining(input: { employeeId: string; developmentNeedId: string; activity: string; date: string; status: TrainingStatus; result: string; notes: string }, snapshot: D4LiveSnapshot): Promise<string> {
     await this.requireUser();
     const need = snapshot.developmentVersions.find((item) => item.needId === input.developmentNeedId);
-    if (!need || need.employeeId !== input.employeeId) throw new ApiError("VALIDATION_FAILED", "Training must refer to a development need of the same employee.");
-    if (!input.activity.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(input.date)) throw new ApiError("VALIDATION_FAILED", "Activity and date are required.");
-    if (input.status === "Completed" && !input.result.trim()) throw new ApiError("VALIDATION_FAILED", "Result is required when the training is completed.");
+    if (!need || need.employeeId !== input.employeeId) throw new ApiError("VALIDATION_FAILED", "Training harus merujuk ke development requirement milik pegawai yang sama.");
+    if (!input.activity.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(input.date)) throw new ApiError("VALIDATION_FAILED", "Aktivitas dan tanggal wajib diisi.");
+    if (input.status === "Completed" && !input.result.trim()) throw new ApiError("VALIDATION_FAILED", "Result wajib diisi saat training Completed.");
     const result = await this.client.rpc("d4_create_training_record", {
       p_employee_id: input.employeeId, p_development_need_id: input.developmentNeedId,
       p_activity: input.activity.trim(), p_activity_date: input.date, p_status: input.status,
@@ -282,7 +282,7 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
 
   async updateTraining(trainingId: string, status: TrainingStatus, result: string, notes: string): Promise<void> {
     await this.requireUser();
-    if (status === "Completed" && !result.trim()) throw new ApiError("VALIDATION_FAILED", "Result is required when the training is completed.");
+    if (status === "Completed" && !result.trim()) throw new ApiError("VALIDATION_FAILED", "Result wajib diisi saat training Completed.");
     const current = take(await this.client.from("d4_training_versions").select("revision")
       .eq("training_id", trainingId).order("revision", { ascending: false }).limit(1).single(), "Training history") as { revision: number };
     take(await this.client.from("d4_training_versions").insert({

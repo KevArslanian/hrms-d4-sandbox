@@ -14,7 +14,7 @@ export async function listEvaluations(request: Request) {
 export async function getEvaluation(id: string) {
   const { repository } = await d4Session();
   const evaluation = (await repository.loadSnapshot()).performance.find((item) => item.id === id);
-  if (!evaluation) throw new ApiError("NOT_FOUND", "Evaluation not found.");
+  if (!evaluation) throw new ApiError("NOT_FOUND", "Evaluasi tidak ditemukan.");
   return evaluation;
 }
 
@@ -28,7 +28,7 @@ export async function createEvaluation(request: Request) {
   const body = await readJson(request);
   const snapshot = await repository.loadSnapshot();
   const evaluator = snapshot.reference.employees.find((item) => item.id === access.employeeId)?.fullName;
-  if (!evaluator) throw new ApiError("FORBIDDEN", "This account is not linked to an employee record yet.");
+  if (!evaluator) throw new ApiError("FORBIDDEN", "Akun ini belum terhubung ke data pegawai.");
   const status = field.oneOf(body, "status", ["completed"] as const); // FR-D4-001 defines no draft evaluation.
   const completed = status === "completed";
   const input: EvaluationInput = {

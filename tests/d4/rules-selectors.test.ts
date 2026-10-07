@@ -154,17 +154,17 @@ describe("role views (fixture)", () => {
     const records = [...snapshot.performance, ...(snapshot.kpiAssessments ?? []), ...snapshot.competency, ...snapshot.developmentVersions, ...snapshot.trainingVersions];
     expect(records.length).toBeGreaterThan(0);
     expect(records.every((item) => item.employeeId === ALFA)).toBe(true);
-    await expect(source.createEvaluation({ employeeId: MERCURY, period: "2026-10", evaluationDate: "2026-10-01", evaluator: "x", status: "completed", reviewStatus: "Needs Review", overallScore: 4, aspects: [], generalNotes: "", evidenceReference: null })).rejects.toThrow(/Only HR/);
+    await expect(source.createEvaluation({ employeeId: MERCURY, period: "2026-10", evaluationDate: "2026-10-01", evaluator: "x", status: "completed", reviewStatus: "Needs Review", overallScore: 4, aspects: [], generalNotes: "", evidenceReference: null })).rejects.toThrow(/Hanya HR/);
   });
 });
 
 describe("development status change", () => {
   it("rejects the same status and a rollback without a reason", () => {
-    expect(() => assertDevelopmentChange("Planned", "Planned", "")).toThrow(/already Planned/);
-    expect(() => assertDevelopmentChange("In Progress", "Planned", " ")).toThrow(/reason is required/);
+    expect(() => assertDevelopmentChange("Planned", "Planned", "")).toThrow(/sudah Planned/);
+    expect(() => assertDevelopmentChange("In Progress", "Planned", " ")).toThrow(/Alasan wajib diisi/);
     expect(() => assertDevelopmentChange("In Progress", "Planned", "Jadwal mundur")).not.toThrow();
     expect(() => assertDevelopmentChange("Planned", "In Progress", "")).not.toThrow();
-    expect(() => assertDevelopmentChange("In Progress", "Completed", "", 1)).toThrow(/still Planned or In Progress/);
+    expect(() => assertDevelopmentChange("In Progress", "Completed", "", 1)).toThrow(/masih Planned atau In Progress/);
     expect(() => assertDevelopmentChange("In Progress", "Completed", "Training diganti coaching", 1)).not.toThrow();
     expect(() => assertDevelopmentChange("In Progress", "Completed", "", 0)).not.toThrow();
   });
@@ -176,14 +176,14 @@ describe("development status change", () => {
 
   it("raises a gap-based need only after the active position assessment is saved", () => {
     const employee = { id: "E1", positionId: "P1" };
-    expect(() => assertGapAssessed([], employee, "competency_gap")).toThrow(/Save the competency assessment/);
+    expect(() => assertGapAssessed([], employee, "competency_gap")).toThrow(/Simpan penilaian kompetensi/);
     expect(() => assertGapAssessed([{ employeeId: "E1", positionId: "P0" }], employee, "competency_gap")).toThrow();
     expect(() => assertGapAssessed([{ employeeId: "E1", positionId: "P1" }], employee, "competency_gap")).not.toThrow();
     expect(() => assertGapAssessed([], employee, "performance_context")).not.toThrow();
   });
 
   it("allows a future date only for training that has not been completed", () => {
-    expect(() => assertTrainingDate("Completed", "2999-01-01")).toThrow(/later than today/);
+    expect(() => assertTrainingDate("Completed", "2999-01-01")).toThrow(/lebih dari hari ini/);
     expect(() => assertTrainingDate("Planned", "2999-01-01")).not.toThrow();
     expect(() => assertTrainingDate("Completed", localToday())).not.toThrow();
   });
@@ -196,6 +196,6 @@ describe("future evaluation date", () => {
     tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
     expect(() => assertNotFutureDate(today)).not.toThrow();
     expect(() => assertNotFutureDate("2020-01-01")).not.toThrow();
-    expect(() => assertNotFutureDate(tomorrow.toISOString().slice(0, 10))).toThrow(/later than today/);
+    expect(() => assertNotFutureDate(tomorrow.toISOString().slice(0, 10))).toThrow(/lebih dari hari ini/);
   });
 });

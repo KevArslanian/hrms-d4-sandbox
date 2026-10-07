@@ -33,7 +33,7 @@ export function TrainingListPage() {
   });
 
   return <>
-    <PageHeader title="Training Tracking" subtitle="Track training and development from the source requirement to the outcome." />
+    <PageHeader title="Training Tracking" subtitle="Pantau training dan development dari requirement sumber sampai hasilnya." />
     <FilterBar canReset={Boolean(search || department || period || status)} onReset={() => { setSearch(""); setDepartment(""); setPeriod(""); setStatus(""); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Search keyword" />
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All departments" testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />}
@@ -41,7 +41,7 @@ export function TrainingListPage() {
       <SelectFilter label="All status" testId="all-status" value={status} onChange={setStatus} options={["Planned", "In Progress", "Completed", "Cancelled"].map((item) => ({ value: item, label: statusLabel(item) }))} />
     </FilterBar>
     <DataTable<TrainingVersion> rows={rows} noun="data training" rowKey={(row) => row.trainingId} rowHref={(row) => `/training/${row.trainingId}`}
-      emptyTitle="No matching training" emptyText="Training is created from a development requirement (Create Training). Change the filters or open Development Requirement."
+      emptyTitle="Tidak ada training yang cocok" emptyText="Training dibuat dari development requirement (Create Training). Ubah filter atau buka Development Requirement."
       columns={[
         { key: "employee", header: "Employee", cell: (row) => { const employee = employeeById(snapshot, row.employeeId); return <PersonCell name={employee?.fullName ?? "—"} code={employee?.employeeId ?? ""} />; } },
         { key: "activity", header: "Training", wrap: true, cell: (row) => <span className="font-semibold">{row.activity}</span> },
@@ -87,7 +87,7 @@ export function TrainingDetailPage({ trainingId }: { trainingId: string }) {
       </Card>
       <div className="space-y-6">
         <Card title="Source requirement" testId="source-requirement">
-          {need ? <><SourceChip label="Development Requirement" reference={statusLabel(need.status)} href={`/development/${need.needId}`} /><p className="mt-3 text-sm text-ink">{need.objective}</p></> : <p className="text-sm text-ink-3">Source requirement is not available.</p>}
+          {need ? <><SourceChip label="Development Requirement" reference={statusLabel(need.status)} href={`/development/${need.needId}`} /><p className="mt-3 text-sm text-ink">{need.objective}</p></> : <p className="text-sm text-ink-3">Requirement sumber tidak tersedia.</p>}
         </Card>
         <Notice tone="warning">Training yang Completed tidak otomatis membuat gap kompetensi terpenuhi. Gap tetap terbuka sampai dinilai ulang.</Notice>
       </div>
@@ -105,7 +105,7 @@ export function TrainingHistoryPage({ trainingId }: { trainingId: string }) {
     <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Training Tracking", href: "/training" }, { label: "History" }]} backHref={`/training/${record.trainingId}`}
       name={employee.fullName} meta={[...employeeMeta(snapshot, employee), record.activity]} status={record.status} />
     <Card title="Status history" testId="status-history">
-      <Timeline empty="No status history yet." entries={trainingHistory(snapshot, record.trainingId).map((item) => ({
+      <Timeline empty="Belum ada riwayat status." entries={trainingHistory(snapshot, record.trainingId).map((item) => ({
         id: item.id, date: formatDate(item.createdAt), title: `Version ${item.revision}`, status: item.status, actor: item.actor,
         body: [item.result && `Result: ${item.result}`, item.notes].filter(Boolean).join(" · ") || undefined,
       }))} />

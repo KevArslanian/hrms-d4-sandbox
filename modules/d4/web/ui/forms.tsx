@@ -74,15 +74,15 @@ function SearchableSelect({ label, value, onChange, options, emptyLabel, testId,
         <Search aria-hidden="true" className="pointer-events-none absolute left-2.5 top-2.5 size-4 text-ink-3" />
         <input autoFocus data-search data-testid={testId.replace(/^(filter|input)-/, "search-")} role="combobox" aria-controls={listId} aria-expanded aria-autocomplete="list" value={query} onChange={(event) => setQuery(event.target.value)}
           onKeyDown={(event) => { if (event.key === "Enter" && matches[0]) { event.preventDefault(); pick(matches[0].value); } }}
-          placeholder="Type to filter…" className="h-9 w-full rounded-lg border border-line-strong bg-app pl-8 pr-2 text-sm text-ink outline-none placeholder:text-ink-3 focus:border-primary-500" />
+          placeholder="Ketik untuk menyaring…" className="h-9 w-full rounded-lg border border-line-strong bg-app pl-8 pr-2 text-sm text-ink outline-none placeholder:text-ink-3 focus:border-primary-500" />
       </label>
       <ul id={listId} role="listbox" data-testid={testId.replace(/^(filter|input)-/, "options-")} aria-label={label} className="mt-1.5 max-h-64 overflow-y-auto text-sm">
         {matches.length ? matches.map((option) => <li key={option.value || "empty"} role="option" aria-selected={option.value === value}>
           <button type="button" onClick={() => pick(option.value)} className={cx("flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-ink hover:bg-primary-50 focus:bg-primary-50 focus:outline-none", option.value === value && "font-semibold text-primary-600")}>
             <Check aria-hidden="true" className={cx("size-4 shrink-0", option.value !== value && "invisible")} />{option.label}
           </button>
-        </li>) : <li className="px-2.5 py-2 text-ink-3">No match</li>}
-        {hidden > 0 && <li data-testid={testId.replace(/^(filter|input)-/, "more-")} className="px-2.5 py-2 text-xs text-ink-3">+{hidden} more — type to narrow</li>}
+        </li>) : <li className="px-2.5 py-2 text-ink-3">Tidak ada yang cocok</li>}
+        {hidden > 0 && <li data-testid={testId.replace(/^(filter|input)-/, "more-")} className="px-2.5 py-2 text-xs text-ink-3">+{hidden} lainnya — ketik untuk mempersempit</li>}
       </ul>
     </div>}
   </div>;
@@ -154,7 +154,7 @@ export function ReadOnlyField({ label, testId, value, className }: { label: stri
 export function RevisionConfirm({ what, existing, checked, onChange, error }: { what: string; existing: string; checked: boolean; onChange: (checked: boolean) => void; error?: string }) {
   const id = useId();
   return <div className={cx("rounded-xl border px-4 py-3 text-xs leading-5", error ? "border-danger bg-danger-bg" : "border-warning/30 bg-warning-bg")}>
-    <p className="text-warning">{what} for this period already exists ({existing}). Saving creates a <strong>revision</strong>; the previous version stays in the history.</p>
+    <p className="text-warning">{what} untuk periode ini sudah ada ({existing}). Menyimpan akan membuat <strong>revisi</strong>; versi sebelumnya tetap ada di riwayat.</p>
     <label htmlFor={id} className="mt-2 flex items-center gap-2 font-semibold text-ink">
       <input id={id} type="checkbox" data-testid="checkbox-revision" checked={checked} onChange={(event) => onChange(event.target.checked)} className="size-4 accent-primary-600" />
       Save as revision
@@ -221,8 +221,8 @@ export function FormModal({ title, description, size = "md", onClose, children, 
       <footer className="flex flex-wrap justify-end gap-3 border-t border-line px-6 py-4"><ModalCloseContext.Provider value={requestClose}>{footer}</ModalCloseContext.Provider></footer>
       {confirming && <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-ink/30 p-6">
         <div role="alertdialog" data-testid="modal-discard-confirm" aria-labelledby={`${titleId}-discard`} className="w-full max-w-sm rounded-2xl bg-surface p-6 shadow-modal">
-          <h3 id={`${titleId}-discard`} className="font-display font-semibold text-base text-ink">Discard changes?</h3>
-          <p className="mt-1.5 text-sm text-ink-3">The data you entered will not be saved.</p>
+          <h3 id={`${titleId}-discard`} className="font-display font-semibold text-base text-ink">Buang perubahan?</h3>
+          <p className="mt-1.5 text-sm text-ink-3">Data yang sudah diisi tidak akan disimpan.</p>
           <div className="mt-5 flex justify-end gap-3">
             <Button variant="secondary" data-testid="btn-discard-keep" autoFocus onClick={() => setConfirming(false)}>Keep editing</Button>
             <Button variant="danger" data-testid="btn-discard-confirm" onClick={() => closeRef.current()}>Discard</Button>
@@ -238,7 +238,7 @@ export function ModalActions({ onCancel, busy, submitLabel, secondary, disabled 
   return <>
     <Button variant="secondary" data-testid="btn-modal-cancel" onClick={requestClose ?? onCancel}>Cancel</Button>
     {secondary}
-    <Button type="submit" form="d4-modal-form" data-testid="btn-modal-submit" disabled={busy || disabled}>{busy ? "Saving…" : submitLabel}</Button>
+    <Button type="submit" form="d4-modal-form" data-testid="btn-modal-submit" disabled={busy || disabled}>{busy ? "Menyimpan…" : submitLabel}</Button>
   </>;
 }
 

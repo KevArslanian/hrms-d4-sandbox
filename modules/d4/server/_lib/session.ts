@@ -17,7 +17,7 @@ export async function d4Session() {
     // A deployment problem, not a request problem: log it once (no stack) and answer 503 every time.
     if (!missingConfigLogged) console.error("[d4-api] NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY is not set; D4 endpoints answer 503.");
     missingConfigLogged = true;
-    throw new ApiError("CONFIGURATION_ERROR", "The server configuration is incomplete.");
+    throw new ApiError("CONFIGURATION_ERROR", "Konfigurasi server belum lengkap.");
   }
   const cookieStore = await cookies();
   const client = createServerClient(url, key, {
@@ -29,14 +29,14 @@ export async function d4Session() {
     },
   });
   const { data, error } = await client.auth.getUser();
-  if (error || !data.user) throw new ApiError("UNAUTHENTICATED", "No login session found. Please sign in again.");
+  if (error || !data.user) throw new ApiError("UNAUTHENTICATED", "Sesi login tidak ditemukan. Silakan login kembali.");
   return { client, user: data.user, repository: new SupabaseD4Repository(client, data.user) };
 }
 
 export async function d4Access(session: Awaited<ReturnType<typeof d4Session>>): Promise<{ role: D4AppRole; employeeId: string }> {
   const { data, error } = await session.client.from("d3_user_access").select("app_role,employee_id").eq("auth_user_id", session.user.id).maybeSingle();
   if (error) throw databaseError(error, "Hak akses");
-  if (!data) throw new ApiError("FORBIDDEN", "This account has not been given access to HRMS data.");
+  if (!data) throw new ApiError("FORBIDDEN", "Akun ini belum diberi akses ke data HRMS.");
   return { role: data.app_role as D4AppRole, employeeId: data.employee_id as string };
 }
 
@@ -44,6 +44,6 @@ export async function d4Access(session: Awaited<ReturnType<typeof d4Session>>): 
 export async function requireWriter() {
   const session = await d4Session();
   const access = await d4Access(session);
-  if (access.role !== "HR" && access.role !== "MANAGER") throw new ApiError("FORBIDDEN", "Only HR or a manager can change this data.");
+  if (access.role !== "HR" && access.role !== "MANAGER") throw new ApiError("FORBIDDEN", "Hanya HR atau manager yang dapat mengubah data ini.");
   return { ...session, access };
 }

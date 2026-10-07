@@ -39,7 +39,7 @@ export function PerformanceListPage() {
     .sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName)), [snapshot, search, position, department, period, status]);
 
   return <>
-    <PageHeader title="Performance Evaluation" subtitle="Record and trace performance evaluations per employee and period."
+    <PageHeader title="Performance Evaluation" subtitle="Catat dan telusuri evaluasi performance per pegawai dan periode."
       actions={writer && <Button icon={<Plus className="size-4" />} onClick={() => setModalFor("")} data-testid="btn-add-evaluation">Add Evaluation</Button>} />
     <FilterBar canReset={Boolean(search || position || department || period || status)} onReset={() => { setSearch(""); setPosition(""); setDepartment(""); setPeriod(""); setStatus(""); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Search name or ID" />
@@ -49,7 +49,7 @@ export function PerformanceListPage() {
       <SelectFilter label="All status" testId="all-status" value={status} onChange={setStatus} options={statuses.map((item) => ({ value: item, label: statusLabel(item) }))} />
     </FilterBar>
     <DataTable<Row> rows={rows} noun="pegawai" rowKey={(row) => row.employee.id}
-      emptyTitle="No matching employees" emptyText="Change the keyword or reset the filters to see all employees."
+      emptyTitle="Tidak ada pegawai yang cocok" emptyText="Ubah kata kunci atau reset filter untuk melihat semua pegawai."
       rowHref={(row) => row.evaluation ? `/performance/${row.evaluation.id}` : `/performance/history/${row.employee.id}`}
       columns={[
         { key: "employee", header: "Employee", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
@@ -95,19 +95,19 @@ export function PerformanceDetailPage({ id }: { id: string }) {
           { label: "Department", testId: "department", value: departmentOf(snapshot, employee)?.name ?? "—" },
         ]} />
         <h3 className="mb-2 mt-8 text-sm font-semibold text-ink-2">Evaluation notes</h3>
-        <p className="whitespace-pre-wrap text-sm text-ink-2">{evaluation.generalNotes || "No evaluation notes yet."}</p>
+        <p className="whitespace-pre-wrap text-sm text-ink-2">{evaluation.generalNotes || "Belum ada catatan evaluasi."}</p>
       </Card>
       <div className="space-y-6">
         <Card title="Evidence" testId="evidence">
-          <p className="text-sm text-ink-2">{evaluation.evidenceReference || "No evidence or reference yet."}</p>
+          <p className="text-sm text-ink-2">{evaluation.evidenceReference || "Belum ada bukti atau referensi."}</p>
           <p className="mt-1 text-xs text-ink-3">Recorded by {evaluation.actor} · {formatDate(evaluation.createdAt)}</p>
         </Card>
         <Card title="Related records" testId="related-records">
           <div className="flex flex-col items-start gap-2">
-            {scorecard ? <SourceChip label="KPI Scorecard" reference={formatPeriod(scorecard.period)} href={`/kpi/${scorecard.id}`} /> : <p className="text-sm text-ink-3">No KPI scorecard for this period yet.</p>}
+            {scorecard ? <SourceChip label="KPI Scorecard" reference={formatPeriod(scorecard.period)} href={`/kpi/${scorecard.id}`} /> : <p className="text-sm text-ink-3">Belum ada KPI scorecard untuk periode ini.</p>}
             {needs.map((need) => <SourceChip key={need.needId} label="Development Requirement" reference={need.objective} href={`/development/${need.needId}`} />)}
           </div>
-          <p className="mt-4 text-xs text-ink-3">An evaluation can be context for development when relevant; no HR decision is made automatically from the score.</p>
+          <p className="mt-4 text-xs text-ink-3">Evaluasi dapat menjadi dasar development bila relevan; tidak ada keputusan HR yang dibuat otomatis dari skor.</p>
         </Card>
       </div>
     </div>
@@ -129,7 +129,7 @@ export function PerformanceHistoryPage({ employeeId }: { employeeId: string }) {
         {canAssess(snapshot, employee.id) && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)} data-testid="btn-add-evaluation">Add Evaluation</Button>}
       </>} />
     <Card title="Evaluation history" testId="evaluation-history">
-      <Timeline empty="This employee has no performance evaluation yet." entries={evaluations.map((item) => ({
+      <Timeline empty="Pegawai ini belum memiliki evaluasi performance." entries={evaluations.map((item) => ({
         id: item.id, date: `${formatPeriod(item.period)} · ${formatDate(item.evaluationDate || item.createdAt)}`,
         title: `Evaluation ${formatPeriod(item.period)}${revisionTag(evaluations, item)}`,
         status: evaluationStatus(item), actor: item.actor, href: `/performance/${item.id}`,

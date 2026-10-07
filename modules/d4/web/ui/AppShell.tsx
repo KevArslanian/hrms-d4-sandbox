@@ -108,7 +108,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <span aria-hidden="true" className="hidden h-5 w-px bg-line-strong sm:block" />
         <p data-testid="header-breadcrumb" className="hidden flex-1 truncate text-xs text-ink-2 sm:block">HRMS / {current?.label ?? "Performance & Training"}</p>
         <span className="flex-1 sm:hidden" />
-        {mode === "fixture" && <span className="hidden rounded-full bg-warning-bg px-2.5 py-1 text-[11px] font-semibold text-warning md:inline">Preview · sample data</span>}
+        {mode === "fixture" && <span className="hidden rounded-full bg-warning-bg px-2.5 py-1 text-[11px] font-semibold text-warning md:inline">Pratinjau · data contoh</span>}
         <span className="rounded-lg p-2 text-ink-2" title="Notifications"><Bell aria-hidden="true" className="size-5" /><span className="sr-only">Notifications</span></span>
         <span aria-hidden="true" className="h-8 w-px bg-line" />
         <div className="flex items-center gap-2.5">

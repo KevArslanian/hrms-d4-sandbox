@@ -120,7 +120,7 @@ const delay = () => new Promise((resolve) => setTimeout(resolve, 250));
 export function createFixtureSource(): D4DataSource {
   let state = BULK_ROWS ? withBulk(initialSnapshot(), BULK_ROWS) : initialSnapshot();
   const update = (patch: Partial<D4LiveSnapshot>) => { state = { ...state, ...patch }; };
-  const assertWriter = () => { if (state.role === "EMPLOYEE") throw new Error("Only HR or a manager can save changes."); };
+  const assertWriter = () => { if (state.role === "EMPLOYEE") throw new Error("Hanya HR atau manager yang dapat menyimpan perubahan."); };
   // The evaluator is always the signed-in actor, never a free-text value from the form.
   const actorName = () => state.reference.employees.find((item) => item.id === state.actorEmployeeId)?.fullName ?? "HR";
   return {
@@ -145,11 +145,11 @@ export function createFixtureSource(): D4DataSource {
       assertNotFutureDate(input.evaluationDate);
       assertPeriodRevision(state.kpiAssessments ?? [], input.employeeId, input.period, revisionOf, "Scorecard");
       const indicators = indicatorsFor(catalog, input.roleOrder);
-      if (indicators.length !== 5) throw new Error("The KPI role was not found in the catalog.");
+      if (indicators.length !== 5) throw new Error("Role KPI tidak ditemukan di katalog.");
       const employee = state.reference.employees.find((item) => item.id === input.employeeId);
       const positionTitle = state.reference.positions.find((item) => item.id === employee?.positionId)?.title;
-      if (roleForPositionTitle(catalog, positionTitle) !== input.roleOrder) throw new Error("The selected KPI set does not belong to this employee's position.");
-      if (input.status === "completed" && input.lines.some((line) => line.raw_score === null)) throw new Error("All five KPI indicators must be scored before completing.");
+      if (roleForPositionTitle(catalog, positionTitle) !== input.roleOrder) throw new Error("Set KPI yang dipilih bukan milik posisi pegawai ini.");
+      if (input.status === "completed" && input.lines.some((line) => line.raw_score === null)) throw new Error("Kelima indikator KPI harus dinilai sebelum diselesaikan.");
       const id = newId("FIX-D4-KPI");
       update({ kpiAssessments: [{ ...input, id, definitionVersion: catalog.version, roleName: indicators[0].role_name, overallScore: total(input.lines), createdAt: now(), actor: actorName() }, ...(state.kpiAssessments ?? [])] });
       return id;
@@ -157,17 +157,17 @@ export function createFixtureSource(): D4DataSource {
     async saveCompetency(input) {
       assertWriter();
       const employee = state.reference.employees.find((item) => item.id === input.employeeId);
-      if (!employee) throw new Error("Employee not found.");
+      if (!employee) throw new Error("Pegawai tidak ditemukan.");
       const comparison = compareCompetencies(input.employeeId, input.positionId, state.reference);
-      if (!comparison.findings.length) throw new Error("The position has no competency requirements yet.");
+      if (!comparison.findings.length) throw new Error("Posisi ini belum memiliki persyaratan kompetensi.");
       const id = newId("FIX-D4-COMP");
       update({ competency: [{ id, source: "local-demo", employeeId: input.employeeId, positionId: input.positionId, effectiveDate: input.effectiveDate, context: employee.positionId === input.positionId ? "current-position" : "role-change", findings: comparison.findings, overallStatus: comparison.overallStatus, createdAt: now(), actor: actorName() }, ...state.competency] });
       return id;
     },
     async createDevelopment(input) {
       assertWriter();
-      if (!input.objective.trim()) throw new Error("Development objective is required.");
-      if (!input.sourceRef) throw new Error("Source reference is required.");
+      if (!input.objective.trim()) throw new Error("Development objective wajib diisi.");
+      if (!input.sourceRef) throw new Error("Source reference wajib diisi.");
       assertNoOpenNeed(latestDevelopment(state), input.employeeId, input.sourceType, input.sourceRef);
       assertGapAssessed(state.competency, state.reference.employees.find((item) => item.id === input.employeeId), input.sourceType);
       const needId = newId("FIX-D4-DEV");
@@ -177,17 +177,17 @@ export function createFixtureSource(): D4DataSource {
     async updateDevelopment(needId, status, notes) {
       assertWriter();
       const current = latestDevelopment(state).find((item) => item.needId === needId);
-      if (!current) throw new Error("Development need not found.");
+      if (!current) throw new Error("Development requirement tidak ditemukan.");
       assertDevelopmentChange(current.status, status, notes, openTrainingCount(latestTraining(state), needId));
       update({ developmentVersions: [{ ...current, id: newId("FIX-D4-DEV-V"), revision: current.revision + 1, status, notes, createdAt: now(), actor: actorName() }, ...state.developmentVersions] });
     },
     async createTraining(input) {
       assertWriter();
       const need = latestDevelopment(state).find((item) => item.needId === input.developmentNeedId);
-      if (!need || need.employeeId !== input.employeeId) throw new Error("Training must refer to a development need of the same employee.");
+      if (!need || need.employeeId !== input.employeeId) throw new Error("Training harus merujuk ke development requirement milik pegawai yang sama.");
       assertNeedOpen(need);
       assertTrainingDate(input.status, input.date);
-      if (input.status === "Completed" && !input.result.trim()) throw new Error("Result is required when the training is completed.");
+      if (input.status === "Completed" && !input.result.trim()) throw new Error("Result wajib diisi saat training Completed.");
       const trainingId = newId("FIX-D4-TRN");
       update({ trainingVersions: [{ ...input, id: newId("FIX-D4-TRN-V"), trainingId, revision: 1, source: "local-demo", createdAt: now(), actor: actorName() }, ...state.trainingVersions] });
       return trainingId;
@@ -195,8 +195,8 @@ export function createFixtureSource(): D4DataSource {
     async updateTraining(trainingId, status, result, notes) {
       assertWriter();
       const current = latestTraining(state).find((item) => item.trainingId === trainingId);
-      if (!current) throw new Error("Training not found.");
-      if (status === "Completed" && !result.trim()) throw new Error("Result is required when the training is completed.");
+      if (!current) throw new Error("Training tidak ditemukan.");
+      if (status === "Completed" && !result.trim()) throw new Error("Result wajib diisi saat training Completed.");
       assertTrainingChange(current.status, status, notes);
       update({ trainingVersions: [{ ...current, id: newId("FIX-D4-TRN-V"), revision: current.revision + 1, status, result, notes, createdAt: now(), actor: actorName() }, ...state.trainingVersions] });
     },

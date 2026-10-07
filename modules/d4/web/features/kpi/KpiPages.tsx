@@ -48,7 +48,7 @@ export function KpiListPage() {
     .sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName)), [snapshot, catalog, search, position, department, period, status]);
 
   return <>
-    <PageHeader title="KPI Scorecard" subtitle="Five Core KPIs per position and period, weighted to 100%, with a total weighted score."
+    <PageHeader title="KPI Scorecard" subtitle="Lima Core KPI per posisi dan periode, berbobot total 100%, dengan skor total terbobot."
       actions={writer && <Button icon={<Plus className="size-4" />} onClick={() => setModalFor("")} data-testid="btn-add-scorecard">Add Scorecard</Button>} />
     <CatalogNotice />
     <FilterBar canReset={Boolean(search || position || department || period || status)} onReset={() => { setSearch(""); setPosition(""); setDepartment(""); setPeriod(""); setStatus(""); }}>
@@ -59,7 +59,7 @@ export function KpiListPage() {
       <SelectFilter label="All status" testId="all-status" value={status} onChange={setStatus} options={["Completed", "Draft", "Not Evaluated"].map((item) => ({ value: item, label: statusLabel(item) }))} />
     </FilterBar>
     <DataTable<Row> rows={rows} noun="pegawai" rowKey={(row) => row.employee.id}
-      emptyTitle="No matching employees" emptyText="Change the keyword or reset the filters."
+      emptyTitle="Tidak ada pegawai yang cocok" emptyText="Ubah kata kunci atau reset filter."
       rowHref={(row) => row.scorecard ? `/kpi/${row.scorecard.id}` : `/kpi/history/${row.employee.id}`}
       columns={[
         { key: "employee", header: "Employee", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
@@ -113,8 +113,8 @@ export function KpiDetailPage({ id }: { id: string }) {
           <p className="mt-5 text-xs text-ink-3">Total = Σ (weight × raw score). There is no achieved/not-achieved label because no official threshold exists yet.</p>
         </Card>
         <Card title="Notes & related" testId="notes-related">
-          <p className="whitespace-pre-wrap text-sm text-ink-2">{scorecard.generalNotes || "No notes yet."}</p>
-          <div className="mt-4">{evaluation ? <SourceChip label="Performance Evaluation" reference={formatPeriod(evaluation.period)} href={`/performance/${evaluation.id}`} /> : <p className="text-xs text-ink-3">No performance evaluation for this period yet.</p>}</div>
+          <p className="whitespace-pre-wrap text-sm text-ink-2">{scorecard.generalNotes || "Belum ada catatan."}</p>
+          <div className="mt-4">{evaluation ? <SourceChip label="Performance Evaluation" reference={formatPeriod(evaluation.period)} href={`/performance/${evaluation.id}`} /> : <p className="text-xs text-ink-3">Belum ada evaluasi performance untuk periode ini.</p>}</div>
         </Card>
       </div>
     </div>
@@ -136,7 +136,7 @@ export function KpiHistoryPage({ employeeId }: { employeeId: string }) {
       actions={canAssess(snapshot, employee.id) && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)} data-testid="btn-add-scorecard">Add Scorecard</Button>} />
     {title && catalog && !roleForPositionTitle(catalog, title) && <Notice tone="warning">{noKpiText(catalog.version)}</Notice>}
     <Card title="Scorecard history" testId="scorecard-history">
-      <Timeline empty="This employee has no KPI scorecard yet." entries={scorecards.map((item) => ({
+      <Timeline empty="Pegawai ini belum memiliki KPI scorecard." entries={scorecards.map((item) => ({
         id: item.id, date: `${formatPeriod(item.period)} · ${formatDate(item.evaluationDate || item.createdAt)}`,
         title: `${item.roleName} — ${formatScore(item.overallScore)}${revisionTag(scorecards, item)}`, status: scorecardStatus(item), actor: item.actor, href: `/kpi/${item.id}`,
         body: `Catalog ${item.definitionVersion} · Evaluator ${item.evaluatorName || "—"}`,
