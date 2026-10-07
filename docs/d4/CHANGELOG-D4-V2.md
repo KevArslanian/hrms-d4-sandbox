@@ -25,7 +25,7 @@ Tanggal: 29 Sep 2026 · Branch: `feature/d4-v2-d2-style`
 - **Katalog KPI V5.1** (10 role × 5 KPI) di `modules/d4/kpi/catalog.ts` dan migrasi `20260929150000_d4_kpi_catalog_v51.sql` (belum diterapkan).
 - **Mode preview** (`NEXT_PUBLIC_D4_DATA_MODE=fixture`, hanya `next dev`) dengan pilihan peran `NEXT_PUBLIC_D4_FIXTURE_ROLE`. Peran EMPLOYEE hanya melihat datanya sendiri dan tidak bisa menulis.
 - **Seeder** `npm run seed:d4` (dry run default, `--apply` untuk menulis, penanda `[seed-d4]`).
-- **Filter source requirement** di Training Tracking.
+- **Filter source requirement** di Training Tracking (dihapus lagi pada perbaikan bug 6 Okt 2026; diganti filter departemen).
 - **Periode sumber** di bawah skor KPI dan Performance pada tabel People Dashboard.
 - **Figma**: 36 frame D4 V2 dan 8 prototype link di https://www.figma.com/design/blDVBM6m8VC02A7PvouX4F (page `D4`). Source chip yang lebih lebar dari kolomnya memotong referensinya dengan elipsis.
 - **Dokumentasi**: UI-D4-001, API-D4-001, brief redesign, draft Docmost/Planka.
@@ -67,7 +67,7 @@ Perbaikan dari audit ulang terhadap dokumen dan flow bisnis; detail di [AUDIT-UX
 - **Evaluator = user login**: field read-only; API mengambil nama dari akun dan menolak penilaian diri sendiri (L3, L4).
 - **Training ↔ requirement**: requirement Completed tidak bisa diberi training baru; peringatan saat menyelesaikan requirement yang training-nya masih berjalan (L5).
 - **Satu requirement terbuka per gap**: gap yang sudah tertangani tidak bisa dibuatkan requirement lagi; notes menyimpan nilai gap saat dibuat (L6).
-- **Label**: "Evaluator", "Evaluation date", "Add Scorecard", "Add Evaluation" di semua layar (U1).
+- **Label**: "Evaluator", "Evaluation date", "Add Scorecard", "Add Evaluation" di semua layar (U1). Sempat diganti ke bahasa Indonesia (PR #9, #10), lalu kembali ke bahasa Inggris pada 6 Okt 2026.
 - **Sidebar**: modul squad lain diredupkan dan ditandai belum terhubung (U2).
 - **Training rollback**: status mundur wajib disertai alasan (U4).
 
@@ -83,6 +83,60 @@ Detail di [QA-STABILITY-D4.md](QA-STABILITY-D4.md). `npm test` (Vitest) menjalan
 
 - `/login` memakai kode login tim B2 dari `PISD-X-ANDIMA/Andima-HRMS` branch `feature/D3-005-employee-report-ticket`: tampilan kartu kaca, `signInWithPassword`, cek `d3_user_access`, `signOut` bila akun belum punya role.
 - Penyesuaian D4: tujuan setelah login `/dashboard`; tidak ada register mandiri ("Belum punya akun? Hubungi HR Admin."); kotak "Kredensial Pengujian (Demo)" dari Figma B2 hanya tampil bila `NEXT_PUBLIC_D4_DEMO_EMAIL` dan `NEXT_PUBLIC_D4_DEMO_PASSWORD` diisi.
+
+## Bahasa Indonesia dan perbaikan bug · 6 Okt 2026
+
+- **Bahasa**: semua label, tombol, menu ⋮, header tabel, placeholder, empty state, dan form modal berbahasa Indonesia (PR #9, #10). `data-testid` lama dipertahankan agar XPath Katalon tidak berubah.
+- **Perbaikan bug ronde 1**: kolom Departemen dan status Draf di KPI Scorecard, tanggal evaluasi tidak boleh di masa depan, tidak ada tombol Tambah untuk data diri sendiri, menu ⋮ tanpa "Lihat Detail" (klik baris), konfirmasi sebelum menutup modal yang sudah diisi, kode FR dihapus dari subjudul.
+
+## Penyeragaman antar halaman · 6 Okt 2026
+
+| Area | Sebelum | Sesudah | Bukti |
+|---|---|---|---|
+| Departemen | Filter dan kolom hanya di KPI Scorecard | Filter **Semua departemen** di keenam halaman daftar; kolom Departemen di Performance, KPI, Competency; Dashboard memakai kolom **Posisi / Departemen** | `modules/d4/web/features/*/…Pages.tsx` |
+| Header detail/riwayat | Isi meta berbeda per fitur | Selalu posisi · ID · departemen, lalu konteks halaman | `employeeMeta` di `modules/d4/web/data/selectors.ts` |
+| Riwayat Performance | Tanpa tombol tambah | Tombol **Tambah Evaluasi**, sama dengan riwayat KPI | `PerformancePages.tsx` |
+| Tabel Dashboard 1440 px | Melebar 90 px, kolom Aksi terpotong | Muat tanpa scroll | `DashboardPages.tsx` |
+| Profil karyawan Dashboard | Kolom Terbobot dan angka Total di luar layar | Terlihat tanpa menggeser tabel | `DashboardPages.tsx` |
+| Filter | "Semua departemen" terpotong | Search min. 160 px, dropdown min. 180 px; muat satu baris di 1440 px | `modules/d4/web/ui/forms.tsx` |
+| Tanggal | `en-GB`: "Sept 2026", "12 Oct 2026" | `id-ID`: "Sep 2026", "12 Okt 2026" | `formatDate`, `formatPeriod` |
+| Copy | Back, Evaluator, capability/evidence/employee/position | Kembali, Penilai, kemampuan/bukti/karyawan/posisi | `ui/layout.tsx`, fitur terkait |
+| Form Training | Error "Lengkapi field wajib… Completed" walau status lain; requirement sumber "belum memiliki requirement" sebelum karyawan dipilih | "Lengkapi <field> sebelum menyimpan." seperti form Evaluasi; "Pilih karyawan terlebih dahulu"; status berlabel Indonesia | `TrainingModals.tsx` |
+| Data fixture | Requirement Alfa Teridentifikasi padahal training Direncanakan; Charlie Direncanakan padahal training Sedang Berjalan bertanggal 12 Okt | Requirement Alfa Direncanakan, Charlie Sedang Berjalan; training Charlie 1 Okt 2026 | `modules/d4/development/fixtures.ts`, `modules/d4/training/fixtures.ts` |
+
+Belum diputuskan: status requirement tidak otomatis mengikuti status training, dan training Sedang Berjalan masih boleh bertanggal di masa depan. Keduanya aturan bisnis yang perlu keputusan PO.
+
+## UI bahasa Inggris dan font Poppins · 6 Okt 2026
+
+Keputusan pemilik produk: tampilan D4 di Vercel memakai bahasa Inggris dan font Poppins. Ini membalik arah PR #9/#10 (Bahasa Indonesia).
+
+| Area | Perubahan | Bukti |
+|---|---|---|
+| Font | Inter + Montserrat diganti **Poppins** (400–800) untuk teks dan judul; judul tetap SemiBold lewat `font-semibold` | `app/layout.tsx`, `app/globals.css` |
+| Teks UI | Semua label, tombol, menu ⋮, header tabel, placeholder, empty state, modal, toast, dan halaman login/register berbahasa Inggris; `<html lang="en">` | `modules/d4/web/**`, `app/login`, `app/register` |
+| Pesan error API | Pesan validasi dan error server dalam bahasa Inggris (status kode tidak berubah) | `modules/d4/shared/rules.ts`, `shared/errors.ts`, `server/**`, `supabase/repository.ts` |
+| Status | Status workflow tampil sesuai nilai database (Completed, Planned, …); status kompetensi D3 ditampilkan sebagai Met / Insufficient Data / No Requirement | `statusLabel` di `ui/primitives.tsx` |
+| Tanggal | "12 Oct 2026", "Sep 2026" | `formatDate`, `formatPeriod` |
+| Katalon | Semua `data-testid` sama persis dengan sebelum terjemahan (diverifikasi di 39 tampilan mode preview) | slug lama dipasang sebagai `testId` eksplisit |
+| Data fixture | Data contoh mode preview diterjemahkan | `*/fixtures.ts`, `shared/fixtures/reference-data.ts` |
+| Layout | Placeholder search dipersingkat; kartu KPI di profil karyawan selebar penuh di ≥1280 px agar kolom Weighted dan Total tetap terlihat dengan Poppins | `DashboardPages.tsx` |
+
+Tidak diterjemahkan: nama KPI katalog V5.1, data D3 (karyawan, posisi, kompetensi), isi data seed live, dan pesan error yang dibangkitkan fungsi database (`raise exception` di migrasi Supabase).
+
+## Konsistensi filter dan tombol · 6 Okt 2026
+
+- **Filter**: label seragam `All …` dan urutan Position → Department → Source → Period → Status. "Latest period" di Performance/KPI menjadi **All periods**; "All gap status" di Competency menjadi **All status**. Filter periode People Dashboard (daftar dan profil) tidak lagi punya pilihan kosong dan langsung menampilkan periode terbaru (mis. "Sep 2026"). `data-testid` tetap.
+- **Training Tracking**: tombol **Add Training** di header dihapus; training dibuat dari Development Requirement → **Create Training**.
+- **Tombol detail**: Assess Position Change (Competency) dan Update Status (Development) menjadi primer biru seperti Add Evaluation / Add Scorecard / Update Progress. View History dan link navigasi tetap putih.
+
+## Evaluasi kinerja tanpa skor · 6 Okt 2026
+
+Keputusan pemilik produk: Performance Evaluation hanya berisi catatan; skor hanya di KPI Scorecard.
+
+- Form Add Evaluation tidak lagi punya field **Evaluation result**; API mengabaikan `overallScore` dan menyimpan `null`.
+- Tabel Performance: kolom Result diganti **Notes**. Detail: Evaluation result dan Criteria dihapus. Riwayat: judul tanpa skor.
+- People Dashboard: kolom Performance (skor) menjadi **Evaluation** (Completed / Not Evaluated); kartu profil menampilkan catatan evaluasi.
+- Database: migrasi `20261006120000_d4_evaluation_score_optional.sql` melonggarkan check `d4_performance_evaluations_check` (skor tidak wajib untuk status completed). Kolom `overall_score` tetap ada untuk evaluasi lama. **Belum diterapkan**; sampai diterapkan, simpan evaluasi di mode live ditolak database.
 
 ## Belum selesai
 

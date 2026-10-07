@@ -46,8 +46,8 @@
   --color-avatar-me: #0b6b4f;
   --color-people: #c94fea;
 
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-montserrat), var(--font-inter), ui-sans-serif, sans-serif;
+  --font-sans: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-poppins), ui-sans-serif, sans-serif;
 
   --shadow-card: 0 8px 24px rgb(21 93 252 / 0.08);
   --shadow-modal: 0 24px 48px rgb(15 23 43 / 0.2);
@@ -57,4 +57,11 @@ body {
   background: var(--color-app);
   color: var(--color-ink);
   font-family: var(--font-sans);
+}
+
+/* Click feedback: only the button background darkens while pressed; text colour stays. */
+@layer base {
+  button:not(:disabled):active {
+    background-image: linear-gradient(rgb(15 35 66 / 0.1), rgb(15 35 66 / 0.1));
+  }
 }

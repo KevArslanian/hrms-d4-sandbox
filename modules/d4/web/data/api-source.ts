@@ -11,9 +11,9 @@ const REQUEST_TIMEOUT_MS = 20_000;
 
 const MESSAGES = {
   NETWORK_ERROR: "Tidak dapat terhubung ke server. Periksa koneksi internet lalu coba lagi.",
-  TIMEOUT: "Server terlalu lama merespons. Coba lagi beberapa saat lagi.",
-  INTEGRATION_ERROR: "Layanan data HRMS sedang tidak dapat dihubungi. Coba lagi beberapa saat lagi.",
-  SERVER_ERROR: "Permintaan ke server gagal. Coba lagi beberapa saat lagi.",
+  TIMEOUT: "Server terlalu lama merespons. Coba lagi sebentar lagi.",
+  INTEGRATION_ERROR: "Layanan data HRMS sedang tidak dapat dihubungi. Coba lagi sebentar lagi.",
+  SERVER_ERROR: "Permintaan ke server gagal. Coba lagi sebentar lagi.",
 } as const;
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {

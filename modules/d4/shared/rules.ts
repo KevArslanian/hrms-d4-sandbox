@@ -30,7 +30,7 @@ export function latestForPeriod<T extends PeriodRecord>(records: readonly T[], e
 export function assertPeriodRevision(records: readonly PeriodRecord[], employeeId: string, period: string, revisionOf: string | null | undefined, label: string) {
   const current = latestForPeriod(records, employeeId, period);
   if (current && revisionOf !== current.id) throw new ApiError("VALIDATION_FAILED", `${label} untuk periode ini sudah ada. Simpan sebagai revisi atau buka riwayatnya.`);
-  if (!current && revisionOf) throw new ApiError("VALIDATION_FAILED", `${label} yang direvisi tidak sesuai employee atau periode.`);
+  if (!current && revisionOf) throw new ApiError("VALIDATION_FAILED", `${label} yang direvisi tidak cocok dengan pegawai atau periodenya.`);
 }
 
 /** Revision number of a record within its employee and period (1 = first record). */
@@ -40,12 +40,12 @@ export function revisionNumber<T extends PeriodRecord>(records: readonly T[], re
 
 /** An evaluator never assesses themselves. */
 export function assertNotSelf(actorEmployeeId: string, employeeId: string) {
-  if (actorEmployeeId === employeeId) throw new ApiError("VALIDATION_FAILED", "Penilaian untuk diri sendiri harus dibuat oleh HR atau atasan lain.");
+  if (actorEmployeeId === employeeId) throw new ApiError("VALIDATION_FAILED", "Penilaian untuk diri sendiri harus dilakukan oleh HR atau manager lain.");
 }
 
 /** A completed development need does not take new training. */
 export function assertNeedOpen(need: Pick<DevelopmentNeedVersion, "status"> | undefined) {
-  if (need?.status === "Completed") throw new ApiError("VALIDATION_FAILED", "Development requirement ini sudah Completed; training baru harus mengacu pada requirement yang masih terbuka.");
+  if (need?.status === "Completed") throw new ApiError("VALIDATION_FAILED", "Development requirement ini sudah Completed; training baru harus merujuk ke requirement yang masih terbuka.");
 }
 
 /** An unfinished need already raised from the same source, if any (prevents duplicate needs for one gap). */
@@ -68,7 +68,7 @@ export const isTrainingRollback = (from: TrainingStatus, to: TrainingStatus) =>
   from !== to && (TRAINING_STEP[to] < TRAINING_STEP[from] || from === "Cancelled" || (from === "Completed" && to === "Cancelled"));
 
 export function assertTrainingChange(from: TrainingStatus, to: TrainingStatus, notes: string) {
-  if (isTrainingRollback(from, to) && !notes.trim()) throw new ApiError("VALIDATION_FAILED", `Alasan perubahan wajib diisi saat status kembali dari ${from} ke ${to}.`);
+  if (isTrainingRollback(from, to) && !notes.trim()) throw new ApiError("VALIDATION_FAILED", `Alasan wajib diisi saat status mundur dari ${from} ke ${to}.`);
 }
 
 const DEVELOPMENT_STEP: Record<DevelopmentStatus, number> = { Identified: 0, Planned: 1, "In Progress": 2, Completed: 3 };
@@ -77,12 +77,29 @@ const DEVELOPMENT_STEP: Record<DevelopmentStatus, number> = { Identified: 0, Pla
 export const isDevelopmentRollback = (from: DevelopmentStatus, to: DevelopmentStatus) => DEVELOPMENT_STEP[to] < DEVELOPMENT_STEP[from];
 
 /** A status update must change the status, and moving back needs a reason (same rule as training). */
-export function assertDevelopmentChange(from: DevelopmentStatus, to: DevelopmentStatus, notes: string) {
+export function assertDevelopmentChange(from: DevelopmentStatus, to: DevelopmentStatus, notes: string, openTrainings = 0) {
   if (from === to) throw new ApiError("VALIDATION_FAILED", `Status sudah ${to}. Pilih status lain.`);
-  if (isDevelopmentRollback(from, to) && !notes.trim()) throw new ApiError("VALIDATION_FAILED", `Alasan perubahan wajib diisi saat status kembali dari ${from} ke ${to}.`);
+  if (isDevelopmentRollback(from, to) && !notes.trim()) throw new ApiError("VALIDATION_FAILED", `Alasan wajib diisi saat status mundur dari ${from} ke ${to}.`);
+  if (to === "Completed" && openTrainings > 0 && !notes.trim()) throw new ApiError("VALIDATION_FAILED", "Training untuk requirement ini masih Planned atau In Progress. Selesaikan atau batalkan dulu, atau jelaskan alasannya di Notes.");
+}
+
+/** Planned/In Progress trainings of a need: completing the need while these run needs a reason. */
+export const openTrainingCount = (trainings: readonly { developmentNeedId: string; status: TrainingStatus }[], needId: string) =>
+  trainings.filter((item) => item.developmentNeedId === needId && (item.status === "Planned" || item.status === "In Progress")).length;
+
+/** A gap-based need is raised only after a competency assessment is saved for the employee's active position. */
+export function assertGapAssessed(competency: readonly { employeeId: string; positionId: string }[], employee: { id: string; positionId?: string | null } | undefined, sourceType: DevelopmentSourceType) {
+  if (sourceType !== "competency_gap") return;
+  if (!employee?.positionId || !competency.some((item) => item.employeeId === employee.id && item.positionId === employee.positionId))
+    throw new ApiError("VALIDATION_FAILED", "Simpan penilaian kompetensi untuk posisi aktif sebelum membuat development requirement dari gap-nya.");
+}
+
+/** A completed training already happened, so its date cannot be later than today; planned training may be in the future. */
+export function assertTrainingDate(status: TrainingStatus, date: string) {
+  if (status === "Completed") assertNotFutureDate(date, "The date of a completed training");
 }
 
 /** Evaluation dates are when the evaluation happened, so they cannot be later than today (WIB). */
 export function assertNotFutureDate(date: string | null | undefined, label = "Evaluation date") {
-  if (date && date > localToday()) throw new ApiError("VALIDATION_FAILED", `${label} tidak boleh melebihi hari ini.`);
+  if (date && date > localToday()) throw new ApiError("VALIDATION_FAILED", `${label} tidak boleh lebih dari hari ini.`);
 }

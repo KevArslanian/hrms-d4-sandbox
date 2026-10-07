@@ -7,7 +7,7 @@ import { latestDevelopment, latestTraining } from "@/modules/d4/supabase/types";
 const MERCURY = "d4000000-0000-4000-8000-000000000012";
 const ALFA = "d4000000-0000-4000-8000-000000000009";
 const HOLLY = "d4000000-0000-4000-8000-000000000016";
-const ALFA_GAP = "d4000000-0000-4000-8000-000000000028"; // Akurasi Administrasi, level 2 of min. 4
+const ALFA_GAP = "d4000000-0000-4000-8000-000000000028"; // Administrative Accuracy, level 2 of min. 4
 
 const evaluation = (patch: Partial<EvaluationDraft> = {}): EvaluationDraft => ({
   employeeId: HOLLY, period: "2026-09", evaluationDate: "2026-09-30", evaluator: "Mercury", status: "completed",
@@ -42,7 +42,7 @@ describe("performance evaluation (fixture)", () => {
   });
 
   it("rejects revisionOf when nothing exists for the period", async () => {
-    await expect(source.createEvaluation(evaluation({ period: "2026-11", revisionOf: "FIX-D4-PERF-001" }))).rejects.toThrow(/tidak sesuai/);
+    await expect(source.createEvaluation(evaluation({ period: "2026-11", revisionOf: "FIX-D4-PERF-001" }))).rejects.toThrow(/tidak cocok/);
   });
 
   it("rejects self-evaluation", async () => {
@@ -50,14 +50,16 @@ describe("performance evaluation (fixture)", () => {
   });
 
   it.each([
-    ["score out of range", { overallScore: 6 }],
-    ["fractional score", { overallScore: 3.5 }],
-    ["missing score", { overallScore: null }],
     ["empty notes", { generalNotes: "  " }],
     ["bad period", { period: "2026-13" }],
     ["missing date", { evaluationDate: "" }],
   ])("rejects invalid input: %s", async (_name, patch) => {
     await expect(source.createEvaluation(evaluation(patch as Partial<EvaluationDraft>))).rejects.toThrow();
+  });
+
+  it("saves an evaluation without a score (scores live in the KPI Scorecard)", async () => {
+    const id = await source.createEvaluation(evaluation({ period: "2026-12", overallScore: null }));
+    expect((await source.loadSnapshot()).performance.find((item) => item.id === id)?.overallScore).toBeNull();
   });
 });
 
@@ -81,7 +83,7 @@ describe("KPI scorecard (fixture)", () => {
 
   it("rejects an incomplete completed scorecard", async () => {
     const draft = await kpiDraft(ALFA, "2026-10");
-    await expect(source.createKpiAssessment({ ...draft, lines: draft.lines.map((line, index) => index ? line : { ...line, raw_score: null }) })).rejects.toThrow(/lima indikator/);
+    await expect(source.createKpiAssessment({ ...draft, lines: draft.lines.map((line, index) => index ? line : { ...line, raw_score: null }) })).rejects.toThrow(/lima indikator KPI/);
   });
 });
 
@@ -95,20 +97,22 @@ describe("development and training (fixture)", () => {
   });
 
   it("rejects new training for a completed requirement", async () => {
-    await source.updateDevelopment("FIX-D4-DEV-001", "Completed", "");
+    // DEV-001 still has a Planned training, so completing it needs a reason.
+    await expect(source.updateDevelopment("FIX-D4-DEV-001", "Completed", "")).rejects.toThrow(/masih Planned atau In Progress/);
+    await source.updateDevelopment("FIX-D4-DEV-001", "Completed", "Workshop dibatalkan, diganti coaching");
     await expect(source.createTraining({ employeeId: ALFA, developmentNeedId: "FIX-D4-DEV-001", activity: "X", date: "2026-10-01", status: "Planned", result: "", notes: "" }))
       .rejects.toThrow(/Completed/);
   });
 
   it("rejects training that points to another employee's requirement", async () => {
     await expect(source.createTraining({ employeeId: HOLLY, developmentNeedId: "FIX-D4-DEV-001", activity: "X", date: "2026-10-01", status: "Planned", result: "", notes: "" }))
-      .rejects.toThrow(/employee yang sama/);
+      .rejects.toThrow(/pegawai yang sama/);
   });
 
   it("requires a result on completion and a reason on rollback", async () => {
-    await expect(source.updateTraining("FIX-D4-TRN-001", "Completed", "", "")).rejects.toThrow(/Hasil/);
+    await expect(source.updateTraining("FIX-D4-TRN-001", "Completed", "", "")).rejects.toThrow(/Result wajib diisi/);
     await source.updateTraining("FIX-D4-TRN-001", "Completed", "Lulus", "");
-    await expect(source.updateTraining("FIX-D4-TRN-001", "In Progress", "Lulus", "")).rejects.toThrow(/Alasan/);
+    await expect(source.updateTraining("FIX-D4-TRN-001", "In Progress", "Lulus", "")).rejects.toThrow(/Alasan wajib diisi/);
     await source.updateTraining("FIX-D4-TRN-001", "In Progress", "Lulus", "Perlu sesi ulang");
     const versions = (await source.loadSnapshot()).trainingVersions.filter((item) => item.trainingId === "FIX-D4-TRN-001");
     expect(versions.map((item) => item.revision).sort()).toEqual([1, 2, 3]);
@@ -116,10 +120,10 @@ describe("development and training (fixture)", () => {
   });
 
   it("keeps history append-only across status changes", async () => {
-    await source.updateDevelopment("FIX-D4-DEV-001", "Planned", "a");
-    await source.updateDevelopment("FIX-D4-DEV-001", "In Progress", "b");
+    await source.updateDevelopment("FIX-D4-DEV-001", "In Progress", "a");
+    await source.updateDevelopment("FIX-D4-DEV-001", "Completed", "b");
     const versions = (await source.loadSnapshot()).developmentVersions.filter((item) => item.needId === "FIX-D4-DEV-001");
-    expect(versions.map((item) => item.status)).toEqual(expect.arrayContaining(["Identified", "Planned", "In Progress"]));
+    expect(versions.map((item) => item.status)).toEqual(expect.arrayContaining(["Planned", "In Progress", "Completed"]));
   });
 
   it("rejects an unknown training or requirement", async () => {

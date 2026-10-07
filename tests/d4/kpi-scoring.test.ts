@@ -100,7 +100,7 @@ describe("roleForPositionTitle (FR-02.11)", () => {
 
   it("maps every fixture position; only the positions without a V5.1 KPI return 0", () => {
     const withoutKpi = d4ReferenceFixture.positions.filter((position) => roleForPositionTitle(catalog, position.title) === 0).map((position) => position.title);
-    expect(withoutKpi.sort()).toEqual(["HR Associate Officer", "Operations Staff", "Staf Demo D4"]);
+    expect(withoutKpi.sort()).toEqual(["D4 Demo Staff", "HR Associate Officer", "Operations Staff"]);
   });
 
   // BUG-D4-005 regression: keywords match whole words, so "edi" inside "Credit"/"Media" no longer maps to Implant Staff.

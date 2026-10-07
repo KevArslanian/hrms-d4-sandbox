@@ -14,7 +14,7 @@ function fakeClient(results: Record<string, Result>) {
   const from = (table: string) => {
     let op = "select";
     const builder = {
-      select: () => builder, eq: () => builder, order: () => builder, limit: () => builder, single: () => builder, maybeSingle: () => builder,
+      select: () => builder, eq: () => builder, order: () => builder, limit: () => builder, range: () => builder, single: () => builder, maybeSingle: () => builder,
       insert: () => { op = "insert"; return builder; },
       then: (resolve: (value: Result) => unknown) => {
         calls.push(`${table}:${op}`);
@@ -45,7 +45,7 @@ describe("duplicate and concurrent writes", () => {
     const error = await new SupabaseD4Repository(client).updateTraining("t", "In Progress", "", "").catch((cause) => cause);
     expect(error).toBeInstanceOf(ApiError);
     expect(error).toMatchObject({ code: "CONFLICT", status: 409 });
-    expect(error.message).toMatch(/Muat ulang/);
+    expect(error.message).toMatch(/Muat ulang halaman/);
   });
 
   it("answers a re-sent identical snapshot (double click) with the stored one instead of a second row", async () => {
@@ -86,7 +86,7 @@ describe("typed repository errors", () => {
     const { client } = fakeClient({});
     const employee = { ...reference.employees[0], id: "no-position", positionId: null };
     const error = await new SupabaseD4Repository(client).savePerformance(evaluation(employee.id), { ...reference, employees: [...reference.employees, employee] }).catch((cause) => cause);
-    expect(error).toMatchObject({ code: "VALIDATION_FAILED", message: "Posisi employee tidak tersedia." });
+    expect(error).toMatchObject({ code: "VALIDATION_FAILED", message: "Posisi pegawai tidak tersedia." });
   });
 
   it("maps an RLS denial to FORBIDDEN and leaves unknown database errors untyped", async () => {
@@ -110,3 +110,25 @@ describe("auth.getUser per request", () => {
     expect(verified.getUserCalls()).toBe(0);
   });
 });
+
+// PostgREST caps a response at 1000 rows; the snapshot must page instead of silently dropping the rest.
+describe("large tables", () => {
+  it("reads every page of a table with more than 1000 rows", async () => {
+    const employees = Array.from({ length: 2345 }, (_, i) => ({ id: `e${i}`, employee_id: `E${i}`, full_name: `Employee ${i}`, position_id: null, department_id: null }));
+    const ranges: [number, number][] = [];
+    const from = (table: string) => {
+      let window: [number, number] = [0, 999];
+      const builder = {
+        select: () => builder, order: () => builder,
+        range: (start: number, end: number) => { window = [start, end]; if (table === "d3_employee") ranges.push(window); return builder; },
+        then: (resolve: (value: unknown) => unknown) => Promise.resolve({ data: table === "d3_employee" ? employees.slice(window[0], window[1] + 1) : [], error: null }).then(resolve),
+      };
+      return builder;
+    };
+    const client = { from, auth: { getUser: async () => ({ data: { user: { id: "user" } }, error: null }) } } as unknown as SupabaseClient;
+    const loaded = await new SupabaseD4Repository(client).loadReferenceData();
+    expect(loaded.employees).toHaveLength(2345);
+    expect(ranges).toEqual([[0, 999], [1000, 1999], [2000, 2999]]);
+  });
+});
+

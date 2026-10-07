@@ -12,7 +12,7 @@ export async function handle(run: () => Promise<unknown>, successStatus = 200) {
     // message so database details and stack traces never reach the client (TR-17).
     const error = cause instanceof ApiError ? cause
       : isNetworkFailure(cause instanceof Error ? cause.message : "") ? new ApiError("INTEGRATION_ERROR", NETWORK_ERROR_MESSAGE)
-        : new ApiError("SERVER_ERROR", "Permintaan gagal diproses. Coba lagi beberapa saat lagi.");
+        : new ApiError("SERVER_ERROR", "Permintaan tidak dapat diproses. Coba lagi sebentar lagi.");
     if (error.code === "SERVER_ERROR" || error.code === "INTEGRATION_ERROR") console.error("[d4-api]", cause);
     return NextResponse.json({ error: { code: error.code, message: error.message } }, { status: error.status });
   }
@@ -24,7 +24,7 @@ export async function handle(run: () => Promise<unknown>, successStatus = 200) {
  */
 export function methodNotAllowed(allowed: string) {
   return () => {
-    const error = new ApiError("METHOD_NOT_ALLOWED", "Metode HTTP ini tidak didukung untuk endpoint tersebut.");
+    const error = new ApiError("METHOD_NOT_ALLOWED", "Metode HTTP ini tidak didukung untuk endpoint ini.");
     return NextResponse.json({ error: { code: error.code, message: error.message } }, { status: error.status, headers: { Allow: allowed } });
   };
 }
@@ -36,8 +36,8 @@ export function optionalUuid(body: Record<string, unknown>, key: string): string
 
 export async function readJson(request: Request): Promise<Record<string, unknown>> {
   let body: unknown;
-  try { body = await request.json(); } catch { throw new ApiError("BAD_REQUEST", "Body harus berupa JSON yang valid."); }
-  if (!body || typeof body !== "object" || Array.isArray(body)) throw new ApiError("BAD_REQUEST", "Body harus berupa objek JSON.");
+  try { body = await request.json(); } catch { throw new ApiError("BAD_REQUEST", "Isi permintaan harus JSON yang valid."); }
+  if (!body || typeof body !== "object" || Array.isArray(body)) throw new ApiError("BAD_REQUEST", "Isi permintaan harus berupa objek JSON.");
   return body as Record<string, unknown>;
 }
 

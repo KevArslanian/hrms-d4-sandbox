@@ -13,7 +13,7 @@ import type { D4DataSource } from "@/modules/d4/web/data/source";
 // reassessment is saved.
 const ALFA = "d4000000-0000-4000-8000-000000000009";
 const FINANCE_STAFF = "d4000000-0000-4000-8000-000000000008";
-const ALFA_GAP = "d4000000-0000-4000-8000-000000000028"; // Akurasi Administrasi: level 2, min. 4
+const ALFA_GAP = "d4000000-0000-4000-8000-000000000028"; // Administrative Accuracy: level 2, min. 4
 const ADMIN_ACCURACY = "d4000000-0000-4000-8000-000000000022";
 const THIRD_REQUIREMENT_COMPETENCY = "d4000000-0000-4000-8000-000000000023"; // Alfa has no skill record yet
 
