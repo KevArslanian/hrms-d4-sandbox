@@ -124,7 +124,7 @@ const writeRoutes: [string, () => Promise<Response>][] = [
   ["POST /kpi-assessments", () => kpi.POST(post(kpiBody()))],
   ["POST /competency-assessments", () => competency.POST(post({ employeeId: ALFA, positionId: FINANCE_STAFF, effectiveDate: "2026-10-01" }))],
   ["POST /development-needs", () => dev.POST(post({ employeeId: ALFA, sourceType: "performance_context", sourceRef: PERF_ALFA, objective: "Uji", priority: "High" }))],
-  ["POST /development-needs/:id/versions", () => devVersions.POST(post({ status: "Planned", notes: "Uji" }), params(NEED))],
+  ["POST /development-needs/:id/versions", () => devVersions.POST(post({ status: "In Progress", notes: "Uji" }), params(NEED))],
   ["POST /training-records", () => training.POST(post({ employeeId: ALFA, developmentNeedId: NEED, activity: "Uji", date: "2026-10-01", status: "Planned" }))],
   ["POST /training-records/:id/versions", () => trainingVersions.POST(post({ status: "In Progress", notes: "Uji" }), params(TRAINING))],
 ];
@@ -177,11 +177,11 @@ describe("session guard: real requireWriter over a mocked Supabase client", () =
   // Current behaviour, documented: requireWriter only checks app_role; it does not require employee_id.
   // Routes that store the evaluator's name (performance, KPI) then refuse with 403; the other writes succeed.
   describe.each(["HR", "MANAGER"] as const)("%s account without employee_id", (role) => {
-    it.each(writeRoutes.slice(0, 2))("%s → 403 'belum terhubung dengan data employee'", async (_name, send) => {
+    it.each(writeRoutes.slice(0, 2))("%s → 403 'not linked to an employee record'", async (_name, send) => {
       signIn(role, null);
       const res = await call(send());
       expect(res).toMatchObject({ status: 403, body: { error: { code: "FORBIDDEN" } } });
-      expect(res.body.error?.message).toMatch(/belum terhubung dengan data employee/);
+      expect(res.body.error?.message).toMatch(/belum terhubung ke data pegawai/);
       expect(writes).toHaveLength(0);
     });
 
@@ -210,6 +210,12 @@ describe("request envelope", () => {
 });
 
 describe("POST /performance-evaluations", () => {
+  it("ignores a submitted score: evaluations are notes only", async () => {
+    const res = await call(perf.POST(post(evaluationBody({ overallScore: 4 }))));
+    expect(res.status).toBe(201);
+    expect((writes[0].args[0] as { overallScore: number | null }).overallScore).toBeNull();
+  });
+
   it("creates with the account's name as evaluator, ignoring the body", async () => {
     const res = await call(perf.POST(post(evaluationBody({ evaluator: "Nama Palsu" }))));
     expect(res.status).toBe(201);
@@ -220,8 +226,6 @@ describe("POST /performance-evaluations", () => {
     ["self-evaluation", { employeeId: MERCURY }, /diri sendiri/],
     ["duplicate period without revisionOf", { employeeId: ALFA }, /sudah ada/],
     ["revisionOf not a UUID", { employeeId: ALFA, revisionOf: "abc" }, /UUID/],
-    ["score as string", { overallScore: "4" }, /./],
-    ["score 0", { overallScore: 0 }, /./],
     ["period 2026-13", { period: "2026-13" }, /YYYY-MM/],
     ["status draft", { status: "draft" }, /status/],
     ["employeeId not UUID", { employeeId: "x" }, /UUID/],
@@ -270,7 +274,26 @@ describe("POST /kpi-assessments", () => {
     catalogRows = KPI_V51_CATALOG.map((row) => row.role_order === role && row.indicator_order === 5 ? { ...row, weight_percent: row.weight_percent + delta } : row);
     const res = await call(kpi.POST(post(kpiBody())));
     expect(res).toMatchObject({ status: 422, body: { error: { code: "VALIDATION_FAILED" } } });
-    expect(res.body.error?.message).toMatch(/bobotnya bukan 100%/);
+    expect(res.body.error?.message).toMatch(/tidak 100%/);
+    expect(writes).toHaveLength(0);
+  });
+
+  // Core KPI names are editable; weights always come from the catalog, not the request.
+  it("keeps an edited Core KPI name and the catalog weight", async () => {
+    const body = kpiBody();
+    body.lines = body.lines.map((line, index) => index ? line : { ...line, kpi_name: "Nama KPI baru", weight_percent: 1 });
+    const res = await call(kpi.POST(post(body)));
+    expect(res.status).toBe(201);
+    const saved = (writes[0].args[0] as { lines: { kpi_name: string; weight_percent: number }[] }).lines[0];
+    expect(saved.kpi_name).toBe("Nama KPI baru");
+    expect(saved.weight_percent).toBe(kpiBody().lines[0].weight_percent);
+  });
+
+  it("rejects an empty Core KPI name", async () => {
+    const body = kpiBody();
+    body.lines = body.lines.map((line, index) => index ? line : { ...line, kpi_name: " " });
+    const res = await call(kpi.POST(post(body)));
+    expect(res.status).toBe(422);
     expect(writes).toHaveLength(0);
   });
 
@@ -336,8 +359,8 @@ describe("unknown or malformed ids", () => {
   });
 
   it("returns 201 for a status update of an existing development need", async () => {
-    const res = await call(devVersions.POST(post({ status: "Planned", notes: "Dijadwalkan" }), params(NEED)));
+    const res = await call(devVersions.POST(post({ status: "In Progress", notes: "Dimulai" }), params(NEED)));
     expect(res.status).toBe(201);
-    expect(writes[0]).toMatchObject({ method: "updateDevelopment", args: [NEED, "Planned", "Dijadwalkan"] });
+    expect(writes[0]).toMatchObject({ method: "updateDevelopment", args: [NEED, "In Progress", "Dimulai"] });
   });
 });

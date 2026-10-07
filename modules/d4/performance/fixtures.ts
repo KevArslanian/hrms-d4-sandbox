@@ -21,12 +21,12 @@ function sample(id: number, employee: number, score: number, notes: string, eval
 }
 
 export const performanceFixtureRecords: readonly PerformanceEvaluation[] = [
-  sample(1, 9, 4, "Hasil kerja konsisten dan akurat. Rekomendasi: pelatihan akurasi administrasi lanjutan."),
-  sample(2, 10, 4, "Target periode tercapai. Belum ada rekomendasi pelatihan."),
-  sample(3, 11, 4, "Kolaborasi tim baik. Rekomendasi: penyegaran keselamatan operasi."),
+  sample(1, 9, 4, "Consistent and accurate work. Recommendation: advanced administrative accuracy training."),
+  sample(2, 10, 4, "Period target met. No training recommendation yet."),
+  sample(3, 11, 4, "Good teamwork. Recommendation: operational safety refresher."),
   // Mercury (HR) is evaluated by someone else; nobody evaluates themselves.
-  sample(4, 12, 4, "Dokumentasi HR tepat waktu.", "Oscar"),
-  sample(5, 13, 5, "Administrasi penjualan sangat rapi."),
-  sample(6, 14, 3, "Perlu pendampingan rekonsiliasi. Rekomendasi: pelatihan akurasi administrasi."),
-  sample(7, 15, 4, "Checklist operasi lengkap."),
+  sample(4, 12, 4, "HR documentation on time.", "Oscar"),
+  sample(5, 13, 5, "Very tidy sales administration."),
+  sample(6, 14, 3, "Needs coaching on reconciliation. Recommendation: administrative accuracy training."),
+  sample(7, 15, 4, "Operations checklist complete."),
 ];

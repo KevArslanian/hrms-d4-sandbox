@@ -13,8 +13,26 @@ import type { D3KpiRecord, D4LiveSnapshot, KpiAssessment, KpiAssessmentInput, Kp
 type QueryResult<T> = { data: T | null; error: { message: string; code?: string } | null };
 function take<T>(result: QueryResult<T>, label: string): T {
   if (result.error) throw databaseError(result.error, label);
-  if (result.data === null) throw new Error(`${label}: respons kosong.`);
+  if (result.data === null) throw new Error(`${label}: empty response.`);
   return result.data;
+}
+
+const PAGE_ROWS = 1000;
+type Pageable = { range: (from: number, to: number) => PromiseLike<QueryResult<unknown[]>> };
+
+/**
+ * PostgREST returns at most 1000 rows per request (Supabase default max-rows), so a bigger table would be cut
+ * off without an error. Reads every page; the query is rebuilt per page because a builder runs only once.
+ * Each query needs a stable order (ends with the primary key) so pages do not overlap.
+ */
+async function allRows(query: () => Pageable): Promise<QueryResult<unknown[]>> {
+  const rows: unknown[] = [];
+  for (let from = 0; ; from += PAGE_ROWS) {
+    const page = await query().range(from, from + PAGE_ROWS - 1);
+    if (page.error) return page;
+    rows.push(...(page.data ?? []));
+    if (!page.data || page.data.length < PAGE_ROWS) return { data: rows, error: null };
+  }
 }
 
 interface RawDepartment { id: string; code: string; name: string }
@@ -47,7 +65,7 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
   // At most one auth.getUser() round trip per repository; a repository lives for one request.
   private requireUser(): Promise<User> {
     this.user ??= this.client.auth.getUser().then(({ data, error }) => {
-      if (error || !data.user) throw new ApiError("UNAUTHENTICATED", "Sesi login tidak tersedia. Silakan masuk kembali.");
+      if (error || !data.user) throw new ApiError("UNAUTHENTICATED", "Sesi login tidak ditemukan. Silakan login kembali.");
       return data.user;
     });
     return this.user;
@@ -56,12 +74,12 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
   async loadReferenceData(): Promise<ReferenceDataSnapshot> {
     await this.requireUser();
     const [departmentsResult, positionsResult, employeesResult, competenciesResult, requirementsResult, skillsResult] = await Promise.all([
-      this.client.from("d3_departments").select("id,code,name"),
-      this.client.from("d3_positions").select("id,code,title,department_id"),
-      this.client.from("d3_employee").select("id,employee_id,full_name,position_id,department_id"),
-      this.client.from("d3_competencies").select("id,code,name,category"),
-      this.client.from("position_requirements").select("id,position_id,competency_id,min_proficiency_level,is_mandatory"),
-      this.client.from("d3_employee_skills").select("id,employee_id,competency_id,proficiency_level,evidence_notes"),
+      allRows(() => this.client.from("d3_departments").select("id,code,name").order("id")),
+      allRows(() => this.client.from("d3_positions").select("id,code,title,department_id").order("id")),
+      allRows(() => this.client.from("d3_employee").select("id,employee_id,full_name,position_id,department_id").order("id")),
+      allRows(() => this.client.from("d3_competencies").select("id,code,name,category").order("id")),
+      allRows(() => this.client.from("position_requirements").select("id,position_id,competency_id,min_proficiency_level,is_mandatory").order("id")),
+      allRows(() => this.client.from("d3_employee_skills").select("id,employee_id,competency_id,proficiency_level,evidence_notes").order("id")),
     ]);
     const departments = take(departmentsResult, "Departments") as RawDepartment[];
     const positions = take(positionsResult, "Positions") as RawPosition[];
@@ -82,22 +100,25 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
 
   async loadSnapshot(): Promise<D4LiveSnapshot> {
     const user = await this.requireUser();
-    const { data: access, error: accessError } = await this.client.from("d3_user_access")
-      .select("app_role,employee_id").eq("auth_user_id", user.id).maybeSingle();
-    if (accessError) throw databaseError(accessError, "Hak akses");
-    if (!access) throw new ApiError("FORBIDDEN", "Akun sudah masuk, tetapi belum diberi akses data HRMS. Hubungi admin HRMS untuk mengaktifkan peran Anda.");
-    const reference = await this.loadReferenceData();
-    const [kpiResult, kpiAssessmentResult, performanceResult, assessmentResult, developmentResult, developmentVersionResult, trainingResult, trainingVersionResult] = await Promise.all([
-      this.client.from("employee_kpi").select("id,employee_id,period,kpi_score,notes,created_at").order("period", { ascending: false }),
+    // Access, reference data and records load in one parallel round instead of three sequential ones
+    // (each round trip to the database counts). RLS already limits what the queries return, and access
+    // is still checked before anything is returned.
+    const [{ data: access, error: accessError }, reference, [kpiResult, kpiAssessmentResult, performanceResult, assessmentResult, developmentResult, developmentVersionResult, trainingResult, trainingVersionResult]] = await Promise.all([
+      this.client.from("d3_user_access").select("app_role,employee_id").eq("auth_user_id", user.id).maybeSingle(),
+      this.loadReferenceData(),
+      Promise.all([
+      allRows(() => this.client.from("employee_kpi").select("id,employee_id,period,kpi_score,notes,created_at").order("period", { ascending: false }).order("id")),
       // "*" keeps this working before and after the V5.1 migration adds definition_version.
-      this.client.from("d4_kpi_assessments").select("*").order("created_at", { ascending: false }),
-      this.client.from("d4_performance_evaluations").select("id,employee_id,period,evaluation_date,evaluator_name_snapshot,status,review_status,overall_score,aspects,general_notes,evidence_reference,actor_employee_id,created_at").order("created_at", { ascending: false }),
-      this.client.from("d4_competency_assessments").select("id,employee_id,position_id,effective_date,context,overall_status,findings,actor_employee_id,created_at").order("created_at", { ascending: false }),
-      this.client.from("d4_development_needs").select("id,employee_id,source_type,position_requirement_id,competency_assessment_id,performance_evaluation_id,objective,priority"),
-      this.client.from("d4_development_need_versions").select("id,development_need_id,revision,status,notes,actor_employee_id,created_at").order("created_at", { ascending: false }),
-      this.client.from("d4_training_records").select("id,employee_id,development_need_id,activity,activity_date"),
-      this.client.from("d4_training_versions").select("id,training_id,revision,status,result,notes,actor_employee_id,created_at").order("created_at", { ascending: false }),
-    ]);
+      allRows(() => this.client.from("d4_kpi_assessments").select("*").order("created_at", { ascending: false }).order("id")),
+      allRows(() => this.client.from("d4_performance_evaluations").select("id,employee_id,period,evaluation_date,evaluator_name_snapshot,status,review_status,overall_score,aspects,general_notes,evidence_reference,actor_employee_id,created_at").order("created_at", { ascending: false }).order("id")),
+      allRows(() => this.client.from("d4_competency_assessments").select("id,employee_id,position_id,effective_date,context,overall_status,findings,actor_employee_id,created_at").order("created_at", { ascending: false }).order("id")),
+      allRows(() => this.client.from("d4_development_needs").select("id,employee_id,source_type,position_requirement_id,competency_assessment_id,performance_evaluation_id,objective,priority").order("id")),
+      allRows(() => this.client.from("d4_development_need_versions").select("id,development_need_id,revision,status,notes,actor_employee_id,created_at").order("created_at", { ascending: false }).order("id")),
+      allRows(() => this.client.from("d4_training_records").select("id,employee_id,development_need_id,activity,activity_date").order("id")),
+      allRows(() => this.client.from("d4_training_versions").select("id,training_id,revision,status,result,notes,actor_employee_id,created_at").order("created_at", { ascending: false }).order("id")),
+    ])]);
+    if (accessError) throw databaseError(accessError, "Hak akses");
+    if (!access) throw new ApiError("FORBIDDEN", "Anda sudah login, tetapi akun ini belum punya akses ke data HRMS. Hubungi admin HRMS untuk mengaktifkan role Anda.");
     const kpiRows = take(kpiResult, "KPI") as RawKpi[];
     const kpiAssessmentRows = take(kpiAssessmentResult, "Penilaian KPI") as RawKpiAssessment[];
     const performanceRows = take(performanceResult, "Performance") as RawPerformance[];
@@ -162,7 +183,7 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
 
   async saveKpiAssessment(input: KpiAssessmentInput): Promise<string> {
     await this.requireUser();
-    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(input.period)) throw new ApiError("VALIDATION_FAILED", "Periode penilaian wajib dipilih.");
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(input.period)) throw new ApiError("VALIDATION_FAILED", "Periode penilaian wajib diisi.");
     if (input.lines.length !== 5) throw new ApiError("VALIDATION_FAILED", "Penilaian harus memiliki lima indikator KPI.");
     const result = await this.client.from("d4_kpi_assessments").insert({
       // V3.1 rows predate the definition_version column; only send it for newer catalogs.
@@ -172,15 +193,15 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
       evaluator_name: input.evaluatorName.trim(), status: input.status,
       lines: input.lines, general_notes: input.generalNotes.trim(),
     }).select("id").single();
-    return take(result, "Simpan penilaian KPI").id;
+    return take(result, "Save KPI assessment").id;
   }
 
   async savePerformance(input: EvaluationInput, reference: ReferenceDataSnapshot): Promise<string> {
     await this.requireUser();
     const employee = reference.employees.find((item) => item.id === input.employeeId);
-    if (!employee) throw new ApiError("NOT_FOUND", "Employee tidak ditemukan.");
+    if (!employee) throw new ApiError("NOT_FOUND", "Pegawai tidak ditemukan.");
     const position = reference.positions.find((item) => item.id === employee.positionId);
-    if (!position) throw new ApiError("VALIDATION_FAILED", "Posisi employee tidak tersedia.");
+    if (!position) throw new ApiError("VALIDATION_FAILED", "Posisi pegawai tidak tersedia.");
     enforce(() => validatePerformanceInput(input));
     const result = await this.client.from("d4_performance_evaluations").insert({
       employee_id: employee.id, position_id: position.id, position_title_snapshot: position.title,
@@ -190,18 +211,18 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
       aspects: input.aspects, general_notes: input.generalNotes.trim(),
       evidence_reference: input.evidenceReference?.trim() || null,
     }).select("id").single();
-    return take(result, "Simpan evaluasi").id;
+    return take(result, "Save evaluation").id;
   }
 
   async saveCompetency(input: { employeeId: string; positionId: string; effectiveDate: string }, reference: ReferenceDataSnapshot): Promise<string> {
     await this.requireUser();
     const employee = reference.employees.find((item) => item.id === input.employeeId);
     const position = reference.positions.find((item) => item.id === input.positionId);
-    if (!employee) throw new ApiError("NOT_FOUND", "Employee tidak ditemukan.");
+    if (!employee) throw new ApiError("NOT_FOUND", "Pegawai tidak ditemukan.");
     if (!position) throw new ApiError("VALIDATION_FAILED", "Posisi tidak tersedia.");
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(input.effectiveDate)) throw new ApiError("VALIDATION_FAILED", "Tanggal berlaku tidak valid.");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(input.effectiveDate)) throw new ApiError("VALIDATION_FAILED", "Tanggal efektif tidak valid.");
     const comparison = compareCompetencies(employee.id, position.id, reference);
-    if (!comparison.findings.length) throw new ApiError("VALIDATION_FAILED", "Persyaratan kompetensi posisi belum tersedia.");
+    if (!comparison.findings.length) throw new ApiError("VALIDATION_FAILED", "Posisi ini belum memiliki persyaratan kompetensi.");
     // d4_competency_assessments has no unique key yet. A double click re-sends an identical snapshot: answer
     // with the stored one instead of a second row. A changed snapshot (new evidence the same day) is still saved.
     // Narrows, not closes, the race until the database index is approved.
@@ -215,12 +236,12 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
       context: employee.positionId === position.id ? "current-position" : "role-change",
       overall_status: comparison.overallStatus, findings: comparison.findings,
     }).select("id").single();
-    return take(result, "Simpan assessment").id;
+    return take(result, "Save assessment").id;
   }
 
   async createDevelopment(input: { employeeId: string; sourceType: DevelopmentSourceType; sourceRef: string; objective: string; priority: DevelopmentPriority; notes: string }, snapshot: D4LiveSnapshot): Promise<string> {
     await this.requireUser();
-    if (!snapshot.reference.employees.some((item) => item.id === input.employeeId)) throw new ApiError("NOT_FOUND", "Employee tidak ditemukan.");
+    if (!snapshot.reference.employees.some((item) => item.id === input.employeeId)) throw new ApiError("NOT_FOUND", "Pegawai tidak ditemukan.");
     if (!input.objective.trim()) throw new ApiError("VALIDATION_FAILED", "Development objective wajib diisi.");
     const validSource = input.sourceType === "competency_gap"
       ? (() => { const employee = snapshot.reference.employees.find((item) => item.id === input.employeeId);
@@ -228,45 +249,45 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
       : input.sourceType === "role_change"
         ? snapshot.competency.some((item) => item.id === input.sourceRef && item.employeeId === input.employeeId && item.context === "role-change")
         : snapshot.performance.some((item) => item.id === input.sourceRef && item.employeeId === input.employeeId && item.status === "completed");
-    if (!validSource) throw new ApiError("VALIDATION_FAILED", "Referensi sumber tidak sesuai employee atau belum tersedia.");
+    if (!validSource) throw new ApiError("VALIDATION_FAILED", "Referensi sumber tidak cocok dengan pegawai atau belum tersedia.");
     const result = await this.client.rpc("d4_create_development_need", {
       p_employee_id: input.employeeId, p_source_type: input.sourceType, p_source_ref: input.sourceRef,
       p_objective: input.objective.trim(), p_priority: input.priority, p_notes: input.notes.trim(),
     });
-    return take(result, "Simpan development need") as string;
+    return take(result, "Save development need") as string;
   }
 
   async updateDevelopment(needId: string, status: DevelopmentStatus, notes: string): Promise<void> {
     await this.requireUser();
     const current = take(await this.client.from("d4_development_need_versions").select("revision")
-      .eq("development_need_id", needId).order("revision", { ascending: false }).limit(1).single(), "Riwayat development") as { revision: number };
+      .eq("development_need_id", needId).order("revision", { ascending: false }).limit(1).single(), "Development history") as { revision: number };
     take(await this.client.from("d4_development_need_versions").insert({
       development_need_id: needId, revision: current.revision + 1, status, notes: notes.trim(),
-    }).select("id").single(), "Simpan revisi development");
+    }).select("id").single(), "Save development revision");
   }
 
   async createTraining(input: { employeeId: string; developmentNeedId: string; activity: string; date: string; status: TrainingStatus; result: string; notes: string }, snapshot: D4LiveSnapshot): Promise<string> {
     await this.requireUser();
     const need = snapshot.developmentVersions.find((item) => item.needId === input.developmentNeedId);
-    if (!need || need.employeeId !== input.employeeId) throw new ApiError("VALIDATION_FAILED", "Training harus mengacu pada development need milik employee yang sama.");
+    if (!need || need.employeeId !== input.employeeId) throw new ApiError("VALIDATION_FAILED", "Training harus merujuk ke development requirement milik pegawai yang sama.");
     if (!input.activity.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(input.date)) throw new ApiError("VALIDATION_FAILED", "Aktivitas dan tanggal wajib diisi.");
-    if (input.status === "Completed" && !input.result.trim()) throw new ApiError("VALIDATION_FAILED", "Hasil wajib diisi saat training selesai.");
+    if (input.status === "Completed" && !input.result.trim()) throw new ApiError("VALIDATION_FAILED", "Result wajib diisi saat training Completed.");
     const result = await this.client.rpc("d4_create_training_record", {
       p_employee_id: input.employeeId, p_development_need_id: input.developmentNeedId,
       p_activity: input.activity.trim(), p_activity_date: input.date, p_status: input.status,
       p_result: input.result.trim(), p_notes: input.notes.trim(),
     });
-    return take(result, "Simpan training") as string;
+    return take(result, "Save training") as string;
   }
 
   async updateTraining(trainingId: string, status: TrainingStatus, result: string, notes: string): Promise<void> {
     await this.requireUser();
-    if (status === "Completed" && !result.trim()) throw new ApiError("VALIDATION_FAILED", "Hasil wajib diisi saat training selesai.");
+    if (status === "Completed" && !result.trim()) throw new ApiError("VALIDATION_FAILED", "Result wajib diisi saat training Completed.");
     const current = take(await this.client.from("d4_training_versions").select("revision")
-      .eq("training_id", trainingId).order("revision", { ascending: false }).limit(1).single(), "Riwayat training") as { revision: number };
+      .eq("training_id", trainingId).order("revision", { ascending: false }).limit(1).single(), "Training history") as { revision: number };
     take(await this.client.from("d4_training_versions").insert({
       training_id: trainingId, revision: current.revision + 1,
       status, result: result.trim(), notes: notes.trim(),
-    }).select("id").single(), "Simpan revisi training");
+    }).select("id").single(), "Save training revision");
   }
 }

@@ -16,7 +16,7 @@ export async function listAssessments(request: Request) {
 export async function getAssessment(id: string) {
   const { repository } = await d4Session();
   const assessment = (await repository.loadSnapshot()).kpiAssessments?.find((item) => item.id === id);
-  if (!assessment) throw new ApiError("NOT_FOUND", "Scorecard KPI tidak ditemukan.");
+  if (!assessment) throw new ApiError("NOT_FOUND", "KPI scorecard tidak ditemukan.");
   return assessment;
 }
 
@@ -40,22 +40,25 @@ export async function createAssessment(request: Request) {
   const snapshot = await repository.loadSnapshot();
   const { reference } = snapshot;
   const employee = reference.employees.find((item) => item.id === employeeId);
-  if (!employee) throw new ApiError("NOT_FOUND", "Employee tidak ditemukan.");
+  if (!employee) throw new ApiError("NOT_FOUND", "Pegawai tidak ditemukan.");
   const evaluatorName = reference.employees.find((item) => item.id === access.employeeId)?.fullName;
-  if (!evaluatorName) throw new ApiError("FORBIDDEN", "Akun belum terhubung dengan data employee.");
+  if (!evaluatorName) throw new ApiError("FORBIDDEN", "Akun ini belum terhubung ke data pegawai.");
   const period = field.period(body, "period");
   enforce(() => assertNotSelf(access.employeeId, employeeId));
   enforce(() => assertPeriodRevision(snapshot.kpiAssessments ?? [], employeeId, period, optionalUuid(body, "revisionOf"), "Scorecard"));
   const positionTitle = reference.positions.find((item) => item.id === employee.positionId)?.title;
-  if (roleForPositionTitle(catalog, positionTitle) !== roleOrder) throw new ApiError("VALIDATION_FAILED", "KPI yang dipilih bukan KPI untuk position employee ini.");
-  if (indicators.length !== 5 || indicators.reduce((sum, row) => sum + row.weight_percent, 0) !== 100) throw new ApiError("VALIDATION_FAILED", "Jabatan KPI tidak ditemukan pada katalog atau bobotnya bukan 100%.");
+  if (roleForPositionTitle(catalog, positionTitle) !== roleOrder) throw new ApiError("VALIDATION_FAILED", "Set KPI yang dipilih bukan milik posisi pegawai ini.");
+  if (indicators.length !== 5 || indicators.reduce((sum, row) => sum + row.weight_percent, 0) !== 100) throw new ApiError("VALIDATION_FAILED", "Role KPI tidak ditemukan di katalog, atau total bobotnya tidak 100%.");
   if (!Array.isArray(body.lines) || body.lines.length !== 5) throw new ApiError("VALIDATION_FAILED", "Scorecard harus memiliki lima indikator KPI.");
   const lines: KpiAssessmentLine[] = indicators.map((indicator, index) => {
     const raw = (body.lines as unknown[])[index] as Record<string, unknown> | null;
-    if (!raw || raw.kpi_name !== indicator.kpi_name) throw new ApiError("VALIDATION_FAILED", `Indikator ${index + 1} harus ${indicator.kpi_name}.`);
-    const score = field.score(raw.raw_score, `Skor ${indicator.kpi_name}`, { required: status === "completed" });
+    if (!raw) throw new ApiError("VALIDATION_FAILED", `Indikator ${index + 1} wajib diisi.`);
+    // The Core KPI name is editable per scorecard; order and weight stay locked to the catalog (Excel formula).
+    const kpiName = field.text(raw, "kpi_name", { required: true, max: 200 }).trim();
+    if (!kpiName) throw new ApiError("VALIDATION_FAILED", `Core KPI ${index + 1} wajib diisi.`);
+    const score = field.score(raw.raw_score, `Skor untuk ${indicator.kpi_name}`, { required: status === "completed" });
     return {
-      indicator_order: indicator.indicator_order, kpi_name: indicator.kpi_name, weight_percent: indicator.weight_percent,
+      indicator_order: indicator.indicator_order, kpi_name: kpiName, weight_percent: indicator.weight_percent,
       target: field.text(raw, "target", { required: false, max: 200 }), actual: field.text(raw, "actual", { required: false, max: 200 }),
       raw_score: score, comment: field.text(raw, "comment", { required: false, max: 500 }),
     };

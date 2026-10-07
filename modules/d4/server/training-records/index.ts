@@ -1,5 +1,5 @@
 import type { TrainingStatus } from "../../training/types";
-import { assertNeedOpen, assertTrainingChange } from "../../shared/rules";
+import { assertNeedOpen, assertTrainingChange, assertTrainingDate } from "../../shared/rules";
 import { latestDevelopment, latestTraining } from "../../supabase/types";
 import { ApiError, employeeFilter, enforce, field, readJson } from "../_lib/http";
 import { d4Session, requireWriter } from "../_lib/session";
@@ -34,6 +34,7 @@ export async function createTraining(request: Request) {
   };
   const snapshot = await repository.loadSnapshot();
   enforce(() => assertNeedOpen(latestDevelopment(snapshot).find((item) => item.needId === input.developmentNeedId)));
+  enforce(() => assertTrainingDate(input.status, input.date));
   return { id: await repository.createTraining(input, snapshot) };
 }
 

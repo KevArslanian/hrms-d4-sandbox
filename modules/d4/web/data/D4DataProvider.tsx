@@ -71,7 +71,7 @@ export function D4DataProvider({ children, mode }: { children: ReactNode; mode: 
     }).catch((cause: unknown) => {
       if (!active) return;
       setStatus("error");
-      setError(cause instanceof Error ? cause.message : "Data D4 gagal dimuat.");
+      setError(cause instanceof Error ? cause.message : "Gagal memuat data D4.");
       // Session expired: leave the loading screen and go to /login. The stale session is cleared first, because
       // the proxy sends a still-signed-in user from /login back to /dashboard and the two pages would bounce.
       if (cause instanceof D4RequestError && cause.status === 401) {
@@ -92,7 +92,7 @@ export function D4DataProvider({ children, mode }: { children: ReactNode; mode: 
       data = await source;
       value = await operation(data);
     } catch (cause) {
-      const message = cause instanceof Error ? cause.message : "Penyimpanan gagal.";
+      const message = cause instanceof Error ? cause.message : "Gagal menyimpan.";
       pushToast("error", message);
       writing.current = false;
       setBusy(false);
@@ -103,7 +103,7 @@ export function D4DataProvider({ children, mode }: { children: ReactNode; mode: 
       setSnapshot(await data.loadSnapshot());
       pushToast("success", success);
     } catch {
-      pushToast("error", `${success} Namun data terbaru gagal dimuat, muat ulang halaman sebelum menyimpan lagi.`);
+      pushToast("error", `${success} Namun data terbaru gagal dimuat; muat ulang halaman sebelum menyimpan lagi.`);
     }
     writing.current = false;
     setBusy(false);
