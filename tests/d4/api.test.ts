@@ -148,7 +148,7 @@ describe("session guard: real requireWriter over a mocked Supabase client", () =
     signIn("EMPLOYEE", ALFA);
     const res = await call(send());
     expect(res).toMatchObject({ status: 403, body: { error: { code: "FORBIDDEN" } } });
-    expect(res.body.error?.message).toMatch(/Only HR or a manager/);
+    expect(res.body.error?.message).toMatch(/Hanya HR atau manager/);
     expect(writes).toHaveLength(0);
     // The role comes from d3_user_access for the signed-in auth user, not from the request.
     expect(accessLookups).toEqual([{ table: "d3_user_access", filters: [["auth_user_id", AUTH_USER]] }]);
@@ -181,7 +181,7 @@ describe("session guard: real requireWriter over a mocked Supabase client", () =
       signIn(role, null);
       const res = await call(send());
       expect(res).toMatchObject({ status: 403, body: { error: { code: "FORBIDDEN" } } });
-      expect(res.body.error?.message).toMatch(/not linked to an employee record/);
+      expect(res.body.error?.message).toMatch(/belum terhubung ke data pegawai/);
       expect(writes).toHaveLength(0);
     });
 
@@ -223,8 +223,8 @@ describe("POST /performance-evaluations", () => {
   });
 
   it.each([
-    ["self-evaluation", { employeeId: MERCURY }, /Your own assessment/],
-    ["duplicate period without revisionOf", { employeeId: ALFA }, /already exists/],
+    ["self-evaluation", { employeeId: MERCURY }, /diri sendiri/],
+    ["duplicate period without revisionOf", { employeeId: ALFA }, /sudah ada/],
     ["revisionOf not a UUID", { employeeId: ALFA, revisionOf: "abc" }, /UUID/],
     ["period 2026-13", { period: "2026-13" }, /YYYY-MM/],
     ["status draft", { status: "draft" }, /status/],
@@ -252,11 +252,11 @@ describe("POST /kpi-assessments", () => {
   });
 
   it.each([
-    ["duplicate period", { period: "2026-09" }, /already exists/],
+    ["duplicate period", { period: "2026-09" }, /sudah ada/],
     ["wrong KPI role", { roleOrder: 99 }, /./],
     ["four lines", { lines: [] }, /./],
-    ["fractional score", { fractional: true }, /whole number/],
-    ["unknown employee", { employeeId: uuid(500) }, /not found/],
+    ["fractional score", { fractional: true }, /bilangan bulat/],
+    ["unknown employee", { employeeId: uuid(500) }, /tidak ditemukan/],
   ])("rejects %s", async (_name, patch: Record<string, unknown>, message) => {
     const { fractional, ...rest } = patch;
     const body = kpiBody(rest);
@@ -274,7 +274,7 @@ describe("POST /kpi-assessments", () => {
     catalogRows = KPI_V51_CATALOG.map((row) => row.role_order === role && row.indicator_order === 5 ? { ...row, weight_percent: row.weight_percent + delta } : row);
     const res = await call(kpi.POST(post(kpiBody())));
     expect(res).toMatchObject({ status: 422, body: { error: { code: "VALIDATION_FAILED" } } });
-    expect(res.body.error?.message).toMatch(/do not total 100%/);
+    expect(res.body.error?.message).toMatch(/tidak 100%/);
     expect(writes).toHaveLength(0);
   });
 

@@ -43,7 +43,7 @@ describe("field.score", () => {
 
   it.each([3.5, 0, 6, "4", Number.NaN])("rejects %s with VALIDATION_FAILED", (value) => {
     expect(() => field.score(value, "Skor")).toThrow(ApiError);
-    expect(() => field.score(value, "Skor")).toThrow(/whole number from 1 to 5/);
+    expect(() => field.score(value, "Skor")).toThrow(/bilangan bulat 1 sampai 5/);
   });
 });
 

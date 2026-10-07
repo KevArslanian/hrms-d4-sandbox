@@ -15,7 +15,7 @@ describe("missing Supabase configuration", () => {
     for (let i = 0; i < 3; i += 1) {
       const res = await handle(d4Session);
       expect(res.status).toBe(503);
-      expect(await res.json()).toEqual({ error: { code: "CONFIGURATION_ERROR", message: "The server configuration is incomplete." } });
+      expect(await res.json()).toEqual({ error: { code: "CONFIGURATION_ERROR", message: "Konfigurasi server belum lengkap." } });
     }
     expect(log).toHaveBeenCalledTimes(1);
     expect(log.mock.calls[0].some((arg) => arg instanceof Error)).toBe(false);

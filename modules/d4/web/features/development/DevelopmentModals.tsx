@@ -48,42 +48,42 @@ export function DevelopmentFormModal({ employeeId, sourceType, sourceRef, onClos
     event.preventDefault();
     setTouched(true);
     const chosen = options.find((item) => item.ref === reference && !item.covered);
-    if (!employee || !chosen || !objective.trim()) { setError("Complete employee, source reference, and development objective before saving."); return; }
+    if (!employee || !chosen || !objective.trim()) { setError("Lengkapi employee, source reference, dan development objective sebelum menyimpan."); return; }
     setError("");
     // The gap changes as competencies are updated; keep the level seen when the need was raised.
-    const snapshotNote = type === "competency_gap" ? `Gap when created (${formatDate(today())}): ${chosen.label}` : "";
-    const result = await run((source) => source.createDevelopment({ employeeId: employee, sourceType: type, sourceRef: reference, objective, priority, notes: [notes.trim(), snapshotNote].filter(Boolean).join("\n") }), "Development requirement saved with its source reference.");
+    const snapshotNote = type === "competency_gap" ? `Gap saat dibuat (${formatDate(today())}): ${chosen.label}` : "";
+    const result = await run((source) => source.createDevelopment({ employeeId: employee, sourceType: type, sourceRef: reference, objective, priority, notes: [notes.trim(), snapshotNote].filter(Boolean).join("\n") }), "Development requirement tersimpan beserta referensi sumbernya.");
     if (result.ok) { onSaved?.(result.value); onClose(); } else setError(result.error);
   }
 
-  return <FormModal title="Add Development Requirement" description="Every need must have a traceable source." onClose={onClose}
+  return <FormModal title="Add Development Requirement" description="Setiap kebutuhan harus memiliki sumber yang dapat ditelusuri." onClose={onClose}
     footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Requirement" />}>
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />
       <div className="grid gap-4 sm:grid-cols-2">
         {employeeId ? <ReadOnlyField label="Employee" testId="employee" value={`${selectedEmployee?.fullName ?? "—"} · ${selectedEmployee?.employeeId ?? ""}`} className="sm:col-span-2" />
-          : <SearchSelectField label="Employee" testId="employee" required value={employee} onChange={(value) => { setEmployee(value); setReference(""); }} error={touched && !employee ? "Employee is required." : undefined} className="sm:col-span-2" placeholder="Select employee"
+          : <SearchSelectField label="Employee" testId="employee" required value={employee} onChange={(value) => { setEmployee(value); setReference(""); }} error={touched && !employee ? "Employee wajib diisi." : undefined} className="sm:col-span-2" placeholder="Select employee"
             options={visibleEmployees(snapshot).map((item) => ({ value: item.id, label: `${item.fullName} · ${item.employeeId}` }))} />}
         <ReadOnlyField label="Position" testId="position" value={positionOf(snapshot, selectedEmployee)?.title ?? "—"} />
         {sourceType ? <ReadOnlyField label="Source type" testId="source-type" value={sourceTypeLabel[type]} /> : <SelectField label="Source type" testId="source-type" required value={type} onChange={(event) => { setType(event.target.value as DevelopmentSourceType); setReference(""); }}>
           {(Object.keys(sourceTypeLabel) as DevelopmentSourceType[]).map((key) => <option key={key} value={key}>{sourceTypeLabel[key]}</option>)}
         </SelectField>}
         <SelectField label="Source reference" testId="source-reference" required value={reference} onChange={(event) => setReference(event.target.value)} className="sm:col-span-2"
-          error={touched && !reference ? "Source reference is required." : undefined}>
-          <option value="">{options.some((item) => !item.covered) ? "Select source reference" : "No valid source yet"}</option>
-          {options.map((item) => <option key={item.ref} value={item.ref} disabled={item.covered}>{item.label}{item.covered ? " · already has an open requirement" : ""}</option>)}
+          error={touched && !reference ? "Source reference wajib diisi." : undefined}>
+          <option value="">{options.some((item) => !item.covered) ? "Select source reference" : "Belum ada sumber yang valid"}</option>
+          {options.map((item) => <option key={item.ref} value={item.ref} disabled={item.covered}>{item.label}{item.covered ? " · sudah ada requirement yang terbuka" : ""}</option>)}
         </SelectField>
-        {employee && options.length > 0 && options.every((item) => item.covered) && <div className="sm:col-span-2"><Notice tone="warning">Every competency gap of this employee already has an unfinished development requirement. Update the existing one in Development Requirement.</Notice></div>}
+        {employee && options.length > 0 && options.every((item) => item.covered) && <div className="sm:col-span-2"><Notice tone="warning">Setiap gap kompetensi pegawai ini sudah memiliki development requirement yang belum selesai. Perbarui yang sudah ada di Development Requirement.</Notice></div>}
         {employee && !options.length && <div className="sm:col-span-2"><Notice tone="warning">{type === "competency_gap" && selectedEmployee && !latestCurrentPositionAssessment(snapshot, selectedEmployee)
-          ? "Save the competency assessment for this employee's active position first (Competency Gap → Save Assessment); a development requirement is raised from a saved gap."
-          : <>This employee has no source of type {sourceTypeLabel[type]} yet. Development is not created just because time has passed.</>}</Notice></div>}
-        <TextField label="Development objective" testId="development-objective" required value={objective} onChange={(event) => setObjective(event.target.value)} error={touched && !objective.trim() ? "Development objective is required." : undefined} className="sm:col-span-2" />
+          ? "Simpan dulu penilaian kompetensi untuk posisi aktif pegawai ini (Competency Gap → Save Assessment); development requirement dibuat dari gap yang sudah tersimpan."
+          : <>Pegawai ini belum memiliki sumber bertipe {sourceTypeLabel[type]}. Development tidak dibuat hanya karena waktu sudah berlalu.</>}</Notice></div>}
+        <TextField label="Development objective" testId="development-objective" required value={objective} onChange={(event) => setObjective(event.target.value)} error={touched && !objective.trim() ? "Development objective wajib diisi." : undefined} className="sm:col-span-2" />
         <SelectField label="Priority" testId="priority" value={priority} onChange={(event) => setPriority(event.target.value as DevelopmentPriority)}>
           {(["High", "Medium", "Low"] as const).map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}
         </SelectField>
         <ReadOnlyField label="Created date" testId="created-date" value={formatDate(today())} />
       </div>
-      <TextAreaField label="Notes" testId="notes" value={notes} onChange={(event) => setNotes(event.target.value)} helper="HR chooses the final training method; a gap does not decide it automatically." />
+      <TextAreaField label="Notes" testId="notes" value={notes} onChange={(event) => setNotes(event.target.value)} helper="HR yang menentukan metode training akhir; gap tidak menentukannya secara otomatis." />
     </form>
   </FormModal>;
 }
@@ -102,9 +102,9 @@ export function DevelopmentStatusModal({ needId, onClose }: { needId: string; on
   const needsReason = rollback || completingOpen;
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (rollback && !notes.trim()) { setError(`A reason is required when the status moves back from ${statusLabel(current?.status ?? "")} to ${statusLabel(status)}.`); return; }
-    if (completingOpen && !notes.trim()) { setError("Training for this requirement is still Planned or In Progress. Complete or cancel it first, or explain why in Notes."); return; }
-    const result = await run((source) => source.updateDevelopment(needId, status, notes), "Development status updated as a new revision.");
+    if (rollback && !notes.trim()) { setError(`Alasan wajib diisi saat status mundur dari ${statusLabel(current?.status ?? "")} ke ${statusLabel(status)}.`); return; }
+    if (completingOpen && !notes.trim()) { setError("Training untuk requirement ini masih Planned atau In Progress. Selesaikan atau batalkan dulu, atau jelaskan alasannya di Notes."); return; }
+    const result = await run((source) => source.updateDevelopment(needId, status, notes), "Status development diperbarui sebagai revisi baru.");
     if (result.ok) onClose(); else setError(result.error);
   }
   return <FormModal title="Update Status" description={current?.objective} onClose={onClose} footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Status" disabled={status === current?.status} />}>
@@ -114,8 +114,8 @@ export function DevelopmentStatusModal({ needId, onClose }: { needId: string; on
         {(["Identified", "Planned", "In Progress", "Completed"] as const).map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}
       </SelectField>
       {status === "Completed" && openTrainings.length > 0 && <Notice tone="warning">There {openTrainings.length === 1 ? "is" : "are"} still {openTrainings.length} Planned/In Progress training{openTrainings.length === 1 ? "" : "s"} for this requirement ({openTrainings.map((item) => item.activity).join(", ")}). Complete or cancel them first, or explain why in Notes.</Notice>}
-      <TextAreaField label="Notes" testId="notes" required={needsReason} value={notes} onChange={(event) => setNotes(event.target.value)} helper={status === current?.status ? `The status is already ${status}. Choose another status to save.` : rollback ? "Required: the status is moving back to an earlier stage." : completingOpen ? "Required: explain why the requirement is completed while training is still open." : undefined} />
-      <Notice>Changes are saved as a new revision; earlier history stays available. A Completed status does not close the competency gap automatically.</Notice>
+      <TextAreaField label="Notes" testId="notes" required={needsReason} value={notes} onChange={(event) => setNotes(event.target.value)} helper={status === current?.status ? `Status sudah ${status}. Pilih status lain untuk menyimpan.` : rollback ? "Wajib: status mundur ke tahap sebelumnya." : completingOpen ? "Wajib: jelaskan mengapa requirement diselesaikan saat training masih berjalan." : undefined} />
+      <Notice>Perubahan disimpan sebagai revisi baru; riwayat sebelumnya tetap tersedia. Status Completed tidak otomatis menutup gap kompetensi.</Notice>
     </form>
   </FormModal>;
 }

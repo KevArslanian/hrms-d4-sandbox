@@ -6,8 +6,8 @@ export function compareCompetencies(employeeId: string, positionId: string, refe
   findings: CompetencyFinding[];
   overallStatus: CompetencyOverallStatus;
 } {
-  if (!reference.employees.some((item) => item.id === employeeId)) throw new ApiError("NOT_FOUND", "Employee not found.");
-  if (!reference.positions.some((item) => item.id === positionId)) throw new ApiError("NOT_FOUND", "Position not found.");
+  if (!reference.employees.some((item) => item.id === employeeId)) throw new ApiError("NOT_FOUND", "Pegawai tidak ditemukan.");
+  if (!reference.positions.some((item) => item.id === positionId)) throw new ApiError("NOT_FOUND", "Posisi tidak ditemukan.");
   const requirements = reference.positionRequirements.filter((item) => item.positionId === positionId);
   const findings = requirements.map((requirement): CompetencyFinding => {
     const competency = reference.competencies.find((item) => item.id === requirement.competencyId);

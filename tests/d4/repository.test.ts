@@ -45,7 +45,7 @@ describe("duplicate and concurrent writes", () => {
     const error = await new SupabaseD4Repository(client).updateTraining("t", "In Progress", "", "").catch((cause) => cause);
     expect(error).toBeInstanceOf(ApiError);
     expect(error).toMatchObject({ code: "CONFLICT", status: 409 });
-    expect(error.message).toMatch(/Reload the page/);
+    expect(error.message).toMatch(/Muat ulang halaman/);
   });
 
   it("answers a re-sent identical snapshot (double click) with the stored one instead of a second row", async () => {
@@ -86,7 +86,7 @@ describe("typed repository errors", () => {
     const { client } = fakeClient({});
     const employee = { ...reference.employees[0], id: "no-position", positionId: null };
     const error = await new SupabaseD4Repository(client).savePerformance(evaluation(employee.id), { ...reference, employees: [...reference.employees, employee] }).catch((cause) => cause);
-    expect(error).toMatchObject({ code: "VALIDATION_FAILED", message: "The employee's position is not available." });
+    expect(error).toMatchObject({ code: "VALIDATION_FAILED", message: "Posisi pegawai tidak tersedia." });
   });
 
   it("maps an RLS denial to FORBIDDEN and leaves unknown database errors untyped", async () => {

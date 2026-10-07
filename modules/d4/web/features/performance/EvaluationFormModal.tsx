@@ -31,33 +31,33 @@ export function EvaluationFormModal({ employeeId, onClose, onSaved }: { employee
   async function submit(event: FormEvent) {
     event.preventDefault();
     setTouched(true);
-    if (missing.length) { setError(`Complete ${missing.join(", ")} before saving.`); return; }
+    if (missing.length) { setError(`Lengkapi ${missing.join(", ")} sebelum menyimpan.`); return; }
     setError("");
     const result = await run((source) => source.createEvaluation({
       employeeId: employee, period, evaluationDate: date, evaluator, status: "completed", reviewStatus: "Needs Review",
       overallScore: null, aspects: [], generalNotes: notes, evidenceReference: evidence.trim() || null, revisionOf: existing?.id ?? null,
-    }), "Performance evaluation saved.");
+    }), "Evaluasi performance tersimpan.");
     if (result.ok) { onSaved?.(result.value); onClose(); } else setError(result.error);
   }
 
-  return <FormModal title="Add Evaluation" description="Record evaluation notes for the period. Scores are recorded in the KPI Scorecard; earlier evaluations are never overwritten." onClose={onClose}
+  return <FormModal title="Add Evaluation" description="Catat hasil evaluasi untuk periode ini. Skor dicatat di KPI Scorecard; evaluasi sebelumnya tidak pernah ditimpa." onClose={onClose}
     footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Evaluation" />}>
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />
       <div className="grid gap-4 sm:grid-cols-2">
-        <SearchSelectField label="Employee" testId="employee" required value={employee} onChange={(value) => setEmployee(value)} error={touched && !employee ? "Employee is required." : undefined} className="sm:col-span-2" placeholder="Select employee"
+        <SearchSelectField label="Employee" testId="employee" required value={employee} onChange={(value) => setEmployee(value)} error={touched && !employee ? "Employee wajib diisi." : undefined} className="sm:col-span-2" placeholder="Select employee"
           options={assessableEmployees(snapshot).map((item) => ({ value: item.id, label: `${item.fullName} · ${item.employeeId}` }))} />
         <ReadOnlyField label="Position" testId="position" value={positionOf(snapshot, selected)?.title ?? "—"} />
         <ReadOnlyField label="Department" testId="department" value={departmentOf(snapshot, selected)?.name ?? "—"} />
-        <TextField label="Period" testId="period" required type="month" value={period} onChange={(event) => setPeriod(event.target.value)} error={touched && !period ? "Period is required." : undefined} />
-        <TextField label="Evaluation date" testId="evaluation-date" required type="date" max={today()} value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? "Date is required." : touched && date > today() ? "Cannot be later than today." : undefined} />
+        <TextField label="Period" testId="period" required type="month" value={period} onChange={(event) => setPeriod(event.target.value)} error={touched && !period ? "Period wajib diisi." : undefined} />
+        <TextField label="Evaluation date" testId="evaluation-date" required type="date" max={today()} value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? "Date wajib diisi." : touched && date > today() ? "Cannot be later than today." : undefined} />
         <ReadOnlyField label="Evaluator" testId="evaluator" value={evaluator || "—"} />
       </div>
       {existing && <RevisionConfirm what="An evaluation" existing={`${existing.evaluator}, ${formatDate(existing.evaluationDate)}`} checked={revise} onChange={setRevise}
-        error={touched && !revise ? "Tick to save as a revision, or choose another period." : undefined} />}
-      <TextAreaField label="Evaluation notes" testId="catatan-evaluasi" required value={notes} onChange={(event) => setNotes(event.target.value)} error={touched && !notes.trim() ? "Evaluation notes are required." : undefined}
-        helper="Include training recommendations or plans if any — they can serve as context for a Development Requirement." />
-      <TextField label="Evidence / reference" testId="evidence-reference" value={evidence} onChange={(event) => setEvidence(event.target.value)} helper="Optional: a document number or evidence link." />
+        error={touched && !revise ? "Centang untuk menyimpan sebagai revisi, atau pilih periode lain." : undefined} />}
+      <TextAreaField label="Evaluation notes" testId="catatan-evaluasi" required value={notes} onChange={(event) => setNotes(event.target.value)} error={touched && !notes.trim() ? "Catatan evaluasi wajib diisi." : undefined}
+        helper="Tuliskan rekomendasi atau rencana training bila ada — bisa menjadi dasar Development Requirement." />
+      <TextField label="Evidence / reference" testId="evidence-reference" value={evidence} onChange={(event) => setEvidence(event.target.value)} helper="Opsional: nomor dokumen atau tautan bukti." />
     </form>
   </FormModal>;
 }

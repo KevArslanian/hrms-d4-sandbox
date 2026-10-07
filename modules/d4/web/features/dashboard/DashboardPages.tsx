@@ -57,7 +57,7 @@ export function DashboardPage() {
   const profileHref = (row: Row) => `/dashboard/employee/${row.employee.id}${row.period ? `?period=${row.period}` : ""}`;
 
   return <>
-    <PageHeader title="People Dashboard" subtitle="KPI, performance, competency gap, development, and training per employee for the same period." />
+    <PageHeader title="People Dashboard" subtitle="KPI, performance, gap kompetensi, development, dan training per pegawai untuk periode yang sama." />
     <FilterBar canReset={Boolean(search || position || department || period)} onReset={() => { setSearch(""); setPosition(""); setDepartment(""); setPeriod(""); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Search name or ID" />
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All positions" testId="all-positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />}
@@ -66,7 +66,7 @@ export function DashboardPage() {
       <SelectFilter label="Period" testId="latest-period" emptyOption={false} value={period || periods[0] || ""} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
     </FilterBar>
     <DataTable<Row> rows={rows} noun="pegawai" rowKey={(row) => row.employee.id} rowHref={profileHref}
-      emptyTitle="No matching employees" emptyText="Change the keyword, position, department, or period, then try again."
+      emptyTitle="Tidak ada pegawai yang cocok" emptyText="Ubah kata kunci, posisi, departemen, atau periode, lalu coba lagi."
       columns={[
         { key: "employee", header: "Employee", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
         // Position and department share one column so the nine summary columns fit at 1440px.
@@ -111,9 +111,9 @@ export function EmployeeProfilePage({ employeeId, initialPeriod = "" }: { employ
       name={employee.fullName} meta={employeeMeta(snapshot, employee)} />
     <FilterBar>
       <SelectFilter label="Period" testId="latest-period" emptyOption={false} value={shown ?? ""} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
-      <p className="text-sm text-ink-3">Showing period <strong className="text-ink">{formatPeriod(shown)}</strong> for KPI and performance.</p>
+      <p className="text-sm text-ink-3">Menampilkan periode <strong className="text-ink">{formatPeriod(shown)}</strong> untuk KPI dan performance.</p>
     </FilterBar>
-    {scorecard && !validScorecard(scorecard) && <Notice tone="warning">This period’s scorecard does not have five KPIs with a total weight of 100%. Check the data on the KPI Scorecard page before using it.</Notice>}
+    {scorecard && !validScorecard(scorecard) && <Notice tone="warning">Scorecard periode ini tidak memiliki lima KPI dengan total bobot 100%. Periksa datanya di halaman KPI Scorecard sebelum digunakan.</Notice>}
     <div className="grid gap-6 xl:grid-cols-2">
       {/* Full width on xl: five KPI rows with six columns do not fit half a 1440 px layout. */}
       <Card title="KPI scorecard" className="xl:col-span-2" actions={<SourceLink href={scorecard ? `/kpi/${scorecard.id}` : `/kpi/history/${employee.id}`} />} padded={false}>
@@ -121,24 +121,24 @@ export function EmployeeProfilePage({ employeeId, initialPeriod = "" }: { employ
           <thead className="bg-app text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3"><tr><th className="py-2.5 pl-5 pr-2.5">Core KPI</th><th className="px-2.5 py-2.5">Weight</th><th className="px-2.5 py-2.5">Target</th><th className="px-2.5 py-2.5">Actual</th><th className="px-2.5 py-2.5">Score</th><th className="py-2.5 pl-2.5 pr-5 text-right">Weighted</th></tr></thead>
           <tbody>{scorecard.lines.map((line) => <tr key={line.indicator_order} data-testid={`kpi-line-${line.indicator_order}`} className="border-t border-line"><td className="py-2.5 pl-5 pr-2.5 font-semibold">{line.kpi_name}</td><td className="px-2.5 py-2.5 tabular-nums">{line.weight_percent}%</td><td className="px-2.5 py-2.5">{line.target || "—"}</td><td className="px-2.5 py-2.5">{line.actual || "—"}</td><td className="px-2.5 py-2.5 tabular-nums">{line.raw_score ?? "—"}</td><td className="py-2.5 pl-2.5 pr-5 text-right tabular-nums">{weighted(line)?.toFixed(2) ?? "—"}</td></tr>)}</tbody>
           <tfoot className="border-t border-line bg-app"><tr><td colSpan={5} className="py-2.5 pl-5 pr-2.5 font-semibold">Total ({formatPeriod(scorecard.period)})</td><td className="whitespace-nowrap py-2.5 pl-2.5 pr-5 text-right font-display font-semibold tabular-nums">{formatScore(scorecard.overallScore)}</td></tr></tfoot>
-        </table></div> : <p className="px-6 pb-6 text-sm text-ink-3">No KPI scorecard for this period yet.</p>}
+        </table></div> : <p className="px-6 pb-6 text-sm text-ink-3">Belum ada KPI scorecard untuk periode ini.</p>}
       </Card>
       <Card title="Performance evaluation" testId="performance-evaluation" actions={<SourceLink href={evaluation ? `/performance/${evaluation.id}` : `/performance/history/${employee.id}`} />}>
         {evaluation ? <><p className="text-sm text-ink-2">{formatPeriod(evaluation.period)} · {formatDate(evaluation.evaluationDate)} · Evaluator {evaluation.evaluator || "—"}</p><p className="mt-3 line-clamp-6 whitespace-pre-wrap text-sm text-ink">{evaluation.generalNotes || "—"}</p></>
-          : <p className="text-sm text-ink-3">No performance evaluation for this period yet.</p>}
+          : <p className="text-sm text-ink-3">Belum ada evaluasi performance untuk periode ini.</p>}
       </Card>
       <Card title="Competency gap" testId="competency-gap" actions={<SourceLink href={`/competency/${employee.id}`} />}>
         {gap?.findings.length ? <ul className="space-y-2.5">{gap.findings.map((item) => <li key={item.requirementId} className="flex flex-wrap items-center justify-between gap-2 text-sm"><span>{item.competencyName} <span className="text-ink-3">· level {item.actualLevel ?? "—"} / min. {item.requiredLevel}</span></span><StatusBadge status={item.status} /></li>)}</ul>
-          : <p className="text-sm text-ink-3">No requirements for this position yet.</p>}
+          : <p className="text-sm text-ink-3">Belum ada persyaratan untuk posisi ini.</p>}
       </Card>
       <Card title="Development & training" actions={<SourceLink href="/development" />}>
         {needs.length ? <ul className="space-y-3">{needs.map((need) => {
           const linked = employeeTraining.filter((item) => item.developmentNeedId === need.needId);
           return <li key={need.needId} className="rounded-xl border border-line p-3">
             <div className="flex flex-wrap items-center justify-between gap-2"><Link href={`/development/${need.needId}`} data-testid={`dev-need-${need.needId}`} className="text-sm font-semibold hover:text-primary-600 hover:underline">{need.objective}</Link><StatusBadge status={need.status} /></div>
-            <p className="mt-1.5 text-xs text-ink-3">{linked.length ? linked.map((item) => `${item.activity} (${statusLabel(item.status)}, ${formatDate(item.date)})`).join(" · ") : "No training yet"}</p>
+            <p className="mt-1.5 text-xs text-ink-3">{linked.length ? linked.map((item) => `${item.activity} (${statusLabel(item.status)}, ${formatDate(item.date)})`).join(" · ") : "Belum ada training"}</p>
           </li>;
-        })}</ul> : <p className="text-sm text-ink-3">No development requirement yet.</p>}
+        })}</ul> : <p className="text-sm text-ink-3">Belum ada development requirement.</p>}
       </Card>
     </div>
   </>;

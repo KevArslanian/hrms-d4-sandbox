@@ -60,7 +60,7 @@ export function DetailHeader({ crumbs, backHref, name, meta, status, actions }: 
 export type TimelineEntry = { id: string; date: string; title: string; status?: string; actor: string; body?: ReactNode; href?: string };
 
 export function Timeline({ entries, empty }: { entries: TimelineEntry[]; empty: string }) {
-  if (!entries.length) return <StateView kind="empty" title="No history yet" text={empty} />;
+  if (!entries.length) return <StateView kind="empty" title="Belum ada riwayat" text={empty} />;
   return <ol className="relative space-y-4 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-px before:bg-line">
     {entries.map((entry) => <li key={entry.id} data-testid={`timeline-${entry.id}`} className="relative pl-9">
       <span aria-hidden="true" className="absolute left-0 top-4 flex size-6 items-center justify-center rounded-full border-2 border-primary-500 bg-surface"><span className="size-2 rounded-full bg-primary-500" /></span>
@@ -98,7 +98,7 @@ export function LoadingView() {
         <div className="h-3 w-40 animate-pulse rounded bg-line" /><div className="h-3 flex-1 animate-pulse rounded bg-muted" /><div className="h-3 w-24 animate-pulse rounded bg-line" />
       </div>)}
     </div>
-    <span className="sr-only">Loading performance, KPI, competency, and training data…</span>
+    <span className="sr-only">Memuat data performance, KPI, kompetensi, dan training…</span>
   </div>;
 }
 
@@ -107,7 +107,7 @@ export function NotFound({ what, backHref, backLabel }: { what: string; backHref
 }
 
 export function Forbidden() {
-  return <StateView kind="forbidden" title="Restricted access" text="Only HR or a manager can create or change this data." />;
+  return <StateView kind="forbidden" title="Restricted access" text="Hanya HR atau manager yang dapat membuat atau mengubah data ini." />;
 }
 
 /* ---------- Toasts ---------- */

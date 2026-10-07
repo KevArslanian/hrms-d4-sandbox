@@ -20,7 +20,7 @@ export async function getDevelopment(id: string) {
   const { repository } = await d4Session();
   const snapshot = await repository.loadSnapshot();
   const versions = snapshot.developmentVersions.filter((item) => item.needId === id).sort((a, b) => b.revision - a.revision);
-  if (!versions.length) throw new ApiError("NOT_FOUND", "Development need not found.");
+  if (!versions.length) throw new ApiError("NOT_FOUND", "Development requirement tidak ditemukan.");
   return { latest: versions[0], versions };
 }
 
@@ -48,7 +48,7 @@ export async function addDevelopmentVersion(request: Request, id: string) {
   // Checked here so an unknown or malformed id is a 404, not a database error.
   const snapshot = await repository.loadSnapshot();
   const current = latestDevelopment(snapshot).find((item) => item.needId === id);
-  if (!current) throw new ApiError("NOT_FOUND", "Development need not found.");
+  if (!current) throw new ApiError("NOT_FOUND", "Development requirement tidak ditemukan.");
   enforce(() => assertDevelopmentChange(current.status, status, notes, openTrainingCount(latestTraining(snapshot), id)));
   await repository.updateDevelopment(id, status, notes);
   return { developmentNeedId: id, status };

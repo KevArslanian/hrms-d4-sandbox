@@ -9,7 +9,7 @@ import { Button } from "./ui/primitives";
 function Gate({ children }: { children: ReactNode }) {
   const { status, error, reload } = useD4();
   if (status === "loading") return <LoadingView />;
-  if (status === "error") return <StateView kind="error" title="D4 data could not be loaded" text={error} action={<Button onClick={reload}>Try again</Button>} />;
+  if (status === "error") return <StateView kind="error" title="Data D4 gagal dimuat" text={error} action={<Button onClick={reload}>Try again</Button>} />;
   return <>{children}</>;
 }
 

@@ -37,7 +37,7 @@ export function DevelopmentListPage() {
   }, [snapshot, search, department, sourceType, status, period]);
 
   return <>
-    <PageHeader title="Development Requirement" subtitle="Development and training needs with a traceable reason and source."
+    <PageHeader title="Development Requirement" subtitle="Kebutuhan development dan training dengan alasan dan sumber yang dapat ditelusuri."
       actions={writer && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)} data-testid="btn-add-requirement">Add Requirement</Button>} />
     <FilterBar canReset={Boolean(search || department || sourceType || status || period)} onReset={() => { setSearch(""); setDepartment(""); setSourceType(""); setStatus(""); setPeriod(""); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Search keyword" />
@@ -47,7 +47,7 @@ export function DevelopmentListPage() {
       <SelectFilter label="All status" testId="all-status" value={status} onChange={setStatus} options={["Identified", "Planned", "In Progress", "Completed"].map((item) => ({ value: item, label: statusLabel(item) }))} />
     </FilterBar>
     <DataTable<DevelopmentNeedVersion> rows={rows} noun="kebutuhan pengembangan" rowKey={(row) => row.needId} rowHref={(row) => `/development/${row.needId}`}
-      emptyTitle="No development requirements yet" emptyText="Create one from a competency gap, a position change, or a performance evaluation."
+      emptyTitle="Belum ada development requirement" emptyText="Buat dari gap kompetensi, perubahan posisi, atau evaluasi performance."
       columns={[
         { key: "employee", header: "Employee", cell: (row) => { const employee = employeeById(snapshot, row.employeeId); return <PersonCell name={employee?.fullName ?? "—"} code={employee?.employeeId ?? ""} />; } },
         { key: "objective", header: "Objective", wrap: true, className: "max-w-[320px]", cell: (row) => <span className="line-clamp-2">{row.objective}</span> },
@@ -104,11 +104,11 @@ export function DevelopmentDetailPage({ needId }: { needId: string }) {
         <Card title="Source (traceability)" testId="source-traceability">
           <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3">{sourceTypeLabel[need.sourceType]}</p>
           <div className="mt-2"><SourceChip label={source.label} href={source.href} /></div>
-          <p className="mt-4 text-xs text-ink-3">The requirement stays linked to its original source even if the employee’s position changes.</p>
+          <p className="mt-4 text-xs text-ink-3">Requirement tetap terhubung ke sumber aslinya walaupun posisi pegawai berubah.</p>
         </Card>
         <Card title="Linked training" testId="linked-training">
           {linked.length ? <div className="flex flex-col items-start gap-2">{linked.map((item) => <SourceChip key={item.trainingId} label={item.activity} reference={statusLabel(item.status)} href={`/training/${item.trainingId}`} />)}</div>
-            : <p className="text-sm text-ink-3">No training for this requirement yet.</p>}
+            : <p className="text-sm text-ink-3">Belum ada training untuk requirement ini.</p>}
         </Card>
       </div>
     </div>
@@ -127,7 +127,7 @@ export function DevelopmentHistoryPage({ needId }: { needId: string }) {
     <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Development Requirement", href: "/development" }, { label: "History" }]} backHref={`/development/${need.needId}`}
       name={employee.fullName} meta={employeeMeta(snapshot, employee)} status={need.status} />
     <Card title="Revision history" testId="revision-history">
-      <Timeline empty="No revisions yet." entries={developmentHistory(snapshot, need.needId).map((item) => ({
+      <Timeline empty="Belum ada revisi." entries={developmentHistory(snapshot, need.needId).map((item) => ({
         id: item.id, date: formatDate(item.createdAt), title: `Revision ${item.revision}`, status: item.status, actor: item.actor, body: item.notes || undefined,
       }))} />
     </Card>

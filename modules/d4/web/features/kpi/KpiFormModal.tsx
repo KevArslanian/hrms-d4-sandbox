@@ -11,7 +11,7 @@ import { FormError, FormModal, ModalActions, ReadOnlyField, RevisionConfirm, Sea
 import { cx, Notice } from "../../ui/primitives";
 
 /** FR-02.11: positions without a KPI role in the catalog get no scorecard; no mapping is invented for them. */
-export const noKpiText = (version = ACTIVE_KPI_VERSION) => `This position has no KPI in catalog ${version} yet — contact HR.`;
+export const noKpiText = (version = ACTIVE_KPI_VERSION) => `Posisi ini belum memiliki KPI di katalog ${version} — hubungi HR.`;
 
 const validScore = (value: number | null) => value !== null && Number.isInteger(value) && value >= 1 && value <= 5;
 
@@ -56,36 +56,36 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
   async function submit(event: FormEvent) {
     event.preventDefault();
     setTouched(true);
-    if (!employee) { setError("Complete employee before saving."); return; }
-    if (!roleOrder || lines.length !== 5 || totalWeight !== 100) { setError("KPIs for this position are not available in the KPI Scorecard yet; the scorecard cannot be saved."); return; }
-    if (lines.some((line) => !line.kpi_name.trim())) { setError("Every Core KPI needs a name."); return; }
-    if (!allScored || !period || !date) { setError("Complete the period, evaluation date, and a 1–5 score for all five KPIs."); return; }
-    if (date > today()) { setError("The evaluation date cannot be later than today."); return; }
-    if (existing && !revise) { setError("A scorecard for this period already exists. Tick “Save as revision” or choose another period."); return; }
+    if (!employee) { setError("Lengkapi employee sebelum menyimpan."); return; }
+    if (!roleOrder || lines.length !== 5 || totalWeight !== 100) { setError("KPI untuk posisi ini belum tersedia di KPI Scorecard; scorecard tidak dapat disimpan."); return; }
+    if (lines.some((line) => !line.kpi_name.trim())) { setError("Setiap Core KPI wajib diberi nama."); return; }
+    if (!allScored || !period || !date) { setError("Lengkapi periode, tanggal evaluasi, dan skor 1–5 untuk kelima KPI."); return; }
+    if (date > today()) { setError("Tanggal evaluasi tidak boleh lebih dari hari ini."); return; }
+    if (existing && !revise) { setError("Scorecard untuk periode ini sudah ada. Centang “Save as revision” atau pilih periode lain."); return; }
     setError("");
     const result = await run((source) => source.createKpiAssessment({ employeeId: employee, roleOrder, period, evaluationDate: date, evaluatorName: evaluator, status: "completed", lines, generalNotes: notes, revisionOf: existing?.id ?? null }),
-      "KPI scorecard saved.");
+      "KPI scorecard tersimpan.");
     if (result.ok) { onSaved?.(result.value); onClose(); } else setError(result.error);
   }
 
-  return <FormModal size="lg" title="Add Scorecard" description={`The five Core KPIs start from KPI Scorecard ${catalog?.version ?? ""} for the employee's position and can be renamed; weights stay as in the catalog.`} onClose={onClose}
+  return <FormModal size="lg" title="Add Scorecard" description={`Lima Core KPI diambil dari KPI Scorecard ${catalog?.version ?? ""} sesuai posisi pegawai dan namanya bisa diubah; bobot tetap mengikuti katalog.`} onClose={onClose}
     footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Scorecard" disabled={Boolean(employee) && !lines.length} />}>
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />
       <div className="grid gap-4 sm:grid-cols-3">
-        <SearchSelectField label="Employee" testId="employee" required value={employee} onChange={(value) => chooseEmployee(value)} error={touched && !employee ? "Employee is required." : undefined} className="sm:col-span-2" placeholder="Select employee"
+        <SearchSelectField label="Employee" testId="employee" required value={employee} onChange={(value) => chooseEmployee(value)} error={touched && !employee ? "Employee wajib diisi." : undefined} className="sm:col-span-2" placeholder="Select employee"
           options={assessableEmployees(snapshot).map((item) => ({ value: item.id, label: `${item.fullName} · ${item.employeeId}` }))} />
-        <TextField label="Period" testId="period" required type="month" value={period} onChange={(event) => setPeriod(event.target.value)} error={touched && !period ? "Period is required." : undefined} />
+        <TextField label="Period" testId="period" required type="month" value={period} onChange={(event) => setPeriod(event.target.value)} error={touched && !period ? "Period wajib diisi." : undefined} />
         <ReadOnlyField label="Position" testId="position" value={position?.title ?? "—"} />
         <ReadOnlyField label="Department" testId="department" value={departmentOf(snapshot, selected)?.name ?? "—"} />
         <ReadOnlyField label="Position KPI" testId="kpi-jabatan" value={!employee ? "—" : roleName ?? `Not in catalog ${catalog?.version ?? ACTIVE_KPI_VERSION} yet`} />
-        <TextField label="Evaluation date" testId="evaluation-date" required type="date" max={today()} value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? "Date is required." : touched && date > today() ? "Cannot be later than today." : undefined} />
+        <TextField label="Evaluation date" testId="evaluation-date" required type="date" max={today()} value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? "Date wajib diisi." : touched && date > today() ? "Cannot be later than today." : undefined} />
         <ReadOnlyField label="Evaluator" testId="evaluator" value={evaluator || "—"} className="sm:col-span-2" />
       </div>
       {existing && <RevisionConfirm what="Scorecard" existing={`${existing.evaluatorName}, ${formatDate(existing.evaluationDate)}`} checked={revise} onChange={setRevise}
-        error={touched && !revise ? "Tick to save as a revision, or choose another period." : undefined} />}
+        error={touched && !revise ? "Centang untuk menyimpan sebagai revisi, atau pilih periode lain." : undefined} />}
 
-      {employee && !lines.length ? <Notice tone="warning">{position ? noKpiText(catalog?.version) : "The employee has no active position, so their KPIs cannot be determined yet."}</Notice> : <div className="overflow-x-auto rounded-2xl border border-line">
+      {employee && !lines.length ? <Notice tone="warning">{position ? noKpiText(catalog?.version) : "Pegawai belum memiliki posisi aktif, jadi KPI-nya belum bisa ditentukan."}</Notice> : <div className="overflow-x-auto rounded-2xl border border-line">
         <table data-testid="kpi-lines-table" className="w-full text-left text-sm max-md:block md:min-w-[1100px]">
           <thead className="bg-app text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3 max-md:hidden">
             <tr><th className="w-10 px-3 py-2.5">No</th><th className="min-w-[260px] px-3 py-2.5">Core KPI</th><th className="w-20 px-3 py-2.5">Weight</th><th className="w-36 px-3 py-2.5">Target</th><th className="w-36 px-3 py-2.5">Actual</th><th className="w-24 px-3 py-2.5">Score 1–5</th><th className="w-24 px-3 py-2.5 text-right">Weighted</th><th className="w-44 px-3 py-2.5">Comment</th></tr>
