@@ -110,7 +110,7 @@ export function KpiDetailPage({ id }: { id: string }) {
             { label: "Total score", testId: "total-score", value: <strong className="font-display font-semibold text-lg">{formatScore(scorecard.overallScore)}</strong> },
             { label: "Recorded", testId: "recorded", value: `${scorecard.actor} · ${formatDate(scorecard.createdAt)}` },
           ]} />
-          <p className="mt-5 text-xs text-ink-3">Total = Σ (weight × raw score). There is no achieved/not-achieved label because no official threshold exists yet.</p>
+          <p className="mt-5 text-xs text-ink-3">Total = Σ (bobot × skor mentah). Belum ada label tercapai/tidak tercapai karena belum ada batas resmi.</p>
         </Card>
         <Card title="Notes & related" testId="notes-related">
           <p className="whitespace-pre-wrap text-sm text-ink-2">{scorecard.generalNotes || "Belum ada catatan."}</p>

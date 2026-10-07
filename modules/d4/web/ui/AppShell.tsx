@@ -64,11 +64,11 @@ function Sidebar({ onNavigate, onClose }: { onNavigate: () => void; onClose: () 
         <span className="flex items-center gap-3"><Users aria-hidden="true" className="size-[17px]" /> HRMS</span>
         <ChevronDown aria-hidden="true" size={16} className={cx("transition-transform", hrmsOpen ? "rotate-0" : "-rotate-90")} />
       </button>
-      {hrmsOpen && <div className="ml-5 space-y-1.5 border-l border-[#d9e2fc]/40 py-2 pl-2">
+      {hrmsOpen && <div className="ml-5 space-y-1.5 border-l border-[#d9e2fc]/40 py-2 pl-1.5">
         {D4_MENU.map((item) => {
           const active = isActive(item.href);
           return <Link key={item.href} href={item.href} data-testid={`nav-${slug(item.label)}`} onClick={onNavigate} aria-current={active ? "page" : undefined}
-            className={cx("flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold tracking-[0.12px] transition-colors",
+            className={cx("flex items-center gap-2 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors",
               active ? "bg-[#b0c6d4] text-[#606f8c]" : "text-[#d9e2fc]/40 hover:text-[#d9e2fc]")}>
             <span aria-hidden="true" className={cx("size-1.5 shrink-0 rounded-full", active ? "bg-[#069494]" : "bg-[#d9e2fc]/40")} />
             {item.label}
