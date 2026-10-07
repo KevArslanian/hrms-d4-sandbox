@@ -22,7 +22,7 @@ export function FilterBar({ children, onReset, canReset }: { children: ReactNode
 }
 
 export function SearchInput({ value, onChange, placeholder }: { value: string; onChange: (value: string) => void; placeholder: string }) {
-  return <label className="relative min-w-[200px] flex-[2_1_220px]">
+  return <label className="relative min-w-[200px] flex-[2_1_200px]">
     <span className="sr-only">{placeholder}</span>
     <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-3 size-4 text-ink-3" />
     <input type="search" data-testid="input-search" value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className={cx(control, "bg-app pl-9")} />
@@ -38,9 +38,9 @@ type Option = { value: string; label: string };
  * lists the options, typing narrows them. Only FILTER_VISIBLE options are rendered at once (load test:
  * 1000 departments/employees); the rest are reached by typing. `emptyLabel` adds a "no value" choice.
  */
-function SearchableSelect({ label, value, onChange, options, emptyLabel, testId, triggerId, invalid, describedBy, className, wrapperClassName }: {
+function SearchableSelect({ label, value, onChange, options, emptyLabel, testId, triggerId, invalid, describedBy, className, wrapperClassName, highlightActive }: {
   label: string; value: string; onChange: (value: string) => void; options: readonly Option[]; emptyLabel?: string; testId: string;
-  triggerId?: string; invalid?: boolean; describedBy?: string; className?: string; wrapperClassName?: string;
+  triggerId?: string; invalid?: boolean; describedBy?: string; className?: string; wrapperClassName?: string; highlightActive?: boolean;
 }) {
   const listId = useId();
   const [open, setOpen] = useState(false);
@@ -51,6 +51,8 @@ function SearchableSelect({ label, value, onChange, options, emptyLabel, testId,
   const matches = allMatches.slice(0, FILTER_VISIBLE);
   const hidden = allMatches.length - matches.length;
   const selected = options.find((option) => option.value === value);
+  // A list filter that narrows the table stands out, so users can see at a glance which filters are on.
+  const active = Boolean(highlightActive && selected);
   const close = () => { setOpen(false); setQuery(""); };
   const pick = (next: string) => { onChange(next); close(); };
   // Arrow keys move between the search box and the options (keyboard use without Tab).
@@ -64,9 +66,11 @@ function SearchableSelect({ label, value, onChange, options, emptyLabel, testId,
   return <div className={cx("relative", wrapperClassName)} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) close(); }}
     onKeyDown={(event) => { if (event.key === "Escape" && open) { event.stopPropagation(); close(); } else if (open) moveFocus(event); else if (event.key === "ArrowDown") { event.preventDefault(); setOpen(true); } }}>
     <button type="button" id={triggerId} data-testid={testId} aria-label={triggerId ? undefined : label} aria-haspopup="listbox" aria-expanded={open} aria-describedby={describedBy}
-      onClick={() => open ? close() : setOpen(true)} className={cx(control, "flex items-center justify-between gap-2 text-left", !selected && "text-ink-2", invalid && "border-danger", className)}>
+      data-active={active || undefined} title={selected ? `${label}: ${selected.label}` : undefined}
+      onClick={() => open ? close() : setOpen(true)} className={cx(control, "flex items-center justify-between gap-2 text-left", !selected && "text-ink-2",
+        active && "border-primary-500 bg-primary-50 font-semibold text-primary-700", invalid && "border-danger", className)}>
       <span className="truncate">{selected?.label ?? emptyLabel ?? label}</span>
-      <ChevronDown aria-hidden="true" className={cx("size-4 shrink-0 text-ink-3 transition-transform", open && "rotate-180")} />
+      <ChevronDown aria-hidden="true" className={cx("size-4 shrink-0 transition-transform", active ? "text-primary-600" : "text-ink-3", open && "rotate-180")} />
     </button>
     {open && <div className="absolute inset-x-0 top-full z-30 mt-1 rounded-[10px] border border-line bg-surface p-1.5 shadow-card">
       <label className="relative block">
@@ -74,7 +78,7 @@ function SearchableSelect({ label, value, onChange, options, emptyLabel, testId,
         <Search aria-hidden="true" className="pointer-events-none absolute left-2.5 top-2.5 size-4 text-ink-3" />
         <input autoFocus data-search data-testid={testId.replace(/^(filter|input)-/, "search-")} role="combobox" aria-controls={listId} aria-expanded aria-autocomplete="list" value={query} onChange={(event) => setQuery(event.target.value)}
           onKeyDown={(event) => { if (event.key === "Enter" && matches[0]) { event.preventDefault(); pick(matches[0].value); } }}
-          placeholder="Ketik untuk menyaring…" className="h-9 w-full rounded-lg border border-line-strong bg-app pl-8 pr-2 text-sm text-ink outline-none placeholder:text-ink-3 focus:border-primary-500" />
+          placeholder="Search…" className="h-9 w-full rounded-lg border border-line-strong bg-app pl-8 pr-2 text-sm text-ink outline-none placeholder:text-ink-3 focus:border-primary-500" />
       </label>
       <ul id={listId} role="listbox" data-testid={testId.replace(/^(filter|input)-/, "options-")} aria-label={label} className="mt-1.5 max-h-64 overflow-y-auto text-sm">
         {matches.length ? matches.map((option) => <li key={option.value || "empty"} role="option" aria-selected={option.value === value}>
@@ -91,7 +95,7 @@ function SearchableSelect({ label, value, onChange, options, emptyLabel, testId,
 /** List filter. `emptyOption={false}` drops the "All …" choice for filters that always show one value (the dashboard period). */
 export function SelectFilter({ label, testId, value, onChange, options, emptyOption = true }: { label: string; testId?: string; value: string; onChange: (value: string) => void; options: Option[]; emptyOption?: boolean }) {
   return <SearchableSelect label={label} value={value} onChange={onChange} options={options} emptyLabel={emptyOption ? label : undefined}
-    testId={`filter-${testId ?? slug(label)}`} wrapperClassName="min-w-[172px] flex-[1_1_172px]" />;
+    testId={`filter-${testId ?? slug(label)}`} wrapperClassName="min-w-[150px] flex-[1_1_150px]" highlightActive={emptyOption} />;
 }
 
 /* ---------- Form fields ---------- */
