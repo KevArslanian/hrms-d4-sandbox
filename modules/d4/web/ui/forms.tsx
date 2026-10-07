@@ -12,7 +12,10 @@ const control = "h-10 w-full rounded-[10px] border border-line-strong bg-surface
 export function FilterBar({ children, onReset, canReset }: { children: ReactNode; onReset?: () => void; canReset?: boolean }) {
   return <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-surface p-3 shadow-card">
     {children}
-    {onReset && <button type="button" data-testid="btn-filter-reset" onClick={onReset} disabled={!canReset} className="ml-auto inline-flex h-10 items-center gap-1.5 rounded-[10px] px-3 text-sm font-semibold text-primary-600 hover:bg-primary-50 disabled:text-ink-3 disabled:hover:bg-transparent">
+    {/* D3 button variants (Figma PISD node 247:7): solid blue pill once a filter is set, the light "Disable" pill otherwise,
+        so it is obvious the button can be pressed after filtering. */}
+    {onReset && <button type="button" data-testid="btn-filter-reset" onClick={onReset} disabled={!canReset}
+      className="ml-auto inline-flex h-10 items-center gap-1.5 rounded-[20px] bg-[#3b6ff5] px-4 text-sm font-semibold text-white shadow-sm transition hover:shadow-[0_0_15px_2px_rgba(59,111,245,0.45)] disabled:cursor-not-allowed disabled:bg-[#d9e2ec] disabled:text-[#adbed1] disabled:shadow-none">
       <X aria-hidden="true" className="size-4" />Reset filter
     </button>}
   </div>;
