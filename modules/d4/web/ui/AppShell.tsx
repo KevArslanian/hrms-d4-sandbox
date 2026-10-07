@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, ChevronDown, LayoutGrid, Menu, Users, X } from "lucide-react";
+import { Bell, ChevronDown, Contact, Menu, SquareTerminal, Store, Users, X } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { createD4BrowserClient } from "../../supabase/client";
 import { useD4 } from "../data/D4DataProvider";
@@ -19,7 +19,13 @@ export const D4_MENU = [
 
 const roleLabel: Record<string, string> = { HR: "HR", MANAGER: "Manager", EMPLOYEE: "Employee" };
 
-// Matches Figma PISD D2 HR sidebar (node 1101:3390): HRMS only, Dashboard on top, Logout at the bottom.
+const LOGO_URL = "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-ANDIMA-wzx4gpZx20EFE5IYcH3jqabixELIo3.png";
+
+// Other teams' modules: shown as in the shared sidebar, not clickable from D4 yet.
+const OTHER_MODULES = [{ label: "POS", icon: Store }, { label: "CRM", icon: Contact }] as const;
+
+// Matches Figma PISD D3 sidebar (file L5k46NNy2gX6xOq8e1dczQ, node 1582:458): POS, CRM, HRMS (expanded) and MID,
+// active HRMS item on #b0c6d4 with a teal dot, Logout outlined at the bottom.
 function Sidebar({ onNavigate, onClose }: { onNavigate: () => void; onClose: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -39,44 +45,45 @@ function Sidebar({ onNavigate, onClose }: { onNavigate: () => void; onClose: () 
   }
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  const moduleItem = "flex h-10 w-full items-center gap-3 rounded-lg px-3 text-sm font-semibold tracking-[0.07px] text-[#d9e2fc]";
+  const disabledModule = (label: string, Icon: typeof Store) => <span key={label} role="link" aria-disabled="true" title={`${label} — belum tersedia dari modul D4`} data-testid={`nav-${slug(label)}`}
+    className={cx(moduleItem, "cursor-not-allowed opacity-70")}><Icon aria-hidden="true" className="size-[17px]" />{label}</span>;
 
-  return <div className="flex h-full flex-col bg-[#0f2342] px-4 py-6 text-white">
-    <div className="flex items-center gap-3 px-2">
+  return <div className="flex h-full flex-col bg-[#0f2342] px-4 pb-5 pt-4 text-white">
+    <div className="flex h-12 items-center gap-3 px-2 pt-1">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/andima-logo.png" alt="" data-testid="sidebar-logo" className="h-9 w-auto" />
-      <div><p className="text-lg font-bold leading-6">ANDIMA</p><p className="text-xs text-[#d9e2fc]/80">Logistics Suite</p></div>
+      <img src={LOGO_URL} alt="Logo ANDIMA" width={400} height={246} data-testid="sidebar-logo" className="h-9 w-auto rounded-lg bg-white object-contain p-0.5" />
+      <div><p className="text-xl font-bold leading-7 tracking-[-0.5px]">ANDIMA</p><p className="text-xs leading-4 text-[#d9e2fc]/80">Logistics Suite</p></div>
       <button type="button" onClick={onClose} data-testid="btn-sidebar-close" className="ml-auto rounded p-1 text-[#d9e2fc] lg:hidden" aria-label="Close navigation"><X size={18} /></button>
     </div>
 
-    <nav aria-label="Main navigation" data-testid="sidebar" className="mt-8 flex-1 space-y-1 overflow-y-auto text-sm font-semibold">
-      <Link href="/dashboard" data-testid="nav-dashboard" onClick={onNavigate} aria-current={isActive("/dashboard") ? "page" : undefined}
-        className={cx("flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors", isActive("/dashboard") ? "bg-white/10 text-white" : "text-white hover:bg-white/5")}>
-        <LayoutGrid size={18} /> Dashboard
-      </Link>
+    <nav aria-label="Main navigation" data-testid="sidebar" className="mt-[70px] flex-1 space-y-1.5 overflow-y-auto">
+      {OTHER_MODULES.map((item) => disabledModule(item.label, item.icon))}
       <button type="button" data-testid="nav-hrms" onClick={() => setHrmsOpen((v) => !v)} aria-expanded={hrmsOpen}
-        className="flex w-full items-center justify-between rounded-lg bg-[#155dfc] px-3 py-2 text-white">
-        <span className="flex items-center gap-3"><Users size={18} /> HRMS</span>
-        <ChevronDown size={16} className={cx("transition-transform", hrmsOpen ? "rotate-0" : "-rotate-90")} />
+        className="flex h-[29px] w-full items-center justify-between rounded-lg bg-[#155dfc] px-3 text-sm font-semibold tracking-[0.07px] text-white">
+        <span className="flex items-center gap-3"><Users aria-hidden="true" className="size-[17px]" /> HRMS</span>
+        <ChevronDown aria-hidden="true" size={16} className={cx("transition-transform", hrmsOpen ? "rotate-0" : "-rotate-90")} />
       </button>
-      {hrmsOpen && <div className="ml-5 space-y-1 border-l border-[#50607e] py-2 pl-2.5">
-        {D4_MENU.filter((item) => item.href !== "/dashboard").map((item) => {
+      {hrmsOpen && <div className="ml-5 space-y-1.5 border-l border-[#d9e2fc]/40 py-2 pl-2">
+        {D4_MENU.map((item) => {
           const active = isActive(item.href);
           return <Link key={item.href} href={item.href} data-testid={`nav-${slug(item.label)}`} onClick={onNavigate} aria-current={active ? "page" : undefined}
-            className={cx("flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors",
-              active ? "bg-[#b0c6d4] text-[#4b5b7a]" : "text-[#8b97ad] hover:text-white")}>
-            <span aria-hidden="true" className={cx("size-1 rounded-full", active ? "bg-[#069494]" : "bg-current")} />
+            className={cx("flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold tracking-[0.12px] transition-colors",
+              active ? "bg-[#b0c6d4] text-[#606f8c]" : "text-[#d9e2fc]/40 hover:text-[#d9e2fc]")}>
+            <span aria-hidden="true" className={cx("size-1.5 shrink-0 rounded-full", active ? "bg-[#069494]" : "bg-[#d9e2fc]/40")} />
             {item.label}
           </Link>;
         })}
       </div>}
+      {disabledModule("MID", SquareTerminal)}
     </nav>
 
     {mode === "live"
       ? <button type="button" data-testid="btn-logout" onClick={() => void signOut()} disabled={signingOut}
-          className="mt-4 w-full rounded-2xl border-2 border-[#d9364f] py-1.5 text-lg font-bold text-[#d9364f] transition hover:bg-[#d9364f]/10 disabled:cursor-not-allowed disabled:opacity-50">
-          {signingOut ? "Signing out..." : "Logout"}
+          className="mt-4 h-10 w-full rounded-[20px] border-[3px] border-[#d9364f] text-xl font-semibold text-[#d9364f] transition hover:bg-[#d9364f]/10 disabled:cursor-not-allowed disabled:opacity-50">
+          {signingOut ? "Keluar..." : "Logout"}
         </button>
-      : <p className="mt-4 rounded-lg border border-[#d9e2fc]/20 px-3 py-1.5 text-center text-[11px] text-[#d9e2fc]/80">Preview mode · sample data</p>}
+      : <p className="mt-4 rounded-lg border border-[#d9e2fc]/20 px-3 py-1.5 text-center text-[11px] text-[#d9e2fc]/80">Mode pratinjau · data contoh</p>}
   </div>;
 }
 
