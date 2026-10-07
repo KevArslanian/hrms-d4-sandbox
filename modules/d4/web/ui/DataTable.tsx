@@ -20,6 +20,9 @@ const secondaryCell = (column: { secondary?: boolean }) => column.secondary && "
 
 const PAGE_SIZE = 10;
 
+// The ⋮ column stays pinned to the right edge, so row actions remain reachable when long names push the table wider than the screen.
+const stickyAction = "sticky right-0 z-[1] shadow-[-8px_0_8px_-8px_rgba(15,35,66,0.18)]";
+
 /** Page buttons to show: first, last, and the current page ±1, with gaps (load test: 1000 rows = 100 pages). */
 export function pageWindow(current: number, count: number): (number | "gap")[] {
   const pages = [...new Set([1, current - 1, current, current + 1, count])].filter((page) => page >= 1 && page <= count).sort((a, b) => a - b);
@@ -52,7 +55,7 @@ export function DataTable<T>({ rows, columns, rowKey, rowHref, actions, emptyTit
       <table data-testid="data-table" className="w-full min-w-[760px] text-left text-sm">
         <thead className="bg-app">
           <tr>{columns.map((column) => <th key={column.key} scope="col" className={cx("px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3", secondaryCell(column), column.className)}>{column.header}</th>)}
-            {actions && <th scope="col" className="w-16 px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3">Actions</th>}</tr>
+            {actions && <th scope="col" className={cx(stickyAction, "w-16 bg-app px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3")}>Actions</th>}</tr>
         </thead>
         <tbody>
           {visible.map((row) => {
@@ -60,7 +63,7 @@ export function DataTable<T>({ rows, columns, rowKey, rowHref, actions, emptyTit
             return <tr key={rowKey(row)} data-testid={`row-${rowKey(row)}`} onClick={href ? () => router.push(href) : undefined}
               className={cx("h-14 border-t border-line", href && "cursor-pointer hover:bg-primary-50/60")}>
               {columns.map((column) => <td key={column.key} data-testid={`cell-${column.key}`} className={cx("px-5 py-3 align-middle text-ink", !column.wrap && "whitespace-nowrap", secondaryCell(column), column.className)}>{column.cell(row)}</td>)}
-              {actions && <td className="px-5 py-3 text-right">{actions(row)}</td>}
+              {actions && <td className={cx(stickyAction, "bg-surface px-5 py-3 text-right")}>{actions(row)}</td>}
             </tr>;
           })}
         </tbody>
@@ -86,5 +89,5 @@ export function DataTable<T>({ rows, columns, rowKey, rowHref, actions, emptyTit
 
 /** First column content: name + employee code. */
 export function PersonCell({ name, code }: { name: string; code: string }) {
-  return <span className="block min-w-0"><strong className="block truncate font-semibold text-ink">{name}</strong><span className="block text-xs text-ink-3">{code}</span></span>;
+  return <span className="block min-w-[140px]"><strong className="block whitespace-normal break-words font-semibold text-ink">{name}</strong><span className="block text-xs text-ink-3">{code}</span></span>;
 }

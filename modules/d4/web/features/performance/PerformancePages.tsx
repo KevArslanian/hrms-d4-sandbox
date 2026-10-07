@@ -57,7 +57,7 @@ export function PerformanceListPage() {
         { key: "department", header: "Department", wrap: true, cell: (row) => departmentOf(snapshot, row.employee)?.name ?? "—" },
         { key: "period", header: "Period", cell: (row) => formatPeriod(row.evaluation?.period) },
         { key: "notes", header: "Notes", wrap: true, className: "max-w-[320px]", cell: (row) => row.evaluation?.generalNotes ? <span className="line-clamp-2">{row.evaluation.generalNotes}</span> : "—" },
-        { key: "evaluator", header: "Evaluator", cell: (row) => row.evaluation?.evaluator || "—" },
+        { key: "evaluator", header: "Evaluator", wrap: true, cell: (row) => row.evaluation?.evaluator || "—" },
         { key: "status", header: "Status", cell: (row) => <StatusBadge status={evaluationStatus(row.evaluation)} /> },
       ]}
       actions={(row) => <RowActionMenu label={`Actions for ${row.employee.fullName}`} actions={[
