@@ -27,7 +27,7 @@ export function sourceOptions(snapshot: ReturnType<typeof useSnapshot>, employee
   if (type === "role_change") return snapshot.competency.filter((item) => item.employeeId === employeeId && item.context === "role-change")
     .map((item) => ({ ref: item.id, label: `Position change assessment · ${formatDate(item.effectiveDate)}` }));
   return snapshot.performance.filter((item) => item.employeeId === employeeId && item.status === "completed")
-    .map((item) => ({ ref: item.id, label: `Performance evaluation ${formatPeriod(item.period)}` }));
+    .map((item) => ({ ref: item.id, label: `Penilaian Kinerja ${formatPeriod(item.period)}` }));
 }
 
 export function DevelopmentFormModal({ employeeId, sourceType, sourceRef, onClose, onSaved }: { employeeId?: string; sourceType?: DevelopmentSourceType; sourceRef?: string; onClose: () => void; onSaved?: (id: string) => void }) {

@@ -5,6 +5,7 @@ import { ApiError, databaseError } from "@/modules/d4/shared/errors";
 import { compareCompetencies } from "@/modules/d4/competency/service";
 import { SupabaseD4Repository } from "@/modules/d4/supabase/repository";
 import type { EvaluationInput } from "@/modules/d4/performance/types";
+import { fixtureLines } from "@/modules/d4/performance/fixtures";
 
 // A minimal stand-in for the Supabase query builder; nothing reaches a real database.
 type Result = { data: unknown; error: { message: string; code?: string } | null };
@@ -32,7 +33,7 @@ const withRequirements = reference.employees.find((item) => item.positionId && r
 const competencyInput = { employeeId: withRequirements.id, positionId: withRequirements.positionId!, effectiveDate: "2026-10-03" };
 const evaluation = (employeeId: string): EvaluationInput => ({
   employeeId, period: "2026-10", evaluationDate: "2026-10-03", evaluator: "Evaluator", status: "completed",
-  reviewStatus: "Needs Review", overallScore: 4, aspects: [], generalNotes: "Uji", evidenceReference: null,
+  lines: fixtureLines("d4000000-0000-4000-8000-000000000009", [4, 4, 4, 4, 4]), overallScore: 4, generalNotes: "Uji", evidenceReference: null,
 });
 const code = async (promise: Promise<unknown>) => promise.then(() => "OK", (error) => error instanceof ApiError ? error.code : "UNTYPED");
 

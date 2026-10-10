@@ -1,3 +1,6 @@
+import type { KpiAssessmentLine } from "../supabase/types";
+
+
 export type RoleKpiRow = {
   readonly role_order: number;
   readonly role_name: string;
@@ -108,4 +111,44 @@ export function roleForPositionTitle(catalog: KpiCatalog, title: string | undefi
     }
   }
   return 0;
+}
+
+const validScore = (value: unknown): value is number => typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 5;
+
+/** FR-01.8: weighted = weight × raw score. Target and realisation never produce the raw score (FR-01.17). */
+export function weighted(line: Pick<KpiAssessmentLine, "weight_percent" | "raw_score">): number | null {
+  return validScore(line.raw_score) ? line.weight_percent * line.raw_score / 100 : null;
+}
+
+/** FR-01.9/FR-01.12: Total KPI = Σ weighted, 2 decimals; null until all five KPI are scored. */
+export function kpiTotal(lines: readonly Pick<KpiAssessmentLine, "weight_percent" | "raw_score">[]): number | null {
+  if (lines.length !== 5 || lines.some((line) => weighted(line) === null)) return null;
+  return Math.round(lines.reduce((sum, line) => sum + (weighted(line) ?? 0), 0) * 100) / 100;
+}
+
+/**
+ * FR-01.4/FR-01.5/FR-01.16: the five KPI come from the catalog role of the employee's position. Name and
+ * weight are read-only (taken from the catalog, never from the form); the evaluator fills target, actual,
+ * an integer 1–5 score and an optional comment per line. Shared by the API and the fixture source.
+ */
+export function buildKpiLines(catalog: KpiCatalog, positionTitle: string | undefined, input: unknown): KpiAssessmentLine[] {
+  const roleOrder = roleForPositionTitle(catalog, positionTitle);
+  const indicators = indicatorsFor(catalog, roleOrder);
+  if (!roleOrder || indicators.length !== 5) throw new Error(`Posisi ini belum memiliki KPI di katalog ${catalog.version} — hubungi HR.`);
+  if (indicators.reduce((sum, row) => sum + row.weight_percent, 0) !== 100) throw new Error("Total bobot KPI harus 100%.");
+  if (!Array.isArray(input) || input.length !== 5) throw new Error("Penilaian harus memiliki lima Core KPI.");
+  const text = (value: unknown, max: number, label: string) => {
+    if (value === undefined || value === null) return "";
+    if (typeof value !== "string" || value.length > max) throw new Error(`${label} maksimal ${max} karakter.`);
+    return value.trim();
+  };
+  return indicators.map((row, index) => {
+    const raw = (input[index] ?? {}) as Record<string, unknown>;
+    if (!validScore(raw.raw_score)) throw new Error(`Skor untuk ${row.kpi_name} wajib bilangan bulat 1–5.`);
+    return {
+      indicator_order: row.indicator_order, kpi_name: row.kpi_name, weight_percent: row.weight_percent,
+      target: text(raw.target, 200, "Target"), actual: text(raw.actual, 200, "Realisasi"),
+      raw_score: raw.raw_score, comment: text(raw.comment, 500, "Komentar"),
+    };
+  });
 }

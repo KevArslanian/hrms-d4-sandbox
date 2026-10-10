@@ -1,13 +1,12 @@
+import type { KpiAssessmentLine } from "../supabase/types";
+
 export type EvaluationStatus = "draft" | "completed";
-export type ReviewStatus = "Needs Review" | "On Track" | "Needs Attention";
 
-export interface EvaluationAspect {
-  readonly name: string;
-  readonly weight: number;
-  readonly score: number | null;
-  readonly notes: string;
-}
-
+/**
+ * Penilaian Kinerja (FR-D4-001 v3.0): one record per employee and period holding the five Core KPI of the
+ * employee's position and the evaluation notes. The result is the Total KPI; there is no separate
+ * evaluation score (FR-01.12) and no automatic HR decision is inferred from it (FR-01.18).
+ */
 export interface PerformanceEvaluation {
   readonly id: string;
   readonly source: "fixture" | "local-demo" | "supabase";
@@ -16,11 +15,10 @@ export interface PerformanceEvaluation {
   readonly evaluationDate: string;
   readonly evaluator: string;
   readonly status: EvaluationStatus;
-  /** Manual review label. No automatic HR decision is inferred from a score. */
-  readonly reviewStatus: ReviewStatus;
-  /** Evaluation Result (UC-D4-001 BF-6/BF-8/A-2): the evaluator's 1–5 score, same scale as the KPI Scorecard. Required when completed. */
+  /** Five Core KPI with weight, target, actual, raw score 1–5 and comment (FR-01.7). */
+  readonly lines: readonly KpiAssessmentLine[];
+  /** Total KPI = Σ weight × raw score, 2 decimals (FR-01.9). Null for older records without KPI lines. */
   readonly overallScore: number | null;
-  readonly aspects: readonly EvaluationAspect[];
   readonly generalNotes: string;
   readonly evidenceReference: string | null;
   readonly createdAt: string;

@@ -1,11 +1,10 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { indicatorsFor, KPI_V51_CATALOG, roleForPositionTitle, rolesOf, selectCatalog } from "@/modules/d4/kpi/catalog";
+import { indicatorsFor, KPI_V51_CATALOG, roleForPositionTitle, rolesOf, selectCatalog, weighted } from "@/modules/d4/kpi/catalog";
 import { d4ReferenceFixture } from "@/modules/d4/shared/fixtures";
 import { createFixtureSource } from "@/modules/d4/web/data/fixture-source";
 import type { D4DataSource } from "@/modules/d4/web/data/source";
-import { weighted } from "@/modules/d4/web/features/kpi/KpiFormModal";
 
 const catalog = selectCatalog(KPI_V51_CATALOG);
 const ALFA = "d4000000-0000-4000-8000-000000000009"; // Finance Staff → role 10 (weights 25/25/20/15/15)
@@ -54,7 +53,7 @@ describe("weighted KPI score (FR-02.5, FR-02.6)", () => {
   });
 });
 
-describe("saved scorecard total (fixture source, mirrors the DB trigger d4_calculate_kpi_assessment)", () => {
+describe("saved Total KPI (fixture source, same calculation as the API)", () => {
   let source: D4DataSource;
   beforeEach(() => {
     // The fixture source waits 250 ms per read to imitate the network; run it immediately.
@@ -66,8 +65,8 @@ describe("saved scorecard total (fixture source, mirrors the DB trigger d4_calcu
     const lines = indicatorsFor(catalog, FINANCE_ROLE).map((row, index) => ({
       indicator_order: row.indicator_order, kpi_name: row.kpi_name, weight_percent: row.weight_percent, target: "", actual: "", raw_score: scores[index], comment: "",
     }));
-    const id = await source.createKpiAssessment({ employeeId: ALFA, roleOrder: FINANCE_ROLE, period, evaluationDate: "2026-10-01", evaluatorName: "x", status: "completed", lines, generalNotes: "" });
-    return (await source.loadSnapshot()).kpiAssessments!.find((item) => item.id === id)!.overallScore;
+    const id = await source.createEvaluation({ employeeId: ALFA, period, evaluationDate: "2026-10-01", status: "completed", lines, generalNotes: "Catatan.", evidenceReference: null });
+    return (await source.loadSnapshot()).performance.find((item) => item.id === id)!.overallScore;
   }
 
   it.each([

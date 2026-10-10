@@ -10,8 +10,7 @@ Sidebar HRMS → **Performance & Training** berisi enam menu. FR-D4-007 (traceab
 
 | FR | Menu | Route |
 |---|---|---|
-| FR-D4-001 | Performance Evaluation | `/performance`, `/performance/[id]`, `/performance/history/[employeeId]` |
-| FR-D4-002 | KPI Scorecard | `/kpi`, `/kpi/[id]`, `/kpi/history/[employeeId]` (katalog KPI hanya lewat API `GET /api/d4/kpi-catalog`, dipakai form) |
+| FR-D4-001 v3.0 | Penilaian Kinerja (KPI + evaluasi, satu form) | `/performance`, `/performance/[id]`, `/performance/history/[employeeId]`; `/kpi*` dialihkan ke sini. Katalog KPI lewat API `GET /api/d4/kpi-catalog` |
 | FR-D4-003 | Competency Gap | `/competency`, `/competency/[employeeId]`, `/competency/[employeeId]/history` |
 | FR-D4-004 | Development Requirement | `/development`, `/development/[id]`, `/development/[id]/history` |
 | FR-D4-005 | Training Tracking | `/training`, `/training/[id]`, `/training/[id]/history` |

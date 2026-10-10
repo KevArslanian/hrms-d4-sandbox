@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { createFixtureSource } from "@/modules/d4/web/data/fixture-source";
-import type { D4DataSource, EvaluationDraft, KpiAssessmentDraft } from "@/modules/d4/web/data/source";
+import type { D4DataSource, EvaluationDraft } from "@/modules/d4/web/data/source";
 import { latestDevelopment, latestTraining } from "@/modules/d4/supabase/types";
 
 // Fixture people (fictional): Mercury is the HR actor, Alfa/Echo/Holly are Finance Staff.
@@ -9,33 +9,32 @@ const ALFA = "d4000000-0000-4000-8000-000000000009";
 const HOLLY = "d4000000-0000-4000-8000-000000000016";
 const ALFA_GAP = "d4000000-0000-4000-8000-000000000028"; // Administrative Accuracy, level 2 of min. 4
 
+// Only the editable part of each KPI line; names and weights come from the catalog.
+const scored = (scores: (number | null)[]) => scores.map((raw_score) => ({ indicator_order: 0, kpi_name: "", weight_percent: 0, target: "", actual: "", raw_score, comment: "" }));
 const evaluation = (patch: Partial<EvaluationDraft> = {}): EvaluationDraft => ({
-  employeeId: HOLLY, period: "2026-09", evaluationDate: "2026-09-30", evaluator: "Mercury", status: "completed",
-  reviewStatus: "Needs Review", overallScore: 4, aspects: [], generalNotes: "Catatan uji.", evidenceReference: null, ...patch,
+  employeeId: HOLLY, period: "2026-09", evaluationDate: "2026-09-30", status: "completed",
+  lines: scored([4, 4, 4, 4, 4]), generalNotes: "Catatan uji.", evidenceReference: null, ...patch,
 });
 
 let source: D4DataSource;
 beforeEach(() => { source = createFixtureSource(); });
 
-async function kpiDraft(employeeId: string, period: string, patch: Partial<KpiAssessmentDraft> = {}): Promise<KpiAssessmentDraft> {
-  const snapshot = await source.loadSnapshot();
-  const current = snapshot.kpiAssessments!.find((item) => item.employeeId === ALFA)!;
-  return { employeeId, roleOrder: current.roleOrder, period, evaluationDate: "2026-10-01", evaluatorName: "x", status: "completed",
-    lines: current.lines.map((line) => ({ ...line, raw_score: 4 })), generalNotes: "", ...patch };
-}
-
-describe("performance evaluation (fixture)", () => {
+describe("penilaian kinerja (fixture)", () => {
   it("saves a first evaluation and stores the signed-in actor as evaluator", async () => {
-    const id = await source.createEvaluation(evaluation({ evaluator: "Nama Palsu" }));
+    const id = await source.createEvaluation(evaluation({ lines: scored([4, 5, 4, 3, 4]).map((line) => ({ ...line, kpi_name: "Nama Palsu", weight_percent: 90 })) }));
     const saved = (await source.loadSnapshot()).performance.find((item) => item.id === id)!;
     expect(saved.evaluator).toBe("Mercury");
+    // Names and weights come from the Finance catalog role, not from the form; Total KPI = Σ weight × score.
+    expect(saved.lines.map((line) => line.weight_percent)).toEqual([25, 25, 20, 15, 15]);
+    expect(saved.lines[0].kpi_name).not.toBe("Nama Palsu");
+    expect(saved.overallScore).toBe(4.1);
   });
 
   it("rejects a second record for the same period unless it names the current one", async () => {
     const first = await source.createEvaluation(evaluation());
     await expect(source.createEvaluation(evaluation())).rejects.toThrow(/sudah ada/);
     await expect(source.createEvaluation(evaluation({ revisionOf: "FIX-OTHER" }))).rejects.toThrow(/sudah ada/);
-    const second = await source.createEvaluation(evaluation({ revisionOf: first, overallScore: 3 }));
+    const second = await source.createEvaluation(evaluation({ revisionOf: first, lines: scored([3, 3, 3, 3, 3]) }));
     await expect(source.createEvaluation(evaluation({ revisionOf: first }))).rejects.toThrow(/sudah ada/); // stale revision
     await source.createEvaluation(evaluation({ revisionOf: second }));
     expect((await source.loadSnapshot()).performance.filter((item) => item.employeeId === HOLLY)).toHaveLength(3);
@@ -57,33 +56,15 @@ describe("performance evaluation (fixture)", () => {
     await expect(source.createEvaluation(evaluation(patch as Partial<EvaluationDraft>))).rejects.toThrow();
   });
 
-  // UC-D4-001 E-1: a completed evaluation needs an Evaluation Result.
-  it("rejects a completed evaluation without an Evaluation Result", async () => {
-    await expect(source.createEvaluation(evaluation({ period: "2026-12", overallScore: null }))).rejects.toThrow(/Evaluation Result/);
-  });
-});
-
-describe("KPI scorecard (fixture)", () => {
-  it("saves a new period and computes the weighted total", async () => {
-    const id = await source.createKpiAssessment(await kpiDraft(ALFA, "2026-10"));
-    const saved = (await source.loadSnapshot()).kpiAssessments!.find((item) => item.id === id)!;
-    expect(saved.overallScore).toBe(4);
-    expect(saved.evaluatorName).toBe("Mercury");
+  it("rejects an assessment with an unscored or non-integer KPI", async () => {
+    await expect(source.createEvaluation(evaluation({ period: "2026-12", lines: scored([4, 4, null, 4, 4]) }))).rejects.toThrow(/wajib bilangan bulat 1–5/);
+    await expect(source.createEvaluation(evaluation({ period: "2026-12", lines: scored([4, 4, 3.5, 4, 4]) }))).rejects.toThrow(/wajib bilangan bulat 1–5/);
+    await expect(source.createEvaluation(evaluation({ period: "2026-12", lines: scored([4, 4, 4, 4]) }))).rejects.toThrow(/lima Core KPI/);
   });
 
-  it("requires an explicit revision for an existing period", async () => {
-    await expect(source.createKpiAssessment(await kpiDraft(ALFA, "2026-09"))).rejects.toThrow(/sudah ada/);
-    await source.createKpiAssessment(await kpiDraft(ALFA, "2026-09", { revisionOf: "FIX-D4-KPI-001" }));
-  });
-
-  it("rejects a KPI role that does not match the employee position", async () => {
-    const draft = await kpiDraft(ALFA, "2026-10");
-    await expect(source.createKpiAssessment({ ...draft, roleOrder: draft.roleOrder === 1 ? 2 : 1 })).rejects.toThrow();
-  });
-
-  it("rejects an incomplete completed scorecard", async () => {
-    const draft = await kpiDraft(ALFA, "2026-10");
-    await expect(source.createKpiAssessment({ ...draft, lines: draft.lines.map((line, index) => index ? line : { ...line, raw_score: null }) })).rejects.toThrow(/lima indikator KPI/);
+  it("rejects an employee whose position has no KPI in the catalog", async () => {
+    const charlie = "d4000000-0000-4000-8000-000000000011"; // Operations Staff
+    await expect(source.createEvaluation(evaluation({ employeeId: charlie, period: "2026-12" }))).rejects.toThrow(/belum memiliki KPI/);
   });
 });
 

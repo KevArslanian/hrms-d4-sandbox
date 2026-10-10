@@ -1,11 +1,11 @@
 import { compareCompetencies } from "../../competency/service";
 import { developmentFixtureVersions } from "../../development/fixtures";
-import { indicatorsFor, KPI_V51_CATALOG, roleForPositionTitle, selectCatalog } from "../../kpi/catalog";
+import { buildKpiLines, KPI_V51_CATALOG, kpiTotal, selectCatalog } from "../../kpi/catalog";
 import { performanceFixtureRecords } from "../../performance/fixtures";
 import { validatePerformanceInput } from "../../performance/validation";
 import { d4ReferenceFixture } from "../../shared/fixtures";
 import { assertDevelopmentChange, assertGapAssessed, assertTrainingDate, assertNeedOpen, assertNoOpenNeed, openTrainingCount, assertNotFutureDate, assertNotSelf, assertPeriodRevision, assertTrainingChange } from "../../shared/rules";
-import type { D4LiveSnapshot, KpiAssessment, KpiAssessmentLine } from "../../supabase/types";
+import type { D4LiveSnapshot } from "../../supabase/types";
 import { latestDevelopment, latestTraining } from "../../supabase/types";
 import { trainingFixtureVersions } from "../../training/fixtures";
 import type { D4DataSource } from "./source";
@@ -18,28 +18,6 @@ const ALFA = "d4000000-0000-4000-8000-000000000009";
 // NEXT_PUBLIC_D4_FIXTURE_ROLE=EMPLOYEE previews the self-service view as Alfa (read-only).
 const FIXTURE_ROLE = process.env.NEXT_PUBLIC_D4_FIXTURE_ROLE === "EMPLOYEE" ? "EMPLOYEE" : process.env.NEXT_PUBLIC_D4_FIXTURE_ROLE === "MANAGER" ? "MANAGER" : "HR";
 const catalog = selectCatalog(KPI_V51_CATALOG);
-
-function kpiLines(roleOrder: number, scores: (number | null)[], actual: string[]): KpiAssessmentLine[] {
-  return indicatorsFor(catalog, roleOrder).map((row, index) => ({
-    indicator_order: row.indicator_order, kpi_name: row.kpi_name, weight_percent: row.weight_percent,
-    target: "Meets period target", actual: actual[index] ?? "", raw_score: scores[index] ?? null, comment: "",
-  }));
-}
-
-function total(lines: readonly KpiAssessmentLine[]): number | null {
-  if (lines.some((line) => line.raw_score === null)) return null;
-  return Math.round(lines.reduce((sum, line) => sum + line.weight_percent * (line.raw_score ?? 0) / 100, 0) * 100) / 100;
-}
-
-function assessment(id: string, employeeId: string, roleOrder: number, period: string, scores: (number | null)[], status: "draft" | "completed"): KpiAssessment {
-  const lines = kpiLines(roleOrder, scores, ["98% SLA", "100% accurate", "D+1", "Receivables 6%", "Zero penalties"]);
-  return {
-    id, definitionVersion: catalog.version, employeeId, roleOrder, roleName: indicatorsFor(catalog, roleOrder)[0].role_name,
-    period, evaluationDate: `${period}-25`, evaluatorName: "Mercury", status, lines, overallScore: total(lines),
-    generalNotes: status === "completed" ? "Sample fixture scorecard for local preview." : "", createdAt: `${period}-25T08:00:00.000Z`, actor: "Mercury",
-  };
-}
-
 
 // Load test (lecturer request): NEXT_PUBLIC_D4_FIXTURE_ROWS=1000 adds that many departments, positions,
 // employees and records of every kind, so list pages, filters and forms can be checked at volume.
@@ -66,8 +44,11 @@ function withBulk(snapshot: D4LiveSnapshot, n: number): D4LiveSnapshot {
       return { id: id(6, i), source: "local-demo" as const, employeeId: id(3, i), positionId: id(2, i), effectiveDate: "2026-09-01", context: "current-position" as const,
         findings: comparison.findings, overallStatus: comparison.overallStatus, createdAt: "2026-09-01T08:00:00.000Z", actor: "Bulk" };
     })],
-    performance: [...snapshot.performance, ...range.map((i) => ({ ...snapshot.performance[0], id: id(7, i), employeeId: id(3, i), period: period(i), evaluationDate: `${period(i)}-20`, generalNotes: `Bulk evaluation ${label(i)}.` }))],
-    kpiAssessments: [...(snapshot.kpiAssessments ?? []), ...range.map((i) => ({ ...assessment(id(8, i), id(3, i), 10, period(i), [i % 5 + 1, 4, 3, 4, 5], "completed") }))],
+    // Bulk employees hold a bulk position with no catalog role, so their rows reuse Alfa's Finance KPI lines.
+    performance: [...snapshot.performance, ...range.map((i) => {
+      const lines = snapshot.performance[0].lines.map((line, at) => at ? line : { ...line, raw_score: i % 5 + 1 });
+      return { ...snapshot.performance[0], id: id(7, i), employeeId: id(3, i), period: period(i), evaluationDate: `${period(i)}-20`, lines, overallScore: kpiTotal(lines), generalNotes: `Bulk evaluation ${label(i)}.` };
+    })],
     developmentVersions: [...snapshot.developmentVersions, ...range.map((i) => ({ ...snapshot.developmentVersions[0], id: id(9, i), needId: `BULK-DEV-${label(i)}`, employeeId: id(3, i), sourceRef: id(4, i), objective: `Bulk development objective ${label(i)}`, status: "Planned" as const, createdAt: `${period(i)}-21T08:00:00.000Z` }))],
     trainingVersions: [...snapshot.trainingVersions, ...range.map((i) => ({ ...snapshot.trainingVersions[0], id: `BULK-TRN-V-${label(i)}`, trainingId: `BULK-TRN-${label(i)}`, employeeId: id(3, i), developmentNeedId: `BULK-DEV-${label(i)}`, activity: `Bulk training ${label(i)}`, date: `${period(i)}-25`, status: "Planned" as const, createdAt: `${period(i)}-22T08:00:00.000Z` }))],
   };
@@ -85,10 +66,6 @@ function initialSnapshot(): D4LiveSnapshot {
     role: FIXTURE_ROLE,
     actorEmployeeId: FIXTURE_ROLE === "EMPLOYEE" ? ALFA : HR_ACTOR,
     kpi: [],
-    kpiAssessments: [
-      assessment("FIX-D4-KPI-001", alfa, 10, "2026-09", [4, 5, 4, 3, 4], "completed"),
-      assessment("FIX-D4-KPI-002", alfa, 10, "2026-06", [3, 4, 4, 3, 3], "completed"),
-    ],
     performance: performanceFixtureRecords,
     competency: [{
       id: "FIX-D4-COMP-ASSESS-001", source: "local-demo", employeeId: alfa, positionId: finance, effectiveDate: "2026-09-21",
@@ -108,7 +85,7 @@ function initialSnapshot(): D4LiveSnapshot {
 function ownRecords(snapshot: D4LiveSnapshot): D4LiveSnapshot {
   const own = <T extends { employeeId: string }>(items: readonly T[]) => items.filter((item) => item.employeeId === snapshot.actorEmployeeId);
   return {
-    ...snapshot, performance: own(snapshot.performance), kpiAssessments: own(snapshot.kpiAssessments ?? []), competency: own(snapshot.competency),
+    ...snapshot, performance: own(snapshot.performance), competency: own(snapshot.competency),
     developmentVersions: own(snapshot.developmentVersions), trainingVersions: own(snapshot.trainingVersions),
   };
 }
@@ -129,29 +106,17 @@ export function createFixtureSource(): D4DataSource {
     async loadKpiCatalog() { return catalog; },
     async createEvaluation({ revisionOf, ...draft }) {
       assertWriter();
-      const input = { ...draft, evaluator: actorName() };
+      const employee = state.reference.employees.find((item) => item.id === draft.employeeId);
+      if (!employee) throw new Error("Pegawai tidak ditemukan.");
+      assertNotSelf(state.actorEmployeeId, employee.id);
+      const positionTitle = state.reference.positions.find((item) => item.id === employee.positionId)?.title;
+      const lines = buildKpiLines(catalog, positionTitle, draft.lines);
+      const input = { ...draft, lines, overallScore: kpiTotal(lines), evaluator: actorName() };
       validatePerformanceInput(input);
-      assertNotSelf(state.actorEmployeeId, input.employeeId);
       assertNotFutureDate(input.evaluationDate);
-      assertPeriodRevision(state.performance, input.employeeId, input.period, revisionOf, "Evaluation");
+      assertPeriodRevision(state.performance, input.employeeId, input.period, revisionOf, "Penilaian kinerja");
       const id = newId("FIX-D4-PERF");
       update({ performance: [{ ...input, id, source: "local-demo", createdAt: now(), actor: actorName() }, ...state.performance] });
-      return id;
-    },
-    async createKpiAssessment({ revisionOf, ...draft }) {
-      assertWriter();
-      const input = { ...draft, evaluatorName: actorName() };
-      assertNotSelf(state.actorEmployeeId, input.employeeId);
-      assertNotFutureDate(input.evaluationDate);
-      assertPeriodRevision(state.kpiAssessments ?? [], input.employeeId, input.period, revisionOf, "Scorecard");
-      const indicators = indicatorsFor(catalog, input.roleOrder);
-      if (indicators.length !== 5) throw new Error("Role KPI tidak ditemukan di katalog.");
-      const employee = state.reference.employees.find((item) => item.id === input.employeeId);
-      const positionTitle = state.reference.positions.find((item) => item.id === employee?.positionId)?.title;
-      if (roleForPositionTitle(catalog, positionTitle) !== input.roleOrder) throw new Error("Set KPI yang dipilih bukan milik posisi pegawai ini.");
-      if (input.status === "completed" && input.lines.some((line) => line.raw_score === null)) throw new Error("Kelima indikator KPI harus dinilai sebelum diselesaikan.");
-      const id = newId("FIX-D4-KPI");
-      update({ kpiAssessments: [{ ...input, id, definitionVersion: catalog.version, roleName: indicators[0].role_name, overallScore: total(input.lines), createdAt: now(), actor: actorName() }, ...(state.kpiAssessments ?? [])] });
       return id;
     },
     async saveCompetency(input) {
