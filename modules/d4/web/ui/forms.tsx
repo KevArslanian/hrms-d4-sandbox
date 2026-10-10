@@ -29,14 +29,12 @@ export function SearchInput({ value, onChange, placeholder }: { value: string; o
   </label>;
 }
 
-const FILTER_VISIBLE = 10;
-
 type Option = { value: string; label: string };
 
 /**
  * Dropdown with a search box on top (reviewer feedback), shared by list filters and form fields: opening it
- * lists the options, typing narrows them. Only FILTER_VISIBLE options are rendered at once (load test:
- * 1000 departments/employees); the rest are reached by typing. `emptyLabel` adds a "no value" choice.
+ * lists every option in a scrollable list, typing narrows them. `emptyLabel` adds a "no value" choice.
+ * ponytail: all matches render while open (fine at the 1000-row load test); window the list if options reach ~10k.
  */
 function SearchableSelect({ label, value, onChange, options, emptyLabel, testId, triggerId, invalid, describedBy, className, wrapperClassName }: {
   label: string; value: string; onChange: (value: string) => void; options: readonly Option[]; emptyLabel?: string; testId: string;
@@ -47,9 +45,7 @@ function SearchableSelect({ label, value, onChange, options, emptyLabel, testId,
   const [query, setQuery] = useState("");
   const all = emptyLabel === undefined ? options : [{ value: "", label: emptyLabel }, ...options];
   const term = query.trim().toLowerCase();
-  const allMatches = term ? all.filter((option) => option.label.toLowerCase().includes(term)) : all;
-  const matches = allMatches.slice(0, FILTER_VISIBLE);
-  const hidden = allMatches.length - matches.length;
+  const matches = term ? all.filter((option) => option.label.toLowerCase().includes(term)) : all;
   const selected = options.find((option) => option.value === value);
   const close = () => { setOpen(false); setQuery(""); };
   const pick = (next: string) => { onChange(next); close(); };
@@ -82,7 +78,6 @@ function SearchableSelect({ label, value, onChange, options, emptyLabel, testId,
             <Check aria-hidden="true" className={cx("size-4 shrink-0", option.value !== value && "invisible")} />{option.label}
           </button>
         </li>) : <li className="px-2.5 py-2 text-ink-3">Tidak ada yang cocok</li>}
-        {hidden > 0 && <li data-testid={testId.replace(/^(filter|input)-/, "more-")} className="px-2.5 py-2 text-xs text-ink-3">+{hidden} lainnya — ketik untuk mempersempit</li>}
       </ul>
     </div>}
   </div>;
