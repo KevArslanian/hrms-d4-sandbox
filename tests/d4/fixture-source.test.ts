@@ -57,9 +57,9 @@ describe("performance evaluation (fixture)", () => {
     await expect(source.createEvaluation(evaluation(patch as Partial<EvaluationDraft>))).rejects.toThrow();
   });
 
-  it("saves an evaluation without a score (scores live in the KPI Scorecard)", async () => {
-    const id = await source.createEvaluation(evaluation({ period: "2026-12", overallScore: null }));
-    expect((await source.loadSnapshot()).performance.find((item) => item.id === id)?.overallScore).toBeNull();
+  // UC-D4-001 E-1: a completed evaluation needs an Evaluation Result.
+  it("rejects a completed evaluation without an Evaluation Result", async () => {
+    await expect(source.createEvaluation(evaluation({ period: "2026-12", overallScore: null }))).rejects.toThrow(/Evaluation Result/);
   });
 });
 
