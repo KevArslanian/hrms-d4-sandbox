@@ -127,9 +127,10 @@ export function kpiTotal(lines: readonly Pick<KpiAssessmentLine, "weight_percent
 }
 
 /**
- * FR-01.4/FR-01.5/FR-01.16: the five KPI come from the catalog role of the employee's position. Name and
- * weight are read-only (taken from the catalog, never from the form); the evaluator fills target, actual,
- * an integer 1–5 score and an optional comment per line. Shared by the API and the fixture source.
+ * FR-01.4/FR-01.5/FR-01.16: the five KPI come from the catalog role of the employee's position. The Core KPI
+ * name is editable per assessment (reviewer request, FR-D4-001 v3.1); order and weight stay locked to the
+ * catalog (Excel formula), never taken from the form. The evaluator also fills target, actual, an integer
+ * 1–5 score and an optional comment per line. Shared by the API and the fixture source.
  */
 export function buildKpiLines(catalog: KpiCatalog, positionTitle: string | undefined, input: unknown): KpiAssessmentLine[] {
   const roleOrder = roleForPositionTitle(catalog, positionTitle);
@@ -144,9 +145,11 @@ export function buildKpiLines(catalog: KpiCatalog, positionTitle: string | undef
   };
   return indicators.map((row, index) => {
     const raw = (input[index] ?? {}) as Record<string, unknown>;
-    if (!validScore(raw.raw_score)) throw new Error(`Skor untuk ${row.kpi_name} wajib bilangan bulat 1–5.`);
+    const kpiName = raw.kpi_name === undefined ? row.kpi_name : text(raw.kpi_name, 200, "Nama Core KPI");
+    if (!kpiName) throw new Error(`Nama Core KPI ${row.indicator_order} wajib diisi.`);
+    if (!validScore(raw.raw_score)) throw new Error(`Skor untuk ${kpiName} wajib bilangan bulat 1–5.`);
     return {
-      indicator_order: row.indicator_order, kpi_name: row.kpi_name, weight_percent: row.weight_percent,
+      indicator_order: row.indicator_order, kpi_name: kpiName, weight_percent: row.weight_percent,
       target: text(raw.target, 200, "Target"), actual: text(raw.actual, 200, "Realisasi"),
       raw_score: raw.raw_score, comment: text(raw.comment, 500, "Komentar"),
     };

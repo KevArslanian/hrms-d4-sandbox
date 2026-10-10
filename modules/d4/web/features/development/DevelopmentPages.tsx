@@ -1,6 +1,6 @@
 "use client";
 
-import { GraduationCap, History, Plus, RefreshCw } from "lucide-react";
+import { Eye, GraduationCap, History, Plus, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { DevelopmentNeedVersion, DevelopmentSourceType } from "../../../development/types";
 import { useSnapshot } from "../../data/D4DataProvider";
@@ -46,8 +46,8 @@ export function DevelopmentListPage() {
       <SelectFilter label="All periods" testId="all-periods" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
       <SelectFilter label="All status" testId="all-status" value={status} onChange={setStatus} options={["Identified", "Planned", "In Progress", "Completed"].map((item) => ({ value: item, label: statusLabel(item) }))} />
     </FilterBar>
-    <DataTable<DevelopmentNeedVersion> rows={rows} noun="kebutuhan pengembangan" rowKey={(row) => row.needId} rowHref={(row) => `/development/${row.needId}`}
-      emptyTitle="Belum ada development requirement" emptyText="Buat dari gap kompetensi, perubahan posisi, atau evaluasi performance."
+    <DataTable<DevelopmentNeedVersion> rows={rows} noun="kebutuhan pengembangan" rowKey={(row) => row.needId}
+      emptyTitle="Belum ada development requirement" emptyText="Buat dari gap kompetensi, perubahan posisi, atau penilaian kinerja."
       columns={[
         { key: "employee", header: "Employee", cell: (row) => { const employee = employeeById(snapshot, row.employeeId); return <PersonCell name={employee?.fullName ?? "—"} code={employee?.employeeId ?? ""} />; } },
         { key: "objective", header: "Objective", wrap: true, className: "max-w-[320px]", cell: (row) => <span className="line-clamp-2">{row.objective}</span> },
@@ -57,6 +57,7 @@ export function DevelopmentListPage() {
         { key: "updated", header: "Updated", cell: (row) => formatDate(row.createdAt) },
       ]}
       actions={(row) => <RowActionMenu label={`Actions for ${row.objective}`} actions={[
+        { label: "View Detail", testId: "view-detail", icon: <Eye />, href: `/development/${row.needId}` },
         { label: "View History", testId: "view-history", icon: <History />, href: `/development/${row.needId}/history` },
         { label: "Create Training", testId: "create-training", icon: <GraduationCap />, onSelect: () => setTrainingFor(row), hidden: !writer || row.status === "Completed" },
         { label: "Update Status", testId: "update-status", icon: <RefreshCw />, onSelect: () => setStatusFor(row.needId), hidden: !writer },

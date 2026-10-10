@@ -10,7 +10,7 @@ const HOLLY = "d4000000-0000-4000-8000-000000000016";
 const ALFA_GAP = "d4000000-0000-4000-8000-000000000028"; // Administrative Accuracy, level 2 of min. 4
 
 // Only the editable part of each KPI line; names and weights come from the catalog.
-const scored = (scores: (number | null)[]) => scores.map((raw_score) => ({ indicator_order: 0, kpi_name: "", weight_percent: 0, target: "", actual: "", raw_score, comment: "" }));
+const scored = (scores: (number | null)[]) => scores.map((raw_score, index) => ({ indicator_order: index + 1, kpi_name: `KPI ${index + 1}`, weight_percent: 0, target: "", actual: "", raw_score, comment: "" }));
 const evaluation = (patch: Partial<EvaluationDraft> = {}): EvaluationDraft => ({
   employeeId: HOLLY, period: "2026-09", evaluationDate: "2026-09-30", status: "completed",
   lines: scored([4, 4, 4, 4, 4]), generalNotes: "Catatan uji.", evidenceReference: null, ...patch,
@@ -24,9 +24,9 @@ describe("penilaian kinerja (fixture)", () => {
     const id = await source.createEvaluation(evaluation({ lines: scored([4, 5, 4, 3, 4]).map((line) => ({ ...line, kpi_name: "Nama Palsu", weight_percent: 90 })) }));
     const saved = (await source.loadSnapshot()).performance.find((item) => item.id === id)!;
     expect(saved.evaluator).toBe("Mercury");
-    // Names and weights come from the Finance catalog role, not from the form; Total KPI = Σ weight × score.
+    // Weights come from the Finance catalog role, not from the form; the Core KPI name is editable. Total KPI = Σ weight × score.
     expect(saved.lines.map((line) => line.weight_percent)).toEqual([25, 25, 20, 15, 15]);
-    expect(saved.lines[0].kpi_name).not.toBe("Nama Palsu");
+    expect(saved.lines[0].kpi_name).toBe("Nama Palsu");
     expect(saved.overallScore).toBe(4.1);
   });
 
