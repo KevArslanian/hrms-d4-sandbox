@@ -25,33 +25,11 @@ export interface KpiAssessmentLine {
   readonly comment: string;
 }
 
-export interface KpiAssessmentInput {
-  /** KPI catalog version the lines were taken from (V5.1 once its migration is applied). */
-  readonly definitionVersion: string;
-  readonly employeeId: string;
-  readonly roleOrder: number;
-  readonly roleName: string;
-  readonly period: string;
-  readonly evaluationDate: string;
-  readonly evaluatorName: string;
-  readonly status: "draft" | "completed";
-  readonly lines: readonly KpiAssessmentLine[];
-  readonly generalNotes: string;
-}
-
-export interface KpiAssessment extends KpiAssessmentInput {
-  readonly id: string;
-  readonly overallScore: number | null;
-  readonly createdAt: string;
-  readonly actor: string;
-}
-
 export interface D4LiveSnapshot {
   readonly reference: ReferenceDataSnapshot;
   readonly role: D4AppRole;
   readonly actorEmployeeId: string;
   readonly kpi: readonly D3KpiRecord[];
-  readonly kpiAssessments?: readonly KpiAssessment[];
   readonly performance: readonly PerformanceEvaluation[];
   readonly competency: readonly CompetencyAssessment[];
   readonly developmentVersions: readonly DevelopmentNeedVersion[];

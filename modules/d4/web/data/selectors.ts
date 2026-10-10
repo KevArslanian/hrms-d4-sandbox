@@ -4,7 +4,7 @@ import type { DevelopmentNeedVersion, DevelopmentSourceType } from "../../develo
 import type { PerformanceEvaluation } from "../../performance/types";
 import type { EmployeeReference } from "../../shared/types";
 import { localMonth, localToday, revisionNumber } from "../../shared/rules";
-import { latestDevelopment, latestTraining, type D4LiveSnapshot, type KpiAssessment } from "../../supabase/types";
+import { latestDevelopment, latestTraining, type D4LiveSnapshot } from "../../supabase/types";
 import type { TrainingVersion } from "../../training/types";
 
 export type Snapshot = D4LiveSnapshot;
@@ -17,7 +17,7 @@ export function visibleEmployees(snapshot: Snapshot): readonly EmployeeReference
 }
 
 /** Employees the signed-in evaluator may assess: never themselves. */
-/** Writer acting on someone else's record: nobody adds a scorecard or evaluation for themselves. */
+/** Writer acting on someone else's record: nobody assesses themselves. */
 export const canAssess = (snapshot: Snapshot, employeeId: string) => canWrite(snapshot) && employeeId !== snapshot.actorEmployeeId;
 export const assessableEmployees = (snapshot: Snapshot) => visibleEmployees(snapshot).filter((item) => item.id !== snapshot.actorEmployeeId);
 
@@ -41,7 +41,6 @@ type SnapshotIndex = {
   positions: Map<string, Snapshot["reference"]["positions"][number]>;
   departments: Map<string, Snapshot["reference"]["departments"][number]>;
   evaluations: Map<string, PerformanceEvaluation[]>;
-  scorecards: Map<string, KpiAssessment[]>;
   assessments: Map<string, CompetencyAssessment[]>;
   needs: DevelopmentNeedVersion[];
   trainings: TrainingVersion[];
@@ -59,7 +58,6 @@ function indexOf(snapshot: Snapshot): SnapshotIndex {
       positions: new Map(reference.positions.map((item) => [item.id, item])),
       departments: new Map(reference.departments.map((item) => [item.id, item])),
       evaluations: groupBy(snapshot.performance, (item) => item.employeeId, byPeriod),
-      scorecards: groupBy(snapshot.kpiAssessments ?? [], (item) => item.employeeId, byPeriod),
       assessments: groupBy(snapshot.competency, (item) => `${item.employeeId}|${item.positionId}`, newestFirst),
       needs: latestDevelopment(snapshot),
       trainings: latestTraining(snapshot),
@@ -87,16 +85,11 @@ export function evaluationsOf(snapshot: Snapshot, employeeId: string): Performan
 }
 export const latestEvaluation = (snapshot: Snapshot, employeeId: string) => evaluationsOf(snapshot, employeeId)[0];
 
-export function scorecardsOf(snapshot: Snapshot, employeeId: string): KpiAssessment[] {
-  return [...(indexOf(snapshot).scorecards.get(employeeId) ?? [])];
-}
 /** " · Revision n" for the second and later record of the same period; empty for the first. */
 export function revisionTag<T extends { id: string; employeeId: string; period: string; createdAt: string }>(records: readonly T[], record: T) {
   const n = revisionNumber(records, record);
   return n > 1 ? ` · Revision ${n}` : "";
 }
-
-export const latestScorecard = (snapshot: Snapshot, employeeId: string) => scorecardsOf(snapshot, employeeId)[0];
 
 /** Live comparison of the employee's current position requirements against recorded evidence. */
 export function currentGap(snapshot: Snapshot, employee: EmployeeReference): { findings: CompetencyFinding[]; overallStatus: CompetencyOverallStatus } | null {
@@ -134,7 +127,7 @@ export const trainingHistory = (snapshot: Snapshot, trainingId: string) => snaps
 export const sourceTypeLabel: Record<DevelopmentSourceType, string> = {
   competency_gap: "Competency Gap",
   role_change: "Position Change",
-  performance_context: "Performance Evaluation",
+  performance_context: "Penilaian Kinerja",
 };
 
 /** Resolves a development need's source reference to a readable label and a link to the source record (FR-D4-005). */
@@ -149,7 +142,7 @@ export function describeSource(snapshot: Snapshot, need: Pick<DevelopmentNeedVer
     return { label: assessment ? `Position change assessment · ${formatDate(assessment.effectiveDate)}` : "Position change assessment", href: `/competency/${need.employeeId}/history` };
   }
   const evaluation = snapshot.performance.find((item) => item.id === need.sourceRef);
-  return { label: evaluation ? `Performance evaluation ${formatPeriod(evaluation.period)}` : "Performance evaluation", href: evaluation ? `/performance/${evaluation.id}` : null };
+  return { label: evaluation ? `Penilaian Kinerja ${formatPeriod(evaluation.period)}` : "Penilaian Kinerja", href: evaluation ? `/performance/${evaluation.id}` : null };
 }
 
 export function trainingSource(snapshot: Snapshot, record: TrainingVersion) {
@@ -176,7 +169,7 @@ export function formatScore(value: number | null | undefined, scale = 5): string
   return value === null || value === undefined ? "—" : `${value.toFixed(2)} / ${scale}`;
 }
 
-/** Raw-score criteria from KPI Scorecard V3.1/V5.1 sheet "KPI Scoring Card"; shared by KPI and evaluation results. */
+/** Raw-score criteria from KPI Scorecard V5.1 sheet "KPI Scoring Card". */
 export const SCORE_LABELS: Record<number, string> = { 1: "Very Poor", 2: "Poor", 3: "Fair", 4: "Good", 5: "Very Good" };
 
 export const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("");

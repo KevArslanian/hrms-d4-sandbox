@@ -14,7 +14,7 @@ const HOLLY = "d4000000-0000-4000-8000-000000000016";
 const ALFA_GAP = "d4000000-0000-4000-8000-000000000028";
 const FINANCE_STAFF = "d4000000-0000-4000-8000-000000000008";
 const uuid = (n: number) => `e4000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
-const NEED = uuid(1), TRAINING = uuid(2), PERF_ALFA = uuid(3), KPI_ALFA = uuid(4);
+const NEED = uuid(1), TRAINING = uuid(2), PERF_ALFA = uuid(3);
 const AUTH_USER = "a4000000-0000-4000-8000-000000000001";
 
 type AccessRow = { app_role: "HR" | "MANAGER" | "EMPLOYEE"; employee_id: string | null };
@@ -35,7 +35,6 @@ const repository = {
   loadSnapshot: async () => snapshot,
   loadReferenceData: async () => snapshot.reference,
   savePerformance: record("savePerformance"),
-  saveKpiAssessment: record("saveKpiAssessment"),
   saveCompetency: record("saveCompetency"),
   createDevelopment: record("createDevelopment"),
   updateDevelopment: record("updateDevelopment", undefined),
@@ -72,7 +71,6 @@ vi.mock("@/modules/d4/supabase/repository", () => ({
 }));
 
 const perf = await import("@/app/api/d4/performance-evaluations/route");
-const kpi = await import("@/app/api/d4/kpi-assessments/route");
 const dev = await import("@/app/api/d4/development-needs/route");
 const devVersions = await import("@/app/api/d4/development-needs/[id]/versions/route");
 const training = await import("@/app/api/d4/training-records/route");
@@ -102,26 +100,20 @@ beforeEach(() => {
   snapshot = {
     ...base,
     performance: base.performance.map((item) => item.id === "FIX-D4-PERF-001" ? { ...item, id: PERF_ALFA } : item),
-    kpiAssessments: base.kpiAssessments!.map((item) => item.id === "FIX-D4-KPI-001" ? { ...item, id: KPI_ALFA } : item),
     developmentVersions: base.developmentVersions.map((item) => item.needId === "FIX-D4-DEV-001" ? { ...item, needId: NEED } : item),
     trainingVersions: base.trainingVersions.map((item) => item.trainingId === "FIX-D4-TRN-001" ? { ...item, trainingId: TRAINING, developmentNeedId: NEED } : item),
   };
 });
 afterEach(() => { vi.unstubAllEnvs(); });
 
+const scores = (values: unknown[]) => values.map((raw_score) => ({ raw_score, target: "T", actual: "A", comment: "" }));
 const evaluationBody = (patch: Record<string, unknown> = {}) => ({
-  employeeId: HOLLY, period: "2026-09", evaluationDate: "2026-09-30", status: "completed", overallScore: 4, generalNotes: "Uji", ...patch,
+  employeeId: HOLLY, period: "2026-09", evaluationDate: "2026-09-30", status: "completed", lines: scores([4, 5, 4, 3, 4]), generalNotes: "Uji", ...patch,
 });
-const kpiBody = (patch: Record<string, unknown> = {}) => {
-  const current = snapshot.kpiAssessments!.find((item) => item.id === KPI_ALFA)!;
-  return { employeeId: ALFA, roleOrder: current.roleOrder, period: "2026-10", evaluationDate: "2026-10-01", status: "completed",
-    lines: current.lines.map((line) => ({ ...line, raw_score: 4 })), ...patch };
-};
 
 // One valid request per write route; HR gets 201 on each (asserted below), so a 401/403 can only come from the guard.
 const writeRoutes: [string, () => Promise<Response>][] = [
   ["POST /performance-evaluations", () => perf.POST(post(evaluationBody()))],
-  ["POST /kpi-assessments", () => kpi.POST(post(kpiBody()))],
   ["POST /competency-assessments", () => competency.POST(post({ employeeId: ALFA, positionId: FINANCE_STAFF, effectiveDate: "2026-10-01" }))],
   ["POST /development-needs", () => dev.POST(post({ employeeId: ALFA, sourceType: "performance_context", sourceRef: PERF_ALFA, objective: "Uji", priority: "High" }))],
   ["POST /development-needs/:id/versions", () => devVersions.POST(post({ status: "In Progress", notes: "Uji" }), params(NEED))],
@@ -175,9 +167,9 @@ describe("session guard: real requireWriter over a mocked Supabase client", () =
     });
 
   // Current behaviour, documented: requireWriter only checks app_role; it does not require employee_id.
-  // Routes that store the evaluator's name (performance, KPI) then refuse with 403; the other writes succeed.
+  // The route that stores the evaluator's name (Penilaian Kinerja) then refuses with 403; the other writes succeed.
   describe.each(["HR", "MANAGER"] as const)("%s account without employee_id", (role) => {
-    it.each(writeRoutes.slice(0, 2))("%s → 403 'not linked to an employee record'", async (_name, send) => {
+    it.each(writeRoutes.slice(0, 1))("%s → 403 'not linked to an employee record'", async (_name, send) => {
       signIn(role, null);
       const res = await call(send());
       expect(res).toMatchObject({ status: 403, body: { error: { code: "FORBIDDEN" } } });
@@ -185,7 +177,7 @@ describe("session guard: real requireWriter over a mocked Supabase client", () =
       expect(writes).toHaveLength(0);
     });
 
-    it.each(writeRoutes.slice(2))("%s → passes (201): the guard itself does not require employee_id", async (_name, send) => {
+    it.each(writeRoutes.slice(1))("%s → passes (201): the guard itself does not require employee_id", async (_name, send) => {
       signIn(role, null);
       expect((await call(send())).status).toBe(201);
     });
@@ -209,18 +201,25 @@ describe("request envelope", () => {
   });
 });
 
-describe("POST /performance-evaluations", () => {
-  // UC-D4-001 BF-6/BF-8: the Evaluation Result (1–5) is stored; E-1: a completed evaluation needs one.
-  it("stores the Evaluation Result", async () => {
-    const res = await call(perf.POST(post(evaluationBody({ overallScore: 4 }))));
+describe("POST /performance-evaluations (Penilaian Kinerja, FR-D4-001 v3.0)", () => {
+  // FR-01.5/FR-01.9/FR-01.12: five KPI of the position's catalog role; the result is the Total KPI.
+  it("stores the five catalog KPI and the Total KPI calculated on the server", async () => {
+    const res = await call(perf.POST(post(evaluationBody({ overallScore: 1 }))));
     expect(res.status).toBe(201);
-    expect((writes[0].args[0] as { overallScore: number | null }).overallScore).toBe(4);
+    const saved = writes[0].args[0] as { overallScore: number; lines: { kpi_name: string; weight_percent: number; raw_score: number }[] };
+    expect(saved.overallScore).toBe(4.1);
+    expect(saved.lines.map((line) => line.weight_percent)).toEqual([25, 25, 20, 15, 15]);
+    expect(saved.lines[0].kpi_name).toBe(KPI_V51_CATALOG.find((row) => row.role_order === 10 && row.indicator_order === 1)?.kpi_name);
   });
 
-  it.each([["missing", null], ["out of range", 6], ["fractional", 3.5]])("rejects a %s Evaluation Result", async (_name, score) => {
-    const res = await call(perf.POST(post(evaluationBody({ overallScore: score }))));
-    expect(res.status).toBe(422);
-    expect(writes).toHaveLength(0);
+  // Field Form: KPI name and weight are read-only from the catalog.
+  it("ignores KPI names and weights sent by the client", async () => {
+    const lines = scores([4, 4, 4, 4, 4]).map((line) => ({ ...line, kpi_name: "Nama Palsu", weight_percent: 90 }));
+    const res = await call(perf.POST(post(evaluationBody({ lines }))));
+    expect(res.status).toBe(201);
+    const saved = (writes[0].args[0] as { lines: { kpi_name: string; weight_percent: number }[] }).lines[0];
+    expect(saved).toMatchObject({ weight_percent: 25 });
+    expect(saved.kpi_name).not.toBe("Nama Palsu");
   });
 
   it("creates with the account's name as evaluator, ignoring the body", async () => {
@@ -236,7 +235,14 @@ describe("POST /performance-evaluations", () => {
     ["period 2026-13", { period: "2026-13" }, /YYYY-MM/],
     ["status draft", { status: "draft" }, /status/],
     ["employeeId not UUID", { employeeId: "x" }, /UUID/],
+    ["empty notes", { generalNotes: "" }, /generalNotes/],
     ["notes over 4000 chars", { generalNotes: "a".repeat(4001) }, /4000/],
+    ["missing evaluation date", { evaluationDate: "" }, /evaluationDate/],
+    ["an unscored KPI", { lines: scores([4, 4, null, 4, 4]) }, /bilangan bulat 1–5/],
+    ["a fractional score", { lines: scores([4, 4, 3.5, 4, 4]) }, /bilangan bulat 1–5/],
+    ["a score of 6", { lines: scores([4, 4, 6, 4, 4]) }, /bilangan bulat 1–5/],
+    ["four KPI", { lines: scores([4, 4, 4, 4]) }, /lima Core KPI/],
+    ["a position without catalog KPI", { employeeId: "d4000000-0000-4000-8000-000000000011" }, /belum memiliki KPI/],
   ])("rejects %s with 422", async (_name, patch, message) => {
     const res = await call(perf.POST(post(evaluationBody(patch))));
     expect(res.status).toBe(422);
@@ -245,74 +251,24 @@ describe("POST /performance-evaluations", () => {
     expect(writes).toHaveLength(0);
   });
 
+  it("rejects an unknown employee with 404", async () => {
+    const res = await call(perf.POST(post(evaluationBody({ employeeId: uuid(500) }))));
+    expect(res.status).toBe(404);
+    expect(writes).toHaveLength(0);
+  });
+
+  // BR-01.9: the server re-reads the catalog and refuses a role whose five weights do not total exactly 100.
+  it.each([["99", -1], ["101", +1]])("rejects a catalog role whose weights total %s%%", async (_total, delta) => {
+    catalogRows = KPI_V51_CATALOG.map((row) => row.role_order === 10 && row.indicator_order === 5 ? { ...row, weight_percent: row.weight_percent + delta } : row);
+    const res = await call(perf.POST(post(evaluationBody())));
+    expect(res).toMatchObject({ status: 422, body: { error: { code: "VALIDATION_FAILED" } } });
+    expect(res.body.error?.message).toMatch(/100%/);
+    expect(writes).toHaveLength(0);
+  });
+
   it("accepts a revision of the current record", async () => {
     const res = await call(perf.POST(post(evaluationBody({ employeeId: ALFA, revisionOf: PERF_ALFA }))));
     expect(res.status).toBe(201);
-  });
-});
-
-describe("POST /kpi-assessments", () => {
-  it("creates a scorecard for a new period", async () => {
-    const res = await call(kpi.POST(post(kpiBody())));
-    expect(res.status).toBe(201);
-    expect((writes[0].args[0] as { evaluatorName: string }).evaluatorName).toBe("Mercury");
-  });
-
-  it.each([
-    ["duplicate period", { period: "2026-09" }, /sudah ada/],
-    ["wrong KPI role", { roleOrder: 99 }, /./],
-    ["four lines", { lines: [] }, /./],
-    ["fractional score", { fractional: true }, /bilangan bulat/],
-    ["unknown employee", { employeeId: uuid(500) }, /tidak ditemukan/],
-  ])("rejects %s", async (_name, patch: Record<string, unknown>, message) => {
-    const { fractional, ...rest } = patch;
-    const body = kpiBody(rest);
-    if (fractional) body.lines = body.lines.map((line) => ({ ...line, raw_score: 3.5 }));
-    const res = await call(kpi.POST(post(body)));
-    expect(res.status).toBeGreaterThanOrEqual(400);
-    expect(res.status).toBeLessThan(500);
-    expect(res.body.error?.message).toMatch(message);
-    expect(writes).toHaveLength(0);
-  });
-
-  // The server re-reads the catalog and refuses a role whose five weights do not total exactly 100.
-  it.each([["99", -1], ["101", +1]])("rejects a catalog role whose weights total %s%%", async (_total, delta) => {
-    const role = kpiBody().roleOrder;
-    catalogRows = KPI_V51_CATALOG.map((row) => row.role_order === role && row.indicator_order === 5 ? { ...row, weight_percent: row.weight_percent + delta } : row);
-    const res = await call(kpi.POST(post(kpiBody())));
-    expect(res).toMatchObject({ status: 422, body: { error: { code: "VALIDATION_FAILED" } } });
-    expect(res.body.error?.message).toMatch(/tidak 100%/);
-    expect(writes).toHaveLength(0);
-  });
-
-  // Core KPI names are editable; weights always come from the catalog, not the request.
-  it("keeps an edited Core KPI name and the catalog weight", async () => {
-    const body = kpiBody();
-    body.lines = body.lines.map((line, index) => index ? line : { ...line, kpi_name: "Nama KPI baru", weight_percent: 1 });
-    const res = await call(kpi.POST(post(body)));
-    expect(res.status).toBe(201);
-    const saved = (writes[0].args[0] as { lines: { kpi_name: string; weight_percent: number }[] }).lines[0];
-    expect(saved.kpi_name).toBe("Nama KPI baru");
-    expect(saved.weight_percent).toBe(kpiBody().lines[0].weight_percent);
-  });
-
-  it("rejects an empty Core KPI name", async () => {
-    const body = kpiBody();
-    body.lines = body.lines.map((line, index) => index ? line : { ...line, kpi_name: " " });
-    const res = await call(kpi.POST(post(body)));
-    expect(res.status).toBe(422);
-    expect(writes).toHaveLength(0);
-  });
-
-  it("accepts a revision of the current scorecard", async () => {
-    const res = await call(kpi.POST(post(kpiBody({ period: "2026-09", revisionOf: KPI_ALFA }))));
-    expect(res.status).toBe(201);
-  });
-
-  it("rejects a self scorecard", async () => {
-    signIn("MANAGER", ALFA);
-    const res = await call(kpi.POST(post(kpiBody())));
-    expect(res).toMatchObject({ status: 422, body: { error: { code: "VALIDATION_FAILED" } } });
   });
 });
 

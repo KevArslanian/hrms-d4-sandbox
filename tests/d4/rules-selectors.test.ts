@@ -151,10 +151,10 @@ describe("role views (fixture)", () => {
     expect(canWrite(snapshot)).toBe(false);
     expect(visibleEmployees(snapshot).map((item) => item.id)).toEqual([ALFA]);
     expect(assessableEmployees(snapshot)).toEqual([]);
-    const records = [...snapshot.performance, ...(snapshot.kpiAssessments ?? []), ...snapshot.competency, ...snapshot.developmentVersions, ...snapshot.trainingVersions];
+    const records = [...snapshot.performance, ...snapshot.competency, ...snapshot.developmentVersions, ...snapshot.trainingVersions];
     expect(records.length).toBeGreaterThan(0);
     expect(records.every((item) => item.employeeId === ALFA)).toBe(true);
-    await expect(source.createEvaluation({ employeeId: MERCURY, period: "2026-10", evaluationDate: "2026-10-01", evaluator: "x", status: "completed", reviewStatus: "Needs Review", overallScore: 4, aspects: [], generalNotes: "", evidenceReference: null })).rejects.toThrow(/Hanya HR/);
+    await expect(source.createEvaluation({ employeeId: MERCURY, period: "2026-10", evaluationDate: "2026-10-01", status: "completed", lines: [], generalNotes: "", evidenceReference: null })).rejects.toThrow(/Hanya HR/);
   });
 });
 
