@@ -22,8 +22,8 @@ export async function getEvaluation(id: string) {
 
 /**
  * POST /api/d4/performance-evaluations — one Penilaian Kinerja (FR-D4-001 v3.0): five Core KPI and the
- * evaluation notes, saved in one request. KPI names and weights come from the catalog role of the employee's
- * position, never from the client; Total KPI is calculated here. The evaluator is the signed-in user, never
+ * evaluation notes, saved in one request. Weights come from the catalog role of the employee's position, never
+ * from the client (Core KPI names are editable); Total KPI is calculated here. The evaluator is the signed-in user, never
  * self; a second record for the same period must name the current one in `revisionOf` (FR-01.14).
  */
 export async function createEvaluation(request: Request) {

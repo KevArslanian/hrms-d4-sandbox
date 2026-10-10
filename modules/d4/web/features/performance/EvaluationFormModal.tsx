@@ -20,7 +20,7 @@ const input = "h-9 w-full rounded-lg border border-line-strong px-2 text-sm aria
 
 /**
  * Penilaian Kinerja (FR-D4-001 v3.0): one form, one Save button. The five Core KPI and their weights come
- * read-only from the catalog role of the employee's position; the evaluator fills target, actual, a 1–5 score
+ * from the catalog role of the employee's position (name editable, weight locked); the evaluator fills target, actual, a 1–5 score
  * and an optional comment per KPI, then the required evaluation notes. The result is the Total KPI
  * (Σ weight × score); there is no separate evaluation score and no automatic HR decision.
  */
@@ -59,6 +59,7 @@ export function EvaluationFormModal({ employeeId, onClose, onSaved }: { employee
     setTouched(true);
     if (!employee) { setError("Lengkapi employee sebelum menyimpan."); return; }
     if (lines.length !== 5 || totalWeight !== 100) { setError("KPI untuk posisi ini belum tersedia di katalog, jadi penilaian tidak dapat disimpan."); return; }
+    if (lines.some((line) => !line.kpi_name.trim())) { setError("Setiap Core KPI wajib diberi nama."); return; }
     const missing = [!period && "period", !date && "evaluation date", date > today() && "tanggal yang tidak melebihi hari ini", total === null && "skor 1–5 untuk kelima KPI", !notes.trim() && "catatan evaluasi", existing && !revise && "konfirmasi revisi"].filter(Boolean);
     if (missing.length) { setError(`Lengkapi ${missing.join(", ")} sebelum menyimpan.`); return; }
     setError("");
@@ -94,7 +95,7 @@ export function EvaluationFormModal({ employeeId, onClose, onSaved }: { employee
           <tbody className="max-md:block">
             {lines.map((line, index) => <tr key={`${employee}-${line.indicator_order}`} data-testid={`kpi-line-${line.indicator_order}`} className="border-t border-line align-middle max-md:grid max-md:grid-cols-2 max-md:gap-3 max-md:p-4">
               <td data-label="No" className={cx(cell, "text-ink-3")}>{line.indicator_order}</td>
-              <td data-label="Core KPI" data-testid={`core-kpi-${line.indicator_order}`} className={cx(cell, "font-semibold max-md:col-span-2")}>{line.kpi_name}</td>
+              <td data-label="Core KPI" className={cx(cell, "max-md:col-span-2")}><input data-testid={`input-core-kpi-${line.indicator_order}`} aria-label={`Core KPI ${line.indicator_order}`} aria-invalid={touched && !line.kpi_name.trim()} maxLength={200} value={line.kpi_name} onChange={(event) => setLine(index, { kpi_name: event.target.value })} className={cx(input, "font-semibold")} /></td>
               <td data-label="Weight" className={cx(cell, "tabular-nums")}>{line.weight_percent}%</td>
               <td data-label="Target" className={cell}><input data-testid={`input-target-${line.indicator_order}`} aria-label={`Target ${line.kpi_name}`} maxLength={200} value={line.target} onChange={(event) => setLine(index, { target: event.target.value })} className={input} /></td>
               <td data-label="Actual" className={cell}><input data-testid={`input-realisasi-${line.indicator_order}`} aria-label={`Actual ${line.kpi_name}`} maxLength={200} value={line.actual} onChange={(event) => setLine(index, { actual: event.target.value })} className={input} /></td>
@@ -111,7 +112,7 @@ export function EvaluationFormModal({ employeeId, onClose, onSaved }: { employee
           </tfoot>
         </table>
       </div>}
-      <p className="text-xs text-ink-3">Kriteria skor: {[1, 2, 3, 4, 5].map((value) => `${value} ${SCORE_LABELS[value]}`).join(" · ")}. Nama KPI dan bobot mengikuti katalog posisi dan tidak dapat diubah. Skor terbobot = bobot × skor; Total KPI = jumlah skor terbobot. Sistem tidak mengubah realisasi menjadi skor dan tidak memberi label tercapai/tidak tercapai.</p>
+      <p className="text-xs text-ink-3">Kriteria skor: {[1, 2, 3, 4, 5].map((value) => `${value} ${SCORE_LABELS[value]}`).join(" · ")}. Nama Core KPI terisi dari katalog posisi dan dapat diubah; bobot tetap mengikuti katalog. Skor terbobot = bobot × skor; Total KPI = jumlah skor terbobot. Sistem tidak mengubah realisasi menjadi skor dan tidak memberi label tercapai/tidak tercapai.</p>
       <TextAreaField label="Evaluation notes" testId="catatan-evaluasi" required value={notes} onChange={(event) => setNotes(event.target.value)} error={touched && !notes.trim() ? "Catatan evaluasi wajib diisi." : undefined}
         helper="Kekuatan, hal yang perlu diperbaiki, dan rekomendasi pelatihan — bisa menjadi dasar Development Requirement." />
       <TextField label="Evidence / reference" testId="evidence-reference" maxLength={500} value={evidence} onChange={(event) => setEvidence(event.target.value)} helper="Opsional: nomor dokumen atau tautan bukti." />

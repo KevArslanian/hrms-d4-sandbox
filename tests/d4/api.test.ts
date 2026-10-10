@@ -212,14 +212,13 @@ describe("POST /performance-evaluations (Penilaian Kinerja, FR-D4-001 v3.0)", ()
     expect(saved.lines[0].kpi_name).toBe(KPI_V51_CATALOG.find((row) => row.role_order === 10 && row.indicator_order === 1)?.kpi_name);
   });
 
-  // Field Form: KPI name and weight are read-only from the catalog.
-  it("ignores KPI names and weights sent by the client", async () => {
+  // Core KPI names are editable (FR-D4-001 v3.1); weights always come from the catalog (Excel formula).
+  it("keeps an edited Core KPI name but takes the weight from the catalog", async () => {
     const lines = scores([4, 4, 4, 4, 4]).map((line) => ({ ...line, kpi_name: "Nama Palsu", weight_percent: 90 }));
     const res = await call(perf.POST(post(evaluationBody({ lines }))));
     expect(res.status).toBe(201);
     const saved = (writes[0].args[0] as { lines: { kpi_name: string; weight_percent: number }[] }).lines[0];
-    expect(saved).toMatchObject({ weight_percent: 25 });
-    expect(saved.kpi_name).not.toBe("Nama Palsu");
+    expect(saved).toMatchObject({ kpi_name: "Nama Palsu", weight_percent: 25 });
   });
 
   it("creates with the account's name as evaluator, ignoring the body", async () => {
@@ -242,6 +241,7 @@ describe("POST /performance-evaluations (Penilaian Kinerja, FR-D4-001 v3.0)", ()
     ["a fractional score", { lines: scores([4, 4, 3.5, 4, 4]) }, /bilangan bulat 1–5/],
     ["a score of 6", { lines: scores([4, 4, 6, 4, 4]) }, /bilangan bulat 1–5/],
     ["four KPI", { lines: scores([4, 4, 4, 4]) }, /lima Core KPI/],
+    ["an empty Core KPI name", { lines: scores([4, 4, 4, 4, 4]).map((line, index) => index ? line : { ...line, kpi_name: "  " }) }, /Nama Core KPI 1 wajib/],
     ["a position without catalog KPI", { employeeId: "d4000000-0000-4000-8000-000000000011" }, /belum memiliki KPI/],
   ])("rejects %s with 422", async (_name, patch, message) => {
     const res = await call(perf.POST(post(evaluationBody(patch))));

@@ -1,6 +1,6 @@
 "use client";
 
-import { History, Plus } from "lucide-react";
+import { Eye, History, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { weighted } from "../../../kpi/catalog";
 import type { PerformanceEvaluation } from "../../../performance/types";
@@ -65,7 +65,6 @@ export function PerformanceListPage() {
     </FilterBar>
     <DataTable<Row> rows={rows} noun="pegawai" rowKey={(row) => row.employee.id}
       emptyTitle="Tidak ada pegawai yang cocok" emptyText="Ubah kata kunci atau reset filter untuk melihat semua pegawai."
-      rowHref={(row) => row.evaluation ? `/performance/${row.evaluation.id}` : `/performance/history/${row.employee.id}`}
       columns={[
         { key: "employee", header: "Employee", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
         { key: "position", header: "Position", wrap: true, cell: (row) => row.position },
@@ -77,6 +76,7 @@ export function PerformanceListPage() {
         { key: "status", header: "Status", cell: (row) => <StatusBadge status={evaluationStatus(row.evaluation)} /> },
       ]}
       actions={(row) => <RowActionMenu label={`Actions for ${row.employee.fullName}`} actions={[
+        { label: "View Detail", testId: "view-detail", icon: <Eye />, href: row.evaluation ? `/performance/${row.evaluation.id}` : undefined, hidden: !row.evaluation },
         { label: "View History", testId: "view-history", icon: <History />, href: `/performance/history/${row.employee.id}` },
       ]} />} />
     {modalFor !== null && <EvaluationFormModal employeeId={modalFor || undefined} onClose={() => setModalFor(null)} />}
@@ -118,7 +118,7 @@ export function PerformanceDetailPage({ id }: { id: string }) {
       <div className="space-y-6">
         <Card title="Evidence" testId="evidence">
           <p className="text-sm text-ink-2">{evaluation.evidenceReference || "Belum ada bukti atau referensi."}</p>
-          <p className="mt-1 text-xs text-ink-3">Recorded by {evaluation.actor} · {formatDate(evaluation.createdAt)}</p>
+          <p className="mt-1 text-xs text-ink-3">Dicatat oleh {evaluation.actor} · {formatDate(evaluation.createdAt)}</p>
         </Card>
         <Card title="Related records" testId="related-records">
           <div className="flex flex-col items-start gap-2">

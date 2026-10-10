@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRightLeft, FilePlus2, History, Save } from "lucide-react";
+import { ArrowRightLeft, Eye, FilePlus2, History, Save } from "lucide-react";
 import { useMemo, useState, type FormEvent } from "react";
 import type { CompetencyFinding } from "../../../competency/types";
 import type { EmployeeReference } from "../../../shared/types";
@@ -44,7 +44,7 @@ export function CompetencyListPage() {
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All departments" testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />}
       <SelectFilter label="All status" testId="all-gap-status" value={status} onChange={setStatus} options={STATUS_FILTER.map((item) => ({ value: item, label: item }))} />
     </FilterBar>
-    <DataTable<Row> rows={rows} noun="pegawai" rowKey={(row) => row.employee.id} rowHref={(row) => `/competency/${row.employee.id}`}
+    <DataTable<Row> rows={rows} noun="pegawai" rowKey={(row) => row.employee.id}
       emptyTitle="Tidak ada pegawai yang cocok" emptyText="Ubah kata kunci atau reset filter."
       columns={[
         { key: "employee", header: "Employee", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
@@ -56,6 +56,7 @@ export function CompetencyListPage() {
         { key: "assessed", header: "Last saved", cell: (row) => formatDate(row.lastAssessed) },
       ]}
       actions={(row) => <RowActionMenu label={`Actions for ${row.employee.fullName}`} actions={[
+        { label: "View Detail", testId: "view-detail", icon: <Eye />, href: `/competency/${row.employee.id}` },
         { label: "View History", testId: "view-history", icon: <History />, href: `/competency/${row.employee.id}/history` },
         { label: "Create Development Requirement", testId: "create-development-requirement", icon: <FilePlus2 />, onSelect: () => setDevFor(row.employee.id),
           hidden: !writer || row.status === "Not Evaluated" || row.findings.filter((item) => item.status === "Gap").every((item) => openNeedFor(allNeeds, row.employee.id, "competency_gap", item.requirementId)) },
