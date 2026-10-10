@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, ChevronDown, Contact, Menu, SquareTerminal, Store, Users, X } from "lucide-react";
+import { Bell, ChevronDown, Contact, LayoutDashboard, Menu, SquareTerminal, Store, Users, X } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { createD4BrowserClient } from "../../supabase/client";
 import { useD4 } from "../data/D4DataProvider";
@@ -21,10 +21,11 @@ const roleLabel: Record<string, string> = { HR: "HR", MANAGER: "Manager", EMPLOY
 
 const LOGO_URL = "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-ANDIMA-wzx4gpZx20EFE5IYcH3jqabixELIo3.png";
 
-// Other teams' modules: shown as in the shared sidebar, not clickable from D4 yet.
-const OTHER_MODULES = [{ label: "POS", icon: Store }, { label: "CRM", icon: Contact }] as const;
+// Other teams' items: shown as in the shared sidebar, not clickable from D4 yet.
+const OTHER_MODULES = [{ label: "Dashboard", icon: LayoutDashboard }, { label: "POS", icon: Store }, { label: "CRM", icon: Contact }] as const;
 
-// Matches Figma PISD D3 sidebar (file L5k46NNy2gX6xOq8e1dczQ, node 1582:458): POS, CRM, HRMS (expanded) and MID,
+// Matches Figma PISD D3 sidebar (file L5k46NNy2gX6xOq8e1dczQ, e.g. node 2122:302): Dashboard, POS, CRM, HRMS (expanded) and MID.
+// "Dashboard" is the shared HRMS home owned by another team; D4's People Dashboard stays inside HRMS.
 // active HRMS item on #b0c6d4 with a teal dot, Logout outlined at the bottom.
 function Sidebar({ onNavigate, onClose }: { onNavigate: () => void; onClose: () => void }) {
   const pathname = usePathname();
