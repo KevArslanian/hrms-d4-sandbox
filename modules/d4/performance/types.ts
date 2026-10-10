@@ -18,7 +18,7 @@ export interface PerformanceEvaluation {
   readonly status: EvaluationStatus;
   /** Manual review label. No automatic HR decision is inferred from a score. */
   readonly reviewStatus: ReviewStatus;
-  /** Legacy column: older evaluations may carry a 1–5 score, new ones store null and the UI never shows it. */
+  /** Evaluation Result (UC-D4-001 BF-6/BF-8/A-2): the evaluator's 1–5 score, same scale as the KPI Scorecard. Required when completed. */
   readonly overallScore: number | null;
   readonly aspects: readonly EvaluationAspect[];
   readonly generalNotes: string;

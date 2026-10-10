@@ -210,10 +210,17 @@ describe("request envelope", () => {
 });
 
 describe("POST /performance-evaluations", () => {
-  it("ignores a submitted score: evaluations are notes only", async () => {
+  // UC-D4-001 BF-6/BF-8: the Evaluation Result (1–5) is stored; E-1: a completed evaluation needs one.
+  it("stores the Evaluation Result", async () => {
     const res = await call(perf.POST(post(evaluationBody({ overallScore: 4 }))));
     expect(res.status).toBe(201);
-    expect((writes[0].args[0] as { overallScore: number | null }).overallScore).toBeNull();
+    expect((writes[0].args[0] as { overallScore: number | null }).overallScore).toBe(4);
+  });
+
+  it.each([["missing", null], ["out of range", 6], ["fractional", 3.5]])("rejects a %s Evaluation Result", async (_name, score) => {
+    const res = await call(perf.POST(post(evaluationBody({ overallScore: score }))));
+    expect(res.status).toBe(422);
+    expect(writes).toHaveLength(0);
   });
 
   it("creates with the account's name as evaluator, ignoring the body", async () => {

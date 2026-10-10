@@ -124,7 +124,7 @@ export function EmployeeProfilePage({ employeeId, initialPeriod = "" }: { employ
         </table></div> : <p className="px-6 pb-6 text-sm text-ink-3">Belum ada KPI scorecard untuk periode ini.</p>}
       </Card>
       <Card title="Performance evaluation" testId="performance-evaluation" actions={<SourceLink href={evaluation ? `/performance/${evaluation.id}` : `/performance/history/${employee.id}`} />}>
-        {evaluation ? <><p className="text-sm text-ink-2">{formatPeriod(evaluation.period)} · {formatDate(evaluation.evaluationDate)} · Evaluator {evaluation.evaluator || "—"}</p><p className="mt-3 line-clamp-6 whitespace-pre-wrap text-sm text-ink">{evaluation.generalNotes || "—"}</p></>
+        {evaluation ? <><p className="text-sm text-ink-2">{formatPeriod(evaluation.period)} · {formatDate(evaluation.evaluationDate)} · Evaluator {evaluation.evaluator || "—"} · Result <strong className="text-ink">{formatScore(evaluation.overallScore)}</strong></p><p className="mt-3 line-clamp-6 whitespace-pre-wrap text-sm text-ink">{evaluation.generalNotes || "—"}</p></>
           : <p className="text-sm text-ink-3">Belum ada evaluasi performance untuk periode ini.</p>}
       </Card>
       <Card title="Competency gap" testId="competency-gap" actions={<SourceLink href={`/competency/${employee.id}`} />}>
