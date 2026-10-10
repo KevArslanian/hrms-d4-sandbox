@@ -61,6 +61,18 @@ body {
 
 /* Click feedback: only the button background darkens while pressed; text colour stays. */
 @layer base {
+  /* Tailwind v4 no longer gives buttons a pointer cursor, so every button looked inert ("can't be pressed").
+     Restore the hand cursor on everything clickable; disabled controls keep their not-allowed cursor. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  summary,
+  label[for],
+  select:not(:disabled),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled) {
+    cursor: pointer;
+  }
+
   button:not(:disabled):active {
     background-image: linear-gradient(rgb(15 35 66 / 0.1), rgb(15 35 66 / 0.1));
   }
