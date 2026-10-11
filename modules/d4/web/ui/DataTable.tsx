@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, SearchX } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cx } from "./primitives";
 
 export type Column<T> = {
@@ -20,7 +20,8 @@ const secondaryCell = (column: { secondary?: boolean }) => column.secondary && "
 const PAGE_SIZE = 10;
 
 // The ⋮ column stays pinned to the right edge, so row actions remain reachable when long names push the table wider than the screen.
-const stickyAction = "sticky right-0 z-[1] shadow-[-8px_0_8px_-8px_rgba(15,35,66,0.18)]";
+// Its edge shadow shows only while columns are actually scrolled underneath it.
+const stickyAction = "sticky right-0 z-[1] transition-shadow group-data-[covered=true]:shadow-[-8px_0_8px_-8px_rgba(15,35,66,0.18)]";
 
 /** Page buttons to show: first, last, and the current page ±1, with gaps (load test: 1000 rows = 100 pages). */
 export function pageWindow(current: number, count: number): (number | "gap")[] {
@@ -46,9 +47,23 @@ export function DataTable<T>({ rows, columns, rowKey, actions, emptyTitle, empty
   const current = Math.min(page, pageCount);
   const visible = rows.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE);
   const first = rows.length ? (current - 1) * PAGE_SIZE + 1 : 0;
+  const scroller = useRef<HTMLDivElement>(null);
+  const [covered, setCovered] = useState(false);
+  const measure = () => {
+    const el = scroller.current;
+    if (el) setCovered(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
+  };
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    if (el.firstElementChild) observer.observe(el.firstElementChild);
+    return () => observer.disconnect();
+  }, []);
 
   return <section className="min-w-0 overflow-hidden rounded-2xl border border-line bg-surface shadow-card">
-    <div className="overflow-x-auto">
+    <div ref={scroller} onScroll={measure} data-covered={covered} className="group overflow-x-auto">
       <table data-testid="data-table" className="w-full min-w-[760px] text-left text-sm">
         <thead className="bg-app">
           <tr>{columns.map((column) => <th key={column.key} scope="col" className={cx("px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3", secondaryCell(column), column.className)}>{column.header}</th>)}
