@@ -1,7 +1,6 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, SearchX } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { cx } from "./primitives";
 
@@ -33,17 +32,15 @@ export function pageWindow(current: number, count: number): (number | "gap")[] {
  * Standard D4 table: caps header, 56 px rows, ⋮ action column last, pagination bottom right.
  * Clicking a row opens its detail page (same as "View Detail" in the menu).
  */
-export function DataTable<T>({ rows, columns, rowKey, rowHref, actions, emptyTitle, emptyText, noun }: {
+export function DataTable<T>({ rows, columns, rowKey, actions, emptyTitle, emptyText, noun }: {
   rows: readonly T[];
   columns: Column<T>[];
   rowKey: (row: T) => string;
-  rowHref?: (row: T) => string | null;
   actions?: (row: T) => ReactNode;
   emptyTitle: string;
   emptyText: string;
   noun: string;
 }) {
-  const router = useRouter();
   const [page, setPage] = useState(1);
   const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const current = Math.min(page, pageCount);
@@ -59,9 +56,8 @@ export function DataTable<T>({ rows, columns, rowKey, rowHref, actions, emptyTit
         </thead>
         <tbody>
           {visible.map((row) => {
-            const href = rowHref?.(row);
-            return <tr key={rowKey(row)} data-testid={`row-${rowKey(row)}`} onClick={href ? () => router.push(href) : undefined}
-              className={cx("h-14 border-t border-line", href && "cursor-pointer hover:bg-primary-50/60")}>
+            // Rows are not clickable: details open only from the ⋮ menu (View Detail / View History).
+            return <tr key={rowKey(row)} data-testid={`row-${rowKey(row)}`} className="h-14 border-t border-line hover:bg-primary-50/40">
               {columns.map((column) => <td key={column.key} data-testid={`cell-${column.key}`} className={cx("px-5 py-3 align-middle text-ink", !column.wrap && "whitespace-nowrap", secondaryCell(column), column.className)}>{column.cell(row)}</td>)}
               {actions && <td className={cx(stickyAction, "bg-surface px-5 py-3 text-right")}>{actions(row)}</td>}
             </tr>;

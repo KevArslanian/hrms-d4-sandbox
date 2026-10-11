@@ -12,6 +12,6 @@ export function hasSupabaseConfig(): boolean {
 }
 
 export function createD4BrowserClient() {
-  if (!hasSupabaseConfig()) throw new Error("Supabase is not configured. Fill in .env.local following .env.example.");
+  if (!hasSupabaseConfig()) throw new Error("Supabase belum dikonfigurasi. Isi .env.local sesuai .env.example.");
   return createBrowserClient(supabaseUrl, publishableKey);
 }
