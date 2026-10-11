@@ -1,6 +1,6 @@
 "use client";
 
-import { FileSearch, History, RefreshCw } from "lucide-react";
+import { Eye, FileSearch, History, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { TrainingVersion } from "../../../training/types";
 import { useSnapshot } from "../../data/D4DataProvider";
@@ -40,7 +40,7 @@ export function TrainingListPage() {
       <SelectFilter label="All periods" testId="all-periods" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
       <SelectFilter label="All status" testId="all-status" value={status} onChange={setStatus} options={["Planned", "In Progress", "Completed", "Cancelled"].map((item) => ({ value: item, label: statusLabel(item) }))} />
     </FilterBar>
-    <DataTable<TrainingVersion> rows={rows} noun="data training" rowKey={(row) => row.trainingId} rowHref={(row) => `/training/${row.trainingId}`}
+    <DataTable<TrainingVersion> rows={rows} noun="data training" rowKey={(row) => row.trainingId}
       emptyTitle="Tidak ada training yang cocok" emptyText="Training dibuat dari development requirement (Create Training). Ubah filter atau buka Development Requirement."
       columns={[
         { key: "employee", header: "Employee", cell: (row) => { const employee = employeeById(snapshot, row.employeeId); return <PersonCell name={employee?.fullName ?? "—"} code={employee?.employeeId ?? ""} />; } },
@@ -50,6 +50,7 @@ export function TrainingListPage() {
         { key: "status", header: "Status", cell: (row) => <StatusBadge status={row.status} /> },
       ]}
       actions={(row) => <RowActionMenu label={`Actions for ${row.activity}`} actions={[
+        { label: "View Detail", testId: "view-detail", icon: <Eye />, href: `/training/${row.trainingId}` },
         { label: "View History", testId: "view-history", icon: <History />, href: `/training/${row.trainingId}/history` },
         { label: "Update Progress", testId: "update-progress", icon: <RefreshCw />, onSelect: () => setProgressFor(row.trainingId), hidden: !writer },
         { label: "Open Source Requirement", testId: "open-source-requirement", icon: <FileSearch />, href: `/development/${row.developmentNeedId}` },

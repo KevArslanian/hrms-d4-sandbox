@@ -53,12 +53,10 @@ export async function createAssessment(request: Request) {
   const lines: KpiAssessmentLine[] = indicators.map((indicator, index) => {
     const raw = (body.lines as unknown[])[index] as Record<string, unknown> | null;
     if (!raw) throw new ApiError("VALIDATION_FAILED", `Indikator ${index + 1} wajib diisi.`);
-    // The Core KPI name is editable per scorecard; order and weight stay locked to the catalog (Excel formula).
-    const kpiName = field.text(raw, "kpi_name", { required: true, max: 200 }).trim();
-    if (!kpiName) throw new ApiError("VALIDATION_FAILED", `Core KPI ${index + 1} wajib diisi.`);
+    // Core KPI name, order and weight always come from the catalog (KPI Scorecard Excel); the request cannot change them.
     const score = field.score(raw.raw_score, `Skor untuk ${indicator.kpi_name}`, { required: status === "completed" });
     return {
-      indicator_order: indicator.indicator_order, kpi_name: kpiName, weight_percent: indicator.weight_percent,
+      indicator_order: indicator.indicator_order, kpi_name: indicator.kpi_name, weight_percent: indicator.weight_percent,
       target: field.text(raw, "target", { required: false, max: 200 }), actual: field.text(raw, "actual", { required: false, max: 200 }),
       raw_score: score, comment: field.text(raw, "comment", { required: false, max: 500 }),
     };

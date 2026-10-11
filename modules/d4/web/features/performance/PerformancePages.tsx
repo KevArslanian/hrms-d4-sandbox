@@ -75,7 +75,6 @@ export function PerformanceListPage() {
     </FilterBar>
     <DataTable<Row> rows={rows} noun="pegawai" rowKey={(row) => row.employee.id}
       emptyTitle="Tidak ada pegawai yang cocok" emptyText="Ubah kata kunci atau reset filter untuk melihat semua pegawai."
-      rowHref={(row) => `/performance/history/${row.employee.id}`}
       columns={[
         { key: "employee", header: "Employee", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
         { key: "position", header: "Position / Department", wrap: true, cell: (row) => <><span className="block">{row.position}</span><span className="block text-xs text-ink-3">{departmentOf(snapshot, row.employee)?.name ?? "—"}</span></> },

@@ -58,7 +58,6 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
     setTouched(true);
     if (!employee) { setError("Lengkapi employee sebelum menyimpan."); return; }
     if (!roleOrder || lines.length !== 5 || totalWeight !== 100) { setError("KPI untuk posisi ini belum tersedia di KPI Scorecard; scorecard tidak dapat disimpan."); return; }
-    if (lines.some((line) => !line.kpi_name.trim())) { setError("Setiap Core KPI wajib diberi nama."); return; }
     if (!allScored || !period || !date) { setError("Lengkapi periode, tanggal evaluasi, dan skor 1–5 untuk kelima KPI."); return; }
     if (date > today()) { setError("Tanggal evaluasi tidak boleh lebih dari hari ini."); return; }
     if (existing && !revise) { setError("Scorecard untuk periode ini sudah ada. Centang “Save as revision” atau pilih periode lain."); return; }
@@ -68,7 +67,7 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
     if (result.ok) { onSaved?.(result.value); onClose(); } else setError(result.error);
   }
 
-  return <FormModal size="lg" title="Add Scorecard" description={`Lima Core KPI diambil dari KPI Scorecard ${catalog?.version ?? ""} sesuai posisi pegawai dan namanya bisa diubah; bobot tetap mengikuti katalog.`} onClose={onClose}
+  return <FormModal size="lg" title="Add Scorecard" description={`Lima Core KPI diambil dari KPI Scorecard ${catalog?.version ?? ""} sesuai posisi pegawai; nama dan bobot mengikuti katalog dan tidak dapat diubah.`} onClose={onClose}
     footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Scorecard" disabled={Boolean(employee) && !lines.length} />}>
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />
@@ -93,7 +92,7 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
           <tbody className="max-md:block">
             {lines.map((line, index) => <tr key={`${roleOrder}-${line.indicator_order}`} data-testid={`kpi-line-${line.indicator_order}`} className="border-t border-line align-middle max-md:grid max-md:grid-cols-2 max-md:gap-3 max-md:p-4">
               <td data-label="No" className="px-3 py-2.5 text-ink-3 max-md:p-0 max-md:before:mb-1 max-md:before:block max-md:before:text-[11px] max-md:before:font-semibold max-md:before:uppercase max-md:before:tracking-[0.04em] max-md:before:text-ink-3 max-md:before:content-[attr(data-label)]">{line.indicator_order}</td>
-              <td data-label="Core KPI" className="px-3 py-2 max-md:p-0 max-md:before:mb-1 max-md:before:block max-md:before:text-[11px] max-md:before:font-semibold max-md:before:uppercase max-md:before:tracking-[0.04em] max-md:before:text-ink-3 max-md:before:content-[attr(data-label)] max-md:col-span-2"><input data-testid={`input-core-kpi-${line.indicator_order}`} aria-label={`Core KPI ${line.indicator_order}`} aria-invalid={touched && !line.kpi_name.trim()} maxLength={200} value={line.kpi_name} onChange={(event) => setLine(index, { kpi_name: event.target.value })} className="h-9 w-full rounded-lg border border-line-strong px-2 text-sm font-semibold aria-[invalid=true]:border-danger" /></td>
+              <td data-label="Core KPI" className="px-3 py-2 max-md:p-0 max-md:before:mb-1 max-md:before:block max-md:before:text-[11px] max-md:before:font-semibold max-md:before:uppercase max-md:before:tracking-[0.04em] max-md:before:text-ink-3 max-md:before:content-[attr(data-label)] max-md:col-span-2"><span data-testid={`input-core-kpi-${line.indicator_order}`} className="block font-semibold">{line.kpi_name}</span></td>
               <td data-label="Weight" className="px-3 py-2.5 tabular-nums max-md:p-0 max-md:before:mb-1 max-md:before:block max-md:before:text-[11px] max-md:before:font-semibold max-md:before:uppercase max-md:before:tracking-[0.04em] max-md:before:text-ink-3 max-md:before:content-[attr(data-label)]">{line.weight_percent}%</td>
               <td data-label="Target" className="px-3 py-2 max-md:p-0 max-md:before:mb-1 max-md:before:block max-md:before:text-[11px] max-md:before:font-semibold max-md:before:uppercase max-md:before:tracking-[0.04em] max-md:before:text-ink-3 max-md:before:content-[attr(data-label)]"><input data-testid={`input-target-${line.indicator_order}`} aria-label={`Target ${line.kpi_name}`} value={line.target} onChange={(event) => setLine(index, { target: event.target.value })} className="h-9 w-full rounded-lg border border-line-strong px-2 text-sm" /></td>
               <td data-label="Actual" className="px-3 py-2 max-md:p-0 max-md:before:mb-1 max-md:before:block max-md:before:text-[11px] max-md:before:font-semibold max-md:before:uppercase max-md:before:tracking-[0.04em] max-md:before:text-ink-3 max-md:before:content-[attr(data-label)]"><input data-testid={`input-realisasi-${line.indicator_order}`} aria-label={`Actual ${line.kpi_name}`} value={line.actual} onChange={(event) => setLine(index, { actual: event.target.value })} className="h-9 w-full rounded-lg border border-line-strong px-2 text-sm" /></td>
