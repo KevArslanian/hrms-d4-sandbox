@@ -37,12 +37,11 @@ Catatan pemetaan:
 
 ## 3. Hak akses per halaman (UI)
 
-Keenam menu tampil untuk semua peran (`modules/d4/web/ui/AppShell.tsx`). Tombol tulis hanya muncul jika `canWrite` bernilai benar, yaitu untuk HR atau MANAGER (`modules/d4/web/data/selectors.ts:12`).
+Kelima menu tampil untuk semua peran (`modules/d4/web/ui/AppShell.tsx`). Tombol tulis hanya muncul jika `canWrite` bernilai benar, yaitu untuk HR atau MANAGER (`modules/d4/web/data/selectors.ts:12`).
 
 | Halaman | HR | MANAGER | EMPLOYEE |
 | --- | --- | --- | --- |
-| Performance Evaluation `/performance` | Semua employee. Tombol Add Evaluation, revisi periode, View History | Sama dengan HR | Hanya baris miliknya. Tanpa tombol Add Evaluation |
-| KPI Scorecard `/kpi` | Semua employee. Tombol Add Scorecard dan riwayat `/kpi/history/[employeeId]` | Sama dengan HR | Hanya scorecard miliknya. Tanpa Add Scorecard |
+| Performance & KPI `/performance` (KPI Scorecard + Performance Evaluation; `/kpi*` lama diarahkan ke sini) | Semua employee. Tombol Add Scorecard dan Add Evaluation (header, menu baris, halaman riwayat), revisi periode, riwayat gabungan `/performance/history/[employeeId]`, detail scorecard `/performance/scorecard/[id]` | Sama dengan HR | Hanya baris, scorecard, dan evaluasi miliknya. Tanpa tombol Add |
 | Competency Gap `/competency` | Semua employee. Tombol Save Assessment, Assess Position Change, Create Development Requirement | Sama dengan HR | Hanya dirinya. Tanpa tombol simpan |
 | Development Requirement `/development` | Semua. Tombol Add Requirement, Update Status, Create Training | Sama dengan HR | Hanya miliknya. Tanpa tombol aksi |
 | Training Tracking `/training` | Semua. Tombol Add Training dan Update Progress | Sama dengan HR | Hanya miliknya. Tanpa Update Progress |

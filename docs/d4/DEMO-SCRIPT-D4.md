@@ -35,11 +35,11 @@ Nama yang tampil di mode live berasal dari `d3_employee`. Dalam skrip ini nama t
 | 3 | Akun | Login HR, MANAGER, dan EMPLOYEE satu per satu | Masuk ke `/dashboard` dengan label peran yang benar di topbar |
 | 4 | Akun terhubung ke employee | Panggil `GET /api/d4/me` per akun, atau baris `/api/d4/me` di smoke test | `employee` tidak `null`. Untuk HR dan MANAGER, employee-nya bukan target demo |
 | 5 | Smoke API | `npm run smoke:d4`, lalu `npm run smoke:d4 -- --probe` | 0 FAIL. Jangan menjalankan `--write` pada data demo |
-| 6 | Data demo ada | Buka keenam menu sebagai HR | Ada minimal satu employee dengan evaluasi, scorecard, development requirement, dan training. Seed `[seed-d4]` menyiapkan tiga employee pertama (urut nama), tetapi tidak membuat competency assessment |
+| 6 | Data demo ada | Buka kelima menu sebagai HR | Ada minimal satu employee dengan evaluasi, scorecard, development requirement, dan training. Seed `[seed-d4]` menyiapkan tiga employee pertama (urut nama), tetapi tidak membuat competency assessment |
 | 7 | Satu employee "kosong" untuk input live | Performance Evaluation, filter status "Not Evaluated" | Ada employee tanpa evaluasi periode berjalan, dan posisinya punya KPI jabatan |
 | 8 | Requirement kompetensi | Competency Gap, kolom Requirement | Employee demo punya Requirement > 0 dan minimal satu baris Gap |
-| 9 | Katalog KPI | Buka `/kpi` | Tidak muncul peringatan "The KPI catalog in the database is still …". Jika muncul, migrasi V5.1 belum diterapkan; putuskan bersama PO apakah demo jalan dengan katalog lama |
-| 10 | Fallback siap | `NEXT_PUBLIC_D4_DATA_MODE=fixture npm run dev` di laptop presenter | Badge "Preview · sample data" muncul dan keenam menu terisi |
+| 9 | Katalog KPI | Buka `/performance` (Performance & KPI) | Tidak muncul peringatan "The KPI catalog in the database is still …". Jika muncul, migrasi V5.1 belum diterapkan; putuskan bersama PO apakah demo jalan dengan katalog lama |
+| 10 | Fallback siap | `NEXT_PUBLIC_D4_DATA_MODE=fixture npm run dev` di laptop presenter | Badge "Preview · sample data" muncul dan kelima menu terisi |
 
 ### 2.2 T-30 menit
 
@@ -47,7 +47,7 @@ Nama yang tampil di mode live berasal dari `d3_employee`. Dalam skrip ini nama t
 | --- | --- |
 | 1 | Jalankan aplikasi (`npm run build && npm run start`, atau URL staging jika sudah ada) |
 | 2 | Siapkan tiga profil browser terpisah (profil biasa, profil kedua, dan jendela incognito). Login HR, MANAGER, dan EMPLOYEE masing-masing di satu profil supaya tidak perlu logout saat berganti peran |
-| 3 | Di profil HR, buka tab `/performance`, `/kpi`, `/competency`, `/development`, `/training`, `/dashboard` sesuai urutan |
+| 3 | Di profil HR, buka tab `/performance`, `/competency`, `/development`, `/training`, `/dashboard` sesuai urutan |
 | 4 | Zoom browser 110–125%, tutup DevTools, matikan notifikasi OS |
 | 5 | Siapkan terminal berisi hasil `npm run smoke:d4 -- --probe` untuk segmen EMPLOYEE (bukti 403 dari server) |
 | 6 | Catat nama employee demo dan employee "kosong" di kertas, bukan di repo |
@@ -68,7 +68,7 @@ Refresh setiap tab (sesi masih aktif), lalu pastikan topbar menampilkan peran ya
 | 5 | HR | Training Tracking | 1:15 | 8:00 |
 | 6 | HR | People Dashboard | 1:00 | 9:00 |
 | 7 | MANAGER | Performance Evaluation → People Dashboard (sekilas) | 0:45 | 9:45 |
-| 8 | EMPLOYEE | Keenam halaman, read-only | 1:15 | 11:00 |
+| 8 | EMPLOYEE | Kelima halaman, read-only | 1:15 | 11:00 |
 | Penutup | – | Ringkasan dan tanya jawab | 0:30 | 11:30 |
 
 Jika waktu mepet, persingkat segmen 7 menjadi satu kalimat dan langsung ke segmen 8.
