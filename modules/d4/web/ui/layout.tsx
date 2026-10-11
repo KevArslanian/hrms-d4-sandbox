@@ -103,7 +103,7 @@ export function LoadingView() {
 }
 
 export function NotFound({ what, backHref, backLabel }: { what: string; backHref: string; backLabel: string }) {
-  return <StateView kind="not-found" title={`${what} not found`} text="The data may no longer exist, or this account does not have access to it." action={<Link href={backHref} className="text-sm font-semibold text-primary-600 hover:underline">{backLabel}</Link>} />;
+  return <StateView kind="not-found" title={`${what} not found`} text="Data mungkin sudah tidak ada, atau akun ini tidak memiliki akses ke data tersebut." action={<Link href={backHref} className="text-sm font-semibold text-primary-600 hover:underline">{backLabel}</Link>} />;
 }
 
 export function Forbidden() {

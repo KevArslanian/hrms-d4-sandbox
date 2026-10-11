@@ -15,7 +15,7 @@ export const scorecardStatus = (item?: KpiAssessment) => !item ? "Not Evaluated"
 export function CatalogNotice() {
   const { catalog } = useD4();
   if (!catalog || catalog.version === ACTIVE_KPI_VERSION) return null;
-  return <Notice tone="warning">The KPI catalog in the database is still {catalog.version}. Apply migration <code>20260929150000_d4_kpi_catalog_v51.sql</code> so new scorecards use KPI Scorecard {ACTIVE_KPI_VERSION}.</Notice>;
+  return <Notice tone="warning">Katalog KPI di database masih {catalog.version}. Terapkan migrasi <code>20260929150000_d4_kpi_catalog_v51.sql</code> agar scorecard baru memakai KPI Scorecard {ACTIVE_KPI_VERSION}.</Notice>;
 }
 
 export function KpiDetailPage({ id }: { id: string }) {
