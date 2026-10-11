@@ -38,7 +38,7 @@ Nama yang tampil di mode live berasal dari `d3_employee`. Dalam skrip ini nama t
 | 6 | Data demo ada | Buka kelima menu sebagai HR | Ada minimal satu employee dengan evaluasi, scorecard, development requirement, dan training. Seed `[seed-d4]` menyiapkan tiga employee pertama (urut nama), tetapi tidak membuat competency assessment |
 | 7 | Satu employee "kosong" untuk input live | Performance Evaluation, filter status "Not Evaluated" | Ada employee tanpa evaluasi periode berjalan, dan posisinya punya KPI jabatan |
 | 8 | Requirement kompetensi | Competency Gap, kolom Requirement | Employee demo punya Requirement > 0 dan minimal satu baris Gap |
-| 9 | Katalog KPI | Buka `/performance` (Performance & KPI) | Tidak muncul peringatan "The KPI catalog in the database is still …". Jika muncul, migrasi V5.1 belum diterapkan; putuskan bersama PO apakah demo jalan dengan katalog lama |
+| 9 | Katalog KPI | Buka `/performance` (Performance & KPI) | Tidak muncul peringatan "Katalog KPI di database masih …". Jika muncul, migrasi V5.1 belum diterapkan; putuskan bersama PO apakah demo jalan dengan katalog lama |
 | 10 | Fallback siap | `NEXT_PUBLIC_D4_DATA_MODE=fixture npm run dev` di laptop presenter | Badge "Preview · sample data" muncul dan kelima menu terisi |
 
 ### 2.2 T-30 menit
