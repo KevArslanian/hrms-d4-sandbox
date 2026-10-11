@@ -9,8 +9,7 @@ import { useD4 } from "../data/D4DataProvider";
 import { cx, slug } from "./primitives";
 
 export const D4_MENU = [
-  { href: "/performance", label: "Performance Evaluation" },
-  { href: "/kpi", label: "KPI Scorecard" },
+  { href: "/performance", label: "Performance & KPI" },
   { href: "/competency", label: "Competency Gap" },
   { href: "/development", label: "Development Requirement" },
   { href: "/training", label: "Training Tracking" },
