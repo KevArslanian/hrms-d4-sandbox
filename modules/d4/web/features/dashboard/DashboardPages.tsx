@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight, ClipboardCheck, Target } from "lucide-react";
+import { ArrowUpRight, ClipboardCheck, Eye, Target } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import type { EmployeeReference } from "../../../shared/types";
 import type { D4LiveSnapshot, KpiAssessment } from "../../../supabase/types";
@@ -65,7 +65,7 @@ export function DashboardPage() {
       {/* The dashboard always shows one period, so there is no "All periods" choice; it starts on the latest one. */}
       <SelectFilter label="Period" testId="latest-period" emptyOption={false} value={period || periods[0] || ""} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
     </FilterBar>
-    <DataTable<Row> rows={rows} noun="pegawai" rowKey={(row) => row.employee.id} rowHref={profileHref}
+    <DataTable<Row> rows={rows} noun="pegawai" rowKey={(row) => row.employee.id}
       emptyTitle="Tidak ada pegawai yang cocok" emptyText="Ubah kata kunci, posisi, departemen, atau periode, lalu coba lagi."
       columns={[
         { key: "employee", header: "Employee", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
@@ -79,6 +79,7 @@ export function DashboardPage() {
         { key: "training", header: "Training", cell: (row) => row.training ? <StatusBadge status={row.training} /> : "—" },
       ]}
       actions={(row) => <RowActionMenu label={`Actions for ${row.employee.fullName}`} actions={[
+        { label: "View Detail", testId: "view-detail", icon: <Eye />, href: profileHref(row) },
         { label: "View KPI Scorecard", testId: "view-kpi-scorecard", icon: <Target />, href: row.scorecard ? `/performance/scorecard/${row.scorecard.id}` : `/performance/history/${row.employee.id}` },
         { label: "View Evaluation", testId: "view-evaluation", icon: <ClipboardCheck />, href: `/performance/history/${row.employee.id}` },
       ]} />} />
