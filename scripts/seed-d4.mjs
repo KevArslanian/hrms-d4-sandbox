@@ -92,7 +92,7 @@ async function main() {
 
     const needId = take(await supabase.rpc("d4_create_development_need", {
       p_employee_id: employee.id, p_source_type: "performance_context", p_source_ref: evaluationId,
-      p_objective: "Perkuat ketelitian dokumen operasional", p_priority: index === 1 ? "High" : "Medium",
+      p_objective: "Strengthen operational document accuracy", p_priority: index === 1 ? "High" : "Medium",
       p_notes: `Berdasarkan evaluasi ${PERIOD}. ${MARKER}`,
     }), "Development need");
 

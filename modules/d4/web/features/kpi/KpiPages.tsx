@@ -1,81 +1,21 @@
 "use client";
 
 import { ClipboardCheck, History, Plus } from "lucide-react";
-import { useMemo, useState } from "react";
-import { ACTIVE_KPI_VERSION, roleForPositionTitle, rolesOf } from "../../../kpi/catalog";
-import type { EmployeeReference } from "../../../shared/types";
+import { useState } from "react";
+import { ACTIVE_KPI_VERSION } from "../../../kpi/catalog";
 import type { KpiAssessment } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { canAssess, canWrite, departmentOf, employeeById, employeeMeta, evaluationsOf, formatDate, formatPeriod, formatScore, includesText, latestScorecard, positionOf, revisionTag, scorecardsOf, visibleEmployees } from "../../data/selectors";
-import { DataTable, PersonCell } from "../../ui/DataTable";
-import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
-import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
-import { RowActionMenu } from "../../ui/RowActionMenu";
-import { Button, ButtonLink, Card, InfoGrid, Notice, SourceChip, statusLabel, StatusBadge } from "../../ui/primitives";
-import { KpiFormModal, noKpiText, weighted } from "./KpiFormModal";
+import { canAssess, employeeById, employeeMeta, evaluationsOf, formatDate, formatPeriod, formatScore } from "../../data/selectors";
+import { DetailHeader, NotFound } from "../../ui/layout";
+import { Button, ButtonLink, Card, InfoGrid, Notice, SourceChip } from "../../ui/primitives";
+import { KpiFormModal, weighted } from "./KpiFormModal";
 
-const scorecardStatus = (item?: KpiAssessment) => !item ? "Not Evaluated" : item.status === "completed" ? "Completed" : "Draft";
+export const scorecardStatus = (item?: KpiAssessment) => !item ? "Not Evaluated" : item.status === "completed" ? "Completed" : "Draft";
 
-function CatalogNotice() {
+export function CatalogNotice() {
   const { catalog } = useD4();
   if (!catalog || catalog.version === ACTIVE_KPI_VERSION) return null;
-  return <Notice tone="warning">The KPI catalog in the database is still {catalog.version}. Apply migration <code>20260929150000_d4_kpi_catalog_v51.sql</code> so new scorecards use KPI Scorecard {ACTIVE_KPI_VERSION}.</Notice>;
-}
-
-type Row = { employee: EmployeeReference; position: string; hasKpi: boolean; roleName?: string; scorecard?: KpiAssessment };
-
-export function KpiListPage() {
-  const snapshot = useSnapshot();
-  const { catalog } = useD4();
-  const writer = canWrite(snapshot);
-  const [search, setSearch] = useState("");
-  const [position, setPosition] = useState("");
-  const [department, setDepartment] = useState("");
-  const [period, setPeriod] = useState("");
-  const [status, setStatus] = useState("");
-  const [modalFor, setModalFor] = useState<string | null>(null);
-  const periods = useMemo(() => [...new Set((snapshot.kpiAssessments ?? []).map((item) => item.period))].sort().reverse(), [snapshot]);
-  const rows = useMemo<Row[]>(() => visibleEmployees(snapshot).map((employee) => {
-    const title = positionOf(snapshot, employee)?.title;
-    const roleOrder = catalog && title ? roleForPositionTitle(catalog, title) : 0;
-    return {
-      employee, position: title ?? "—", hasKpi: !catalog || !title || roleOrder > 0,
-      roleName: catalog && roleOrder ? rolesOf(catalog).find((role) => role.order === roleOrder)?.name : undefined,
-      scorecard: period ? scorecardsOf(snapshot, employee.id).find((item) => item.period === period) : latestScorecard(snapshot, employee.id),
-    };
-  }).filter((row) => includesText(`${row.employee.fullName} ${row.employee.employeeId}`, search)
-    && (!position || row.employee.positionId === position) && (!department || row.employee.departmentId === department) && (!status || scorecardStatus(row.scorecard) === status))
-    .sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName)), [snapshot, catalog, search, position, department, period, status]);
-
-  return <>
-    <PageHeader title="KPI Scorecard" subtitle="Lima Core KPI per posisi dan periode, berbobot total 100%, dengan skor total terbobot."
-      actions={writer && <Button icon={<Plus className="size-4" />} onClick={() => setModalFor("")} data-testid="btn-add-scorecard">Add Scorecard</Button>} />
-    <CatalogNotice />
-    <FilterBar canReset={Boolean(search || position || department || period || status)} onReset={() => { setSearch(""); setPosition(""); setDepartment(""); setPeriod(""); setStatus(""); }}>
-      <SearchInput value={search} onChange={setSearch} placeholder="Search name or ID" />
-      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All positions" testId="all-positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />}
-      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All departments" testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />}
-      <SelectFilter label="All periods" testId="latest-period" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
-      <SelectFilter label="All status" testId="all-status" value={status} onChange={setStatus} options={["Completed", "Draft", "Not Evaluated"].map((item) => ({ value: item, label: statusLabel(item) }))} />
-    </FilterBar>
-    <DataTable<Row> rows={rows} noun="pegawai" rowKey={(row) => row.employee.id}
-      emptyTitle="Tidak ada pegawai yang cocok" emptyText="Ubah kata kunci atau reset filter."
-      rowHref={(row) => row.scorecard ? `/kpi/${row.scorecard.id}` : `/kpi/history/${row.employee.id}`}
-      columns={[
-        { key: "employee", header: "Employee", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
-        { key: "position", header: "Position", wrap: true, cell: (row) => row.position },
-        { key: "department", header: "Department", wrap: true, cell: (row) => departmentOf(snapshot, row.employee)?.name ?? "—" },
-        { key: "role", header: "KPI Role", wrap: true, cell: (row) => row.scorecard?.roleName ?? row.roleName ?? (row.hasKpi ? "—" : <span className="text-ink-3">Not in catalog {catalog?.version} yet</span>) },
-        { key: "period", header: "Period", cell: (row) => formatPeriod(row.scorecard?.period) },
-        { key: "total", header: "Total Score", className: "tabular-nums", cell: (row) => formatScore(row.scorecard?.overallScore) },
-        { key: "status", header: "Status", cell: (row) => <StatusBadge status={scorecardStatus(row.scorecard)} /> },
-      ]}
-      actions={(row) => <RowActionMenu label={`Actions for ${row.employee.fullName}`} actions={[
-        { label: "View History", testId: "view-history", icon: <History />, href: `/kpi/history/${row.employee.id}` },
-        { label: "Open Evaluation", testId: "open-evaluation", icon: <ClipboardCheck />, href: `/performance/history/${row.employee.id}` },
-      ]} />} />
-    {modalFor !== null && <KpiFormModal employeeId={modalFor || undefined} onClose={() => setModalFor(null)} />}
-  </>;
+  return <Notice tone="warning">Katalog KPI di database masih {catalog.version}. Terapkan migrasi <code>20260929150000_d4_kpi_catalog_v51.sql</code> agar scorecard baru memakai KPI Scorecard {ACTIVE_KPI_VERSION}.</Notice>;
 }
 
 export function KpiDetailPage({ id }: { id: string }) {
@@ -83,13 +23,15 @@ export function KpiDetailPage({ id }: { id: string }) {
   const [adding, setAdding] = useState(false);
   const scorecard = (snapshot.kpiAssessments ?? []).find((item) => item.id === id);
   const employee = scorecard && employeeById(snapshot, scorecard.employeeId);
-  if (!scorecard || !employee) return <NotFound what="KPI scorecard" backHref="/kpi" backLabel="Back to KPI Scorecard" />;
+  if (!scorecard || !employee) return <NotFound what="KPI scorecard" backHref="/performance" backLabel="Back to Performance & KPI" />;
   const evaluation = evaluationsOf(snapshot, employee.id).find((item) => item.period === scorecard.period);
   const totalWeight = scorecard.lines.reduce((sum, line) => sum + line.weight_percent, 0);
   return <>
-    <DetailHeader crumbs={[{ label: "HRMS" }, { label: "KPI Scorecard", href: "/kpi" }, { label: "Detail" }]} backHref="/kpi"
+    <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Performance & KPI", href: "/performance" }, { label: "KPI Scorecard" }]} backHref={`/performance/history/${employee.id}`}
       name={employee.fullName} meta={[...employeeMeta(snapshot, employee), `Period ${formatPeriod(scorecard.period)}`]} status={scorecardStatus(scorecard)}
-      actions={<><ButtonLink href={`/kpi/history/${employee.id}`} icon={<History className="size-4" />} testId="view-history">View History</ButtonLink>{canAssess(snapshot, employee.id) && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)} data-testid="btn-add-scorecard">Add Scorecard</Button>}</>} />
+      actions={<><ButtonLink href={`/performance/history/${employee.id}`} icon={<History className="size-4" />} testId="view-history">View History</ButtonLink>
+        <ButtonLink href={evaluation ? `/performance/${evaluation.id}` : `/performance/history/${employee.id}`} icon={<ClipboardCheck className="size-4" />} testId="open-evaluation">Evaluation</ButtonLink>
+        {canAssess(snapshot, employee.id) && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)} data-testid="btn-add-scorecard">Add Scorecard</Button>}</>} />
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(300px,1fr)]">
       <Card title="Core KPI" padded={false}>
         <div className="overflow-x-auto">
@@ -118,30 +60,6 @@ export function KpiDetailPage({ id }: { id: string }) {
         </Card>
       </div>
     </div>
-    {adding && <KpiFormModal employeeId={employee.id} onClose={() => setAdding(false)} />}
-  </>;
-}
-
-export function KpiHistoryPage({ employeeId }: { employeeId: string }) {
-  const snapshot = useSnapshot();
-  const { catalog } = useD4();
-  const [adding, setAdding] = useState(false);
-  const employee = employeeById(snapshot, employeeId);
-  if (!employee || !visibleEmployees(snapshot).some((item) => item.id === employeeId)) return <NotFound what="Employee" backHref="/kpi" backLabel="Back to KPI Scorecard" />;
-  const scorecards = scorecardsOf(snapshot, employee.id);
-  const title = positionOf(snapshot, employee)?.title;
-  return <>
-    <DetailHeader crumbs={[{ label: "HRMS" }, { label: "KPI Scorecard", href: "/kpi" }, { label: "History" }]} backHref="/kpi"
-      name={employee.fullName} meta={[...employeeMeta(snapshot, employee), `${scorecards.length} ${scorecards.length === 1 ? "scorecard" : "scorecards"}`]}
-      actions={canAssess(snapshot, employee.id) && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)} data-testid="btn-add-scorecard">Add Scorecard</Button>} />
-    {title && catalog && !roleForPositionTitle(catalog, title) && <Notice tone="warning">{noKpiText(catalog.version)}</Notice>}
-    <Card title="Scorecard history" testId="scorecard-history">
-      <Timeline empty="Pegawai ini belum memiliki KPI scorecard." entries={scorecards.map((item) => ({
-        id: item.id, date: `${formatPeriod(item.period)} · ${formatDate(item.evaluationDate || item.createdAt)}`,
-        title: `${item.roleName} — ${formatScore(item.overallScore)}${revisionTag(scorecards, item)}`, status: scorecardStatus(item), actor: item.actor, href: `/kpi/${item.id}`,
-        body: `Catalog ${item.definitionVersion} · Evaluator ${item.evaluatorName || "—"}`,
-      }))} />
-    </Card>
     {adding && <KpiFormModal employeeId={employee.id} onClose={() => setAdding(false)} />}
   </>;
 }

@@ -9,8 +9,7 @@ import { useD4 } from "../data/D4DataProvider";
 import { cx, slug } from "./primitives";
 
 export const D4_MENU = [
-  { href: "/performance", label: "Performance Evaluation" },
-  { href: "/kpi", label: "KPI Scorecard" },
+  { href: "/performance", label: "Performance & KPI" },
   { href: "/competency", label: "Competency Gap" },
   { href: "/development", label: "Development Requirement" },
   { href: "/training", label: "Training Tracking" },
@@ -25,7 +24,7 @@ const LOGO_URL = "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-A
 const OTHER_MODULES = [{ label: "POS", icon: Store }, { label: "CRM", icon: Contact }] as const;
 
 // Matches Figma PISD D3 sidebar (file L5k46NNy2gX6xOq8e1dczQ, node 1582:458): POS, CRM, HRMS (expanded) and MID,
-// active HRMS item on #b0c6d4 with a teal dot, Logout outlined at the bottom.
+// active HRMS item on #b0c6d4 Logout outlined at the bottom.
 function Sidebar({ onNavigate, onClose }: { onNavigate: () => void; onClose: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -70,7 +69,6 @@ function Sidebar({ onNavigate, onClose }: { onNavigate: () => void; onClose: () 
           return <Link key={item.href} href={item.href} data-testid={`nav-${slug(item.label)}`} onClick={onNavigate} aria-current={active ? "page" : undefined}
             className={cx("flex items-center gap-2 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors",
               active ? "bg-[#b0c6d4] text-[#606f8c]" : "text-[#d9e2fc]/40 hover:text-[#d9e2fc]")}>
-            <span aria-hidden="true" className={cx("size-1.5 shrink-0 rounded-full", active ? "bg-[#069494]" : "bg-[#d9e2fc]/40")} />
             {item.label}
           </Link>;
         })}

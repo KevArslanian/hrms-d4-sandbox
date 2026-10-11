@@ -113,7 +113,7 @@ export function DevelopmentStatusModal({ needId, onClose }: { needId: string; on
       <SelectField label="Status" required value={status} onChange={(event) => setStatus(event.target.value as DevelopmentStatus)}>
         {(["Identified", "Planned", "In Progress", "Completed"] as const).map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}
       </SelectField>
-      {status === "Completed" && openTrainings.length > 0 && <Notice tone="warning">There {openTrainings.length === 1 ? "is" : "are"} still {openTrainings.length} Planned/In Progress training{openTrainings.length === 1 ? "" : "s"} for this requirement ({openTrainings.map((item) => item.activity).join(", ")}). Complete or cancel them first, or explain why in Notes.</Notice>}
+      {status === "Completed" && openTrainings.length > 0 && <Notice tone="warning">Masih ada {openTrainings.length} training berstatus Planned/In Progress untuk requirement ini ({openTrainings.map((item) => item.activity).join(", ")}). Selesaikan atau batalkan terlebih dahulu, atau jelaskan alasannya di Notes.</Notice>}
       <TextAreaField label="Notes" testId="notes" required={needsReason} value={notes} onChange={(event) => setNotes(event.target.value)} helper={status === current?.status ? `Status sudah ${status}. Pilih status lain untuk menyimpan.` : rollback ? "Wajib: status mundur ke tahap sebelumnya." : completingOpen ? "Wajib: jelaskan mengapa requirement diselesaikan saat training masih berjalan." : undefined} />
       <Notice>Perubahan disimpan sebagai revisi baru; riwayat sebelumnya tetap tersedia. Status Completed tidak otomatis menutup gap kompetensi.</Notice>
     </form>

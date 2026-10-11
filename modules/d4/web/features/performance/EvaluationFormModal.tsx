@@ -50,7 +50,7 @@ export function EvaluationFormModal({ employeeId, onClose, onSaved }: { employee
         <ReadOnlyField label="Position" testId="position" value={positionOf(snapshot, selected)?.title ?? "—"} />
         <ReadOnlyField label="Department" testId="department" value={departmentOf(snapshot, selected)?.name ?? "—"} />
         <TextField label="Period" testId="period" required type="month" value={period} onChange={(event) => setPeriod(event.target.value)} error={touched && !period ? "Period wajib diisi." : undefined} />
-        <TextField label="Evaluation date" testId="evaluation-date" required type="date" max={today()} value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? "Date wajib diisi." : touched && date > today() ? "Cannot be later than today." : undefined} />
+        <TextField label="Evaluation date" testId="evaluation-date" required type="date" max={today()} value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? "Date wajib diisi." : touched && date > today() ? "Tidak boleh lebih dari hari ini." : undefined} />
         <ReadOnlyField label="Evaluator" testId="evaluator" value={evaluator || "—"} />
       </div>
       {existing && <RevisionConfirm what="An evaluation" existing={`${existing.evaluator}, ${formatDate(existing.evaluationDate)}`} checked={revise} onChange={setRevise}

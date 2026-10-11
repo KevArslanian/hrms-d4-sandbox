@@ -40,6 +40,6 @@ export function databaseError(error: { message: string; code?: string }, label: 
 export function enforce(check: () => void) {
   try { check(); } catch (cause) {
     if (cause instanceof ApiError) throw cause;
-    throw new ApiError("VALIDATION_FAILED", cause instanceof Error ? cause.message : "Invalid data.");
+    throw new ApiError("VALIDATION_FAILED", cause instanceof Error ? cause.message : "Data tidak valid.");
   }
 }
