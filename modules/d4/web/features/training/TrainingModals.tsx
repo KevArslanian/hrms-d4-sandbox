@@ -52,13 +52,13 @@ export function TrainingFormModal({ employeeId, developmentNeedId, onClose }: { 
         {lockedNeed ? <ReadOnlyField label="Source requirement" testId="source-requirement" value={`${lockedNeed.objective} · ${statusLabel(lockedNeed.status)}`} className="sm:col-span-2" /> :
         <SelectField label="Source requirement" testId="source-requirement" required value={need} onChange={(event) => setNeed(event.target.value)} error={touched && employee && !needOpen ? "Pilih development requirement yang masih terbuka." : undefined} className="sm:col-span-2"
           helper="Requirement yang sudah Completed tidak ditampilkan.">
-          <option value="">{!employee ? "Select an employee first" : needs.length ? "Select development requirement" : "Pegawai belum memiliki development requirement yang terbuka"}</option>
+          <option value="">{!employee ? "Pilih pegawai terlebih dahulu" : needs.length ? "Select development requirement" : "Pegawai belum memiliki development requirement yang terbuka"}</option>
           {needs.map((item) => <option key={item.needId} value={item.needId}>{item.objective} · {statusLabel(item.status)}</option>)}
         </SelectField>}
         <TextField label="Training / activity" testId="training-activity" required value={activity} onChange={(event) => setActivity(event.target.value)} error={touched && !activity.trim() ? "Nama aktivitas wajib diisi." : undefined} className="sm:col-span-2" />
         <TextField label="Date" testId="date" required type="date" max={status === "Completed" ? today() : undefined} value={date} onChange={(event) => setDate(event.target.value)} error={touched && futureDone ? "Tidak boleh lebih dari hari ini untuk training yang Completed." : undefined} />
         <SelectField label="Status" required value={status} onChange={(event) => setStatus(event.target.value as TrainingStatus)}>{STATUSES.map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}</SelectField>
-        <TextField label="Result" testId="result" required={status === "Completed"} value={result} onChange={(event) => setResult(event.target.value)} error={touched && status === "Completed" && !result.trim() ? "Result is required when the status is Completed." : undefined} className="sm:col-span-2" />
+        <TextField label="Result" testId="result" required={status === "Completed"} value={result} onChange={(event) => setResult(event.target.value)} error={touched && status === "Completed" && !result.trim() ? "Result wajib diisi bila status Completed." : undefined} className="sm:col-span-2" />
       </div>
       <TextAreaField label="Notes" testId="notes" value={notes} onChange={(event) => setNotes(event.target.value)} />
     </form>
@@ -80,7 +80,7 @@ export function TrainingProgressModal({ trainingId, onClose }: { trainingId: str
   async function submit(event: FormEvent) {
     event.preventDefault();
     setTouched(true);
-    if (status === "Completed" && !result.trim()) { setError("Result is required when the status is Completed."); return; }
+    if (status === "Completed" && !result.trim()) { setError("Result wajib diisi bila status Completed."); return; }
     if (rollback && !notes.trim()) { setError(`Alasan wajib diisi saat status mundur dari ${statusLabel(record?.status ?? "")} ke ${statusLabel(status)}.`); return; }
     const saved = await run((source) => source.updateTraining(trainingId, status, result, notes), "Progres training tersimpan sebagai versi baru.");
     if (saved.ok) onClose(); else setError(saved.error);
