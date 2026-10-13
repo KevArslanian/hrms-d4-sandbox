@@ -23,12 +23,12 @@ export function KpiDetailPage({ id }: { id: string }) {
   const [adding, setAdding] = useState(false);
   const scorecard = (snapshot.kpiAssessments ?? []).find((item) => item.id === id);
   const employee = scorecard && employeeById(snapshot, scorecard.employeeId);
-  if (!scorecard || !employee) return <NotFound what="Penilaian Kinerja" backHref="/performance" backLabel="Back to Penilaian Kinerja" />;
+  if (!scorecard || !employee) return <NotFound what="Performance Review" backHref="/performance" backLabel="Back to Performance Review" />;
   const evaluation = evaluationsOf(snapshot, employee.id).find((item) => item.period === scorecard.period);
   const needs = developmentNeeds(snapshot).filter((item) => item.sourceType === "performance_context" && item.sourceRef === scorecard.id);
   const totalWeight = scorecard.lines.reduce((sum, line) => sum + line.weight_percent, 0);
   return <>
-    <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Penilaian Kinerja", href: "/performance" }, { label: "Detail" }]} backHref={`/performance/history/${employee.id}`}
+    <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Performance Review", href: "/performance" }, { label: "Detail" }]} backHref={`/performance/history/${employee.id}`}
       name={employee.fullName} meta={[...employeeMeta(snapshot, employee), `Period ${formatPeriod(scorecard.period)}`]} status={scorecardStatus(scorecard)}
       actions={<><ButtonLink href={`/performance/history/${employee.id}`} icon={<History className="size-4" />} testId="view-history">View History</ButtonLink>
         {canAssess(snapshot, employee.id) && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)} data-testid="btn-add-penilaian">Add Penilaian</Button>}</>} />

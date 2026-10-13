@@ -20,7 +20,7 @@ export function weighted(line: Pick<KpiAssessmentLine, "weight_percent" | "raw_s
   return validScore(line.raw_score) ? line.weight_percent * (line.raw_score ?? 0) / 100 : null;
 }
 
-/** Penilaian Kinerja (FR-D4-001 v3.1): five Core KPI, evaluation notes and evidence in one form with one Save. */
+/** Performance Review (FR-D4-001 v3.1): five Core KPI, evaluation notes and evidence in one form with one Save. */
 export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: string; onClose: () => void; onSaved?: (id: string) => void }) {
   const snapshot = useSnapshot();
   const { catalog: catalogSet, run, busy } = useD4();
@@ -72,14 +72,14 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
     if (!allScored || !period || !date) { setError("Lengkapi periode, tanggal evaluasi, dan skor 1–5 untuk kelima KPI."); return; }
     if (!notes.trim()) { setError("Catatan evaluasi wajib diisi."); return; }
     if (date > today()) { setError("Tanggal evaluasi tidak boleh lebih dari hari ini."); return; }
-    if (existing && !revise) { setError("Penilaian Kinerja untuk periode ini sudah ada. Centang “Save as revision” atau pilih periode lain."); return; }
+    if (existing && !revise) { setError("Performance Review untuk periode ini sudah ada. Centang “Save as revision” atau pilih periode lain."); return; }
     setError("");
     const result = await run((source) => source.createKpiAssessment({ employeeId: employee, roleOrder, period, evaluationDate: date, evaluatorName: evaluator, status: "completed", lines, generalNotes: notes, evidenceReference: evidence.trim() || null, revisionOf: existing?.id ?? null }),
-      "Penilaian Kinerja tersimpan.");
+      "Performance Review tersimpan.");
     if (result.ok) { onSaved?.(result.value); onClose(); } else setError(result.error);
   }
 
-  return <FormModal size="lg" title="Penilaian Kinerja" description={`Lima Core KPI dari katalog ${catalog?.version ?? ""} sesuai posisi pegawai (nama bisa diubah, bobot tetap), lalu catatan evaluasi. Satu kali Simpan.`} onClose={onClose}
+  return <FormModal size="lg" title="Performance Review" description={`Lima Core KPI dari katalog ${catalog?.version ?? ""} sesuai posisi pegawai (nama bisa diubah, bobot tetap), lalu catatan evaluasi. Satu kali Simpan.`} onClose={onClose}
     footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Simpan" disabled={Boolean(employee) && !lines.length} />}>
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />
@@ -93,7 +93,7 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
         <TextField label="Evaluation date" testId="evaluation-date" required type="date" max={today()} value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? "Date wajib diisi." : touched && date > today() ? "Tidak boleh lebih dari hari ini." : undefined} />
         <ReadOnlyField label="Evaluator" testId="evaluator" value={evaluator || "—"} className="sm:col-span-2" />
       </div>
-      {existing && <RevisionConfirm what="Penilaian Kinerja" existing={`${existing.evaluatorName}, ${formatDate(existing.evaluationDate)}`} checked={revise} onChange={setRevise}
+      {existing && <RevisionConfirm what="Performance Review" existing={`${existing.evaluatorName}, ${formatDate(existing.evaluationDate)}`} checked={revise} onChange={setRevise}
         error={touched && !revise ? "Centang untuk menyimpan sebagai revisi, atau pilih periode lain." : undefined} />}
 
       {employee && !lines.length ? <Notice tone="warning">{position ? noKpiText(catalog?.version) : "Pegawai belum memiliki posisi aktif, jadi KPI-nya belum bisa ditentukan."}</Notice> : <div className="overflow-x-auto rounded-2xl border border-line">

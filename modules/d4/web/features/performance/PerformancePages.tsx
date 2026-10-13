@@ -26,7 +26,7 @@ const PROGRESS = [
 type Row = { employee: EmployeeReference; position: string; hasKpi: boolean; scorecard?: KpiAssessment; evaluation?: PerformanceEvaluation };
 
 /**
- * Penilaian Kinerja (FR-D4-001 v3.1): one row per employee with the Total KPI, evaluation notes and evaluator of one
+ * Performance Review (FR-D4-001 v3.1): one row per employee with the Total KPI, evaluation notes and evaluator of one
  * assessment. Rows do not open on click; detail and history come from the Actions menu.
  */
 export function PerformanceListPage() {
@@ -57,7 +57,7 @@ export function PerformanceListPage() {
     .sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName)), [snapshot, catalog, catalogSet, search, position, department, period, progress]);
 
   return <>
-    <PageHeader title="Penilaian Kinerja" subtitle="Lima Core KPI dan catatan evaluasi per pegawai dan periode, dalam satu penilaian."
+    <PageHeader title="Performance Review" subtitle="Lima Core KPI dan catatan evaluasi per pegawai dan periode, dalam satu penilaian."
       actions={writer && <Button icon={<Plus className="size-4" />} onClick={() => setAdding({})} data-testid="btn-add-penilaian">Add Penilaian</Button>} />
     <CatalogNotice />
     <FilterBar canReset={Boolean(search || position || department || period || progress)} onReset={() => { setSearch(""); setPosition(""); setDepartment(""); setPeriod(""); setProgress(""); }}>
@@ -91,24 +91,24 @@ export function PerformanceListPage() {
   </>;
 }
 
-/** An evaluation saved before FR-D4-001 v3.1 merged it into the Penilaian Kinerja; read-only history. */
+/** An evaluation saved before FR-D4-001 v3.1 merged it into the Performance Review; read-only history. */
 export function PerformanceDetailPage({ id }: { id: string }) {
   const snapshot = useSnapshot();
   const evaluation = snapshot.performance.find((item) => item.id === id);
   const employee = evaluation && employeeById(snapshot, evaluation.employeeId);
-  if (!evaluation || !employee) return <NotFound what="Evaluation" backHref="/performance" backLabel="Back to Penilaian Kinerja" />;
+  if (!evaluation || !employee) return <NotFound what="Evaluation" backHref="/performance" backLabel="Back to Performance Review" />;
   const scorecard = scorecardsOf(snapshot, employee.id).find((item) => item.period === evaluation.period);
   const needs = developmentNeeds(snapshot).filter((item) => item.sourceType === "performance_context" && item.sourceRef === evaluation.id);
 
   return <>
-    <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Penilaian Kinerja", href: "/performance" }, { label: "Evaluasi lama" }]} backHref={`/performance/history/${employee.id}`}
+    <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Performance Review", href: "/performance" }, { label: "Evaluasi lama" }]} backHref={`/performance/history/${employee.id}`}
       name={employee.fullName} meta={[...employeeMeta(snapshot, employee), `Period ${formatPeriod(evaluation.period)}`]}
       status={evaluationStatus(evaluation)}
       actions={<>
         <ButtonLink href={`/performance/history/${employee.id}`} icon={<History className="size-4" />} testId="view-history">View History</ButtonLink>
-        {scorecard && <ButtonLink href={`/performance/scorecard/${scorecard.id}`} icon={<Target className="size-4" />}>Penilaian Kinerja</ButtonLink>}
+        {scorecard && <ButtonLink href={`/performance/scorecard/${scorecard.id}`} icon={<Target className="size-4" />}>Performance Review</ButtonLink>}
       </>} />
-    <Notice tone="info">Evaluasi ini dicatat sebelum KPI dan catatan evaluasi digabung menjadi satu Penilaian Kinerja. Data lama hanya dapat dibaca.</Notice>
+    <Notice tone="info">Evaluasi ini dicatat sebelum KPI dan catatan evaluasi digabung menjadi satu Performance Review. Data lama hanya dapat dibaca.</Notice>
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
       <Card title="Evaluation summary" testId="evaluation-summary">
         <InfoGrid columns={3} items={[
@@ -141,18 +141,18 @@ export function PerformanceHistoryPage({ employeeId }: { employeeId: string }) {
   const [adding, setAdding] = useState(false);
   const employee = employeeById(snapshot, employeeId);
   const catalog = catalogSet && catalogFor(catalogSet, thisMonth());
-  if (!employee || !visibleEmployees(snapshot).some((item) => item.id === employeeId)) return <NotFound what="Employee" backHref="/performance" backLabel="Back to Penilaian Kinerja" />;
+  if (!employee || !visibleEmployees(snapshot).some((item) => item.id === employeeId)) return <NotFound what="Employee" backHref="/performance" backLabel="Back to Performance Review" />;
   const scorecards = scorecardsOf(snapshot, employee.id);
   const evaluations = evaluationsOf(snapshot, employee.id);
   const title = positionOf(snapshot, employee)?.title;
   const linkedNeeds = developmentNeeds(snapshot).filter((need) => need.employeeId === employee.id && need.sourceType === "performance_context");
   return <>
-    <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Penilaian Kinerja", href: "/performance" }, { label: "History" }]} backHref="/performance"
+    <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Performance Review", href: "/performance" }, { label: "History" }]} backHref="/performance"
       name={employee.fullName} meta={[...employeeMeta(snapshot, employee), `${scorecards.length} penilaian`]}
       actions={canAssess(snapshot, employee.id) && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)} data-testid="btn-add-penilaian">Add Penilaian</Button>} />
     {title && catalogSet && !(catalog && roleForPosition(catalog, employee.positionId)) && <Notice tone="warning">{noKpiText(catalog?.version)}</Notice>}
-    <Card title="Riwayat Penilaian Kinerja" testId="scorecard-history">
-      <Timeline empty="Pegawai ini belum memiliki Penilaian Kinerja." entries={scorecards.map((item) => ({
+    <Card title="Riwayat Performance Review" testId="scorecard-history">
+      <Timeline empty="Pegawai ini belum memiliki Performance Review." entries={scorecards.map((item) => ({
         id: item.id, date: `${formatPeriod(item.period)} · ${formatDate(item.evaluationDate || item.createdAt)}`,
         title: `${item.roleName} — ${formatScore(item.overallScore)}${revisionTag(scorecards, item)}`, status: scorecardStatus(item), actor: item.actor, href: `/performance/scorecard/${item.id}`,
         body: `Catalog ${item.definitionVersion} · Penilai ${item.evaluatorName || "—"}${item.generalNotes ? ` · ${item.generalNotes}` : ""}`,
@@ -166,7 +166,7 @@ export function PerformanceHistoryPage({ employeeId }: { employeeId: string }) {
         body: <>Evaluator: {item.evaluator || "—"}{item.generalNotes ? ` · ${item.generalNotes}` : ""}</>,
       }))} />
     </Card>}
-    {linkedNeeds.length > 0 && <Card title="Development dari Penilaian Kinerja" testId="development-linked-to-evaluations">
+    {linkedNeeds.length > 0 && <Card title="Development dari Performance Review" testId="development-linked-to-evaluations">
       <div className="flex flex-wrap gap-2">{linkedNeeds.map((need) => <SourceChip key={need.needId} label={describeSource(snapshot, need).label} reference={need.objective} href={`/development/${need.needId}`} />)}</div>
     </Card>}
     {adding && <KpiFormModal employeeId={employee.id} onClose={() => setAdding(false)} />}
