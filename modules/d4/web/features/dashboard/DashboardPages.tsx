@@ -66,7 +66,7 @@ export function DashboardPage() {
       <SelectFilter label="Period" testId="latest-period" emptyOption={false} value={period || periods[0] || ""} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
     </FilterBar>
     <DataTable<Row> rows={rows} noun="pegawai" rowKey={(row) => row.employee.id}
-      emptyTitle="Tidak ada pegawai yang cocok" emptyText="Ubah kata kunci, posisi, departemen, atau periode, lalu coba lagi."
+      emptyTitle="Tidak ada pegawai yang cocok" emptyText={snapshot.role === "EMPLOYEE" ? "Ubah kata kunci atau periode, lalu coba lagi." : "Ubah kata kunci, posisi, departemen, atau periode, lalu coba lagi."}
       columns={[
         { key: "employee", header: "Employee", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
         // Position and department share one column so the nine summary columns fit at 1440px.
