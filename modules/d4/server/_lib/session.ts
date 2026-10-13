@@ -34,7 +34,7 @@ export async function d4Session() {
 }
 
 export async function d4Access(session: Awaited<ReturnType<typeof d4Session>>): Promise<{ role: D4AppRole; employeeId: string }> {
-  const { data, error } = await session.client.from("d3_user_access").select("app_role,employee_id").eq("auth_user_id", session.user.id).maybeSingle();
+  const { data, error } = await session.client.from("d4_user_access").select("app_role,employee_id").eq("auth_user_id", session.user.id).maybeSingle();
   if (error) throw databaseError(error, "Hak akses");
   if (!data) throw new ApiError("FORBIDDEN", "Akun ini belum diberi akses ke data HRMS.");
   return { role: data.app_role as D4AppRole, employeeId: data.employee_id as string };
