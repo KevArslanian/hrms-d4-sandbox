@@ -76,7 +76,7 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
     const [departmentsResult, positionsResult, employeesResult, competenciesResult, requirementsResult, skillsResult] = await Promise.all([
       allRows(() => this.client.from("d3_departments").select("id,code,name").order("id")),
       allRows(() => this.client.from("d3_positions").select("id,code,title,department_id").order("id")),
-      allRows(() => this.client.from("d3_employee").select("id,employee_id,full_name,position_id,department_id").order("id")),
+      allRows(() => this.client.from("d4_employee").select("id,employee_id,full_name,position_id,department_id").order("id")),
       allRows(() => this.client.from("d3_competencies").select("id,code,name,category").order("id")),
       allRows(() => this.client.from("position_requirements").select("id,position_id,competency_id,min_proficiency_level,is_mandatory").order("id")),
       allRows(() => this.client.from("d3_employee_skills").select("id,employee_id,competency_id,proficiency_level,evidence_notes").order("id")),
@@ -104,7 +104,7 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
     // (each round trip to the database counts). RLS already limits what the queries return, and access
     // is still checked before anything is returned.
     const [{ data: access, error: accessError }, reference, [kpiResult, kpiAssessmentResult, performanceResult, assessmentResult, developmentResult, developmentVersionResult, trainingResult, trainingVersionResult]] = await Promise.all([
-      this.client.from("d3_user_access").select("app_role,employee_id").eq("auth_user_id", user.id).maybeSingle(),
+      this.client.from("d4_user_access").select("app_role,employee_id").eq("auth_user_id", user.id).maybeSingle(),
       this.loadReferenceData(),
       Promise.all([
       allRows(() => this.client.from("employee_kpi").select("id,employee_id,period,kpi_score,notes,created_at").order("period", { ascending: false }).order("id")),

@@ -41,15 +41,15 @@ const SAMPLES = [
 async function main() {
   take(await supabase.auth.signInWithPassword({ email, password }), "Sign in");
   const { data: { user } } = await supabase.auth.getUser();
-  const access = take(await supabase.from("d3_user_access").select("app_role,employee_id").eq("auth_user_id", user.id).maybeSingle(), "Read access");
-  if (!access || !["HR", "MANAGER"].includes(access.app_role)) throw new Error("The seed account must have app_role HR or MANAGER in d3_user_access.");
+  const access = take(await supabase.from("d4_user_access").select("app_role,employee_id").eq("auth_user_id", user.id).maybeSingle(), "Read access");
+  if (!access || !["HR", "MANAGER"].includes(access.app_role)) throw new Error("The seed account must have app_role HR or MANAGER in d4_user_access.");
 
   const [employees, positions, catalog, marked, actor] = await Promise.all([
-    supabase.from("d3_employee").select("id,employee_id,full_name,position_id").not("position_id", "is", null).order("full_name").limit(SAMPLES.length),
+    supabase.from("d4_employee").select("id,employee_id,full_name,position_id").not("position_id", "is", null).order("full_name").limit(SAMPLES.length),
     supabase.from("d3_positions").select("id,title"),
     supabase.from("d4_kpi_role_catalog").select("role_order,role_name,indicator_order,kpi_name,target,weight_percent,source_version").order("role_order").order("indicator_order"),
     supabase.from("d4_performance_evaluations").select("employee_id").like("general_notes", `%${MARKER}%`),
-    supabase.from("d3_employee").select("full_name").eq("id", access.employee_id).maybeSingle(),
+    supabase.from("d4_employee").select("full_name").eq("id", access.employee_id).maybeSingle(),
   ]).then((results) => results.map((result, index) => take(result, ["Employees", "Positions", "KPI catalog", "Existing seed", "Actor"][index])));
 
   const version = catalog.some((row) => row.source_version === "V5.1") ? "V5.1" : catalog[0]?.source_version ?? "V3.1";
