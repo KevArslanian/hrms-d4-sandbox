@@ -134,7 +134,7 @@ export const trainingHistory = (snapshot: Snapshot, trainingId: string) => snaps
 export const sourceTypeLabel: Record<DevelopmentSourceType, string> = {
   competency_gap: "Competency Gap",
   role_change: "Position Change",
-  performance_context: "Performance Evaluation",
+  performance_context: "Penilaian Kinerja",
 };
 
 /** Resolves a development need's source reference to a readable label and a link to the source record (FR-D4-005). */
@@ -148,8 +148,11 @@ export function describeSource(snapshot: Snapshot, need: Pick<DevelopmentNeedVer
     const assessment = snapshot.competency.find((item) => item.id === need.sourceRef);
     return { label: assessment ? `Position change assessment · ${formatDate(assessment.effectiveDate)}` : "Position change assessment", href: `/competency/${need.employeeId}/history` };
   }
+  const assessment = snapshot.kpiAssessments?.find((item) => item.id === need.sourceRef);
+  if (assessment) return { label: `Penilaian Kinerja ${formatPeriod(assessment.period)}`, href: `/performance/scorecard/${assessment.id}` };
+  // Needs raised before FR-D4-001 v3.1 point at an older, separate evaluation.
   const evaluation = snapshot.performance.find((item) => item.id === need.sourceRef);
-  return { label: evaluation ? `Performance evaluation ${formatPeriod(evaluation.period)}` : "Performance evaluation", href: evaluation ? `/performance/${evaluation.id}` : null };
+  return { label: evaluation ? `Penilaian Kinerja ${formatPeriod(evaluation.period)} (evaluasi lama)` : "Penilaian Kinerja", href: evaluation ? `/performance/${evaluation.id}` : null };
 }
 
 export function trainingSource(snapshot: Snapshot, record: TrainingVersion) {

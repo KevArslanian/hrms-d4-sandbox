@@ -4,7 +4,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import type { DevelopmentPriority, DevelopmentSourceType, DevelopmentStatus } from "../../../development/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
 import { isDevelopmentRollback, openNeedFor } from "../../../shared/rules";
-import { currentGap, developmentNeeds, employeeById, formatDate, formatPeriod, latestCurrentPositionAssessment, positionOf, sourceTypeLabel, today, trainings, visibleEmployees } from "../../data/selectors";
+import { currentGap, developmentNeeds, employeeById, formatDate, formatPeriod, latestCurrentPositionAssessment, positionOf, scorecardsOf, sourceTypeLabel, today, trainings, visibleEmployees } from "../../data/selectors";
 import { FormError, FormModal, ModalActions, ReadOnlyField, SearchSelectField, SelectField, TextAreaField, TextField } from "../../ui/forms";
 import { Notice, statusLabel } from "../../ui/primitives";
 
@@ -26,8 +26,8 @@ export function sourceOptions(snapshot: ReturnType<typeof useSnapshot>, employee
   }
   if (type === "role_change") return snapshot.competency.filter((item) => item.employeeId === employeeId && item.context === "role-change")
     .map((item) => ({ ref: item.id, label: `Position change assessment · ${formatDate(item.effectiveDate)}` }));
-  return snapshot.performance.filter((item) => item.employeeId === employeeId && item.status === "completed")
-    .map((item) => ({ ref: item.id, label: `Performance evaluation ${formatPeriod(item.period)}` }));
+  return scorecardsOf(snapshot, employeeId).filter((item) => item.status === "completed")
+    .map((item) => ({ ref: item.id, label: `Penilaian Kinerja ${formatPeriod(item.period)} · ${item.evaluatorName || "—"}` }));
 }
 
 export function DevelopmentFormModal({ employeeId, sourceType, sourceRef, onClose, onSaved }: { employeeId?: string; sourceType?: DevelopmentSourceType; sourceRef?: string; onClose: () => void; onSaved?: (id: string) => void }) {

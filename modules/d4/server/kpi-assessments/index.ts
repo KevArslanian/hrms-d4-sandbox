@@ -60,6 +60,8 @@ export async function createAssessment(request: Request) {
       raw_score: score, comment: field.text(raw, "comment", { required: false, max: 500 }),
     };
   });
+  const generalNotes = field.text(body, "generalNotes", { required: false, max: 4000 }).trim();
+  if (!generalNotes) throw new ApiError("VALIDATION_FAILED", "Catatan evaluasi wajib diisi.");
   const evaluationDate = field.date(body, "evaluationDate", { required: status === "completed" });
   enforce(() => assertNotFutureDate(evaluationDate));
   const id = await repository.saveKpiAssessment({
@@ -67,7 +69,10 @@ export async function createAssessment(request: Request) {
     employeeId, roleOrder, roleName: indicators[0].role_name,
     period, evaluationDate,
     evaluatorName,
-    status, lines, generalNotes: field.text(body, "generalNotes", { required: false, max: 4000 }),
+    status, lines,
+    // FR-D4-001 v3.1: one Penilaian Kinerja = five KPI + evaluation notes (required) + optional evidence.
+    generalNotes,
+    evidenceReference: field.text(body, "evidenceReference", { required: false, max: 500 }).trim() || null,
   });
   return { id, definitionVersion: catalog.version };
 }

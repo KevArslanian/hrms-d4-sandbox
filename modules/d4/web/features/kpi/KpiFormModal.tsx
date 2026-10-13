@@ -20,6 +20,7 @@ export function weighted(line: Pick<KpiAssessmentLine, "weight_percent" | "raw_s
   return validScore(line.raw_score) ? line.weight_percent * (line.raw_score ?? 0) / 100 : null;
 }
 
+/** Penilaian Kinerja (FR-D4-001 v3.1): five Core KPI, evaluation notes and evidence in one form with one Save. */
 export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: string; onClose: () => void; onSaved?: (id: string) => void }) {
   const snapshot = useSnapshot();
   const { catalog: catalogSet, run, busy } = useD4();
@@ -40,6 +41,7 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
   // The evaluator is the signed-in user; the server stores that name and ignores the form value.
   const evaluator = actor?.fullName ?? "";
   const [notes, setNotes] = useState("");
+  const [evidence, setEvidence] = useState("");
   const [error, setError] = useState("");
   const [touched, setTouched] = useState(false);
   const [revise, setRevise] = useState(false);
@@ -65,19 +67,20 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
     event.preventDefault();
     setTouched(true);
     if (!employee) { setError("Lengkapi employee sebelum menyimpan."); return; }
-    if (!roleOrder || lines.length !== 5 || totalWeight !== 100) { setError("KPI untuk posisi ini belum tersedia di KPI Scorecard; scorecard tidak dapat disimpan."); return; }
+    if (!roleOrder || lines.length !== 5 || totalWeight !== 100) { setError("KPI untuk posisi ini belum tersedia di katalog; penilaian tidak dapat disimpan."); return; }
     if (lines.some((line) => !line.kpi_name.trim())) { setError("Setiap Core KPI wajib diberi nama."); return; }
     if (!allScored || !period || !date) { setError("Lengkapi periode, tanggal evaluasi, dan skor 1–5 untuk kelima KPI."); return; }
+    if (!notes.trim()) { setError("Catatan evaluasi wajib diisi."); return; }
     if (date > today()) { setError("Tanggal evaluasi tidak boleh lebih dari hari ini."); return; }
-    if (existing && !revise) { setError("Scorecard untuk periode ini sudah ada. Centang “Save as revision” atau pilih periode lain."); return; }
+    if (existing && !revise) { setError("Penilaian Kinerja untuk periode ini sudah ada. Centang “Save as revision” atau pilih periode lain."); return; }
     setError("");
-    const result = await run((source) => source.createKpiAssessment({ employeeId: employee, roleOrder, period, evaluationDate: date, evaluatorName: evaluator, status: "completed", lines, generalNotes: notes, revisionOf: existing?.id ?? null }),
-      "KPI scorecard tersimpan.");
+    const result = await run((source) => source.createKpiAssessment({ employeeId: employee, roleOrder, period, evaluationDate: date, evaluatorName: evaluator, status: "completed", lines, generalNotes: notes, evidenceReference: evidence.trim() || null, revisionOf: existing?.id ?? null }),
+      "Penilaian Kinerja tersimpan.");
     if (result.ok) { onSaved?.(result.value); onClose(); } else setError(result.error);
   }
 
-  return <FormModal size="lg" title="Add Scorecard" description={`Lima Core KPI diambil dari KPI Scorecard ${catalog?.version ?? ""} sesuai posisi pegawai dan namanya bisa diubah; bobot tetap mengikuti katalog.`} onClose={onClose}
-    footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Scorecard" disabled={Boolean(employee) && !lines.length} />}>
+  return <FormModal size="lg" title="Penilaian Kinerja" description={`Lima Core KPI dari katalog ${catalog?.version ?? ""} sesuai posisi pegawai (nama bisa diubah, bobot tetap), lalu catatan evaluasi. Satu kali Simpan.`} onClose={onClose}
+    footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Simpan" disabled={Boolean(employee) && !lines.length} />}>
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />
       <div className="grid gap-4 sm:grid-cols-3">
@@ -90,7 +93,7 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
         <TextField label="Evaluation date" testId="evaluation-date" required type="date" max={today()} value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? "Date wajib diisi." : touched && date > today() ? "Tidak boleh lebih dari hari ini." : undefined} />
         <ReadOnlyField label="Evaluator" testId="evaluator" value={evaluator || "—"} className="sm:col-span-2" />
       </div>
-      {existing && <RevisionConfirm what="Scorecard" existing={`${existing.evaluatorName}, ${formatDate(existing.evaluationDate)}`} checked={revise} onChange={setRevise}
+      {existing && <RevisionConfirm what="Penilaian Kinerja" existing={`${existing.evaluatorName}, ${formatDate(existing.evaluationDate)}`} checked={revise} onChange={setRevise}
         error={touched && !revise ? "Centang untuk menyimpan sebagai revisi, atau pilih periode lain." : undefined} />}
 
       {employee && !lines.length ? <Notice tone="warning">{position ? noKpiText(catalog?.version) : "Pegawai belum memiliki posisi aktif, jadi KPI-nya belum bisa ditentukan."}</Notice> : <div className="overflow-x-auto rounded-2xl border border-line">
@@ -119,7 +122,9 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
         </table>
       </div>}
       <p className="text-xs text-ink-3">Kriteria skor: {[1, 2, 3, 4, 5].map((value) => `${value} ${SCORE_LABELS[value]}`).join(" · ")}. Skor terbobot = bobot × skor mentah; total = jumlah skor terbobot. Penilai mengisi skor mentah; sistem tidak mengubah realisasi menjadi skor dan tidak memberi label tercapai/tidak tercapai.</p>
-      <TextAreaField label="Notes / manager recommendation" testId="catatan-rekomendasi-atasan" value={notes} onChange={(event) => setNotes(event.target.value)} />
+      <TextAreaField label="Catatan evaluasi" testId="catatan-evaluasi" required value={notes} onChange={(event) => setNotes(event.target.value)} error={touched && !notes.trim() ? "Catatan evaluasi wajib diisi." : undefined}
+        helper="Kekuatan, hal yang perlu diperbaiki, dan rekomendasi pelatihan — bisa menjadi dasar Development Requirement." />
+      <TextField label="Bukti / referensi" testId="evidence-reference" maxLength={500} value={evidence} onChange={(event) => setEvidence(event.target.value)} helper="Opsional: nomor dokumen atau tautan bukti." />
     </form>
   </FormModal>;
 }
