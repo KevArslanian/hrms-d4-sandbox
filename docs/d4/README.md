@@ -7,6 +7,7 @@
 | [API-D4-001.md](API-D4-001.md) | Endpoint Contract: struktur, izin, format error, 14 endpoint, aturan body, seeder |
 | [CHANGELOG-D4-V2.md](CHANGELOG-D4-V2.md) | Perubahan V1 → V2 dan pemetaan ke kritik K1–K9 |
 | [RN-D4-001.md](RN-D4-001.md) | Release notes D4 V2.0: fitur, perubahan, known issues, catatan deployment |
+| [EMPLOYEE-RULES-D4.md](EMPLOYEE-RULES-D4.md) | User story dan ketetapan sistem peran Employee (identitas dari B2, hak baca/tulis, tampilan, error) |
 | [AUDIT-UX-D4.md](AUDIT-UX-D4.md) | Audit UX, flow, dan traceability FR → route → Figma → Planka |
 | [TEST-PLAN-D4.md](TEST-PLAN-D4.md) | Test plan + Requirement Traceability Matrix (117 TC/TS), format PASS/FAIL/BLOCKED, dependency |
 | [QA-STABILITY-D4.md](QA-STABILITY-D4.md) | Uji stabilitas (`npm test`, 90 tes + crawl browser) dan bug log BUG-D4-001…004 |
