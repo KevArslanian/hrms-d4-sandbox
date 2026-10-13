@@ -52,7 +52,7 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
   const position = positionOf(snapshot, selected);
   const roleName = roleOrder && catalog ? indicatorsFor(catalog, roleOrder)[0]?.role_name : undefined;
 
-  function chooseEmployee(id: string) { setEmployee(id); const role = suggest(id); setRoleOrder(role); setLines(linesFor(role)); }
+  function chooseEmployee(id: string) { setEmployee(id); setError(""); const role = suggest(id); setRoleOrder(role); setLines(linesFor(role)); }
   function choosePeriod(value: string) {
     setPeriod(value);
     const next = versionFor(value);
