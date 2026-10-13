@@ -13,6 +13,7 @@ export type KpiAssessmentDraft = {
   status: "draft" | "completed";
   lines: KpiAssessmentLine[];
   generalNotes: string;
+  evidenceReference?: string | null;
   /** Id of the current record for this employee and period when saving a revision of it. */
   revisionOf?: string | null;
 };

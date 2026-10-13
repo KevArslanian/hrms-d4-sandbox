@@ -42,7 +42,7 @@ describe("competency gap is not resolved automatically", () => {
     await source.updateDevelopment("FIX-D4-DEV-001", "Completed", "Training selesai");
     await source.createEvaluation({ employeeId: ALFA, period: "2026-11", evaluationDate: "2026-10-01", evaluator: "x", status: "completed", reviewStatus: "Needs Review", overallScore: 5, aspects: [], generalNotes: "Sangat baik.", evidenceReference: null });
     const lines = indicatorsFor({ rows: KPI_V51_CATALOG }, 10).map((row) => ({ indicator_order: row.indicator_order, kpi_name: row.kpi_name, weight_percent: row.weight_percent, target: "", actual: "", raw_score: 5, comment: "" }));
-    await source.createKpiAssessment({ employeeId: ALFA, roleOrder: 10, period: "2026-11", evaluationDate: "2026-10-01", evaluatorName: "x", status: "completed", lines, generalNotes: "" });
+    await source.createKpiAssessment({ employeeId: ALFA, roleOrder: 10, period: "2026-11", evaluationDate: "2026-10-01", evaluatorName: "x", status: "completed", lines, generalNotes: "Catatan uji." });
 
     const snapshot = await source.loadSnapshot();
     expect(latestTraining(snapshot).find((item) => item.trainingId === "FIX-D4-TRN-001")?.status).toBe("Completed");
