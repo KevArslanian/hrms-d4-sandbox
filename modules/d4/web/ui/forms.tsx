@@ -82,7 +82,8 @@ function SearchableSelect({ label, value, onChange, options, emptyLabel, testId,
       </label>
       <ul id={listId} role="listbox" data-testid={testId.replace(/^(filter|input)-/, "options-")} aria-label={label} className="mt-1.5 max-h-64 overflow-y-auto text-sm">
         {matches.length ? matches.map((option) => <li key={option.value || "empty"} role="option" aria-selected={option.value === value}>
-          <button type="button" onClick={() => pick(option.value)} className={cx("flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-ink hover:bg-primary-50 focus:bg-primary-50 focus:outline-none", option.value === value && "font-semibold text-primary-600")}>
+          {/* Safari does not focus a clicked button, so without this the input's blur closes the list before the click lands. */}
+          <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => pick(option.value)} className={cx("flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-ink hover:bg-primary-50 focus:bg-primary-50 focus:outline-none", option.value === value && "font-semibold text-primary-600")}>
             <Check aria-hidden="true" className={cx("size-4 shrink-0", option.value !== value && "invisible")} />{option.label}
           </button>
         </li>) : <li className="px-2.5 py-2 text-ink-3">Tidak ada yang cocok</li>}

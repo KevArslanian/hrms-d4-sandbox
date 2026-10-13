@@ -9,7 +9,7 @@ import { useD4 } from "../data/D4DataProvider";
 import { cx, slug } from "./primitives";
 
 export const D4_MENU = [
-  { href: "/performance", label: "Penilaian Kinerja" },
+  { href: "/performance", label: "Performance Review" },
   { href: "/competency", label: "Competency Gap" },
   { href: "/development", label: "Development Requirement" },
   { href: "/training", label: "Training Tracking" },
@@ -45,7 +45,7 @@ function Sidebar({ onNavigate, onClose }: { onNavigate: () => void; onClose: () 
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
   const moduleItem = "flex h-10 w-full items-center gap-3 rounded-lg px-3 text-sm font-semibold tracking-[0.07px] text-[#d9e2fc]";
-  const disabledModule = (label: string, Icon: typeof Store) => <span key={label} role="link" aria-disabled="true" title={`${label} — belum tersedia dari modul D4`} data-testid={`nav-${slug(label)}`}
+  const disabledModule = (label: string, Icon: typeof Store) => <span key={label} role="link" aria-disabled="true" title={`${label} — not available in module D4`} data-testid={`nav-${slug(label)}`}
     className={cx(moduleItem, "cursor-not-allowed opacity-70")}><Icon aria-hidden="true" className="size-[17px]" />{label}</span>;
 
   return <div className="flex h-full flex-col bg-[#0f2342] px-4 pb-5 pt-4 text-white">
