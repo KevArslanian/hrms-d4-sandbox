@@ -1,4 +1,4 @@
-import type { KpiCatalog } from "../../kpi/catalog";
+import type { KpiCatalogSet } from "../../kpi/catalog";
 import type { D4LiveSnapshot } from "../../supabase/types";
 import type { D4DataSource } from "./source";
 
@@ -45,7 +45,7 @@ const post = <T>(path: string, body: unknown) => request<T>(path, { method: "POS
 export const apiSource: D4DataSource = {
   mode: "live",
   loadSnapshot: () => request<D4LiveSnapshot>("/api/d4/snapshot"),
-  loadKpiCatalog: () => request<KpiCatalog>("/api/d4/kpi-catalog"),
+  loadKpiCatalog: () => request<KpiCatalogSet>("/api/d4/kpi-catalog"),
   createEvaluation: async (input) => (await post<{ id: string }>("/api/d4/performance-evaluations", input)).id,
   createKpiAssessment: async (input) => (await post<{ id: string }>("/api/d4/kpi-assessments", input)).id,
   saveCompetency: async (input) => (await post<{ id: string }>("/api/d4/competency-assessments", input)).id,

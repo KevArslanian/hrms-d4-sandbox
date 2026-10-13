@@ -2,12 +2,12 @@
 
 import { ClipboardCheck, History, Plus, Target } from "lucide-react";
 import { useMemo, useState } from "react";
-import { roleForPositionTitle, rolesOf } from "../../../kpi/catalog";
+import { catalogFor, roleForPosition, rolesOf } from "../../../kpi/catalog";
 import type { PerformanceEvaluation } from "../../../performance/types";
 import type { EmployeeReference } from "../../../shared/types";
 import type { KpiAssessment } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { canAssess, canWrite, departmentOf, describeSource, developmentNeeds, employeeById, employeeMeta, evaluationsOf, formatDate, formatPeriod, formatScore, includesText, latestEvaluation, latestScorecard, positionOf, revisionTag, scorecardsOf, visibleEmployees } from "../../data/selectors";
+import { canAssess, canWrite, departmentOf, describeSource, developmentNeeds, employeeById, employeeMeta, evaluationsOf, formatDate, formatPeriod, formatScore, includesText, latestEvaluation, latestScorecard, positionOf, revisionTag, scorecardsOf, thisMonth, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
@@ -35,7 +35,7 @@ type Adding = { kind: "scorecard" | "evaluation"; employeeId?: string } | null;
  */
 export function PerformanceListPage() {
   const snapshot = useSnapshot();
-  const { catalog } = useD4();
+  const { catalog: catalogSet } = useD4();
   const writer = canWrite(snapshot);
   const [search, setSearch] = useState("");
   const [position, setPosition] = useState("");
@@ -45,11 +45,13 @@ export function PerformanceListPage() {
   const [adding, setAdding] = useState<Adding>(null);
 
   const periods = useMemo(() => [...new Set([...(snapshot.kpiAssessments ?? []), ...snapshot.performance].map((item) => item.period))].sort().reverse(), [snapshot]);
+  // KPI role per the catalog in force for the filtered period, or this month when no period is chosen.
+  const catalog = useMemo(() => catalogSet && catalogFor(catalogSet, period || thisMonth()), [catalogSet, period]);
   const rows = useMemo<Row[]>(() => visibleEmployees(snapshot).map((employee) => {
     const title = positionOf(snapshot, employee)?.title;
-    const roleOrder = catalog && title ? roleForPositionTitle(catalog, title) : 0;
+    const roleOrder = catalog && title ? roleForPosition(catalog, employee.positionId) : 0;
     return {
-      employee, position: title ?? "—", hasKpi: !catalog || !title || roleOrder > 0,
+      employee, position: title ?? "—", hasKpi: !catalogSet || !title || roleOrder > 0,
       roleName: catalog && roleOrder ? rolesOf(catalog).find((role) => role.order === roleOrder)?.name : undefined,
       scorecard: period ? scorecardsOf(snapshot, employee.id).find((item) => item.period === period) : latestScorecard(snapshot, employee.id),
       evaluation: period ? evaluationsOf(snapshot, employee.id).find((item) => item.period === period) : latestEvaluation(snapshot, employee.id),
@@ -57,7 +59,7 @@ export function PerformanceListPage() {
   }).filter((row) => includesText(`${row.employee.fullName} ${row.employee.employeeId}`, search)
     && (!position || row.employee.positionId === position) && (!department || row.employee.departmentId === department)
     && (!progress || (progress === "complete" ? Boolean(row.scorecard && row.evaluation) : progress === "kpi-missing" ? !row.scorecard : !row.evaluation)))
-    .sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName)), [snapshot, catalog, search, position, department, period, progress]);
+    .sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName)), [snapshot, catalog, catalogSet, search, position, department, period, progress]);
 
   return <>
     <PageHeader title="Performance & KPI" subtitle="KPI Scorecard (skor lima Core KPI) dan Performance Evaluation (catatan evaluasi) per pegawai dan periode dalam satu tempat."
@@ -146,9 +148,10 @@ export function PerformanceDetailPage({ id }: { id: string }) {
 
 export function PerformanceHistoryPage({ employeeId }: { employeeId: string }) {
   const snapshot = useSnapshot();
-  const { catalog } = useD4();
+  const { catalog: catalogSet } = useD4();
   const [adding, setAdding] = useState<Adding>(null);
   const employee = employeeById(snapshot, employeeId);
+  const catalog = catalogSet && catalogFor(catalogSet, thisMonth());
   if (!employee || !visibleEmployees(snapshot).some((item) => item.id === employeeId)) return <NotFound what="Employee" backHref="/performance" backLabel="Back to Performance & KPI" />;
   const scorecards = scorecardsOf(snapshot, employee.id);
   const evaluations = evaluationsOf(snapshot, employee.id);
@@ -162,7 +165,7 @@ export function PerformanceHistoryPage({ employeeId }: { employeeId: string }) {
         <Button variant="secondary" icon={<Plus className="size-4" />} onClick={() => setAdding({ kind: "evaluation", employeeId: employee.id })} data-testid="btn-add-evaluation">Add Evaluation</Button>
         <Button icon={<Plus className="size-4" />} onClick={() => setAdding({ kind: "scorecard", employeeId: employee.id })} data-testid="btn-add-scorecard">Add Scorecard</Button>
       </>} />
-    {title && catalog && !roleForPositionTitle(catalog, title) && <Notice tone="warning">{noKpiText(catalog.version)}</Notice>}
+    {title && catalogSet && !(catalog && roleForPosition(catalog, employee.positionId)) && <Notice tone="warning">{noKpiText(catalog?.version)}</Notice>}
     <div className="grid gap-6 xl:grid-cols-2">
       <Card title="KPI scorecard history" testId="scorecard-history">
         <Timeline empty="Pegawai ini belum memiliki KPI scorecard." entries={scorecards.map((item) => ({

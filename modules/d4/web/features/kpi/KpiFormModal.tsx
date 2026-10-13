@@ -2,7 +2,7 @@
 
 import { CheckCircle2, CircleAlert } from "lucide-react";
 import { useState, type FormEvent } from "react";
-import { ACTIVE_KPI_VERSION, indicatorsFor, roleForPositionTitle } from "../../../kpi/catalog";
+import { catalogFor, indicatorsFor, roleForPosition, type KpiCatalog } from "../../../kpi/catalog";
 import type { KpiAssessmentLine } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
 import { latestForPeriod } from "../../../shared/rules";
@@ -11,7 +11,7 @@ import { FormError, FormModal, ModalActions, ReadOnlyField, RevisionConfirm, Sea
 import { cx, Notice } from "../../ui/primitives";
 
 /** FR-02.11: positions without a KPI role in the catalog get no scorecard; no mapping is invented for them. */
-export const noKpiText = (version = ACTIVE_KPI_VERSION) => `Posisi ini belum memiliki KPI di katalog ${version} — hubungi HR.`;
+export const noKpiText = (version?: string) => version ? `Posisi ini belum memiliki KPI di katalog ${version} — hubungi HR.` : "Belum ada katalog KPI yang berlaku untuk periode ini — hubungi HR.";
 
 const validScore = (value: number | null) => value !== null && Number.isInteger(value) && value >= 1 && value <= 5;
 
@@ -22,17 +22,20 @@ export function weighted(line: Pick<KpiAssessmentLine, "weight_percent" | "raw_s
 
 export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: string; onClose: () => void; onSaved?: (id: string) => void }) {
   const snapshot = useSnapshot();
-  const { catalog, run, busy } = useD4();
+  const { catalog: catalogSet, run, busy } = useD4();
   const actor = employeeById(snapshot, snapshot.actorEmployeeId);
-  const suggest = (id: string) => catalog ? roleForPositionTitle(catalog, positionOf(snapshot, employeeById(snapshot, id))?.title) : 0;
-  const linesFor = (roleOrder: number): KpiAssessmentLine[] => catalog ? indicatorsFor(catalog, roleOrder).map((row) => ({
+  const [period, setPeriod] = useState(thisMonth());
+  // The KPI set follows the catalog version in force for the chosen period.
+  const versionFor = (value: string) => catalogSet && value ? catalogFor(catalogSet, value) : null;
+  const catalog = versionFor(period);
+  const suggest = (id: string, at: KpiCatalog | null = catalog) => at ? roleForPosition(at, employeeById(snapshot, id)?.positionId) : 0;
+  const linesFor = (roleOrder: number, at: KpiCatalog | null = catalog): KpiAssessmentLine[] => at ? indicatorsFor(at, roleOrder).map((row) => ({
     indicator_order: row.indicator_order, kpi_name: row.kpi_name, weight_percent: row.weight_percent, target: row.target ?? "", actual: "", raw_score: null, comment: "",
   })) : [];
 
   const [employee, setEmployee] = useState(employeeId ?? "");
   const [roleOrder, setRoleOrder] = useState(() => employeeId ? suggest(employeeId) : 0);
   const [lines, setLines] = useState<KpiAssessmentLine[]>(() => linesFor(employeeId ? suggest(employeeId) : 0));
-  const [period, setPeriod] = useState(thisMonth());
   const [date, setDate] = useState(today());
   // The evaluator is the signed-in user; the server stores that name and ignores the form value.
   const evaluator = actor?.fullName ?? "";
@@ -50,6 +53,11 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
   const roleName = roleOrder && catalog ? indicatorsFor(catalog, roleOrder)[0]?.role_name : undefined;
 
   function chooseEmployee(id: string) { setEmployee(id); const role = suggest(id); setRoleOrder(role); setLines(linesFor(role)); }
+  function choosePeriod(value: string) {
+    setPeriod(value);
+    const next = versionFor(value);
+    if (employee && next?.version !== catalog?.version) { const role = suggest(employee, next); setRoleOrder(role); setLines(linesFor(role, next)); }
+  }
   function setLine(index: number, patch: Partial<KpiAssessmentLine>) { setLines((items) => items.map((line, at) => at === index ? { ...line, ...patch } : line)); }
 
   // FR-02.1/FR-02.11: the KPI set follows the employee's position; HR cannot pick another position's KPI.
@@ -75,10 +83,10 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
       <div className="grid gap-4 sm:grid-cols-3">
         <SearchSelectField label="Employee" testId="employee" required value={employee} onChange={(value) => chooseEmployee(value)} error={touched && !employee ? "Employee wajib diisi." : undefined} className="sm:col-span-2" placeholder="Select employee"
           options={assessableEmployees(snapshot).map((item) => ({ value: item.id, label: `${item.fullName} · ${item.employeeId}` }))} />
-        <TextField label="Period" testId="period" required type="month" value={period} onChange={(event) => setPeriod(event.target.value)} error={touched && !period ? "Period wajib diisi." : undefined} />
+        <TextField label="Period" testId="period" required type="month" value={period} onChange={(event) => choosePeriod(event.target.value)} error={touched && !period ? "Period wajib diisi." : undefined} />
         <ReadOnlyField label="Position" testId="position" value={position?.title ?? "—"} />
         <ReadOnlyField label="Department" testId="department" value={departmentOf(snapshot, selected)?.name ?? "—"} />
-        <ReadOnlyField label="Position KPI" testId="kpi-jabatan" value={!employee ? "—" : roleName ?? `Not in catalog ${catalog?.version ?? ACTIVE_KPI_VERSION} yet`} />
+        <ReadOnlyField label="Position KPI" testId="kpi-jabatan" value={!employee ? "—" : roleName ?? (catalog ? `Not in catalog ${catalog.version} yet` : "No KPI catalog for this period")} />
         <TextField label="Evaluation date" testId="evaluation-date" required type="date" max={today()} value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? "Date wajib diisi." : touched && date > today() ? "Tidak boleh lebih dari hari ini." : undefined} />
         <ReadOnlyField label="Evaluator" testId="evaluator" value={evaluator || "—"} className="sm:col-span-2" />
       </div>

@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import type { KpiCatalog } from "../../kpi/catalog";
+import type { KpiCatalogSet } from "../../kpi/catalog";
 import { createD4BrowserClient } from "../../supabase/client";
 import type { D4LiveSnapshot } from "../../supabase/types";
 import { apiSource, D4RequestError } from "./api-source";
@@ -17,7 +17,7 @@ type D4Data = {
   status: "loading" | "ready" | "error";
   error: string;
   snapshot: D4LiveSnapshot | null;
-  catalog: KpiCatalog | null;
+  catalog: KpiCatalogSet | null;
   busy: boolean;
   reload: () => void;
   /** Runs a write, refreshes the snapshot, and shows a toast. Returns the error message for inline form feedback. */
@@ -50,7 +50,7 @@ export function D4DataProvider({ children, mode }: { children: ReactNode; mode: 
   const [status, setStatus] = useState<D4Data["status"]>("loading");
   const [error, setError] = useState("");
   const [snapshot, setSnapshot] = useState<D4LiveSnapshot | null>(null);
-  const [catalog, setCatalog] = useState<KpiCatalog | null>(null);
+  const [catalog, setCatalog] = useState<KpiCatalogSet | null>(null);
   const [busy, setBusy] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
