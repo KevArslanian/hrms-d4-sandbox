@@ -17,7 +17,7 @@ export type Column<T> = {
 
 const secondaryCell = (column: { secondary?: boolean }) => column.secondary && "hidden min-[1400px]:table-cell";
 
-const PAGE_SIZES = [5, 10, 15, 20] as const;
+const PAGE_SIZES = [10, 20, 50, 100] as const;
 
 // The ⋮ column stays pinned to the right edge, so row actions remain reachable when long names push the table wider than the screen.
 // Its edge shadow shows only while columns are actually scrolled underneath it.
