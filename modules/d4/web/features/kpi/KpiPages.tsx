@@ -31,7 +31,7 @@ export function KpiDetailPage({ id }: { id: string }) {
     <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Performance Review", href: "/performance" }, { label: "Detail" }]} backHref={`/performance/history/${employee.id}`}
       name={employee.fullName} meta={[...employeeMeta(snapshot, employee), `Period ${formatPeriod(scorecard.period)}`]} status={scorecardStatus(scorecard)}
       actions={<><ButtonLink href={`/performance/history/${employee.id}`} icon={<History className="size-4" />} testId="view-history">View History</ButtonLink>
-        {canAssess(snapshot, employee.id) && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)} data-testid="btn-add-penilaian">Add Penilaian</Button>}</>} />
+        {canAssess(snapshot, employee.id) && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)} data-testid="btn-add-penilaian">Add Performance Review</Button>}</>} />
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(300px,1fr)]">
       <Card title="Core KPI" padded={false}>
         <div className="overflow-x-auto">
