@@ -1,4 +1,4 @@
-import type { KpiCatalog } from "../../kpi/catalog";
+import type { KpiCatalogSet } from "../../kpi/catalog";
 import type { DevelopmentPriority, DevelopmentSourceType, DevelopmentStatus } from "../../development/types";
 import type { EvaluationInput } from "../../performance/types";
 import type { D4LiveSnapshot, KpiAssessmentLine } from "../../supabase/types";
@@ -29,7 +29,7 @@ export type TrainingDraft = { employeeId: string; developmentNeedId: string; act
 export interface D4DataSource {
   readonly mode: "live" | "fixture";
   loadSnapshot(): Promise<D4LiveSnapshot>;
-  loadKpiCatalog(): Promise<KpiCatalog>;
+  loadKpiCatalog(): Promise<KpiCatalogSet>;
   createEvaluation(input: EvaluationDraft): Promise<string>;
   createKpiAssessment(input: KpiAssessmentDraft): Promise<string>;
   saveCompetency(input: { employeeId: string; positionId: string; effectiveDate: string }): Promise<string>;

@@ -1,6 +1,6 @@
 import { compareCompetencies } from "../../competency/service";
 import { developmentFixtureVersions } from "../../development/fixtures";
-import { indicatorsFor, KPI_V51_CATALOG, roleForPositionTitle, selectCatalog } from "../../kpi/catalog";
+import { catalogFor, indicatorsFor, KPI_V51_CATALOG, roleForPosition, seedCatalogSet } from "../../kpi/catalog";
 import { performanceFixtureRecords } from "../../performance/fixtures";
 import { validatePerformanceInput } from "../../performance/validation";
 import { d4ReferenceFixture } from "../../shared/fixtures";
@@ -17,7 +17,7 @@ const HR_ACTOR = "d4000000-0000-4000-8000-000000000012";
 const ALFA = "d4000000-0000-4000-8000-000000000009";
 // NEXT_PUBLIC_D4_FIXTURE_ROLE=EMPLOYEE previews the self-service view as Alfa (read-only).
 const FIXTURE_ROLE = process.env.NEXT_PUBLIC_D4_FIXTURE_ROLE === "EMPLOYEE" ? "EMPLOYEE" : process.env.NEXT_PUBLIC_D4_FIXTURE_ROLE === "MANAGER" ? "MANAGER" : "HR";
-const catalog = selectCatalog(KPI_V51_CATALOG);
+const catalog = { version: "V5.1", rows: KPI_V51_CATALOG };
 
 function kpiLines(roleOrder: number, scores: (number | null)[], actual: string[]): KpiAssessmentLine[] {
   return indicatorsFor(catalog, roleOrder).map((row, index) => ({
@@ -126,7 +126,7 @@ export function createFixtureSource(): D4DataSource {
   return {
     mode: "fixture",
     async loadSnapshot() { await delay(); return state.role === "EMPLOYEE" ? ownRecords(state) : state; },
-    async loadKpiCatalog() { return catalog; },
+    async loadKpiCatalog() { return seedCatalogSet(state.reference.positions); },
     async createEvaluation({ revisionOf, ...draft }) {
       assertWriter();
       const input = { ...draft, evaluator: actorName() };
@@ -144,14 +144,15 @@ export function createFixtureSource(): D4DataSource {
       assertNotSelf(state.actorEmployeeId, input.employeeId);
       assertNotFutureDate(input.evaluationDate);
       assertPeriodRevision(state.kpiAssessments ?? [], input.employeeId, input.period, revisionOf, "Scorecard");
-      const indicators = indicatorsFor(catalog, input.roleOrder);
+      const periodCatalog = catalogFor(seedCatalogSet(state.reference.positions), input.period);
+      if (!periodCatalog) throw new Error(`Belum ada katalog KPI yang berlaku untuk periode ${input.period}.`);
+      const indicators = indicatorsFor(periodCatalog, input.roleOrder);
       if (indicators.length !== 5) throw new Error("Role KPI tidak ditemukan di katalog.");
       const employee = state.reference.employees.find((item) => item.id === input.employeeId);
-      const positionTitle = state.reference.positions.find((item) => item.id === employee?.positionId)?.title;
-      if (roleForPositionTitle(catalog, positionTitle) !== input.roleOrder) throw new Error("Set KPI yang dipilih bukan milik posisi pegawai ini.");
+      if (roleForPosition(periodCatalog, employee?.positionId) !== input.roleOrder) throw new Error("Set KPI yang dipilih bukan milik posisi pegawai ini.");
       if (input.status === "completed" && input.lines.some((line) => line.raw_score === null)) throw new Error("Kelima indikator KPI harus dinilai sebelum diselesaikan.");
       const id = newId("FIX-D4-KPI");
-      update({ kpiAssessments: [{ ...input, id, definitionVersion: catalog.version, roleName: indicators[0].role_name, overallScore: total(input.lines), createdAt: now(), actor: actorName() }, ...(state.kpiAssessments ?? [])] });
+      update({ kpiAssessments: [{ ...input, id, definitionVersion: periodCatalog.version, roleName: indicators[0].role_name, overallScore: total(input.lines), createdAt: now(), actor: actorName() }, ...(state.kpiAssessments ?? [])] });
       return id;
     },
     async saveCompetency(input) {

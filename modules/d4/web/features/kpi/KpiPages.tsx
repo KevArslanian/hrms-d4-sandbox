@@ -2,10 +2,10 @@
 
 import { ClipboardCheck, History, Plus } from "lucide-react";
 import { useState } from "react";
-import { ACTIVE_KPI_VERSION } from "../../../kpi/catalog";
+import { catalogFor } from "../../../kpi/catalog";
 import type { KpiAssessment } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { canAssess, employeeById, employeeMeta, evaluationsOf, formatDate, formatPeriod, formatScore } from "../../data/selectors";
+import { canAssess, employeeById, employeeMeta, evaluationsOf, formatDate, formatPeriod, formatScore, thisMonth } from "../../data/selectors";
 import { DetailHeader, NotFound } from "../../ui/layout";
 import { Button, ButtonLink, Card, InfoGrid, Notice, SourceChip } from "../../ui/primitives";
 import { KpiFormModal, weighted } from "./KpiFormModal";
@@ -14,8 +14,8 @@ export const scorecardStatus = (item?: KpiAssessment) => !item ? "Not Evaluated"
 
 export function CatalogNotice() {
   const { catalog } = useD4();
-  if (!catalog || catalog.version === ACTIVE_KPI_VERSION) return null;
-  return <Notice tone="warning">Katalog KPI di database masih {catalog.version}. Terapkan migrasi <code>20260929150000_d4_kpi_catalog_v51.sql</code> agar scorecard baru memakai KPI Scorecard {ACTIVE_KPI_VERSION}.</Notice>;
+  if (!catalog || catalogFor(catalog, thisMonth())) return null;
+  return <Notice tone="warning">Belum ada katalog KPI yang berlaku untuk bulan ini. HR perlu menetapkan versi katalog dan periode mulai berlakunya.</Notice>;
 }
 
 export function KpiDetailPage({ id }: { id: string }) {
