@@ -31,7 +31,7 @@ Dokumen ini menetapkan apa yang boleh dan tidak boleh dilakukan akun berperan **
 | US-D4-EMP-02 | Sebagai Employee, saya ingin melihat ringkasan kinerja saya sendiri di People Dashboard. | `/dashboard` hanya memuat satu employee: diri sendiri. Filter jabatan dan departemen tidak tampil. Badge peran di topbar: "Employee". |
 | US-D4-EMP-03 | Sebagai Employee, saya ingin melihat hasil evaluasi kinerja saya dan riwayatnya. | `/performance` dan `/performance/history/[employeeId]` hanya berisi evaluasi milik saya. Tombol buat/ubah evaluasi tidak tampil. |
 | US-D4-EMP-04 | Sebagai Employee, saya ingin melihat KPI scorecard saya. | `/kpi` dan riwayatnya hanya berisi scorecard milik saya; skor dan bobot read-only. |
-| US-D4-EMP-05 | Sebagai Employee, saya ingin mengetahui status kompetensi saya terhadap jabatan saya. | `/competency` hanya menampilkan saya. Selama standar kompetensi jabatan belum diisi (SR-D4-EMP-06), status tampil "Data Belum Cukup". |
+| US-D4-EMP-05 | Sebagai Employee, saya ingin mengetahui status kompetensi saya terhadap jabatan saya. | `/competency` hanya menampilkan saya. Status tampil "Not Evaluated" sampai HR/Manager menyimpan penilaian; persyaratan tanpa skill atau bukti tampil "Insufficient Data" (lihat SR-D4-EMP-06). |
 | US-D4-EMP-06 | Sebagai Employee, saya ingin melihat kebutuhan development yang ditetapkan untuk saya. | `/development` hanya berisi kebutuhan milik saya beserta revisi statusnya. Tombol buat/ubah tidak tampil. |
 | US-D4-EMP-07 | Sebagai Employee, saya ingin memantau training yang saya ikuti. | `/training` hanya berisi training milik saya. Tombol "Update Progress" tidak tampil. |
 | US-D4-EMP-08 | Sebagai Employee, saya ingin keluar dari aplikasi. | Tombol Logout di sidebar mengakhiri sesi dan kembali ke `/login`. |
@@ -44,7 +44,7 @@ Dokumen ini menetapkan apa yang boleh dan tidak boleh dilakukan akun berperan **
 | --- | --- | --- |
 | SR-D4-EMP-10 | Employee **wajib** hanya dapat membaca data D4 miliknya sendiri: evaluasi kinerja, KPI scorecard, assessment kompetensi, kebutuhan development (+ revisi), dan training (+ revisi). | RLS tabel `d4_*` (`employee_id = d4_current_employee_uuid()`) |
 | SR-D4-EMP-11 | Daftar karyawan untuk Employee hanya berisi dirinya sendiri. Nama, email, dan password karyawan lain tidak dikirim ke browser. | View `d4_employee`; `visibleEmployees()` di `modules/d4/web/data/selectors.ts` |
-| SR-D4-EMP-12 | Membuka URL detail atau riwayat milik karyawan lain (mis. `/dashboard/employee/[id]`) tidak menampilkan data apa pun karena data tersebut tidak pernah dikirim. | RLS + view |
+| SR-D4-EMP-12 | Membuka URL detail atau riwayat milik karyawan lain (mis. `/dashboard/employee/[id]`) menampilkan halaman "Employee not found" dengan tombol kembali, karena data tersebut tidak pernah dikirim. | RLS + view |
 | SR-D4-EMP-13 | Data referensi umum (departemen, jabatan, katalog KPI) boleh dibaca. | Policy baca `d3_departments`, `d3_positions`, `d4_kpi_role_catalog` |
 
 ### 3.2 Hak tulis
@@ -79,6 +79,6 @@ Dokumen ini menetapkan apa yang boleh dan tidak boleh dilakukan akun berperan **
 | No | Batasan | Pemilik perbaikan |
 | --- | --- | --- |
 | 1 | Peran mengikuti jabatan yang dipilih saat register. Jabatan yang salah pilih (mis. anak IT memilih Director FAT) memberi peran Manager. | B2: validasi jabatan saat register |
-| 2 | Standar kompetensi, skill, dan KPI lama berada di D3 dan tidak terbaca akun B2, sehingga Competency Gap menampilkan "Data Belum Cukup". | D3 / PO: data per jabatan |
+| 2 | Standar kompetensi, skill, dan KPI lama berada di D3 dan tidak terbaca akun B2, sehingga Competency Gap menampilkan "Insufficient Data". | D3 / PO: data per jabatan |
 | 3 | `b2_register` menyimpan password teks biasa dan dapat dibaca anon. D4 tidak membaca kolom itu, tetapi risikonya tetap ada. | B2: hapus kolom `password` dan policy "Allow anon select" |
 | 4 | Data D4 sebelum 13 Okt 2026 terikat ke karyawan D3 dan dipindahkan ke schema `d4_backup`. | — |
