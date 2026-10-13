@@ -3,7 +3,7 @@
 | **Document ID** | RULES-D4-EMP-001 |
 | **Squad** | D4 – Performance & Training Development |
 | **Type** | User Story & Ketetapan Sistem (peran Employee) |
-| **Version** | 1.0 |
+| **Version** | 1.1 |
 | **Status** | Berlaku di production |
 | **Date** | 13 Okt 2026 |
 | **Author** | Delta Oga Nophen Putra |
@@ -82,3 +82,44 @@ Dokumen ini menetapkan apa yang boleh dan tidak boleh dilakukan akun berperan **
 | 2 | Standar kompetensi, skill, dan KPI lama berada di D3 dan tidak terbaca akun B2, sehingga Competency Gap menampilkan "Insufficient Data". | D3 / PO: data per jabatan |
 | 3 | `b2_register` menyimpan password teks biasa dan dapat dibaca anon. D4 tidak membaca kolom itu, tetapi risikonya tetap ada. | B2: hapus kolom `password` dan policy "Allow anon select" |
 | 4 | Data D4 sebelum 13 Okt 2026 terikat ke karyawan D3 dan dipindahkan ke schema `d4_backup`. | — |
+
+## 5. Bukti uji langsung (UAT Employee)
+
+| Field | Value |
+| --- | --- |
+| **Tanggal** | 13 Okt 2026 |
+| **Lingkungan** | Production, https://hrms-d4-sandbox.vercel.app (commit `6a7212e`) |
+| **Akun uji** | Tristo, `IT-DEV-009`, jabatan Tim IT, departemen Information Technology (peran turunan: Employee) |
+| **Cara uji** | Login lewat `/login`, buka tiap halaman D4, panggil API dari sesi browser yang sama |
+
+### 5.1 API
+
+| Uji | Hasil | Rule |
+| --- | --- | --- |
+| `GET /api/d4/me` | 200, `role: EMPLOYEE`, employee `IT-DEV-009` Tristo | SR-D4-EMP-02, SR-D4-EMP-03 |
+| `GET /api/d4/snapshot` | `employees` hanya berisi Tristo; departemen 9, jabatan 29; competencies/requirements/skills 0; semua record D4 0 | SR-D4-EMP-06, SR-D4-EMP-10, SR-D4-EMP-11, SR-D4-EMP-13 |
+| `POST /api/d4/performance-evaluations` | 403 `FORBIDDEN` "Hanya HR atau manager yang dapat mengubah data ini." | SR-D4-EMP-20 |
+| `POST /api/d4/kpi-assessments` | 403 `FORBIDDEN`, pesan sama | SR-D4-EMP-20 |
+| `POST /api/d4/competency-assessments` | 403 `FORBIDDEN`, pesan sama | SR-D4-EMP-20 |
+| `POST /api/d4/development-needs` | 403 `FORBIDDEN`, pesan sama | SR-D4-EMP-20 |
+| `POST /api/d4/training-records` | 403 `FORBIDDEN`, pesan sama | SR-D4-EMP-20 |
+
+### 5.2 Halaman
+
+| Halaman | Hasil | Rule / Story | Status |
+| --- | --- | --- | --- |
+| `/dashboard` | Satu baris: Tristo, Evaluation "Not Evaluated". Filter hanya pencarian dan Period; tidak ada filter jabatan/departemen. | US-D4-EMP-02, SR-D4-EMP-31 | Lulus |
+| `/performance` | Satu baris: Tristo, KPI Score dan Evaluation "Not Evaluated". Tidak ada tombol buat/ubah. | US-D4-EMP-03, SR-D4-EMP-22 | Lulus |
+| `/kpi` | Diarahkan ke `/performance` (KPI Scorecard digabung di halaman Performance & KPI). | US-D4-EMP-04 | Lulus |
+| `/competency` | Satu baris: Tristo, Requirement "—", status "Not Evaluated". Menu aksi hanya View Detail dan View History. | US-D4-EMP-05, SR-D4-EMP-22 | Lulus |
+| `/development` | Empty state "Belum ada development requirement". Tidak ada tombol buat. | US-D4-EMP-06, SR-D4-EMP-32 | Lulus |
+| `/training` | Empty state "Tidak ada training yang cocok". Tidak ada "Update Progress". | US-D4-EMP-07, SR-D4-EMP-32 | Lulus |
+| `/dashboard/employee/<id AND-0002>` | "Employee not found" dengan tombol "Back to People Dashboard". | SR-D4-EMP-12 | Lulus |
+| Topbar | Menu pengguna menampilkan "Tristo" dan "Employee". | US-D4-EMP-02 | Lulus |
+| Sidebar | POS, CRM, HRMS (Performance & KPI, Competency Gap, Development Requirement, Training Tracking, People Dashboard), MID, Logout. | SR-D4-EMP-30, US-D4-EMP-08 | Lulus |
+
+### 5.3 Catatan
+
+- Logout (US-D4-EMP-08) tidak dijalankan agar sesi uji tetap aktif; tombol tampil di sidebar.
+- SR-D4-EMP-21 (insert langsung ke database) dibuktikan oleh policy RLS di migrasi `20261013120000_d4_identity_from_b2.sql`, bukan oleh uji UI.
+- Status "Not Evaluated" dan Requirement "—" sesuai Batasan no. 2: standar kompetensi jabatan belum ada untuk akun B2.
