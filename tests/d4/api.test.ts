@@ -4,7 +4,7 @@ import { createFixtureSource } from "@/modules/d4/web/data/fixture-source";
 import type { D4LiveSnapshot } from "@/modules/d4/supabase/types";
 
 // The real route handlers and the real session guard (modules/d4/server/_lib/session.ts) run here.
-// Only the layer underneath is replaced: the Supabase server client (auth.getUser + the d3_user_access
+// Only the layer underneath is replaced: the Supabase server client (auth.getUser + the d4_user_access
 // lookup + the KPI catalog query), the cookie store, and the repository, which reads an in-memory
 // fixture snapshot. Nothing reaches Supabase.
 const MERCURY = "d4000000-0000-4000-8000-000000000012"; // HR
@@ -47,7 +47,7 @@ const repository = {
 function query(table: string) {
   const filters: [string, unknown][] = [];
   const result = () => {
-    if (table === "d3_user_access") return { data: accessRow, error: null };
+    if (table === "d4_user_access") return { data: accessRow, error: null };
     if (table === "d4_kpi_role_catalog") return { data: catalogRows, error: null };
     return { data: null, error: null };
   };
@@ -150,8 +150,8 @@ describe("session guard: real requireWriter over a mocked Supabase client", () =
     expect(res).toMatchObject({ status: 403, body: { error: { code: "FORBIDDEN" } } });
     expect(res.body.error?.message).toMatch(/Hanya HR atau manager/);
     expect(writes).toHaveLength(0);
-    // The role comes from d3_user_access for the signed-in auth user, not from the request.
-    expect(accessLookups).toEqual([{ table: "d3_user_access", filters: [["auth_user_id", AUTH_USER]] }]);
+    // The role comes from d4_user_access for the signed-in auth user, not from the request.
+    expect(accessLookups).toEqual([{ table: "d4_user_access", filters: [["auth_user_id", AUTH_USER]] }]);
   });
 
   it("EMPLOYEE can still read (reads only need a session; RLS limits the rows)", async () => {
@@ -159,7 +159,7 @@ describe("session guard: real requireWriter over a mocked Supabase client", () =
     expect((await call(snapshotRoute.GET())).status).toBe(200);
   });
 
-  it.each(writeRoutes)("%s for a signed-in account without a d3_user_access row → 403", async (_name, send) => {
+  it.each(writeRoutes)("%s for a signed-in account without a d4_user_access row → 403", async (_name, send) => {
     accessRow = null;
     const res = await call(send());
     expect(res).toMatchObject({ status: 403, body: { error: { code: "FORBIDDEN" } } });
