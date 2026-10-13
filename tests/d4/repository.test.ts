@@ -120,8 +120,8 @@ describe("large tables", () => {
       let window: [number, number] = [0, 999];
       const builder = {
         select: () => builder, order: () => builder,
-        range: (start: number, end: number) => { window = [start, end]; if (table === "d3_employee") ranges.push(window); return builder; },
-        then: (resolve: (value: unknown) => unknown) => Promise.resolve({ data: table === "d3_employee" ? employees.slice(window[0], window[1] + 1) : [], error: null }).then(resolve),
+        range: (start: number, end: number) => { window = [start, end]; if (table === "d4_employee") ranges.push(window); return builder; },
+        then: (resolve: (value: unknown) => unknown) => Promise.resolve({ data: table === "d4_employee" ? employees.slice(window[0], window[1] + 1) : [], error: null }).then(resolve),
       };
       return builder;
     };
