@@ -17,7 +17,7 @@ export type Column<T> = {
 
 const secondaryCell = (column: { secondary?: boolean }) => column.secondary && "hidden min-[1400px]:table-cell";
 
-const PAGE_SIZE = 10;
+const PAGE_SIZES = [5, 10, 15, 20] as const;
 
 // The ⋮ column stays pinned to the right edge, so row actions remain reachable when long names push the table wider than the screen.
 // Its edge shadow shows only while columns are actually scrolled underneath it.
@@ -43,10 +43,11 @@ export function DataTable<T>({ rows, columns, rowKey, actions, emptyTitle, empty
   noun: string;
 }) {
   const [page, setPage] = useState(1);
-  const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const [pageSize, setPageSize] = useState(10);
+  const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
   const current = Math.min(page, pageCount);
-  const visible = rows.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE);
-  const first = rows.length ? (current - 1) * PAGE_SIZE + 1 : 0;
+  const visible = rows.slice((current - 1) * pageSize, current * pageSize);
+  const first = rows.length ? (current - 1) * pageSize + 1 : 0;
   const scroller = useRef<HTMLDivElement>(null);
   const [covered, setCovered] = useState(false);
   const measure = () => {
@@ -86,7 +87,15 @@ export function DataTable<T>({ rows, columns, rowKey, actions, emptyTitle, empty
       </div>}
     </div>
     {rows.length > 0 && <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-3 text-xs text-ink-2">
-      <span data-testid="table-count">Menampilkan {first}–{Math.min(current * PAGE_SIZE, rows.length)} dari {rows.length} {noun}</span>
+      <div className="flex flex-wrap items-center gap-3">
+        <span data-testid="table-count">Menampilkan {first}–{Math.min(current * pageSize, rows.length)} dari {rows.length} {noun}</span>
+        <label className="flex items-center gap-1.5">Per halaman
+          <select data-testid="select-page-size" value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }}
+            className="h-8 rounded-lg border border-line bg-surface px-2 font-semibold text-ink">
+            {PAGE_SIZES.map((size) => <option key={size} value={size}>{size}</option>)}
+          </select>
+        </label>
+      </div>
       <nav aria-label="Pagination" className="flex items-center gap-1">
         <button type="button" data-testid="btn-page-prev" aria-label="Previous page" disabled={current === 1} onClick={() => setPage(current - 1)} className="inline-flex size-8 items-center justify-center rounded-lg border border-line bg-surface disabled:opacity-40"><ChevronLeft className="size-4" /></button>
         {pageWindow(current, pageCount).map((number, index) => number === "gap" ? <span key={`gap-${index}`} aria-hidden="true" className="px-1 text-ink-3">…</span> :
