@@ -1,11 +1,11 @@
 "use client";
 
-import { ClipboardCheck, History, Plus } from "lucide-react";
+import { History, Plus } from "lucide-react";
 import { useState } from "react";
 import { catalogFor } from "../../../kpi/catalog";
 import type { KpiAssessment } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { canAssess, employeeById, employeeMeta, evaluationsOf, formatDate, formatPeriod, formatScore, thisMonth } from "../../data/selectors";
+import { canAssess, developmentNeeds, employeeById, employeeMeta, evaluationsOf, formatDate, formatPeriod, formatScore, thisMonth } from "../../data/selectors";
 import { DetailHeader, NotFound } from "../../ui/layout";
 import { Button, ButtonLink, Card, InfoGrid, Notice, SourceChip } from "../../ui/primitives";
 import { KpiFormModal, weighted } from "./KpiFormModal";
@@ -23,15 +23,15 @@ export function KpiDetailPage({ id }: { id: string }) {
   const [adding, setAdding] = useState(false);
   const scorecard = (snapshot.kpiAssessments ?? []).find((item) => item.id === id);
   const employee = scorecard && employeeById(snapshot, scorecard.employeeId);
-  if (!scorecard || !employee) return <NotFound what="KPI scorecard" backHref="/performance" backLabel="Back to Performance & KPI" />;
+  if (!scorecard || !employee) return <NotFound what="Penilaian Kinerja" backHref="/performance" backLabel="Back to Penilaian Kinerja" />;
   const evaluation = evaluationsOf(snapshot, employee.id).find((item) => item.period === scorecard.period);
+  const needs = developmentNeeds(snapshot).filter((item) => item.sourceType === "performance_context" && item.sourceRef === scorecard.id);
   const totalWeight = scorecard.lines.reduce((sum, line) => sum + line.weight_percent, 0);
   return <>
-    <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Performance & KPI", href: "/performance" }, { label: "KPI Scorecard" }]} backHref={`/performance/history/${employee.id}`}
+    <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Penilaian Kinerja", href: "/performance" }, { label: "Detail" }]} backHref={`/performance/history/${employee.id}`}
       name={employee.fullName} meta={[...employeeMeta(snapshot, employee), `Period ${formatPeriod(scorecard.period)}`]} status={scorecardStatus(scorecard)}
       actions={<><ButtonLink href={`/performance/history/${employee.id}`} icon={<History className="size-4" />} testId="view-history">View History</ButtonLink>
-        <ButtonLink href={evaluation ? `/performance/${evaluation.id}` : `/performance/history/${employee.id}`} icon={<ClipboardCheck className="size-4" />} testId="open-evaluation">Evaluation</ButtonLink>
-        {canAssess(snapshot, employee.id) && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)} data-testid="btn-add-scorecard">Add Scorecard</Button>}</>} />
+        {canAssess(snapshot, employee.id) && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)} data-testid="btn-add-penilaian">Add Penilaian</Button>}</>} />
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(300px,1fr)]">
       <Card title="Core KPI" padded={false}>
         <div className="overflow-x-auto">
@@ -43,20 +43,25 @@ export function KpiDetailPage({ id }: { id: string }) {
         </div>
       </Card>
       <div className="space-y-6">
-        <Card title="Scorecard summary" testId="scorecard-summary">
+        <Card title="Ringkasan" testId="scorecard-summary">
           <InfoGrid items={[
             { label: "KPI role", testId: "kpi-role", value: scorecard.roleName },
             { label: "Catalog", testId: "catalog", value: `KPI Scorecard ${scorecard.definitionVersion}` },
             { label: "Evaluation date", testId: "evaluation-date", value: formatDate(scorecard.evaluationDate) },
             { label: "Evaluator", testId: "evaluator", value: scorecard.evaluatorName || "—" },
-            { label: "Total score", testId: "total-score", value: <strong className="font-display font-semibold text-lg">{formatScore(scorecard.overallScore)}</strong> },
+            { label: "Total KPI", testId: "total-score", value: <strong className="font-display font-semibold text-lg">{formatScore(scorecard.overallScore)}</strong> },
             { label: "Recorded", testId: "recorded", value: `${scorecard.actor} · ${formatDate(scorecard.createdAt)}` },
           ]} />
           <p className="mt-5 text-xs text-ink-3">Total = Σ (bobot × skor mentah). Belum ada label tercapai/tidak tercapai karena belum ada batas resmi.</p>
         </Card>
-        <Card title="Notes & related" testId="notes-related">
-          <p className="whitespace-pre-wrap text-sm text-ink-2">{scorecard.generalNotes || "Belum ada catatan."}</p>
-          <div className="mt-4">{evaluation ? <SourceChip label="Performance Evaluation" reference={formatPeriod(evaluation.period)} href={`/performance/${evaluation.id}`} /> : <p className="text-xs text-ink-3">Belum ada evaluasi performance untuk periode ini.</p>}</div>
+        <Card title="Catatan evaluasi" testId="notes-related">
+          <p className="whitespace-pre-wrap text-sm text-ink-2">{scorecard.generalNotes || evaluation?.generalNotes || "Belum ada catatan."}</p>
+          <h3 className="mb-1 mt-5 text-xs font-semibold uppercase tracking-[0.04em] text-ink-3">Bukti / referensi</h3>
+          <p className="text-sm text-ink-2">{scorecard.evidenceReference || evaluation?.evidenceReference || "—"}</p>
+          {(needs.length > 0 || (!scorecard.generalNotes && evaluation)) && <div className="mt-4 flex flex-col items-start gap-2">
+            {!scorecard.generalNotes && evaluation && <SourceChip label="Evaluasi lama" reference={formatPeriod(evaluation.period)} href={`/performance/${evaluation.id}`} />}
+            {needs.map((need) => <SourceChip key={need.needId} label="Development Requirement" reference={need.objective} href={`/development/${need.needId}`} />)}
+          </div>}
         </Card>
       </div>
     </div>

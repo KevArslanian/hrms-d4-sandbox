@@ -42,10 +42,10 @@ interface RawCompetency { id: string; code: string; name: string; category: stri
 interface RawRequirement { id: string; position_id: string; competency_id: string; min_proficiency_level: number; is_mandatory: boolean | null }
 interface RawSkill { id: string; employee_id: string; competency_id: string; proficiency_level: number; evidence_notes: string | null }
 interface RawKpi { id: string; employee_id: string; period: string; kpi_score: number; notes: string | null; created_at: string }
-interface RawKpiAssessment { id: string; definition_version?: string; employee_id: string; role_order: number; role_name: string; period: string; evaluation_date: string | null; evaluator_name: string; status: "draft" | "completed"; lines: unknown; overall_score: number | null; general_notes: string; actor_employee_id: string; created_at: string }
+interface RawKpiAssessment { id: string; definition_version?: string; employee_id: string; role_order: number; role_name: string; period: string; evaluation_date: string | null; evaluator_name: string; status: "draft" | "completed"; lines: unknown; overall_score: number | null; general_notes: string; evidence_reference?: string | null; actor_employee_id: string; created_at: string }
 interface RawPerformance { id: string; employee_id: string; period: string; evaluation_date: string | null; evaluator_name_snapshot: string; status: "draft" | "completed"; review_status: PerformanceEvaluation["reviewStatus"]; overall_score: number | null; aspects: unknown; general_notes: string; evidence_reference: string | null; actor_employee_id: string; created_at: string }
 interface RawAssessment { id: string; employee_id: string; position_id: string; effective_date: string; context: CompetencyAssessment["context"]; overall_status: CompetencyOverallStatus; findings: unknown; actor_employee_id: string; created_at: string }
-interface RawDevelopment { id: string; employee_id: string; source_type: DevelopmentSourceType; position_requirement_id: string | null; competency_assessment_id: string | null; performance_evaluation_id: string | null; objective: string; priority: DevelopmentPriority }
+interface RawDevelopment { id: string; employee_id: string; source_type: DevelopmentSourceType; position_requirement_id: string | null; competency_assessment_id: string | null; kpi_assessment_id?: string | null; performance_evaluation_id: string | null; objective: string; priority: DevelopmentPriority }
 interface RawDevelopmentVersion { id: string; development_need_id: string; revision: number; status: DevelopmentStatus; notes: string; actor_employee_id: string; created_at: string }
 interface RawTraining { id: string; employee_id: string; development_need_id: string; activity: string; activity_date: string }
 interface RawTrainingVersion { id: string; training_id: string; revision: number; status: TrainingStatus; result: string; notes: string; actor_employee_id: string; created_at: string }
@@ -112,7 +112,7 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
       allRows(() => this.client.from("d4_kpi_assessments").select("*").order("created_at", { ascending: false }).order("id")),
       allRows(() => this.client.from("d4_performance_evaluations").select("id,employee_id,period,evaluation_date,evaluator_name_snapshot,status,review_status,overall_score,aspects,general_notes,evidence_reference,actor_employee_id,created_at").order("created_at", { ascending: false }).order("id")),
       allRows(() => this.client.from("d4_competency_assessments").select("id,employee_id,position_id,effective_date,context,overall_status,findings,actor_employee_id,created_at").order("created_at", { ascending: false }).order("id")),
-      allRows(() => this.client.from("d4_development_needs").select("id,employee_id,source_type,position_requirement_id,competency_assessment_id,performance_evaluation_id,objective,priority").order("id")),
+      allRows(() => this.client.from("d4_development_needs").select("*").order("id")),
       allRows(() => this.client.from("d4_development_need_versions").select("id,development_need_id,revision,status,notes,actor_employee_id,created_at").order("created_at", { ascending: false }).order("id")),
       allRows(() => this.client.from("d4_training_records").select("id,employee_id,development_need_id,activity,activity_date").order("id")),
       allRows(() => this.client.from("d4_training_versions").select("id,training_id,revision,status,result,notes,actor_employee_id,created_at").order("created_at", { ascending: false }).order("id")),
@@ -133,7 +133,7 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
       period: row.period, evaluationDate: row.evaluation_date ?? "", evaluatorName: row.evaluator_name,
       status: row.status, lines: Array.isArray(row.lines) ? row.lines as KpiAssessmentLine[] : [],
       overallScore: row.overall_score === null ? null : Number(row.overall_score),
-      generalNotes: row.general_notes, createdAt: row.created_at,
+      generalNotes: row.general_notes, evidenceReference: row.evidence_reference ?? null, createdAt: row.created_at,
       actor: actorName(reference, row.actor_employee_id),
     }));
     // Legacy D3 employee_kpi rows (0–100). D4 scorecards live in kpiAssessments on the 1–5 scale;
@@ -163,7 +163,7 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
       if (!need) return [];
       return [{ id: version.id, needId: need.id, revision: version.revision, source: "supabase" as const,
         employeeId: need.employee_id, sourceType: need.source_type,
-        sourceRef: need.position_requirement_id ?? need.competency_assessment_id ?? need.performance_evaluation_id ?? "",
+        sourceRef: need.position_requirement_id ?? need.competency_assessment_id ?? need.kpi_assessment_id ?? need.performance_evaluation_id ?? "",
         objective: need.objective, priority: need.priority, status: version.status, notes: version.notes,
         createdAt: version.created_at, actor: actorName(reference, version.actor_employee_id) }];
     });
@@ -191,7 +191,7 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
       employee_id: input.employeeId, role_order: input.roleOrder, role_name: input.roleName,
       period: input.period, evaluation_date: input.evaluationDate || null,
       evaluator_name: input.evaluatorName.trim(), status: input.status,
-      lines: input.lines, general_notes: input.generalNotes.trim(),
+      lines: input.lines, general_notes: input.generalNotes.trim(), evidence_reference: input.evidenceReference,
     }).select("id").single();
     return take(result, "Save KPI assessment").id;
   }
@@ -248,7 +248,8 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
           return employee?.positionId ? compareCompetencies(employee.id, employee.positionId, snapshot.reference).findings.some((item) => item.requirementId === input.sourceRef && item.status === "Gap") : false; })()
       : input.sourceType === "role_change"
         ? snapshot.competency.some((item) => item.id === input.sourceRef && item.employeeId === input.employeeId && item.context === "role-change")
-        : snapshot.performance.some((item) => item.id === input.sourceRef && item.employeeId === input.employeeId && item.status === "completed");
+        // Performance context = a saved Penilaian Kinerja; older evaluations are history only.
+        : (snapshot.kpiAssessments ?? []).some((item) => item.id === input.sourceRef && item.employeeId === input.employeeId && item.status === "completed");
     if (!validSource) throw new ApiError("VALIDATION_FAILED", "Referensi sumber tidak cocok dengan pegawai atau belum tersedia.");
     const result = await this.client.rpc("d4_create_development_need", {
       p_employee_id: input.employeeId, p_source_type: input.sourceType, p_source_ref: input.sourceRef,
