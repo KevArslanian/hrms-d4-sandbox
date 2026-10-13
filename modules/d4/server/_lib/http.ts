@@ -85,5 +85,6 @@ export const field = {
 };
 
 export function employeeFilter(request: Request): string | null {
-  return new URL(request.url).searchParams.get("employee_id");
+  const value = new URL(request.url).searchParams.get("employee_id");
+  return value ? field.uuid({ employee_id: value }, "employee_id") : null;
 }
