@@ -58,7 +58,7 @@ export function PerformanceListPage() {
 
   return <>
     <PageHeader title="Performance Review" subtitle="Lima Core KPI dan catatan evaluasi per pegawai dan periode, dalam satu penilaian."
-      actions={writer && <Button icon={<Plus className="size-4" />} onClick={() => setAdding({})} data-testid="btn-add-penilaian">Add Penilaian</Button>} />
+      actions={writer && <Button icon={<Plus className="size-4" />} onClick={() => setAdding({})} data-testid="btn-add-penilaian">Add Performance Review</Button>} />
     <CatalogNotice />
     <FilterBar canReset={Boolean(search || position || department || period || progress)} onReset={() => { setSearch(""); setPosition(""); setDepartment(""); setPeriod(""); setProgress(""); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Search name or ID" />
@@ -85,7 +85,7 @@ export function PerformanceListPage() {
       actions={(row) => <RowActionMenu label={`Actions for ${row.employee.fullName}`} actions={[
         { label: "View Detail", testId: "view-detail", icon: <Eye />, href: row.scorecard && `/performance/scorecard/${row.scorecard.id}`, hidden: !row.scorecard },
         { label: "View History", testId: "view-history", icon: <History />, href: `/performance/history/${row.employee.id}` },
-        { label: "Add Penilaian", testId: "add-penilaian", icon: <Plus />, onSelect: () => setAdding({ employeeId: row.employee.id }), hidden: !canAssess(snapshot, row.employee.id) },
+        { label: "Add Performance Review", testId: "add-penilaian", icon: <Plus />, onSelect: () => setAdding({ employeeId: row.employee.id }), hidden: !canAssess(snapshot, row.employee.id) },
       ]} />} />
     {adding && <KpiFormModal employeeId={adding.employeeId} onClose={() => setAdding(null)} />}
   </>;
@@ -149,7 +149,7 @@ export function PerformanceHistoryPage({ employeeId }: { employeeId: string }) {
   return <>
     <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Performance Review", href: "/performance" }, { label: "History" }]} backHref="/performance"
       name={employee.fullName} meta={[...employeeMeta(snapshot, employee), `${scorecards.length} penilaian`]}
-      actions={canAssess(snapshot, employee.id) && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)} data-testid="btn-add-penilaian">Add Penilaian</Button>} />
+      actions={canAssess(snapshot, employee.id) && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)} data-testid="btn-add-penilaian">Add Performance Review</Button>} />
     {title && catalogSet && !(catalog && roleForPosition(catalog, employee.positionId)) && <Notice tone="warning">{noKpiText(catalog?.version)}</Notice>}
     <Card title="Riwayat Performance Review" testId="scorecard-history">
       <Timeline empty="Pegawai ini belum memiliki Performance Review." entries={scorecards.map((item) => ({
