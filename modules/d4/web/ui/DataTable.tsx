@@ -1,7 +1,8 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, SearchX } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, SearchX } from "lucide-react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { cx } from "./primitives";
 
 export type Column<T> = {
@@ -89,12 +90,7 @@ export function DataTable<T>({ rows, columns, rowKey, actions, emptyTitle, empty
     {rows.length > 0 && <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-3 text-xs text-ink-2">
       <div className="flex flex-wrap items-center gap-3">
         <span data-testid="table-count">Menampilkan {first}–{Math.min(current * pageSize, rows.length)} dari {rows.length} {noun}</span>
-        <label className="flex items-center gap-1.5">Per halaman
-          <select data-testid="select-page-size" value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(1); }}
-            className="h-8 rounded-lg border border-line bg-surface px-2 font-semibold text-ink">
-            {PAGE_SIZES.map((size) => <option key={size} value={size}>{size}</option>)}
-          </select>
-        </label>
+        <span className="flex items-center gap-1.5">Per halaman<PageSizeSelect value={pageSize} onChange={(size) => { setPageSize(size); setPage(1); }} /></span>
       </div>
       <nav aria-label="Pagination" className="flex items-center gap-1">
         <button type="button" data-testid="btn-page-prev" aria-label="Previous page" disabled={current === 1} onClick={() => setPage(current - 1)} className="inline-flex size-8 items-center justify-center rounded-lg border border-line bg-surface disabled:opacity-40"><ChevronLeft className="size-4" /></button>
@@ -105,6 +101,72 @@ export function DataTable<T>({ rows, columns, rowKey, actions, emptyTitle, empty
       </nav>
     </footer>}
   </section>;
+}
+
+/**
+ * "Per halaman" picker in the same dropdown style as the filters instead of the OS-native <select>.
+ * Portalled with fixed position (like RowActionMenu) because the table card clips overflow.
+ */
+function PageSizeSelect({ value, onChange }: { value: number; onChange: (size: number) => void }) {
+  const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const list = useRef<HTMLUListElement>(null);
+  const listId = useId();
+  const open = position !== null;
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (!list.current?.contains(target) && !trigger.current?.contains(target)) setPosition(null);
+    };
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") { setPosition(null); trigger.current?.focus(); } };
+    const close = () => setPosition(null);
+    document.addEventListener("mousedown", onPointer);
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    list.current?.querySelector<HTMLElement>("[aria-selected=true] button")?.focus();
+    return () => {
+      document.removeEventListener("mousedown", onPointer);
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+    };
+  }, [open]);
+
+  function toggle() {
+    if (open) { setPosition(null); return; }
+    const rect = trigger.current!.getBoundingClientRect();
+    const height = PAGE_SIZES.length * 36 + 12;
+    // Opens upward: the picker sits in the table footer, usually near the bottom of the screen.
+    const top = rect.top - height - 4 >= 8 ? rect.top - height - 4 : rect.bottom + 4;
+    setPosition({ top, left: rect.left });
+  }
+
+  function onListKey(event: React.KeyboardEvent) {
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    event.preventDefault();
+    const items = [...(list.current?.querySelectorAll<HTMLElement>("button") ?? [])];
+    const index = items.indexOf(document.activeElement as HTMLElement);
+    items[Math.min(items.length - 1, Math.max(0, index + (event.key === "ArrowDown" ? 1 : -1)))]?.focus();
+  }
+
+  return <>
+    <button ref={trigger} type="button" data-testid="select-page-size" aria-label="Per halaman" aria-haspopup="listbox" aria-expanded={open} aria-controls={open ? listId : undefined} onClick={toggle}
+      className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line-strong bg-surface pl-2.5 pr-2 font-semibold text-ink hover:border-primary-500 focus-visible:outline-2 focus-visible:outline-primary-500">
+      {value}<ChevronDown aria-hidden="true" className={cx("size-4 text-ink-3 transition-transform", open && "rotate-180")} />
+    </button>
+    {open && createPortal(<ul ref={list} id={listId} role="listbox" data-testid="options-page-size" aria-label="Per halaman" onKeyDown={onListKey}
+      style={{ top: position.top, left: position.left }} className="fixed z-[70] w-24 rounded-[10px] border border-line bg-surface p-1.5 text-sm shadow-card">
+      {PAGE_SIZES.map((size) => <li key={size} role="option" aria-selected={size === value}>
+        <button type="button" data-testid={`option-page-size-${size}`} onClick={() => { onChange(size); setPosition(null); trigger.current?.focus(); }}
+          className={cx("flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-left text-ink hover:bg-primary-50 focus:bg-primary-50 focus:outline-none", size === value && "font-semibold text-primary-600")}>
+          <Check aria-hidden="true" className={cx("size-4 shrink-0", size !== value && "invisible")} />{size}
+        </button>
+      </li>)}
+    </ul>, document.body)}
+  </>;
 }
 
 /** First column content: name + employee code. */
