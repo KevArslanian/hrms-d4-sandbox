@@ -358,6 +358,11 @@ describe("unknown or malformed ids", () => {
     expect(writes).toHaveLength(0);
   });
 
+  it("returns 422 when the employee_id list filter is not a uuid", async () => {
+    const res = await call(perf.GET(new Request("http://localhost/api/d4/performance-evaluations?employee_id=not-a-uuid")));
+    expect(res.status).toBe(422);
+  });
+
   it("returns 201 for a status update of an existing development need", async () => {
     const res = await call(devVersions.POST(post({ status: "In Progress", notes: "Dimulai" }), params(NEED)));
     expect(res.status).toBe(201);
