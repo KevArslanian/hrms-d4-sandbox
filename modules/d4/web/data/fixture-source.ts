@@ -36,7 +36,7 @@ function assessment(id: string, employeeId: string, roleOrder: number, period: s
   return {
     id, definitionVersion: catalog.version, employeeId, roleOrder, roleName: indicatorsFor(catalog, roleOrder)[0].role_name,
     period, evaluationDate: `${period}-25`, evaluatorName: "Mercury", status, lines, overallScore: total(lines),
-    generalNotes: status === "completed" ? "Sample fixture scorecard for local preview." : "", createdAt: `${period}-25T08:00:00.000Z`, actor: "Mercury",
+    generalNotes: status === "completed" ? "Sample fixture scorecard for local preview." : "", evidenceReference: null, createdAt: `${period}-25T08:00:00.000Z`, actor: "Mercury",
   };
 }
 
@@ -140,10 +140,11 @@ export function createFixtureSource(): D4DataSource {
     },
     async createKpiAssessment({ revisionOf, ...draft }) {
       assertWriter();
-      const input = { ...draft, evaluatorName: actorName() };
+      const input = { ...draft, evidenceReference: draft.evidenceReference?.trim() || null, evaluatorName: actorName() };
       assertNotSelf(state.actorEmployeeId, input.employeeId);
       assertNotFutureDate(input.evaluationDate);
       assertPeriodRevision(state.kpiAssessments ?? [], input.employeeId, input.period, revisionOf, "Scorecard");
+      if (!input.generalNotes.trim()) throw new Error("Catatan evaluasi wajib diisi.");
       const periodCatalog = catalogFor(seedCatalogSet(state.reference.positions), input.period);
       if (!periodCatalog) throw new Error(`Belum ada katalog KPI yang berlaku untuk periode ${input.period}.`);
       const indicators = indicatorsFor(periodCatalog, input.roleOrder);

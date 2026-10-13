@@ -120,7 +120,7 @@ const evaluationBody = (patch: Record<string, unknown> = {}) => ({
 const kpiBody = (patch: Record<string, unknown> = {}) => {
   const current = snapshot.kpiAssessments!.find((item) => item.id === KPI_ALFA)!;
   return { employeeId: ALFA, roleOrder: current.roleOrder, period: "2026-10", evaluationDate: "2026-10-01", status: "completed",
-    lines: current.lines.map((line) => ({ ...line, raw_score: 4 })), ...patch };
+    lines: current.lines.map((line) => ({ ...line, raw_score: 4 })), generalNotes: "Uji", ...patch };
 };
 
 // One valid request per write route; HR gets 201 on each (asserted below), so a 401/403 can only come from the guard.
@@ -128,7 +128,7 @@ const writeRoutes: [string, () => Promise<Response>][] = [
   ["POST /performance-evaluations", () => perf.POST(post(evaluationBody()))],
   ["POST /kpi-assessments", () => kpi.POST(post(kpiBody()))],
   ["POST /competency-assessments", () => competency.POST(post({ employeeId: ALFA, positionId: FINANCE_STAFF, effectiveDate: "2026-10-01" }))],
-  ["POST /development-needs", () => dev.POST(post({ employeeId: ALFA, sourceType: "performance_context", sourceRef: PERF_ALFA, objective: "Uji", priority: "High" }))],
+  ["POST /development-needs", () => dev.POST(post({ employeeId: ALFA, sourceType: "performance_context", sourceRef: KPI_ALFA, objective: "Uji", priority: "High" }))],
   ["POST /development-needs/:id/versions", () => devVersions.POST(post({ status: "In Progress", notes: "Uji" }), params(NEED))],
   ["POST /training-records", () => training.POST(post({ employeeId: ALFA, developmentNeedId: NEED, activity: "Uji", date: "2026-10-01", status: "Planned" }))],
   ["POST /training-records/:id/versions", () => trainingVersions.POST(post({ status: "In Progress", notes: "Uji" }), params(TRAINING))],
@@ -256,12 +256,19 @@ describe("POST /kpi-assessments", () => {
     expect((writes[0].args[0] as { evaluatorName: string }).evaluatorName).toBe("Mercury");
   });
 
+  it("saves KPI, evaluation notes and evidence as one Penilaian Kinerja", async () => {
+    const res = await call(kpi.POST(post(kpiBody({ generalNotes: "  Kuat di closing  ", evidenceReference: " DOC-7 " }))));
+    expect(res.status).toBe(201);
+    expect(writes[0].args[0]).toMatchObject({ generalNotes: "Kuat di closing", evidenceReference: "DOC-7" });
+  });
+
   it.each([
     ["duplicate period", { period: "2026-09" }, /sudah ada/],
     ["wrong KPI role", { roleOrder: 99 }, /./],
     ["four lines", { lines: [] }, /./],
     ["fractional score", { fractional: true }, /bilangan bulat/],
     ["unknown employee", { employeeId: uuid(500) }, /tidak ditemukan/],
+    ["no evaluation notes", { generalNotes: "   " }, /Catatan evaluasi wajib/],
   ])("rejects %s", async (_name, patch: Record<string, unknown>, message) => {
     const { fractional, ...rest } = patch;
     const body = kpiBody(rest);
