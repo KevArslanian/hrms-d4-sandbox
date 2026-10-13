@@ -1,13 +1,13 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { indicatorsFor, KPI_V51_CATALOG, roleForPositionTitle, rolesOf, selectCatalog } from "@/modules/d4/kpi/catalog";
+import { catalogFor, indicatorsFor, KPI_V51_CATALOG, roleForPosition, roleForPositionTitle, rolesOf, type KpiCatalogSet } from "@/modules/d4/kpi/catalog";
 import { d4ReferenceFixture } from "@/modules/d4/shared/fixtures";
 import { createFixtureSource } from "@/modules/d4/web/data/fixture-source";
 import type { D4DataSource } from "@/modules/d4/web/data/source";
 import { weighted } from "@/modules/d4/web/features/kpi/KpiFormModal";
 
-const catalog = selectCatalog(KPI_V51_CATALOG);
+const catalog = { rows: KPI_V51_CATALOG };
 const ALFA = "d4000000-0000-4000-8000-000000000009"; // Finance Staff → role 10 (weights 25/25/20/15/15)
 const FINANCE_ROLE = 10;
 
@@ -15,7 +15,7 @@ describe("KPI V5.1 catalog: weights per role (FR-02.4, FR-06.9)", () => {
   const roles = rolesOf(catalog);
 
   it("serves V5.1 with ten roles", () => {
-    expect(catalog.version).toBe("V5.1");
+    expect(new Set(KPI_V51_CATALOG.map((row) => row.source_version))).toEqual(new Set(["V5.1"]));
     expect(roles.map((role) => role.order)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
   });
 
@@ -106,5 +106,25 @@ describe("roleForPositionTitle (FR-02.11)", () => {
   // BUG-D4-005 regression: keywords match whole words, so "edi" inside "Credit"/"Media" no longer maps to Implant Staff.
   it.each([["Credit Control Staff"], ["Media Relations Officer"], ["Medical Officer"]])("%s has no KPI → 0", (title) => {
     expect(roleForPositionTitle(catalog, title)).toBe(0);
+  });
+});
+
+describe("catalogFor: the catalog version follows the scorecard period", () => {
+  const v6 = KPI_V51_CATALOG.map((row) => ({ ...row, source_version: "V6", weight_percent: row.indicator_order === 1 ? row.weight_percent + 5 : row.indicator_order === 5 ? row.weight_percent - 5 : row.weight_percent }));
+  const set: KpiCatalogSet = {
+    versions: [{ source_version: "V5.1", effective_from: "2026-01" }, { source_version: "V6", effective_from: "2027-01" }],
+    rows: [...KPI_V51_CATALOG, ...v6],
+    positionRoles: [{ source_version: "V5.1", position_id: "pos-a", role_order: 9 }, { source_version: "V6", position_id: "pos-a", role_order: 10 }],
+  };
+
+  it.each([["2025-12", null], ["2026-01", "V5.1"], ["2026-12", "V5.1"], ["2027-01", "V6"], ["2030-06", "V6"]])("%s → %s", (period, version) => {
+    expect(catalogFor(set, period)?.version ?? null).toBe(version);
+  });
+
+  it("serves only that version's rows and HR's position mapping for it", () => {
+    const old = catalogFor(set, "2026-12")!, next = catalogFor(set, "2027-01")!;
+    expect(old.rows.every((row) => row.source_version === "V5.1")).toBe(true);
+    expect(indicatorsFor(next, 9)[0].weight_percent).toBe(indicatorsFor(old, 9)[0].weight_percent + 5);
+    expect([roleForPosition(old, "pos-a"), roleForPosition(next, "pos-a"), roleForPosition(next, "pos-b")]).toEqual([9, 10, 0]);
   });
 });

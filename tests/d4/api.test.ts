@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { KPI_V51_CATALOG, type RoleKpiRow } from "@/modules/d4/kpi/catalog";
+import { KPI_V51_CATALOG, seedCatalogSet, type KpiCatalogVersion, type RoleKpiRow } from "@/modules/d4/kpi/catalog";
 import { createFixtureSource } from "@/modules/d4/web/data/fixture-source";
 import type { D4LiveSnapshot } from "@/modules/d4/supabase/types";
 
@@ -22,6 +22,7 @@ type AccessRow = { app_role: "HR" | "MANAGER" | "EMPLOYEE"; employee_id: string 
 let user: { id: string } | null;
 let accessRow: AccessRow | null;
 let catalogRows: readonly RoleKpiRow[];
+let catalogVersions: KpiCatalogVersion[];
 let snapshot: D4LiveSnapshot;
 const writes: { method: string; args: unknown[] }[] = [];
 const accessLookups: { table: string; filters: [string, unknown][] }[] = [];
@@ -49,10 +50,13 @@ function query(table: string) {
   const result = () => {
     if (table === "d4_user_access") return { data: accessRow, error: null };
     if (table === "d4_kpi_role_catalog") return { data: catalogRows, error: null };
+    if (table === "d4_kpi_catalog_versions") return { data: catalogVersions, error: null };
+    if (table === "d4_position_kpi_roles") return { data: catalogVersions.flatMap((version) => seedCatalogSet(snapshot.reference.positions).positionRoles.map((item) => ({ ...item, source_version: version.source_version }))), error: null };
     return { data: null, error: null };
   };
   const builder = {
     select: () => builder,
+    order: () => builder,
     eq: (column: string, value: unknown) => { filters.push([column, value]); return builder; },
     maybeSingle: async () => { accessLookups.push({ table, filters }); return result(); },
     then: (resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) => Promise.resolve(result()).then(resolve, reject),
@@ -95,6 +99,7 @@ beforeEach(() => {
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "test-publishable-key");
   signIn("HR", MERCURY);
   catalogRows = KPI_V51_CATALOG;
+  catalogVersions = [{ source_version: "V5.1", effective_from: "2000-01" }];
   writes.length = 0;
   accessLookups.length = 0;
   createServerClient.mockClear();
@@ -276,6 +281,21 @@ describe("POST /kpi-assessments", () => {
     expect(res).toMatchObject({ status: 422, body: { error: { code: "VALIDATION_FAILED" } } });
     expect(res.body.error?.message).toMatch(/tidak 100%/);
     expect(writes).toHaveLength(0);
+  });
+
+  it("rejects a period before any catalog version is in force", async () => {
+    catalogVersions = [{ source_version: "V5.1", effective_from: "2027-01" }];
+    const res = await call(kpi.POST(post(kpiBody())));
+    expect(res).toMatchObject({ status: 422, body: { error: { code: "VALIDATION_FAILED" } } });
+    expect(res.body.error?.message).toMatch(/Belum ada katalog KPI/);
+    expect(writes).toHaveLength(0);
+  });
+
+  it("stores the catalog version in force for the period", async () => {
+    catalogRows = [...KPI_V51_CATALOG, ...KPI_V51_CATALOG.map((row) => ({ ...row, source_version: "V6" }))];
+    catalogVersions = [{ source_version: "V5.1", effective_from: "2000-01" }, { source_version: "V6", effective_from: "2026-10" }];
+    const res = await call(kpi.POST(post(kpiBody())));
+    expect(res).toMatchObject({ status: 201, body: { data: { definitionVersion: "V6" } } });
   });
 
   // Core KPI names are editable; weights always come from the catalog, not the request.
