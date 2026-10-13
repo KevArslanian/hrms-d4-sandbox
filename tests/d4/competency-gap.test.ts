@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { compareCompetencies } from "@/modules/d4/competency/service";
-import { indicatorsFor, KPI_V51_CATALOG, selectCatalog } from "@/modules/d4/kpi/catalog";
+import { indicatorsFor, KPI_V51_CATALOG } from "@/modules/d4/kpi/catalog";
 import { d4ReferenceFixture } from "@/modules/d4/shared/fixtures";
 import type { ReferenceDataSnapshot } from "@/modules/d4/shared/types";
 import { latestDevelopment, latestTraining } from "@/modules/d4/supabase/types";
@@ -41,7 +41,7 @@ describe("competency gap is not resolved automatically", () => {
     await source.updateTraining("FIX-D4-TRN-001", "Completed", "Lulus workshop", "");
     await source.updateDevelopment("FIX-D4-DEV-001", "Completed", "Training selesai");
     await source.createEvaluation({ employeeId: ALFA, period: "2026-11", evaluationDate: "2026-10-01", evaluator: "x", status: "completed", reviewStatus: "Needs Review", overallScore: 5, aspects: [], generalNotes: "Sangat baik.", evidenceReference: null });
-    const lines = indicatorsFor(selectCatalog(KPI_V51_CATALOG), 10).map((row) => ({ indicator_order: row.indicator_order, kpi_name: row.kpi_name, weight_percent: row.weight_percent, target: "", actual: "", raw_score: 5, comment: "" }));
+    const lines = indicatorsFor({ rows: KPI_V51_CATALOG }, 10).map((row) => ({ indicator_order: row.indicator_order, kpi_name: row.kpi_name, weight_percent: row.weight_percent, target: "", actual: "", raw_score: 5, comment: "" }));
     await source.createKpiAssessment({ employeeId: ALFA, roleOrder: 10, period: "2026-11", evaluationDate: "2026-10-01", evaluatorName: "x", status: "completed", lines, generalNotes: "" });
 
     const snapshot = await source.loadSnapshot();
