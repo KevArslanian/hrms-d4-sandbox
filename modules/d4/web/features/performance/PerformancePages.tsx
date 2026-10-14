@@ -19,7 +19,7 @@ import { CatalogNotice, scorecardStatus } from "../kpi/KpiPages";
 const evaluationStatus = (evaluation?: PerformanceEvaluation) => !evaluation ? "Not Evaluated" : evaluation.status === "completed" ? "Completed" : "Draft";
 
 // Same words as the Status badge in the table, so a filter choice matches what the rows show.
-const STATUS_FILTER = ["Completed", "Draft", "Not Evaluated"];
+const STATUS_FILTER = ["Completed", "Not Evaluated"]; // FR-D4-002 has no draft scorecard.
 
 type Row = { employee: EmployeeReference; position: string; hasKpi: boolean; scorecard?: KpiAssessment; evaluation?: PerformanceEvaluation };
 
