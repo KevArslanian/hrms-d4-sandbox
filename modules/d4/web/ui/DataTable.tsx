@@ -89,8 +89,8 @@ export function DataTable<T>({ rows, columns, rowKey, actions, emptyTitle, empty
     </div>
     {rows.length > 0 && <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-3 text-xs text-ink-2">
       <div className="flex flex-wrap items-center gap-3">
-        <span data-testid="table-count">Menampilkan {first}–{Math.min(current * pageSize, rows.length)} dari {rows.length} {noun}</span>
-        <span className="flex items-center gap-1.5">Per halaman<PageSizeSelect value={pageSize} onChange={(size) => { setPageSize(size); setPage(1); }} /></span>
+        <span data-testid="table-count">Showing {first}–{Math.min(current * pageSize, rows.length)} of {rows.length} {noun}</span>
+        <span className="flex items-center gap-1.5">Rows per page<PageSizeSelect value={pageSize} onChange={(size) => { setPageSize(size); setPage(1); }} /></span>
       </div>
       <nav aria-label="Pagination" className="flex items-center gap-1">
         <button type="button" data-testid="btn-page-prev" aria-label="Previous page" disabled={current === 1} onClick={() => setPage(current - 1)} className="inline-flex size-8 items-center justify-center rounded-lg border border-line bg-surface disabled:opacity-40"><ChevronLeft className="size-4" /></button>
@@ -104,7 +104,7 @@ export function DataTable<T>({ rows, columns, rowKey, actions, emptyTitle, empty
 }
 
 /**
- * "Per halaman" picker in the same dropdown style as the filters instead of the OS-native <select>.
+ * "Rows per page" picker in the same dropdown style as the filters instead of the OS-native <select>.
  * Portalled with fixed position (like RowActionMenu) because the table card clips overflow.
  */
 function PageSizeSelect({ value, onChange }: { value: number; onChange: (size: number) => void }) {
@@ -153,11 +153,11 @@ function PageSizeSelect({ value, onChange }: { value: number; onChange: (size: n
   }
 
   return <>
-    <button ref={trigger} type="button" data-testid="select-page-size" aria-label="Per halaman" aria-haspopup="listbox" aria-expanded={open} aria-controls={open ? listId : undefined} onClick={toggle}
+    <button ref={trigger} type="button" data-testid="select-page-size" aria-label="Rows per page" aria-haspopup="listbox" aria-expanded={open} aria-controls={open ? listId : undefined} onClick={toggle}
       className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line-strong bg-surface pl-2.5 pr-2 font-semibold text-ink hover:border-primary-500 focus-visible:outline-2 focus-visible:outline-primary-500">
       {value}<ChevronDown aria-hidden="true" className={cx("size-4 text-ink-3 transition-transform", open && "rotate-180")} />
     </button>
-    {open && createPortal(<ul ref={list} id={listId} role="listbox" data-testid="options-page-size" aria-label="Per halaman" onKeyDown={onListKey}
+    {open && createPortal(<ul ref={list} id={listId} role="listbox" data-testid="options-page-size" aria-label="Rows per page" onKeyDown={onListKey}
       style={{ top: position.top, left: position.left }} className="fixed z-[70] w-24 rounded-[10px] border border-line bg-surface p-1.5 text-sm shadow-card">
       {PAGE_SIZES.map((size) => <li key={size} role="option" aria-selected={size === value}>
         <button type="button" data-testid={`option-page-size-${size}`} onClick={() => { onChange(size); setPosition(null); trigger.current?.focus(); }}
