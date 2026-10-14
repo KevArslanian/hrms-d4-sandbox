@@ -16,6 +16,19 @@ export function visibleEmployees(snapshot: Snapshot): readonly EmployeeReference
   return snapshot.role === "EMPLOYEE" ? snapshot.reference.employees.filter((item) => item.id === snapshot.actorEmployeeId) : snapshot.reference.employees;
 }
 
+/**
+ * HR/manager preview of what one employee sees: the same snapshot narrowed to that employee's records with
+ * role EMPLOYEE. Display only; the provider blocks writes while it is active, and the server still sees HR.
+ */
+export function asEmployee(snapshot: Snapshot, employeeId: string): Snapshot {
+  const own = <T extends { employeeId: string }>(items: readonly T[]) => items.filter((item) => item.employeeId === employeeId);
+  return {
+    ...snapshot, role: "EMPLOYEE", actorEmployeeId: employeeId,
+    kpi: own(snapshot.kpi), kpiAssessments: snapshot.kpiAssessments && own(snapshot.kpiAssessments), performance: own(snapshot.performance),
+    competency: own(snapshot.competency), developmentVersions: own(snapshot.developmentVersions), trainingVersions: own(snapshot.trainingVersions),
+  };
+}
+
 /** Employees the signed-in evaluator may assess: never themselves. */
 /** Writer acting on someone else's record: nobody adds a scorecard or evaluation for themselves. */
 export const canAssess = (snapshot: Snapshot, employeeId: string) => canWrite(snapshot) && employeeId !== snapshot.actorEmployeeId;
