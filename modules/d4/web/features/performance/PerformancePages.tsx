@@ -18,10 +18,8 @@ import { CatalogNotice, scorecardStatus } from "../kpi/KpiPages";
 
 const evaluationStatus = (evaluation?: PerformanceEvaluation) => !evaluation ? "Not Evaluated" : evaluation.status === "completed" ? "Completed" : "Draft";
 
-const PROGRESS = [
-  { value: "assessed", label: "Sudah dinilai" },
-  { value: "missing", label: "Belum dinilai" },
-] as const;
+// Same words as the Status badge in the table, so a filter choice matches what the rows show.
+const STATUS_FILTER = ["Completed", "Draft", "Not Evaluated"];
 
 type Row = { employee: EmployeeReference; position: string; hasKpi: boolean; scorecard?: KpiAssessment; evaluation?: PerformanceEvaluation };
 
@@ -53,7 +51,7 @@ export function PerformanceListPage() {
     };
   }).filter((row) => includesText(`${row.employee.fullName} ${row.employee.employeeId}`, search)
     && (!position || row.employee.positionId === position) && (!department || row.employee.departmentId === department)
-    && (!progress || (progress === "assessed") === Boolean(row.scorecard)))
+    && (!progress || scorecardStatus(row.scorecard) === progress))
     .sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName)), [snapshot, catalog, catalogSet, search, position, department, period, progress]);
 
   return <>
@@ -65,9 +63,9 @@ export function PerformanceListPage() {
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All positions" testId="all-positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />}
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All departments" testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />}
       <SelectFilter label="All periods" testId="latest-period" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
-      <SelectFilter label="All status" testId="all-status" value={progress} onChange={setProgress} options={PROGRESS.map((item) => ({ value: item.value, label: item.label }))} />
+      <SelectFilter label="All status" testId="all-status" value={progress} onChange={setProgress} options={STATUS_FILTER.map((item) => ({ value: item, label: item }))} />
     </FilterBar>
-    <DataTable<Row> rows={rows} noun="pegawai" rowKey={(row) => row.employee.id}
+    <DataTable<Row> rows={rows} noun="employees" rowKey={(row) => row.employee.id}
       emptyTitle="Tidak ada pegawai yang cocok" emptyText="Ubah kata kunci atau reset filter untuk melihat semua pegawai."
       columns={[
         { key: "employee", header: "Employee", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
