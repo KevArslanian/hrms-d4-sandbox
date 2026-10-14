@@ -388,7 +388,10 @@ export default function RegisterPage() {
                   {/* GANTI DENGAN UUID ASLI DARI TABEL POSISI KAMU */}
                   <option value="40a8e1f1-0713-4e5d-a7af-061b6e5f495c">Freight Forwarding Specialist</option>
                   <option value="96c66ea1-44b6-474f-9410-ad992dd14b93">HR Administrator</option>
-                  <option value="265c9357-105c-437c-a244-6897122f17c1">Tim IT</option>
+                  <option value="265c9357-105c-437c-a244-6897122f17c1">Information Technology</option>
+                  <option value="0ec333af-8737-413f-adab-841a3067e485">Director</option>
+                  <option value="10da1bac-a6a8-472e-a171-e4984ab768d9">Accounting Associate</option>
+                  <option value="58706b7f-950b-4e71-b066-792fbd91424d">Sales Executive</option>
                 </select>
                 {fieldErrors.positionId && <p className="text-red-600 text-xs font-semibold mt-1 ml-1">{fieldErrors.positionId}</p>}
               </div>
@@ -416,6 +419,8 @@ export default function RegisterPage() {
                   <option value="72cd470d-216c-48b6-abd9-0cd05a4d8974">Human Resources</option>
                   <option value="d38c1ed7-abd4-4a57-ab9d-0ba1d396fbfc">Logistics & Shipment Operations</option>
                   <option value="8113ab6f-d5cc-4c94-bbf6-e08047931fab">Information Technology</option>
+                  <option value="1653db5f-2b64-418f-b28b-68cb7b9dae8e">Finance, Accounting & Tax</option>
+                  <option value="97ac5d35-5da2-4f5d-9d36-78500f403cc7">Commercial & Customer Success</option>
                 </select>
                 {fieldErrors.departementId && <p className="text-red-600 text-xs font-semibold mt-1 ml-1">{fieldErrors.departementId}</p>}
               </div>
