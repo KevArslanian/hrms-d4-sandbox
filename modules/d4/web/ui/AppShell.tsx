@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, ChevronDown, Contact, Menu, SquareTerminal, Store, Users, X } from "lucide-react";
+import { Bell, ChevronDown, Contact, Eye, Menu, SquareTerminal, Store, Users, X } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { createD4BrowserClient } from "../../supabase/client";
 import { useD4 } from "../data/D4DataProvider";
-import { cx, slug } from "./primitives";
+import { FormModal, SearchSelectField } from "./forms";
+import { Button, cx, slug } from "./primitives";
 
 export const D4_MENU = [
   { href: "/performance", label: "Performance Review" },
@@ -85,6 +86,40 @@ function Sidebar({ onNavigate, onClose }: { onNavigate: () => void; onClose: () 
   </div>;
 }
 
+/** HR/manager backup for demos: preview the app as one employee without that employee's login. Read-only. */
+function SimulateEmployee() {
+  const { snapshot, canSimulate, viewAs, setViewAs } = useD4();
+  const [open, setOpen] = useState(false);
+  const [choice, setChoice] = useState("");
+  if (!snapshot || !canSimulate || viewAs) return null;
+  const options = [...snapshot.reference.employees]
+    .sort((a, b) => a.fullName.localeCompare(b.fullName))
+    .map((item) => ({ value: item.id, label: `${item.fullName.slice(0, 60)} · ${item.employeeId}` }));
+  return <>
+    <Button variant="secondary" data-testid="btn-simulate-employee" icon={<Eye aria-hidden="true" className="size-4" />} className="h-9 px-3 text-xs" onClick={() => setOpen(true)}>
+      <span className="hidden md:inline">Simulasi Employee</span><span className="sr-only md:hidden">Simulasi Employee</span>
+    </Button>
+    {open && <FormModal title="Simulasi Employee" description="Lihat aplikasi persis seperti yang dilihat satu pegawai. Hanya tampilan; tidak ada data yang disimpan." onClose={() => setOpen(false)}
+      footer={<>
+        <Button variant="secondary" data-testid="btn-simulate-cancel" onClick={() => setOpen(false)}>Cancel</Button>
+        <Button data-testid="btn-simulate-start" disabled={!choice} onClick={() => { setViewAs(choice); setOpen(false); }}>Lihat sebagai Employee</Button>
+      </>}>
+      <SearchSelectField label="Pegawai" testId="simulate-employee" value={choice} onChange={setChoice} options={options} placeholder="Pilih pegawai" />
+    </FormModal>}
+  </>;
+}
+
+function SimulationBanner() {
+  const { snapshot, viewAs, setViewAs } = useD4();
+  if (!snapshot || !viewAs) return null;
+  const who = snapshot.reference.employees.find((item) => item.id === viewAs);
+  return <div role="status" data-testid="simulation-banner" className="flex flex-wrap items-center gap-3 border-b border-line bg-warning-bg px-4 py-2.5 text-xs text-warning sm:px-8">
+    <Eye aria-hidden="true" className="size-4 shrink-0" />
+    <span className="min-w-0 flex-1"><strong>Mode simulasi Employee:</strong> melihat sebagai {who?.fullName.slice(0, 60) ?? "—"}. Hanya tampilan, penyimpanan dinonaktifkan.</span>
+    <Button variant="secondary" data-testid="btn-simulate-exit" className="h-8 px-3 text-xs" onClick={() => setViewAs(null)}>Keluar simulasi</Button>
+  </div>;
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { snapshot, mode } = useD4();
@@ -107,6 +142,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <p data-testid="header-breadcrumb" className="hidden flex-1 truncate text-xs text-ink-2 sm:block">HRMS / {current?.label ?? "Performance & Training"}</p>
         <span className="flex-1 sm:hidden" />
         {mode === "fixture" && <span className="hidden rounded-full bg-warning-bg px-2.5 py-1 text-[11px] font-semibold text-warning md:inline">Pratinjau · data contoh</span>}
+        <SimulateEmployee />
         <span className="rounded-lg p-2 text-ink-2" title="Notifications"><Bell aria-hidden="true" className="size-5" /><span className="sr-only">Notifications</span></span>
         <span aria-hidden="true" className="h-8 w-px bg-line" />
         <div className="flex items-center gap-2.5">
@@ -114,6 +150,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <span className="hidden sm:block"><strong data-testid="header-user-name" className="block text-sm font-semibold leading-5 text-ink">{name}</strong><span data-testid="header-user-role" className="block text-xs text-ink-2">{roleLabel[snapshot?.role ?? ""] ?? "—"}</span></span>
         </div>
       </header>
+      <SimulationBanner />
       <main id="main" className="mx-auto w-full max-w-[1600px] space-y-6 px-4 py-8 sm:px-8">{children}</main>
     </div>
   </div>;
