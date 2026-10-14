@@ -46,7 +46,7 @@ export function DevelopmentListPage() {
       <SelectFilter label="All periods" testId="all-periods" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
       <SelectFilter label="All status" testId="all-status" value={status} onChange={setStatus} options={["Identified", "Planned", "In Progress", "Completed"].map((item) => ({ value: item, label: statusLabel(item) }))} />
     </FilterBar>
-    <DataTable<DevelopmentNeedVersion> rows={rows} noun="kebutuhan pengembangan" rowKey={(row) => row.needId}
+    <DataTable<DevelopmentNeedVersion> rows={rows} noun="requirements" rowKey={(row) => row.needId}
       emptyTitle="Belum ada development requirement" emptyText="Buat dari gap kompetensi, perubahan posisi, atau evaluasi performance."
       columns={[
         { key: "employee", header: "Employee", cell: (row) => { const employee = employeeById(snapshot, row.employeeId); return <PersonCell name={employee?.fullName ?? "—"} code={employee?.employeeId ?? ""} />; } },
