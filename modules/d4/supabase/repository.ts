@@ -79,7 +79,7 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
       allRows(() => this.client.from("d4_employee").select("id,employee_id,full_name,position_id,department_id").order("id")),
       allRows(() => this.client.from("d3_competencies").select("id,code,name,category").order("id")),
       allRows(() => this.client.from("position_requirements").select("id,position_id,competency_id,min_proficiency_level,is_mandatory").order("id")),
-      allRows(() => this.client.from("d3_employee_skills").select("id,employee_id,competency_id,proficiency_level,evidence_notes").order("id")),
+      allRows(() => this.client.from("d4_employee_skills").select("id,employee_id,competency_id,proficiency_level,evidence_notes").order("id")),
     ]);
     const departments = take(departmentsResult, "Departments") as RawDepartment[];
     const positions = take(positionsResult, "Positions") as RawPosition[];
