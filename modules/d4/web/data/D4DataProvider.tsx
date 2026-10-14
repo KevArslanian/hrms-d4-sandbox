@@ -6,6 +6,7 @@ import type { KpiCatalogSet } from "../../kpi/catalog";
 import { createD4BrowserClient } from "../../supabase/client";
 import type { D4LiveSnapshot } from "../../supabase/types";
 import { apiSource, D4RequestError } from "./api-source";
+import { asEmployee } from "./selectors";
 import type { D4DataSource } from "./source";
 
 export type ToastMessage = { id: number; tone: "success" | "error"; text: string };
@@ -24,7 +25,14 @@ type D4Data = {
   run: <T>(operation: (source: D4DataSource) => Promise<T>, success: string) => Promise<Result<T>>;
   toasts: ToastMessage[];
   dismissToast: (id: number) => void;
+  /** Employee id while HR previews the employee view, otherwise null. */
+  viewAs: string | null;
+  /** Real signed-in role may preview (HR/manager); the simulated snapshot never changes this. */
+  canSimulate: boolean;
+  setViewAs: (employeeId: string | null) => void;
 };
+
+const VIEW_AS_KEY = "d4-view-as";
 
 const Context = createContext<D4Data | null>(null);
 
@@ -54,6 +62,7 @@ export function D4DataProvider({ children, mode }: { children: ReactNode; mode: 
   const [busy, setBusy] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [viewAs, setViewAsState] = useState<string | null>(null);
   // Set synchronously, unlike `busy`, so a second click before the re-render cannot start another POST.
   const writing = useRef(false);
 
@@ -61,6 +70,14 @@ export function D4DataProvider({ children, mode }: { children: ReactNode; mode: 
     const id = Date.now() + Math.random();
     setToasts((items) => [...items.slice(-2), { id, tone, text }]);
     setTimeout(() => setToasts((items) => items.filter((item) => item.id !== id)), 4000);
+  }, []);
+
+  useEffect(() => {
+    try { setViewAsState(sessionStorage.getItem(VIEW_AS_KEY)); } catch { /* storage blocked: start without simulation */ }
+  }, []);
+  const setViewAs = useCallback((employeeId: string | null) => {
+    setViewAsState(employeeId);
+    try { if (employeeId) sessionStorage.setItem(VIEW_AS_KEY, employeeId); else sessionStorage.removeItem(VIEW_AS_KEY); } catch { /* per-tab convenience only */ }
   }, []);
 
   useEffect(() => {
@@ -84,6 +101,11 @@ export function D4DataProvider({ children, mode }: { children: ReactNode; mode: 
 
   const run = useCallback(async <T,>(operation: (data: D4DataSource) => Promise<T>, success: string): Promise<Result<T>> => {
     if (writing.current) return { ok: false, error: "Penyimpanan sebelumnya masih diproses." };
+    if (viewAs) {
+      const message = "Mode simulasi Employee: penyimpanan dinonaktifkan. Keluar dari simulasi untuk menyimpan.";
+      pushToast("error", message);
+      return { ok: false, error: message };
+    }
     writing.current = true;
     setBusy(true);
     let data: D4DataSource;
@@ -108,13 +130,19 @@ export function D4DataProvider({ children, mode }: { children: ReactNode; mode: 
     writing.current = false;
     setBusy(false);
     return { ok: true, value };
-  }, [source, pushToast]);
+  }, [source, pushToast, viewAs]);
+
+  const canSimulate = snapshot?.role === "HR" || snapshot?.role === "MANAGER";
+  const target = canSimulate && viewAs ? snapshot?.reference.employees.find((item) => item.id === viewAs) : undefined;
+  // A stale id (employee gone, or role no longer HR/manager) ends the simulation instead of silently blocking saves.
+  useEffect(() => { if (snapshot && viewAs && !target) setViewAs(null); }, [snapshot, viewAs, target, setViewAs]);
+  const shown = useMemo(() => (snapshot && target ? asEmployee(snapshot, target.id) : snapshot), [snapshot, target]);
 
   const value = useMemo<D4Data>(() => ({
-    mode, status, error, snapshot, catalog, busy, run, toasts,
+    mode, status, error, snapshot: shown, catalog, busy, run, toasts, viewAs: target?.id ?? null, canSimulate, setViewAs,
     reload: () => { setStatus("loading"); setAttempt((count) => count + 1); },
     dismissToast: (id) => setToasts((items) => items.filter((item) => item.id !== id)),
-  }), [mode, status, error, snapshot, catalog, busy, run, toasts]);
+  }), [mode, status, error, shown, catalog, busy, run, toasts, target, canSimulate, setViewAs]);
 
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }
