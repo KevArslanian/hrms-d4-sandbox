@@ -1,6 +1,6 @@
 import type { DevelopmentPriority, DevelopmentSourceType, DevelopmentStatus } from "../../development/types";
 import { latestDevelopment, latestTraining } from "../../supabase/types";
-import { assertDevelopmentChange, assertGapAssessed, assertNoOpenNeed, openTrainingCount } from "../../shared/rules";
+import { assertDevelopmentChange, assertGapAssessed, assertNoOpenNeed, openTrainingCount, passedTrainingCount } from "../../shared/rules";
 import { ApiError, employeeFilter, enforce, field, readJson } from "../_lib/http";
 import { d4Session, requireWriter } from "../_lib/session";
 
@@ -49,7 +49,8 @@ export async function addDevelopmentVersion(request: Request, id: string) {
   const snapshot = await repository.loadSnapshot();
   const current = latestDevelopment(snapshot).find((item) => item.needId === id);
   if (!current) throw new ApiError("NOT_FOUND", "Development requirement tidak ditemukan.");
-  enforce(() => assertDevelopmentChange(current.status, status, notes, openTrainingCount(latestTraining(snapshot), id)));
+  const trainings = latestTraining(snapshot);
+  enforce(() => assertDevelopmentChange(current.status, status, notes, openTrainingCount(trainings, id), passedTrainingCount(trainings, id)));
   await repository.updateDevelopment(id, status, notes);
   return { developmentNeedId: id, status };
 }

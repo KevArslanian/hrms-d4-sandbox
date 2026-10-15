@@ -110,8 +110,9 @@ describe("development and training (fixture)", () => {
   });
 
   it("requires a result on completion and a reason on rollback", async () => {
-    await expect(source.updateTraining("FIX-D4-TRN-001", "Completed", "", "")).rejects.toThrow(/Result wajib diisi/);
-    await source.updateTraining("FIX-D4-TRN-001", "Completed", "Lulus", "");
+    await expect(source.updateTraining("FIX-D4-TRN-001", "Completed", "", "")).rejects.toThrow(/Passed atau Not Passed/);
+    await expect(source.updateTraining("FIX-D4-TRN-001", "Completed", "Lulus", "")).rejects.toThrow(/Passed atau Not Passed/);
+    await source.updateTraining("FIX-D4-TRN-001", "Completed", "Passed", "");
     await expect(source.updateTraining("FIX-D4-TRN-001", "In Progress", "Lulus", "")).rejects.toThrow(/Alasan wajib diisi/);
     await source.updateTraining("FIX-D4-TRN-001", "In Progress", "Lulus", "Perlu sesi ulang");
     const versions = (await source.loadSnapshot()).trainingVersions.filter((item) => item.trainingId === "FIX-D4-TRN-001");

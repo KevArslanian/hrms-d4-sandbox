@@ -96,14 +96,17 @@ export function DevelopmentStatusModal({ needId, onClose }: { needId: string; on
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
   const openTrainings = trainings(snapshot).filter((item) => item.developmentNeedId === needId && (item.status === "Planned" || item.status === "In Progress"));
+  const passed = trainings(snapshot).filter((item) => item.developmentNeedId === needId && item.status === "Completed" && item.result === "Passed");
   const rollback = current ? isDevelopmentRollback(current.status, status) : false;
-  // Same rule as the server: completing while training still runs needs a reason.
+  // Same rules as the server: completing while training still runs, or without a passed training, needs a reason.
   const completingOpen = status === "Completed" && openTrainings.length > 0;
-  const needsReason = rollback || completingOpen;
+  const completingUnpassed = status === "Completed" && passed.length === 0;
+  const needsReason = rollback || completingOpen || completingUnpassed;
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (rollback && !notes.trim()) { setError(`Alasan wajib diisi saat status mundur dari ${statusLabel(current?.status ?? "")} ke ${statusLabel(status)}.`); return; }
     if (completingOpen && !notes.trim()) { setError("Training untuk requirement ini masih Planned atau In Progress. Selesaikan atau batalkan dulu, atau jelaskan alasannya di Notes."); return; }
+    if (completingUnpassed && !notes.trim()) { setError("Belum ada training berhasil Passed untuk requirement ini. Jelaskan di Notes mengapa requirement tetap diselesaikan."); return; }
     const result = await run((source) => source.updateDevelopment(needId, status, notes), "Status development diperbarui sebagai revisi baru.");
     if (result.ok) onClose(); else setError(result.error);
   }
@@ -114,7 +117,8 @@ export function DevelopmentStatusModal({ needId, onClose }: { needId: string; on
         {(["Identified", "Planned", "In Progress", "Completed"] as const).map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}
       </SelectField>
       {status === "Completed" && openTrainings.length > 0 && <Notice tone="warning">Masih ada {openTrainings.length} training berstatus Planned/In Progress untuk requirement ini ({openTrainings.map((item) => item.activity).join(", ")}). Selesaikan atau batalkan terlebih dahulu, atau jelaskan alasannya di Notes.</Notice>}
-      <TextAreaField label="Notes" testId="notes" required={needsReason} value={notes} onChange={(event) => setNotes(event.target.value)} helper={status === current?.status ? `Status sudah ${status}. Pilih status lain untuk menyimpan.` : rollback ? "Wajib: status mundur ke tahap sebelumnya." : completingOpen ? "Wajib: jelaskan mengapa requirement diselesaikan saat training masih berjalan." : undefined} />
+      {completingUnpassed && <Notice tone="warning">Belum ada training dengan hasil Passed untuk requirement ini. Jika gap ditutup dengan cara lain (misalnya coaching), jelaskan di Notes.</Notice>}
+      <TextAreaField label="Notes" testId="notes" required={needsReason} value={notes} onChange={(event) => setNotes(event.target.value)} helper={status === current?.status ? `Status sudah ${status}. Pilih status lain untuk menyimpan.` : rollback ? "Wajib: status mundur ke tahap sebelumnya." : completingOpen ? "Wajib: jelaskan mengapa requirement diselesaikan saat training masih berjalan." : completingUnpassed ? "Wajib: belum ada training yang Passed." : undefined} />
       <Notice>Perubahan disimpan sebagai revisi baru; riwayat sebelumnya tetap tersedia. Status Completed tidak otomatis menutup gap kompetensi.</Notice>
     </form>
   </FormModal>;

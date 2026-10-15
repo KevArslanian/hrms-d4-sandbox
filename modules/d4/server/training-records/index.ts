@@ -1,10 +1,13 @@
 import type { TrainingStatus } from "../../training/types";
-import { assertNeedOpen, assertTrainingChange, assertTrainingDate } from "../../shared/rules";
+import { assertNeedOpen, assertTrainingChange, assertTrainingDate, TRAINING_RESULTS } from "../../shared/rules";
 import { latestDevelopment, latestTraining } from "../../supabase/types";
 import { ApiError, employeeFilter, enforce, field, readJson } from "../_lib/http";
 import { d4Session, requireWriter } from "../_lib/session";
 
 const statuses: readonly TrainingStatus[] = ["Planned", "In Progress", "Completed", "Cancelled"];
+
+/** Only a completed training has a result, and it is Passed or Not Passed. */
+const completedResult = (body: Record<string, unknown>, status: TrainingStatus) => status === "Completed" ? field.oneOf(body, "result", TRAINING_RESULTS) : "";
 
 /** GET /api/d4/training-records?employee_id= — latest version of each training record. */
 export async function listTraining(request: Request) {
@@ -30,7 +33,7 @@ export async function createTraining(request: Request) {
   const input = {
     employeeId: field.uuid(body, "employeeId"), developmentNeedId: field.uuid(body, "developmentNeedId"),
     activity: field.text(body, "activity", { max: 200 }), date: field.date(body, "date"), status,
-    result: field.text(body, "result", { required: status === "Completed", max: 2000 }), notes: field.text(body, "notes", { required: false, max: 2000 }),
+    result: completedResult(body, status), notes: field.text(body, "notes", { required: false, max: 2000 }),
   };
   const snapshot = await repository.loadSnapshot();
   enforce(() => assertNeedOpen(latestDevelopment(snapshot).find((item) => item.needId === input.developmentNeedId)));
@@ -43,7 +46,7 @@ export async function addTrainingVersion(request: Request, id: string) {
   const { repository } = await requireWriter();
   const body = await readJson(request);
   const status = field.oneOf(body, "status", statuses);
-  const result = field.text(body, "result", { required: status === "Completed", max: 2000 });
+  const result = completedResult(body, status);
   const notes = field.text(body, "notes", { required: false, max: 2000 });
   const current = latestTraining(await repository.loadSnapshot()).find((item) => item.trainingId === id);
   if (!current) throw new ApiError("NOT_FOUND", "Training tidak ditemukan.");
