@@ -30,7 +30,8 @@ function periodData(snapshot: D4LiveSnapshot, employeeId: string, period: string
 /**
  * Dashboard KPI Orang (FR-D4-004): a read-only per-employee summary of the other five features.
  * It reads the same snapshot as the detail pages (FR-06.8), creates no data of its own, adds no
- * aggregate management metrics (out of scope #12) and shows no achieved label (FR-06.10).
+ * aggregate management metrics (out of scope #12) except the competency pie asked for in Interview D4,
+ * and shows no achieved label (FR-06.10).
  */
 export function DashboardPage() {
   const snapshot = useSnapshot();
@@ -63,6 +64,7 @@ export function DashboardPage() {
       {/* The dashboard always shows one period, so there is no "All periods" choice; it starts on the latest one. */}
       <SelectFilter label="Period" testId="latest-period" emptyOption={false} value={period || periods[0] || ""} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
     </FilterBar>
+    {snapshot.role !== "EMPLOYEE" && rows.length > 0 && <CompetencyPie rows={rows} />}
     <DataTable<Row> rows={rows} noun="employees" rowKey={(row) => row.employee.id}
       emptyTitle="Tidak ada pegawai yang cocok" emptyText={snapshot.role === "EMPLOYEE" ? "Ubah kata kunci atau periode, lalu coba lagi." : "Ubah kata kunci, posisi, departemen, atau periode, lalu coba lagi."}
       columns={[
@@ -80,6 +82,37 @@ export function DashboardPage() {
         { label: "View Performance Review", testId: "view-penilaian", icon: <Target />, href: row.scorecard ? `/performance/scorecard/${row.scorecard.id}` : `/performance/history/${row.employee.id}` },
       ]} />} />
   </>;
+}
+
+const PIE_COLORS: Record<string, string> = {
+  Terpenuhi: "var(--color-success)", Gap: "var(--color-danger)", "Bukti Belum Cukup": "var(--color-warning)",
+  "Belum Ada Persyaratan": "var(--color-info)", "Not Evaluated": "var(--color-neutral)",
+};
+
+/** Competency status of the employees in the current filter, as a pie (CSS conic-gradient, no chart library). */
+function CompetencyPie({ rows }: { rows: Row[] }) {
+  const counts = Object.keys(PIE_COLORS).map((status) => ({ status, count: rows.filter((row) => row.gap === status).length })).filter((item) => item.count);
+  let start = 0;
+  const stops = counts.map(({ status, count }) => {
+    const end = start + (count / rows.length) * 360;
+    const stop = `${PIE_COLORS[status]} ${start}deg ${end}deg`;
+    start = end;
+    return stop;
+  });
+  const summary = counts.map((item) => `${statusLabel(item.status)} ${item.count}`).join(", ");
+  return <Card title="Competency status" testId="competency-pie" className="mb-6">
+    <div className="flex flex-wrap items-center gap-6">
+      <div role="img" aria-label={`Competency status: ${summary}`} className="size-32 shrink-0 rounded-full" style={{ background: `conic-gradient(${stops.join(", ")})` }} />
+      <ul className="space-y-2 text-sm">
+        {counts.map(({ status, count }) => <li key={status} className="flex items-center gap-2">
+          <span aria-hidden="true" className="size-3 rounded-sm" style={{ background: PIE_COLORS[status] }} />
+          <span className="text-ink-2">{statusLabel(status)}</span>
+          <span className="font-semibold tabular-nums text-ink">{count}</span>
+          <span className="text-xs text-ink-3">({Math.round((count / rows.length) * 100)}%)</span>
+        </li>)}
+      </ul>
+    </div>
+  </Card>;
 }
 
 function ScoreCell({ scorecard }: { scorecard?: KpiAssessment }) {
@@ -121,7 +154,7 @@ export function EmployeeProfilePage({ employeeId, initialPeriod = "" }: { employ
         </table></div> : <p className="px-6 pb-6 text-sm text-ink-3">Belum ada Performance Review untuk periode ini.</p>}
       </Card>
       {/* FR-04.3: the evaluation card shows the notes of the Performance Review (older records: the separate evaluation). */}
-      <Card title="Catatan evaluasi" testId="performance-evaluation" actions={<SourceLink href={scorecard ? `/performance/scorecard/${scorecard.id}` : evaluation ? `/performance/${evaluation.id}` : `/performance/history/${employee.id}`} />}>
+      <Card title="Notes" testId="performance-evaluation" actions={<SourceLink href={scorecard ? `/performance/scorecard/${scorecard.id}` : evaluation ? `/performance/${evaluation.id}` : `/performance/history/${employee.id}`} />}>
         {scorecard?.generalNotes ? <><p className="text-sm text-ink-2">{formatPeriod(scorecard.period)} · {formatDate(scorecard.evaluationDate)} · Penilai {scorecard.evaluatorName || "—"}</p><p className="mt-3 line-clamp-6 whitespace-pre-wrap text-sm text-ink">{scorecard.generalNotes}</p></>
           : evaluation ? <><p className="text-sm text-ink-2">{formatPeriod(evaluation.period)} · {formatDate(evaluation.evaluationDate)} · Penilai {evaluation.evaluator || "—"}</p><p className="mt-3 line-clamp-6 whitespace-pre-wrap text-sm text-ink">{evaluation.generalNotes || "—"}</p></>
           : <p className="text-sm text-ink-3">Belum ada catatan evaluasi untuk periode ini.</p>}
