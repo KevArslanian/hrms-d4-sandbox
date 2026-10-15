@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CompetencyAssessment } from "@/modules/d4/competency/types";
 import { assertDevelopmentChange, assertTrainingResult, passedTrainingCount, assertGapAssessed, assertNotFutureDate, assertTrainingDate, openTrainingCount, isTrainingRollback, localMonth, localToday, revisionNumber } from "@/modules/d4/shared/rules";
 import type { EmployeeReference } from "@/modules/d4/shared/types";
-import { asEmployee, assessableEmployees, canWrite, currentCompetencyStatus, currentGap, latestCurrentPositionAssessment, revisionTag, visibleEmployees, type Snapshot } from "@/modules/d4/web/data/selectors";
+import { asEmployee, assessableEmployees, inTrainingOrPositionChange, canWrite, currentCompetencyStatus, currentGap, latestCurrentPositionAssessment, revisionTag, visibleEmployees, type Snapshot } from "@/modules/d4/web/data/selectors";
 import type { TrainingStatus } from "@/modules/d4/training/types";
 
 const ALFA = "d4000000-0000-4000-8000-000000000009";
@@ -164,6 +164,16 @@ describe("role views (fixture)", () => {
     const records = [...snapshot.performance, ...(snapshot.kpiAssessments ?? []), ...snapshot.competency, ...snapshot.developmentVersions, ...snapshot.trainingVersions];
     expect(records.length).toBeGreaterThan(0);
     expect(records.every((item) => item.employeeId === ALFA)).toBe(true);
+  });
+
+  it("an employee is in scope for competency only with an open requirement or a position change", async () => {
+    const snapshot = await (await fixtureAs("HR")).loadSnapshot();
+    const open = snapshot.developmentVersions.find((item) => item.status !== "Completed")!;
+    expect(inTrainingOrPositionChange(snapshot, open.employeeId)).toBe(true);
+    const closed = { ...snapshot, developmentVersions: snapshot.developmentVersions.map((item) => ({ ...item, status: "Completed" as const })), competency: [] };
+    expect(inTrainingOrPositionChange(closed, open.employeeId)).toBe(false);
+    const promoted = { ...closed, competency: [{ ...snapshot.competency[0], employeeId: open.employeeId, context: "role-change" as const }] };
+    expect(inTrainingOrPositionChange(promoted, open.employeeId)).toBe(true);
   });
 });
 
