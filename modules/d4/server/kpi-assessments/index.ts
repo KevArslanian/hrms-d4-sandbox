@@ -61,7 +61,10 @@ export async function createAssessment(request: Request) {
     };
   });
   const generalNotes = field.text(body, "generalNotes", { required: false, max: 4000 }).trim();
-  if (!generalNotes) throw new ApiError("VALIDATION_FAILED", "Catatan evaluasi wajib diisi.");
+  if (!generalNotes) throw new ApiError("VALIDATION_FAILED", "Notes wajib diisi.");
+  // Interview D4 (14 Oct 2026): evidence is required.
+  const evidenceReference = field.text(body, "evidenceReference", { required: false, max: 500 }).trim();
+  if (!evidenceReference) throw new ApiError("VALIDATION_FAILED", "Bukti / referensi wajib diisi.");
   const evaluationDate = field.date(body, "evaluationDate", { required: status === "completed" });
   enforce(() => assertNotFutureDate(evaluationDate));
   const id = await repository.saveKpiAssessment({
@@ -70,9 +73,9 @@ export async function createAssessment(request: Request) {
     period, evaluationDate,
     evaluatorName,
     status, lines,
-    // FR-D4-001 v3.1: one Penilaian Kinerja = five KPI + evaluation notes (required) + optional evidence.
+    // FR-D4-001 v3.1: one Penilaian Kinerja = five KPI + notes + evidence, all required.
     generalNotes,
-    evidenceReference: field.text(body, "evidenceReference", { required: false, max: 500 }).trim() || null,
+    evidenceReference,
   });
   return { id, definitionVersion: catalog.version };
 }
