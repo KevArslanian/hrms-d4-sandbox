@@ -120,7 +120,7 @@ const evaluationBody = (patch: Record<string, unknown> = {}) => ({
 const kpiBody = (patch: Record<string, unknown> = {}) => {
   const current = snapshot.kpiAssessments!.find((item) => item.id === KPI_ALFA)!;
   return { employeeId: ALFA, roleOrder: current.roleOrder, period: "2026-10", evaluationDate: "2026-10-01", status: "completed",
-    lines: current.lines.map((line) => ({ ...line, raw_score: 4 })), generalNotes: "Uji", ...patch };
+    lines: current.lines.map((line) => ({ ...line, raw_score: 4 })), generalNotes: "Uji", evidenceReference: "DOC-1", ...patch };
 };
 
 // One valid request per write route; HR gets 201 on each (asserted below), so a 401/403 can only come from the guard.
@@ -268,7 +268,8 @@ describe("POST /kpi-assessments", () => {
     ["four lines", { lines: [] }, /./],
     ["fractional score", { fractional: true }, /bilangan bulat/],
     ["unknown employee", { employeeId: uuid(500) }, /tidak ditemukan/],
-    ["no evaluation notes", { generalNotes: "   " }, /Catatan evaluasi wajib/],
+    ["no evaluation notes", { generalNotes: "   " }, /Notes wajib/],
+    ["no evidence", { evidenceReference: " " }, /Bukti \/ referensi wajib/],
   ])("rejects %s", async (_name, patch: Record<string, unknown>, message) => {
     const { fractional, ...rest } = patch;
     const body = kpiBody(rest);

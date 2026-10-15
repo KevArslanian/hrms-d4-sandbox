@@ -144,7 +144,8 @@ export function createFixtureSource(): D4DataSource {
       assertNotSelf(state.actorEmployeeId, input.employeeId);
       assertNotFutureDate(input.evaluationDate);
       assertPeriodRevision(state.kpiAssessments ?? [], input.employeeId, input.period, revisionOf, "Scorecard");
-      if (!input.generalNotes.trim()) throw new Error("Catatan evaluasi wajib diisi.");
+      if (!input.generalNotes.trim()) throw new Error("Notes wajib diisi.");
+      if (!input.evidenceReference) throw new Error("Bukti / referensi wajib diisi.");
       const periodCatalog = catalogFor(seedCatalogSet(state.reference.positions), input.period);
       if (!periodCatalog) throw new Error(`Belum ada katalog KPI yang berlaku untuk periode ${input.period}.`);
       const indicators = indicatorsFor(periodCatalog, input.roleOrder);
