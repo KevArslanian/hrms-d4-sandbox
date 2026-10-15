@@ -45,7 +45,7 @@ interface RawKpi { id: string; employee_id: string; period: string; kpi_score: n
 interface RawKpiAssessment { id: string; definition_version?: string; employee_id: string; role_order: number; role_name: string; period: string; evaluation_date: string | null; evaluator_name: string; status: "draft" | "completed"; lines: unknown; overall_score: number | null; general_notes: string; evidence_reference?: string | null; actor_employee_id: string; created_at: string }
 interface RawPerformance { id: string; employee_id: string; period: string; evaluation_date: string | null; evaluator_name_snapshot: string; status: "draft" | "completed"; review_status: PerformanceEvaluation["reviewStatus"]; overall_score: number | null; aspects: unknown; general_notes: string; evidence_reference: string | null; actor_employee_id: string; created_at: string }
 interface RawAssessment { id: string; employee_id: string; position_id: string; effective_date: string; context: CompetencyAssessment["context"]; overall_status: CompetencyOverallStatus; findings: unknown; actor_employee_id: string; created_at: string }
-interface RawDevelopment { id: string; employee_id: string; source_type: DevelopmentSourceType; position_requirement_id: string | null; competency_assessment_id: string | null; kpi_assessment_id?: string | null; performance_evaluation_id: string | null; objective: string; priority: DevelopmentPriority }
+interface RawDevelopment { id: string; employee_id: string; source_type: DevelopmentSourceType; position_requirement_id: string | null; competency_assessment_id: string | null; kpi_assessment_id?: string | null; performance_evaluation_id: string | null; objective: string; priority: DevelopmentPriority; method?: string | null; pic?: string | null }
 interface RawDevelopmentVersion { id: string; development_need_id: string; revision: number; status: DevelopmentStatus; notes: string; actor_employee_id: string; created_at: string }
 interface RawTraining { id: string; employee_id: string; development_need_id: string; activity: string; activity_date: string }
 interface RawTrainingVersion { id: string; training_id: string; revision: number; status: TrainingStatus; result: string; notes: string; actor_employee_id: string; created_at: string }
@@ -164,7 +164,7 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
       return [{ id: version.id, needId: need.id, revision: version.revision, source: "supabase" as const,
         employeeId: need.employee_id, sourceType: need.source_type,
         sourceRef: need.position_requirement_id ?? need.competency_assessment_id ?? need.kpi_assessment_id ?? need.performance_evaluation_id ?? "",
-        objective: need.objective, priority: need.priority, status: version.status, notes: version.notes,
+        objective: need.objective, priority: need.priority, method: need.method ?? "", pic: need.pic ?? "", status: version.status, notes: version.notes,
         createdAt: version.created_at, actor: actorName(reference, version.actor_employee_id) }];
     });
     const trainingById = new Map(trainingRows.map((row) => [row.id, row]));
@@ -239,7 +239,7 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
     return take(result, "Save assessment").id;
   }
 
-  async createDevelopment(input: { employeeId: string; sourceType: DevelopmentSourceType; sourceRef: string; objective: string; priority: DevelopmentPriority; notes: string }, snapshot: D4LiveSnapshot): Promise<string> {
+  async createDevelopment(input: { employeeId: string; sourceType: DevelopmentSourceType; sourceRef: string; objective: string; priority: DevelopmentPriority; notes: string; method?: string; pic?: string }, snapshot: D4LiveSnapshot): Promise<string> {
     await this.requireUser();
     if (!snapshot.reference.employees.some((item) => item.id === input.employeeId)) throw new ApiError("NOT_FOUND", "Pegawai tidak ditemukan.");
     if (!input.objective.trim()) throw new ApiError("VALIDATION_FAILED", "Development objective wajib diisi.");
@@ -254,6 +254,7 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
     const result = await this.client.rpc("d4_create_development_need", {
       p_employee_id: input.employeeId, p_source_type: input.sourceType, p_source_ref: input.sourceRef,
       p_objective: input.objective.trim(), p_priority: input.priority, p_notes: input.notes.trim(),
+      p_method: input.method?.trim() || null, p_pic: input.pic?.trim() || null,
     });
     return take(result, "Save development need") as string;
   }

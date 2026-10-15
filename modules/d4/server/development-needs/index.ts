@@ -32,6 +32,7 @@ export async function createDevelopment(request: Request) {
     employeeId: field.uuid(body, "employeeId"), sourceType: field.oneOf(body, "sourceType", sourceTypes),
     sourceRef: field.uuid(body, "sourceRef"), objective: field.text(body, "objective", { max: 500 }),
     priority: field.oneOf(body, "priority", priorities), notes: field.text(body, "notes", { required: false, max: 2000 }),
+    method: field.text(body, "method", { required: false, max: 120 }), pic: field.text(body, "pic", { required: false, max: 120 }),
   };
   const snapshot = await repository.loadSnapshot();
   enforce(() => assertNoOpenNeed(latestDevelopment(snapshot), input.employeeId, input.sourceType, input.sourceRef));

@@ -30,6 +30,8 @@ export function sourceOptions(snapshot: ReturnType<typeof useSnapshot>, employee
     .map((item) => ({ ref: item.id, label: `Performance Review ${formatPeriod(item.period)} · ${item.evaluatorName || "—"}` }));
 }
 
+const DEVELOPMENT_METHODS = ["Training", "Coaching", "Mentoring", "On-the-job training", "Self-learning"];
+
 export function DevelopmentFormModal({ employeeId, sourceType, sourceRef, onClose, onSaved }: { employeeId?: string; sourceType?: DevelopmentSourceType; sourceRef?: string; onClose: () => void; onSaved?: (id: string) => void }) {
   const snapshot = useSnapshot();
   const { run, busy } = useD4();
@@ -39,6 +41,8 @@ export function DevelopmentFormModal({ employeeId, sourceType, sourceRef, onClos
   const [objective, setObjective] = useState("");
   const [priority, setPriority] = useState<DevelopmentPriority>("Medium");
   const [notes, setNotes] = useState("");
+  const [method, setMethod] = useState("");
+  const [pic, setPic] = useState("");
   const [error, setError] = useState("");
   const [touched, setTouched] = useState(false);
   const options = useMemo(() => sourceOptions(snapshot, employee, type), [snapshot, employee, type]);
@@ -52,7 +56,7 @@ export function DevelopmentFormModal({ employeeId, sourceType, sourceRef, onClos
     setError("");
     // The gap changes as competencies are updated; keep the level seen when the need was raised.
     const snapshotNote = type === "competency_gap" ? `Gap saat dibuat (${formatDate(today())}): ${chosen.label}` : "";
-    const result = await run((source) => source.createDevelopment({ employeeId: employee, sourceType: type, sourceRef: reference, objective, priority, notes: [notes.trim(), snapshotNote].filter(Boolean).join("\n") }), "Development requirement tersimpan beserta referensi sumbernya.");
+    const result = await run((source) => source.createDevelopment({ employeeId: employee, sourceType: type, sourceRef: reference, objective, priority, method, pic, notes: [notes.trim(), snapshotNote].filter(Boolean).join("\n") }), "Development requirement tersimpan beserta referensi sumbernya.");
     if (result.ok) { onSaved?.(result.value); onClose(); } else setError(result.error);
   }
 
@@ -82,6 +86,9 @@ export function DevelopmentFormModal({ employeeId, sourceType, sourceRef, onClos
           {(["High", "Medium", "Low"] as const).map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}
         </SelectField>
         <ReadOnlyField label="Created date" testId="created-date" value={formatDate(today())} />
+        <TextField label="Metode" testId="method" list="d4-development-methods" maxLength={120} value={method} onChange={(event) => setMethod(event.target.value)} helper="Opsional. Boleh diisi nanti oleh HR." />
+        <datalist id="d4-development-methods">{DEVELOPMENT_METHODS.map((item) => <option key={item} value={item} />)}</datalist>
+        <TextField label="PIC" testId="pic" maxLength={120} value={pic} onChange={(event) => setPic(event.target.value)} helper="Orang yang menindaklanjuti requirement ini." />
       </div>
       <TextAreaField label="Notes" testId="notes" value={notes} onChange={(event) => setNotes(event.target.value)} helper="HR yang menentukan metode training akhir; gap tidak menentukannya secara otomatis." />
     </form>
