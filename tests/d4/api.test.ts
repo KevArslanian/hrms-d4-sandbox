@@ -364,6 +364,13 @@ describe("development needs and training", () => {
     expect(ok.status).toBe(201);
   });
 
+  it("accepts only Passed or Not Passed as the result of a completed training", async () => {
+    const bad = await call(trainingVersions.POST(post({ status: "Completed", result: "Lulus" }), params(TRAINING)));
+    expect(bad).toMatchObject({ status: 422 });
+    const ok = await call(trainingVersions.POST(post({ status: "Completed", result: "Not Passed" }), params(TRAINING)));
+    expect(ok.status).toBe(201);
+  });
+
   it("returns 404 for a status update of an unknown training", async () => {
     const res = await call(trainingVersions.POST(post({ status: "Planned" }), params(uuid(404))));
     expect(res).toMatchObject({ status: 404, body: { error: { code: "NOT_FOUND" } } });

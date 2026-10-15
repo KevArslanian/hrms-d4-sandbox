@@ -4,7 +4,7 @@ import { catalogFor, indicatorsFor, KPI_V51_CATALOG, roleForPosition, seedCatalo
 import { performanceFixtureRecords } from "../../performance/fixtures";
 import { validatePerformanceInput } from "../../performance/validation";
 import { d4ReferenceFixture } from "../../shared/fixtures";
-import { assertDevelopmentChange, assertGapAssessed, assertTrainingDate, assertNeedOpen, assertNoOpenNeed, openTrainingCount, assertNotFutureDate, assertNotSelf, assertPeriodRevision, assertTrainingChange } from "../../shared/rules";
+import { assertDevelopmentChange, assertGapAssessed, assertTrainingDate, assertNeedOpen, assertNoOpenNeed, openTrainingCount, passedTrainingCount, assertTrainingResult, assertNotFutureDate, assertNotSelf, assertPeriodRevision, assertTrainingChange } from "../../shared/rules";
 import type { D4LiveSnapshot, KpiAssessment, KpiAssessmentLine } from "../../supabase/types";
 import { latestDevelopment, latestTraining } from "../../supabase/types";
 import { trainingFixtureVersions } from "../../training/fixtures";
@@ -180,7 +180,8 @@ export function createFixtureSource(): D4DataSource {
       assertWriter();
       const current = latestDevelopment(state).find((item) => item.needId === needId);
       if (!current) throw new Error("Development requirement tidak ditemukan.");
-      assertDevelopmentChange(current.status, status, notes, openTrainingCount(latestTraining(state), needId));
+      const trainings = latestTraining(state);
+      assertDevelopmentChange(current.status, status, notes, openTrainingCount(trainings, needId), passedTrainingCount(trainings, needId));
       update({ developmentVersions: [{ ...current, id: newId("FIX-D4-DEV-V"), revision: current.revision + 1, status, notes, createdAt: now(), actor: actorName() }, ...state.developmentVersions] });
     },
     async createTraining(input) {
@@ -189,7 +190,7 @@ export function createFixtureSource(): D4DataSource {
       if (!need || need.employeeId !== input.employeeId) throw new Error("Training harus merujuk ke development requirement milik pegawai yang sama.");
       assertNeedOpen(need);
       assertTrainingDate(input.status, input.date);
-      if (input.status === "Completed" && !input.result.trim()) throw new Error("Result wajib diisi saat training Completed.");
+      assertTrainingResult(input.status, input.result);
       const trainingId = newId("FIX-D4-TRN");
       update({ trainingVersions: [{ ...input, id: newId("FIX-D4-TRN-V"), trainingId, revision: 1, source: "local-demo", createdAt: now(), actor: actorName() }, ...state.trainingVersions] });
       return trainingId;
@@ -198,7 +199,7 @@ export function createFixtureSource(): D4DataSource {
       assertWriter();
       const current = latestTraining(state).find((item) => item.trainingId === trainingId);
       if (!current) throw new Error("Training tidak ditemukan.");
-      if (status === "Completed" && !result.trim()) throw new Error("Result wajib diisi saat training Completed.");
+      assertTrainingResult(status, result);
       assertTrainingChange(current.status, status, notes);
       update({ trainingVersions: [{ ...current, id: newId("FIX-D4-TRN-V"), revision: current.revision + 1, status, result, notes, createdAt: now(), actor: actorName() }, ...state.trainingVersions] });
     },
