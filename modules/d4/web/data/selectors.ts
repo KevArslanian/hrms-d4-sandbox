@@ -138,13 +138,32 @@ export const developmentNeeds = (snapshot: Snapshot): readonly DevelopmentNeedVe
 export const trainings = (snapshot: Snapshot): readonly TrainingVersion[] => indexOf(snapshot).trainings;
 /** Latest revision of each need / training of one employee, newest first. */
 export const needsOf = (snapshot: Snapshot, employeeId: string): readonly DevelopmentNeedVersion[] => indexOf(snapshot).needsByEmployee.get(employeeId) ?? [];
+/** Employment statuses HR sets for people still in training (interview D4: "yang menentukan HR"). */
+const TRAINEE_STATUSES = ["PROBATION", "INTERN"];
 /**
- * Competency is assessed while an employee is in training or changing position (interview D4, 14 Oct 2026):
- * an unfinished development requirement, or a saved position change assessment.
+ * After a promotion or position change the competency stays in scope this long. Trainees need no month count
+ * (HR flips the status), and probation is capped at 3 months by Indonesian labour law; a new role takes longer to
+ * close a gap, so a position change gets 6 months.
  */
-export const inTrainingOrPositionChange = (snapshot: Snapshot, employeeId: string) =>
-  developmentNeeds(snapshot).some((item) => item.employeeId === employeeId && item.status !== "Completed")
-  || snapshot.competency.some((item) => item.employeeId === employeeId && item.context === "role-change");
+export const POSITION_CHANGE_SCOPE_MONTHS = 6;
+
+const addMonths = (isoDate: string, months: number) => {
+  const date = new Date(`${isoDate}T00:00:00Z`);
+  date.setUTCMonth(date.getUTCMonth() + months);
+  return date.toISOString().slice(0, 10);
+};
+
+/**
+ * Competency is assessed for trainees (probation or intern status), for promoted employees (a saved position
+ * change assessment in the last POSITION_CHANGE_SCOPE_MONTHS) and while a requirement is still open
+ * (interview D4, 14 Oct 2026).
+ */
+export const inTrainingOrPositionChange = (snapshot: Snapshot, employeeId: string, on: string = today()) => {
+  const status = employeeById(snapshot, employeeId)?.employmentStatus?.toUpperCase();
+  return Boolean(status && TRAINEE_STATUSES.includes(status))
+    || developmentNeeds(snapshot).some((item) => item.employeeId === employeeId && item.status !== "Completed")
+    || snapshot.competency.some((item) => item.employeeId === employeeId && item.context === "role-change" && addMonths(item.effectiveDate, POSITION_CHANGE_SCOPE_MONTHS) >= on);
+};
 
 export const trainingsOf = (snapshot: Snapshot, employeeId: string): readonly TrainingVersion[] => indexOf(snapshot).trainingsByEmployee.get(employeeId) ?? [];
 export const developmentById = (snapshot: Snapshot, needId: string) => developmentNeeds(snapshot).find((item) => item.needId === needId);

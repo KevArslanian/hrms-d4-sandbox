@@ -37,7 +37,7 @@ async function allRows(query: () => Pageable): Promise<QueryResult<unknown[]>> {
 
 interface RawDepartment { id: string; code: string; name: string }
 interface RawPosition { id: string; code: string; title: string; department_id: string | null }
-interface RawEmployee { id: string; employee_id: string; full_name: string; position_id: string | null; department_id: string | null }
+interface RawEmployee { id: string; employee_id: string; full_name: string; position_id: string | null; department_id: string | null; employment_status?: string | null }
 interface RawCompetency { id: string; code: string; name: string; category: string | null }
 interface RawRequirement { id: string; position_id: string; competency_id: string; min_proficiency_level: number; is_mandatory: boolean | null }
 interface RawSkill { id: string; employee_id: string; competency_id: string; proficiency_level: number; evidence_notes: string | null }
@@ -76,7 +76,8 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
     const [departmentsResult, positionsResult, employeesResult, competenciesResult, requirementsResult, skillsResult] = await Promise.all([
       allRows(() => this.client.from("d3_departments").select("id,code,name").order("id")),
       allRows(() => this.client.from("d3_positions").select("id,code,title,department_id").order("id")),
-      allRows(() => this.client.from("d4_employee").select("id,employee_id,full_name,position_id,department_id").order("id")),
+      allRows(() => // "*" keeps this working before and after the view exposes employment_status (same approach as d4_kpi_assessments).
+      this.client.from("d4_employee").select("*").order("id")),
       allRows(() => this.client.from("d3_competencies").select("id,code,name,category").order("id")),
       allRows(() => this.client.from("position_requirements").select("id,position_id,competency_id,min_proficiency_level,is_mandatory").order("id")),
       allRows(() => this.client.from("d4_employee_skills").select("id,employee_id,competency_id,proficiency_level,evidence_notes").order("id")),
@@ -91,7 +92,7 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
       source: "supabase",
       departments: departments.map((row) => ({ id: row.id, code: row.code, name: row.name })),
       positions: positions.map((row) => ({ id: row.id, code: row.code, title: row.title, departmentId: row.department_id })),
-      employees: employees.map((row) => ({ id: row.id, employeeId: row.employee_id, fullName: row.full_name, positionId: row.position_id, departmentId: row.department_id })),
+      employees: employees.map((row) => ({ id: row.id, employeeId: row.employee_id, fullName: row.full_name, positionId: row.position_id, departmentId: row.department_id, employmentStatus: row.employment_status ?? null })),
       competencies: competencies.map((row) => ({ id: row.id, code: row.code, name: row.name, category: row.category })),
       positionRequirements: requirements.map((row) => ({ id: row.id, positionId: row.position_id, competencyId: row.competency_id, minProficiencyLevel: row.min_proficiency_level, isMandatory: row.is_mandatory ?? true })),
       employeeSkills: skills.map((row) => ({ id: row.id, employeeId: row.employee_id, competencyId: row.competency_id, proficiencyLevel: row.proficiency_level, evidenceNotes: row.evidence_notes })),
