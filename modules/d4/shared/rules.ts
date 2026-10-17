@@ -76,16 +76,31 @@ const DEVELOPMENT_STEP: Record<DevelopmentStatus, number> = { Identified: 0, Pla
 /** Moving back (e.g. Completed → Planned). */
 export const isDevelopmentRollback = (from: DevelopmentStatus, to: DevelopmentStatus) => DEVELOPMENT_STEP[to] < DEVELOPMENT_STEP[from];
 
-/** A status update must change the status, and moving back needs a reason (same rule as training). */
-export function assertDevelopmentChange(from: DevelopmentStatus, to: DevelopmentStatus, notes: string, openTrainings = 0) {
+/**
+ * A status update must change the status, and moving back needs a reason (same rule as training).
+ * Completing a need is expected to follow a passed training; otherwise the reason goes in Notes.
+ */
+export function assertDevelopmentChange(from: DevelopmentStatus, to: DevelopmentStatus, notes: string, openTrainings = 0, passedTrainings = 0) {
   if (from === to) throw new ApiError("VALIDATION_FAILED", `Status sudah ${to}. Pilih status lain.`);
   if (isDevelopmentRollback(from, to) && !notes.trim()) throw new ApiError("VALIDATION_FAILED", `Alasan wajib diisi saat status mundur dari ${from} ke ${to}.`);
   if (to === "Completed" && openTrainings > 0 && !notes.trim()) throw new ApiError("VALIDATION_FAILED", "Training untuk requirement ini masih Planned atau In Progress. Selesaikan atau batalkan dulu, atau jelaskan alasannya di Notes.");
+  if (to === "Completed" && passedTrainings === 0 && !notes.trim()) throw new ApiError("VALIDATION_FAILED", "Belum ada training berhasil Passed untuk requirement ini. Jelaskan di Notes mengapa requirement tetap diselesaikan.");
 }
 
 /** Planned/In Progress trainings of a need: completing the need while these run needs a reason. */
 export const openTrainingCount = (trainings: readonly { developmentNeedId: string; status: TrainingStatus }[], needId: string) =>
   trainings.filter((item) => item.developmentNeedId === needId && (item.status === "Planned" || item.status === "In Progress")).length;
+
+/** Completed trainings of a need that the employee passed. */
+export const passedTrainingCount = (trainings: readonly { developmentNeedId: string; status: TrainingStatus; result: string }[], needId: string) =>
+  trainings.filter((item) => item.developmentNeedId === needId && item.status === "Completed" && item.result === "Passed").length;
+
+/** Outcome of a completed training: Not Passed keeps the need open so the training can be repeated. */
+export const TRAINING_RESULTS = ["Passed", "Not Passed"] as const;
+
+export function assertTrainingResult(status: TrainingStatus, result: string) {
+  if (status === "Completed" && !(TRAINING_RESULTS as readonly string[]).includes(result)) throw new ApiError("VALIDATION_FAILED", "Pilih hasil training yang Completed: Passed atau Not Passed.");
+}
 
 /** A gap-based need is raised only after a competency assessment is saved for the employee's active position. */
 export function assertGapAssessed(competency: readonly { employeeId: string; positionId: string }[], employee: { id: string; positionId?: string | null } | undefined, sourceType: DevelopmentSourceType) {

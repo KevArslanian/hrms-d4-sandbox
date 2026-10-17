@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, GraduationCap, History, Plus, RefreshCw } from "lucide-react";
+import { ClipboardCheck, Eye, GraduationCap, History, Plus, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { DevelopmentNeedVersion, DevelopmentSourceType } from "../../../development/types";
 import { useSnapshot } from "../../data/D4DataProvider";
@@ -87,12 +87,16 @@ export function DevelopmentDetailPage({ needId }: { needId: string }) {
         {writer && <Button icon={<RefreshCw className="size-4" />} onClick={() => setStatusOpen(true)} data-testid="btn-update-status">Update Status</Button>}
         {/* A completed requirement cannot take new training (assertNeedOpen). */}
         {writer && need.status !== "Completed" && <Button icon={<GraduationCap className="size-4" />} onClick={() => setTrainingOpen(true)} data-testid="btn-create-training">Create Training</Button>}
+        {/* Completed does not close the gap by itself: the next step is a fresh competency assessment. */}
+        {writer && need.status === "Completed" && <ButtonLink href={`/competency/${employee.id}`} icon={<ClipboardCheck className="size-4" />} testId="reassess-competency">Reassess Competency</ButtonLink>}
       </>} />
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
       <Card title="Requirement">
         <p className="font-display font-semibold text-lg text-ink">{need.objective}</p>
         <div className="mt-6"><InfoGrid columns={3} items={[
           { label: "Priority", testId: "priority", value: statusLabel(need.priority) },
+          { label: "Metode", testId: "method", value: need.method || "—" },
+          { label: "PIC", testId: "pic", value: need.pic || "—" },
           { label: "Status", value: <StatusBadge status={need.status} /> },
           { label: "Last updated", testId: "last-updated", value: `${formatDate(need.createdAt)} · ${need.actor}` },
           { label: "Created", testId: "created", value: formatDate(history[history.length - 1]?.createdAt) },

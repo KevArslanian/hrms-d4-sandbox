@@ -120,7 +120,7 @@ const evaluationBody = (patch: Record<string, unknown> = {}) => ({
 const kpiBody = (patch: Record<string, unknown> = {}) => {
   const current = snapshot.kpiAssessments!.find((item) => item.id === KPI_ALFA)!;
   return { employeeId: ALFA, roleOrder: current.roleOrder, period: "2026-10", evaluationDate: "2026-10-01", status: "completed",
-    lines: current.lines.map((line) => ({ ...line, raw_score: 4 })), generalNotes: "Uji", ...patch };
+    lines: current.lines.map((line) => ({ ...line, raw_score: 4 })), generalNotes: "Uji", evidenceReference: "DOC-1", ...patch };
 };
 
 // One valid request per write route; HR gets 201 on each (asserted below), so a 401/403 can only come from the guard.
@@ -268,7 +268,8 @@ describe("POST /kpi-assessments", () => {
     ["four lines", { lines: [] }, /./],
     ["fractional score", { fractional: true }, /bilangan bulat/],
     ["unknown employee", { employeeId: uuid(500) }, /tidak ditemukan/],
-    ["no evaluation notes", { generalNotes: "   " }, /Catatan evaluasi wajib/],
+    ["no evaluation notes", { generalNotes: "   " }, /Notes wajib/],
+    ["no evidence", { evidenceReference: " " }, /Bukti \/ referensi wajib/],
   ])("rejects %s", async (_name, patch: Record<string, unknown>, message) => {
     const { fractional, ...rest } = patch;
     const body = kpiBody(rest);
@@ -316,6 +317,46 @@ describe("POST /kpi-assessments", () => {
     expect(saved.weight_percent).toBe(kpiBody().lines[0].weight_percent);
   });
 
+  // The target is fixed (85 unless the catalog carries one); whatever the form sends is ignored.
+  it("stores the fixed target and ignores the target sent by the client", async () => {
+    const body = kpiBody();
+    body.lines = body.lines.map((line) => ({ ...line, target: "999" }));
+    const res = await call(kpi.POST(post(body)));
+    expect(res.status).toBe(201);
+    const saved = (writes[0].args[0] as { lines: { target: string }[] }).lines;
+    expect(saved.map((line) => line.target)).toEqual(["85", "85", "85", "85", "85"]);
+  });
+
+  // Catalog V6 (from 2026-11) scores 1–100; V5.1 keeps 1–5.
+  describe("score scale per catalog version", () => {
+    const useV6 = () => {
+      catalogRows = [...KPI_V51_CATALOG, ...KPI_V51_CATALOG.map((row) => ({ ...row, source_version: "V6" }))];
+      catalogVersions = [{ source_version: "V5.1", effective_from: "2000-01" }, { source_version: "V6", effective_from: "2026-11" }];
+    };
+    const withScore = (period: string, rawScore: number) => { const body = kpiBody({ period }); body.lines = body.lines.map((line) => ({ ...line, raw_score: rawScore })); return body; };
+
+    it("accepts a score up to 100 for a V6 period", async () => {
+      useV6();
+      const res = await call(kpi.POST(post(withScore("2026-11", 85))));
+      expect(res.status).toBe(201);
+      expect((writes[0].args[0] as { definitionVersion: string }).definitionVersion).toBe("V6");
+    });
+
+    it("rejects 101 for a V6 period", async () => {
+      useV6();
+      const res = await call(kpi.POST(post(withScore("2026-11", 101))));
+      expect(res.status).toBe(422);
+      expect(writes).toHaveLength(0);
+    });
+
+    it("still rejects a score above 5 for a V5.1 period", async () => {
+      useV6();
+      const res = await call(kpi.POST(post(withScore("2026-10", 85))));
+      expect(res.status).toBe(422);
+      expect(writes).toHaveLength(0);
+    });
+  });
+
   it("rejects an empty Core KPI name", async () => {
     const body = kpiBody();
     body.lines = body.lines.map((line, index) => index ? line : { ...line, kpi_name: " " });
@@ -361,6 +402,13 @@ describe("development needs and training", () => {
     const bad = await call(trainingVersions.POST(post({ status: "Planned" }), params(TRAINING)));
     expect(bad).toMatchObject({ status: 422 });
     const ok = await call(trainingVersions.POST(post({ status: "Planned", notes: "Jadwal ulang" }), params(TRAINING)));
+    expect(ok.status).toBe(201);
+  });
+
+  it("accepts only Passed or Not Passed as the result of a completed training", async () => {
+    const bad = await call(trainingVersions.POST(post({ status: "Completed", result: "Lulus" }), params(TRAINING)));
+    expect(bad).toMatchObject({ status: 422 });
+    const ok = await call(trainingVersions.POST(post({ status: "Completed", result: "Not Passed" }), params(TRAINING)));
     expect(ok.status).toBe(201);
   });
 

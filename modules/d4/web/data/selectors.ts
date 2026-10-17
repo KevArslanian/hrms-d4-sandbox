@@ -1,3 +1,4 @@
+import { scaleMaxOf } from "../../kpi/scale";
 import { compareCompetencies } from "../../competency/service";
 import type { CompetencyAssessment, CompetencyFinding, CompetencyOverallStatus } from "../../competency/types";
 import type { DevelopmentNeedVersion, DevelopmentSourceType } from "../../development/types";
@@ -138,6 +139,33 @@ export const developmentNeeds = (snapshot: Snapshot): readonly DevelopmentNeedVe
 export const trainings = (snapshot: Snapshot): readonly TrainingVersion[] => indexOf(snapshot).trainings;
 /** Latest revision of each need / training of one employee, newest first. */
 export const needsOf = (snapshot: Snapshot, employeeId: string): readonly DevelopmentNeedVersion[] => indexOf(snapshot).needsByEmployee.get(employeeId) ?? [];
+/** Employment statuses HR sets for people still in training (interview D4: "yang menentukan HR"). */
+const TRAINEE_STATUSES = ["PROBATION", "INTERN"];
+/**
+ * After a promotion or position change the competency stays in scope this long. Trainees need no month count
+ * (HR flips the status), and probation is capped at 3 months by Indonesian labour law; a new role takes longer to
+ * close a gap, so a position change gets 6 months.
+ */
+export const POSITION_CHANGE_SCOPE_MONTHS = 6;
+
+const addMonths = (isoDate: string, months: number) => {
+  const date = new Date(`${isoDate}T00:00:00Z`);
+  date.setUTCMonth(date.getUTCMonth() + months);
+  return date.toISOString().slice(0, 10);
+};
+
+/**
+ * Competency is assessed for trainees (probation or intern status), for promoted employees (a saved position
+ * change assessment in the last POSITION_CHANGE_SCOPE_MONTHS) and while a requirement is still open
+ * (interview D4, 14 Oct 2026).
+ */
+export const inTrainingOrPositionChange = (snapshot: Snapshot, employeeId: string, on: string = today()) => {
+  const status = employeeById(snapshot, employeeId)?.employmentStatus?.toUpperCase();
+  return Boolean(status && TRAINEE_STATUSES.includes(status))
+    || developmentNeeds(snapshot).some((item) => item.employeeId === employeeId && item.status !== "Completed")
+    || snapshot.competency.some((item) => item.employeeId === employeeId && item.context === "role-change" && addMonths(item.effectiveDate, POSITION_CHANGE_SCOPE_MONTHS) >= on);
+};
+
 export const trainingsOf = (snapshot: Snapshot, employeeId: string): readonly TrainingVersion[] => indexOf(snapshot).trainingsByEmployee.get(employeeId) ?? [];
 export const developmentById = (snapshot: Snapshot, needId: string) => developmentNeeds(snapshot).find((item) => item.needId === needId);
 export const trainingById = (snapshot: Snapshot, trainingId: string) => trainings(snapshot).find((item) => item.trainingId === trainingId);
@@ -191,6 +219,9 @@ export function formatDate(value: string | undefined): string {
 export function formatScore(value: number | null | undefined, scale = 5): string {
   return value === null || value === undefined ? "—" : `${value.toFixed(2)} / ${scale}`;
 }
+
+/** "4.10 / 5" for a V5.1 scorecard, "82.50 / 100" for V6: every scorecard shows the scale it was saved under. */
+export const formatScorecard = (scorecard: { overallScore: number | null; definitionVersion?: string | null }): string => formatScore(scorecard.overallScore, scaleMaxOf(scorecard.definitionVersion));
 
 /** Raw-score criteria from KPI Scorecard V3.1/V5.1 sheet "KPI Scoring Card"; shared by KPI and evaluation results. */
 export const SCORE_LABELS: Record<number, string> = { 1: "Very Poor", 2: "Poor", 3: "Fair", 4: "Good", 5: "Very Good" };

@@ -35,6 +35,13 @@ export interface KpiCatalog {
   readonly positionRoles: readonly PositionKpiRole[];
 }
 
+/**
+ * Fixed target of every Core KPI (HR mentor review, 14 Oct 2026: "semua targetnya 85"). The catalog workbook has no
+ * targets, so this is the fallback; a target the catalog does carry wins. The scorer never types a target.
+ */
+export const KPI_TARGET = "85";
+export const targetOf = (row: Pick<RoleKpiRow, "target">): string => row.target ?? KPI_TARGET;
+
 /** KPI Scorecard V5.1, sheet "KPI LIST PER POSISI". Mirrors supabase/migrations/20260929150000_d4_kpi_catalog_v51.sql. */
 export const KPI_V51_CATALOG: readonly RoleKpiRow[] = [
   { role_order: 1, role_name: "Vice President / CEO", indicator_order: 1, kpi_name: "Pencapaian Target Laba Bersih Perusahaan", target: null, weight_percent: 25, source_version: "V5.1" },
@@ -101,12 +108,17 @@ export function roleForPosition(catalog: KpiCatalog, positionId: string | null |
   return catalog.positionRoles.find((item) => item.position_id === positionId)?.role_order ?? 0;
 }
 
-/** V5.1 for every period, positions mapped by title. Local preview and tests only; live data comes from the tables above. */
+/** First period scored 1–100 (catalog V6). Mirrors supabase/migrations/20261017130000_d4_kpi_scale_100_v6.sql. */
+export const KPI_V6_EFFECTIVE_FROM = "2026-11";
+const KPI_V6_CATALOG: readonly RoleKpiRow[] = KPI_V51_CATALOG.map((row) => ({ ...row, target: KPI_TARGET, source_version: "V6" }));
+
+/** V5.1 up to 2026-10 and V6 (1–100) from 2026-11, positions mapped by title. Local preview and tests only; live data comes from the tables above. */
 export function seedCatalogSet(positions: readonly { id: string; title: string }[]): KpiCatalogSet {
-  const rows = KPI_V51_CATALOG;
+  const rows = [...KPI_V51_CATALOG, ...KPI_V6_CATALOG];
+  const roleOf = (position: { title: string }) => roleForPositionTitle({ rows: KPI_V51_CATALOG }, position.title);
   return {
-    versions: [{ source_version: "V5.1", effective_from: "2000-01" }], rows,
-    positionRoles: positions.map((position) => ({ source_version: "V5.1", position_id: position.id, role_order: roleForPositionTitle({ rows }, position.title) })).filter((item) => item.role_order > 0),
+    versions: [{ source_version: "V5.1", effective_from: "2000-01" }, { source_version: "V6", effective_from: KPI_V6_EFFECTIVE_FROM }], rows,
+    positionRoles: ["V5.1", "V6"].flatMap((version) => positions.map((position) => ({ source_version: version, position_id: position.id, role_order: roleOf(position) }))).filter((item) => item.role_order > 0),
   };
 }
 
