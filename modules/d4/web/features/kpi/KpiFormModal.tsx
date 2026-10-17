@@ -2,7 +2,7 @@
 
 import { CheckCircle2, CircleAlert } from "lucide-react";
 import { useState, type FormEvent } from "react";
-import { catalogFor, indicatorsFor, roleForPosition, type KpiCatalog } from "../../../kpi/catalog";
+import { catalogFor, indicatorsFor, roleForPosition, targetOf, type KpiCatalog } from "../../../kpi/catalog";
 import type { KpiAssessmentLine } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
 import { latestForPeriod } from "../../../shared/rules";
@@ -31,7 +31,7 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
   const catalog = versionFor(period);
   const suggest = (id: string, at: KpiCatalog | null = catalog) => at ? roleForPosition(at, employeeById(snapshot, id)?.positionId) : 0;
   const linesFor = (roleOrder: number, at: KpiCatalog | null = catalog): KpiAssessmentLine[] => at ? indicatorsFor(at, roleOrder).map((row) => ({
-    indicator_order: row.indicator_order, kpi_name: row.kpi_name, weight_percent: row.weight_percent, target: row.target ?? "", actual: "", raw_score: null, comment: "",
+    indicator_order: row.indicator_order, kpi_name: row.kpi_name, weight_percent: row.weight_percent, target: targetOf(row), actual: "", raw_score: null, comment: "",
   })) : [];
 
   const [employee, setEmployee] = useState(employeeId ?? "");
@@ -79,7 +79,7 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
     if (result.ok) { onSaved?.(result.value); onClose(); } else setError(result.error);
   }
 
-  return <FormModal size="lg" title="Performance Review" description={`Lima Core KPI dari katalog ${catalog?.version ?? ""} sesuai posisi pegawai (nama bisa diubah, bobot tetap), lalu catatan evaluasi. Satu kali Simpan.`} onClose={onClose}
+  return <FormModal size="lg" title="Performance Review" description={`Lima Core KPI dari katalog ${catalog?.version ?? ""} sesuai posisi pegawai (nama bisa diubah, bobot dan target tetap), lalu catatan evaluasi. Satu kali Simpan.`} onClose={onClose}
     footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Simpan" disabled={Boolean(employee) && !lines.length} />}>
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />
@@ -106,7 +106,7 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
               <td data-label="No" className="px-3 py-2.5 text-ink-3 max-md:p-0 max-md:before:mb-1 max-md:before:block max-md:before:text-[11px] max-md:before:font-semibold max-md:before:uppercase max-md:before:tracking-[0.04em] max-md:before:text-ink-3 max-md:before:content-[attr(data-label)]">{line.indicator_order}</td>
               <td data-label="Core KPI" className="px-3 py-2 max-md:p-0 max-md:before:mb-1 max-md:before:block max-md:before:text-[11px] max-md:before:font-semibold max-md:before:uppercase max-md:before:tracking-[0.04em] max-md:before:text-ink-3 max-md:before:content-[attr(data-label)] max-md:col-span-2"><input data-testid={`input-core-kpi-${line.indicator_order}`} aria-label={`Core KPI ${line.indicator_order}`} aria-invalid={touched && !line.kpi_name.trim()} maxLength={200} value={line.kpi_name} onChange={(event) => setLine(index, { kpi_name: event.target.value })} className="h-9 w-full rounded-lg border border-line-strong px-2 text-sm font-semibold aria-[invalid=true]:border-danger" /></td>
               <td data-label="Weight" className="px-3 py-2.5 tabular-nums max-md:p-0 max-md:before:mb-1 max-md:before:block max-md:before:text-[11px] max-md:before:font-semibold max-md:before:uppercase max-md:before:tracking-[0.04em] max-md:before:text-ink-3 max-md:before:content-[attr(data-label)]">{line.weight_percent}%</td>
-              <td data-label="Target" className="px-3 py-2 max-md:p-0 max-md:before:mb-1 max-md:before:block max-md:before:text-[11px] max-md:before:font-semibold max-md:before:uppercase max-md:before:tracking-[0.04em] max-md:before:text-ink-3 max-md:before:content-[attr(data-label)]"><input data-testid={`input-target-${line.indicator_order}`} aria-label={`Target ${line.kpi_name}`} value={line.target} onChange={(event) => setLine(index, { target: event.target.value })} className="h-9 w-full rounded-lg border border-line-strong px-2 text-sm" /></td>
+              <td data-label="Target" className="px-3 py-2 max-md:p-0 max-md:before:mb-1 max-md:before:block max-md:before:text-[11px] max-md:before:font-semibold max-md:before:uppercase max-md:before:tracking-[0.04em] max-md:before:text-ink-3 max-md:before:content-[attr(data-label)]"><span data-testid={`readonly-target-${line.indicator_order}`} title="Target ditetapkan HR dan tidak diubah saat penilaian." className="flex h-9 min-w-[56px] items-center rounded-lg bg-muted px-3 text-sm text-ink">{line.target}</span></td>
               <td data-label="Actual" className="px-3 py-2 max-md:p-0 max-md:before:mb-1 max-md:before:block max-md:before:text-[11px] max-md:before:font-semibold max-md:before:uppercase max-md:before:tracking-[0.04em] max-md:before:text-ink-3 max-md:before:content-[attr(data-label)]"><input data-testid={`input-realisasi-${line.indicator_order}`} aria-label={`Actual ${line.kpi_name}`} value={line.actual} onChange={(event) => setLine(index, { actual: event.target.value })} className="h-9 w-full rounded-lg border border-line-strong px-2 text-sm" /></td>
               <td data-label="Score 1–5" className="px-3 py-2 max-md:p-0 max-md:before:mb-1 max-md:before:block max-md:before:text-[11px] max-md:before:font-semibold max-md:before:uppercase max-md:before:tracking-[0.04em] max-md:before:text-ink-3 max-md:before:content-[attr(data-label)]"><select data-testid={`input-skor-${line.indicator_order}`} aria-label={`Score ${line.kpi_name}`} aria-invalid={touched && !validScore(line.raw_score)} value={line.raw_score ?? ""} onChange={(event) => setLine(index, { raw_score: event.target.value ? Number(event.target.value) : null })} className="h-9 w-full rounded-lg border border-line-strong px-2 text-sm aria-[invalid=true]:border-danger"><option value="">—</option>{[1, 2, 3, 4, 5].map((value) => <option key={value}>{value}</option>)}</select></td>
               <td data-label="Weighted" className="px-3 py-2.5 text-right font-semibold tabular-nums max-md:p-0 max-md:before:mb-1 max-md:before:block max-md:before:text-[11px] max-md:before:font-semibold max-md:before:uppercase max-md:before:tracking-[0.04em] max-md:before:text-ink-3 max-md:before:content-[attr(data-label)] max-md:text-left">{weighted(line)?.toFixed(2) ?? "—"}</td>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, FileSearch, History, RefreshCw } from "lucide-react";
+import { ClipboardCheck, Eye, FileSearch, History, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { TrainingVersion } from "../../../training/types";
 import { useSnapshot } from "../../data/D4DataProvider";
@@ -72,6 +72,8 @@ export function TrainingDetailPage({ trainingId }: { trainingId: string }) {
       actions={<>
         <ButtonLink href={`/training/${record.trainingId}/history`} icon={<History className="size-4" />} testId="view-history">View History</ButtonLink>
         {canWrite(snapshot) && <Button icon={<RefreshCw className="size-4" />} onClick={() => setProgressOpen(true)} data-testid="btn-update-progress">Update Progress</Button>}
+        {/* Completed does not close the gap by itself: the next step is a fresh competency assessment. */}
+        {canWrite(snapshot) && record.status === "Completed" && <ButtonLink href={`/competency/${employee.id}`} icon={<ClipboardCheck className="size-4" />} testId="reassess-competency">Reassess Competency</ButtonLink>}
       </>} />
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
       <Card title="Training">

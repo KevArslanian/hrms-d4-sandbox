@@ -1,4 +1,4 @@
-import { catalogFor, indicatorsFor, roleForPosition } from "../../kpi/catalog";
+import { catalogFor, indicatorsFor, roleForPosition, targetOf } from "../../kpi/catalog";
 import type { KpiAssessmentLine } from "../../supabase/types";
 import { assertNotFutureDate, assertNotSelf, assertPeriodRevision } from "../../shared/rules";
 import { ApiError, employeeFilter, enforce, field, optionalUuid, readJson } from "../_lib/http";
@@ -56,7 +56,7 @@ export async function createAssessment(request: Request) {
     const score = field.score(raw.raw_score, `Skor untuk ${indicator.kpi_name}`, { required: status === "completed" });
     return {
       indicator_order: indicator.indicator_order, kpi_name: kpiName, weight_percent: indicator.weight_percent,
-      target: field.text(raw, "target", { required: false, max: 200 }), actual: field.text(raw, "actual", { required: false, max: 200 }),
+      target: targetOf(indicator), actual: field.text(raw, "actual", { required: false, max: 200 }),
       raw_score: score, comment: field.text(raw, "comment", { required: false, max: 500 }),
     };
   });

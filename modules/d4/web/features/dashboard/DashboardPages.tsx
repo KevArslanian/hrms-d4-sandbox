@@ -29,8 +29,9 @@ function periodData(snapshot: D4LiveSnapshot, employeeId: string, period: string
 
 /**
  * Dashboard KPI Orang (FR-D4-004): a read-only per-employee summary of the other five features.
- * It reads the same snapshot as the detail pages (FR-06.8), creates no data of its own, adds no
- * aggregate management metrics (out of scope #12) and shows no achieved label (FR-06.10).
+ * It reads the same snapshot as the detail pages (FR-06.8), creates no data of its own and shows no achieved
+ * label (FR-06.10). The summary above the table only counts the rows already listed (mentor review, 14 Oct 2026);
+ * there is no performance-band count because no official threshold exists yet.
  */
 export function DashboardPage() {
   const snapshot = useSnapshot();
@@ -63,6 +64,7 @@ export function DashboardPage() {
       {/* The dashboard always shows one period, so there is no "All periods" choice; it starts on the latest one. */}
       <SelectFilter label="Period" testId="latest-period" emptyOption={false} value={period || periods[0] || ""} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
     </FilterBar>
+    <SummaryStrip rows={rows} />
     <DataTable<Row> rows={rows} noun="employees" rowKey={(row) => row.employee.id}
       emptyTitle="Tidak ada pegawai yang cocok" emptyText={snapshot.role === "EMPLOYEE" ? "Ubah kata kunci atau periode, lalu coba lagi." : "Ubah kata kunci, posisi, departemen, atau periode, lalu coba lagi."}
       columns={[
@@ -80,6 +82,55 @@ export function DashboardPage() {
         { label: "View Performance Review", testId: "view-penilaian", icon: <Target />, href: row.scorecard ? `/performance/scorecard/${row.scorecard.id}` : `/performance/history/${row.employee.id}` },
       ]} />} />
   </>;
+}
+
+const COMPETENCY_SEGMENTS = [
+  { key: "Met", color: "var(--color-success)", match: (status: string) => status === "Terpenuhi" },
+  { key: "Gap", color: "var(--color-danger)", match: (status: string) => status === "Gap" },
+  { key: "Insufficient Data", color: "var(--color-warning)", match: (status: string) => ["Data Belum Cukup", "Bukti Belum Cukup", "Belum Ada Persyaratan", "Belum Ada Posisi"].includes(status) },
+  { key: "Not Evaluated", color: "var(--color-neutral)", match: (status: string) => status === "Not Evaluated" },
+] as const;
+
+/** Counts over the rows currently listed: headline numbers plus one donut of the competency status. */
+function SummaryStrip({ rows }: { rows: readonly Row[] }) {
+  const tiles = [
+    { key: "total", label: "Employees", value: rows.length },
+    { key: "kpi", label: "KPI scorecard complete", value: rows.filter((row) => row.scorecard && validScorecard(row.scorecard)).length },
+    { key: "dev", label: "With open development", value: rows.filter((row) => row.openNeeds > 0).length },
+    { key: "training", label: "Training in progress", value: rows.filter((row) => row.training === "In Progress").length },
+  ];
+  const segments = COMPETENCY_SEGMENTS.map((segment) => ({ ...segment, count: rows.filter((row) => segment.match(row.gap)).length }));
+  const radius = 38, circumference = 2 * Math.PI * radius;
+  let offset = 0;
+  return <section aria-label="Summary" data-testid="dashboard-summary" className="grid gap-4 lg:grid-cols-[1fr_minmax(280px,360px)]">
+    <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+      {tiles.map((tile) => <div key={tile.key} data-testid={`summary-${tile.key}`} className="rounded-2xl border border-line bg-surface p-5 shadow-card">
+        <p className="text-xs font-semibold uppercase tracking-[0.04em] text-ink-3">{tile.label}</p>
+        <p className="mt-2 font-display text-3xl font-semibold tabular-nums text-ink">{tile.value}</p>
+        <p className="mt-1 text-xs text-ink-3">dari daftar di bawah</p>
+      </div>)}
+    </div>
+    <div data-testid="summary-competency" className="flex items-center gap-5 rounded-2xl border border-line bg-surface p-5 shadow-card">
+      <svg viewBox="0 0 100 100" aria-hidden="true" className="size-24 shrink-0 -rotate-90">
+        <circle cx="50" cy="50" r={radius} fill="none" stroke="var(--color-line)" strokeWidth="14" />
+        {rows.length > 0 && segments.filter((segment) => segment.count > 0).map((segment) => {
+          const length = segment.count / rows.length * circumference;
+          const circle = <circle key={segment.key} cx="50" cy="50" r={radius} fill="none" stroke={segment.color} strokeWidth="14" strokeDasharray={`${length} ${circumference - length}`} strokeDashoffset={-offset} />;
+          offset += length;
+          return circle;
+        })}
+      </svg>
+      <div className="min-w-0">
+        <p className="text-xs font-semibold uppercase tracking-[0.04em] text-ink-3">Competency status</p>
+        <ul className="mt-2 space-y-1 text-sm">
+          {segments.map((segment) => <li key={segment.key} data-testid={`competency-${segment.key.toLowerCase().replace(/\s+/g, "-")}`} className="flex items-center gap-2 text-ink">
+            <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ background: segment.color }} />
+            <span className="flex-1">{segment.key}</span><strong className="tabular-nums">{segment.count}</strong>
+          </li>)}
+        </ul>
+      </div>
+    </div>
+  </section>;
 }
 
 function ScoreCell({ scorecard }: { scorecard?: KpiAssessment }) {

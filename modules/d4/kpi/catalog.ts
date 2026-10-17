@@ -35,6 +35,13 @@ export interface KpiCatalog {
   readonly positionRoles: readonly PositionKpiRole[];
 }
 
+/**
+ * Fixed target of every Core KPI (HR mentor review, 14 Oct 2026: "semua targetnya 85"). The catalog workbook has no
+ * targets, so this is the fallback; a target the catalog does carry wins. The scorer never types a target.
+ */
+export const KPI_TARGET = "85";
+export const targetOf = (row: Pick<RoleKpiRow, "target">): string => row.target ?? KPI_TARGET;
+
 /** KPI Scorecard V5.1, sheet "KPI LIST PER POSISI". Mirrors supabase/migrations/20260929150000_d4_kpi_catalog_v51.sql. */
 export const KPI_V51_CATALOG: readonly RoleKpiRow[] = [
   { role_order: 1, role_name: "Vice President / CEO", indicator_order: 1, kpi_name: "Pencapaian Target Laba Bersih Perusahaan", target: null, weight_percent: 25, source_version: "V5.1" },
