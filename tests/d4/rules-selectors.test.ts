@@ -175,6 +175,26 @@ describe("role views (fixture)", () => {
     const promoted = { ...closed, competency: [{ ...snapshot.competency[0], employeeId: open.employeeId, context: "role-change" as const }] };
     expect(inTrainingOrPositionChange(promoted, open.employeeId)).toBe(true);
   });
+
+  // Trainees are whoever HR marks PROBATION or INTERN; a position change stays in scope for 6 months.
+  it("a probation or intern employee is in scope without any open requirement", async () => {
+    const base = await (await fixtureAs("HR")).loadSnapshot();
+    const quiet = { ...base, developmentVersions: base.developmentVersions.map((item) => ({ ...item, status: "Completed" as const })), competency: [] };
+    const withStatus = (status: string | null) => ({ ...quiet, reference: { ...quiet.reference, employees: quiet.reference.employees.map((item) => item.id === ALFA ? { ...item, employmentStatus: status } : item) } });
+    expect(inTrainingOrPositionChange(withStatus("PROBATION"), ALFA)).toBe(true);
+    expect(inTrainingOrPositionChange(withStatus("intern"), ALFA)).toBe(true);
+    expect(inTrainingOrPositionChange(withStatus("PERMANENT"), ALFA)).toBe(false);
+    expect(inTrainingOrPositionChange(withStatus(null), ALFA)).toBe(false);
+  });
+
+  it("a position change is in scope for 6 months only", async () => {
+    const base = await (await fixtureAs("HR")).loadSnapshot();
+    const change = (effectiveDate: string) => ({ ...base, developmentVersions: base.developmentVersions.map((item) => ({ ...item, status: "Completed" as const })),
+      competency: [{ ...base.competency[0], employeeId: ALFA, context: "role-change" as const, effectiveDate }] });
+    expect(inTrainingOrPositionChange(change("2026-04-18"), ALFA, "2026-10-17")).toBe(true);  // exactly 6 months ago
+    expect(inTrainingOrPositionChange(change("2026-04-16"), ALFA, "2026-10-17")).toBe(false); // just over 6 months
+    expect(inTrainingOrPositionChange(change("2026-09-30"), ALFA, "2026-10-17")).toBe(true);
+  });
 });
 
 describe("development status change", () => {
