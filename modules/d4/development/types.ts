@@ -18,6 +18,8 @@ export interface DevelopmentNeedVersion {
   readonly sourceRef: string;
   readonly objective: string;
   readonly priority: DevelopmentPriority;
+  readonly method?: string;
+  readonly pic?: string;
   readonly status: DevelopmentStatus;
   readonly notes: string;
   readonly createdAt: string;

@@ -1,10 +1,11 @@
 import { compareCompetencies } from "../../competency/service";
 import { developmentFixtureVersions } from "../../development/fixtures";
-import { catalogFor, indicatorsFor, KPI_V51_CATALOG, roleForPosition, seedCatalogSet } from "../../kpi/catalog";
+import { catalogFor, indicatorsFor, KPI_V51_CATALOG, roleForPosition, seedCatalogSet, targetOf } from "../../kpi/catalog";
+import { scaleMaxOf } from "../../kpi/scale";
 import { performanceFixtureRecords } from "../../performance/fixtures";
 import { validatePerformanceInput } from "../../performance/validation";
 import { d4ReferenceFixture } from "../../shared/fixtures";
-import { assertDevelopmentChange, assertGapAssessed, assertTrainingDate, assertNeedOpen, assertNoOpenNeed, openTrainingCount, assertNotFutureDate, assertNotSelf, assertPeriodRevision, assertTrainingChange } from "../../shared/rules";
+import { assertDevelopmentChange, assertGapAssessed, assertTrainingDate, assertNeedOpen, assertNoOpenNeed, openTrainingCount, passedTrainingCount, assertTrainingResult, assertNotFutureDate, assertNotSelf, assertPeriodRevision, assertTrainingChange } from "../../shared/rules";
 import type { D4LiveSnapshot, KpiAssessment, KpiAssessmentLine } from "../../supabase/types";
 import { latestDevelopment, latestTraining } from "../../supabase/types";
 import { trainingFixtureVersions } from "../../training/fixtures";
@@ -22,7 +23,7 @@ const catalog = { version: "V5.1", rows: KPI_V51_CATALOG };
 function kpiLines(roleOrder: number, scores: (number | null)[], actual: string[]): KpiAssessmentLine[] {
   return indicatorsFor(catalog, roleOrder).map((row, index) => ({
     indicator_order: row.indicator_order, kpi_name: row.kpi_name, weight_percent: row.weight_percent,
-    target: "Meets period target", actual: actual[index] ?? "", raw_score: scores[index] ?? null, comment: "",
+    target: targetOf(row), actual: actual[index] ?? "", raw_score: scores[index] ?? null, comment: "",
   }));
 }
 
@@ -144,7 +145,8 @@ export function createFixtureSource(): D4DataSource {
       assertNotSelf(state.actorEmployeeId, input.employeeId);
       assertNotFutureDate(input.evaluationDate);
       assertPeriodRevision(state.kpiAssessments ?? [], input.employeeId, input.period, revisionOf, "Scorecard");
-      if (!input.generalNotes.trim()) throw new Error("Catatan evaluasi wajib diisi.");
+      if (!input.generalNotes.trim()) throw new Error("Notes wajib diisi.");
+      if (!input.evidenceReference) throw new Error("Bukti / referensi wajib diisi.");
       const periodCatalog = catalogFor(seedCatalogSet(state.reference.positions), input.period);
       if (!periodCatalog) throw new Error(`Belum ada katalog KPI yang berlaku untuk periode ${input.period}.`);
       const indicators = indicatorsFor(periodCatalog, input.roleOrder);
@@ -152,7 +154,11 @@ export function createFixtureSource(): D4DataSource {
       const employee = state.reference.employees.find((item) => item.id === input.employeeId);
       if (roleForPosition(periodCatalog, employee?.positionId) !== input.roleOrder) throw new Error("Set KPI yang dipilih bukan milik posisi pegawai ini.");
       if (input.status === "completed" && input.lines.some((line) => line.raw_score === null)) throw new Error("Kelima indikator KPI harus dinilai sebelum diselesaikan.");
+      const maxScore = scaleMaxOf(periodCatalog.version);
+      if (input.lines.some((line) => line.raw_score !== null && (!Number.isInteger(line.raw_score) || line.raw_score < 1 || line.raw_score > maxScore))) throw new Error(`Skor indikator harus bilangan bulat 1 sampai ${maxScore}.`);
       const id = newId("FIX-D4-KPI");
+      // The target comes from the catalog, never from the form (same rule as the server).
+      input.lines = input.lines.map((line, index) => ({ ...line, target: targetOf(indicators[index]) }));
       update({ kpiAssessments: [{ ...input, id, definitionVersion: periodCatalog.version, roleName: indicators[0].role_name, overallScore: total(input.lines), createdAt: now(), actor: actorName() }, ...(state.kpiAssessments ?? [])] });
       return id;
     },
@@ -180,7 +186,8 @@ export function createFixtureSource(): D4DataSource {
       assertWriter();
       const current = latestDevelopment(state).find((item) => item.needId === needId);
       if (!current) throw new Error("Development requirement tidak ditemukan.");
-      assertDevelopmentChange(current.status, status, notes, openTrainingCount(latestTraining(state), needId));
+      const trainings = latestTraining(state);
+      assertDevelopmentChange(current.status, status, notes, openTrainingCount(trainings, needId), passedTrainingCount(trainings, needId));
       update({ developmentVersions: [{ ...current, id: newId("FIX-D4-DEV-V"), revision: current.revision + 1, status, notes, createdAt: now(), actor: actorName() }, ...state.developmentVersions] });
     },
     async createTraining(input) {
@@ -189,7 +196,7 @@ export function createFixtureSource(): D4DataSource {
       if (!need || need.employeeId !== input.employeeId) throw new Error("Training harus merujuk ke development requirement milik pegawai yang sama.");
       assertNeedOpen(need);
       assertTrainingDate(input.status, input.date);
-      if (input.status === "Completed" && !input.result.trim()) throw new Error("Result wajib diisi saat training Completed.");
+      assertTrainingResult(input.status, input.result);
       const trainingId = newId("FIX-D4-TRN");
       update({ trainingVersions: [{ ...input, id: newId("FIX-D4-TRN-V"), trainingId, revision: 1, source: "local-demo", createdAt: now(), actor: actorName() }, ...state.trainingVersions] });
       return trainingId;
@@ -198,7 +205,7 @@ export function createFixtureSource(): D4DataSource {
       assertWriter();
       const current = latestTraining(state).find((item) => item.trainingId === trainingId);
       if (!current) throw new Error("Training tidak ditemukan.");
-      if (status === "Completed" && !result.trim()) throw new Error("Result wajib diisi saat training Completed.");
+      assertTrainingResult(status, result);
       assertTrainingChange(current.status, status, notes);
       update({ trainingVersions: [{ ...current, id: newId("FIX-D4-TRN-V"), revision: current.revision + 1, status, result, notes, createdAt: now(), actor: actorName() }, ...state.trainingVersions] });
     },

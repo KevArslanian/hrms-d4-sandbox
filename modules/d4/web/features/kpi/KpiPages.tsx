@@ -1,13 +1,14 @@
 "use client";
 
+import { performanceBand, scaleMaxOf } from "../../../kpi/scale";
 import { History, Plus } from "lucide-react";
 import { useState } from "react";
 import { catalogFor } from "../../../kpi/catalog";
 import type { KpiAssessment } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { canAssess, developmentNeeds, employeeById, employeeMeta, evaluationsOf, formatDate, formatPeriod, formatScore, thisMonth } from "../../data/selectors";
+import { canAssess, developmentNeeds, employeeById, employeeMeta, evaluationsOf, formatDate, formatPeriod, formatScorecard, thisMonth } from "../../data/selectors";
 import { DetailHeader, NotFound } from "../../ui/layout";
-import { Button, ButtonLink, Card, InfoGrid, Notice, SourceChip } from "../../ui/primitives";
+import { Button, ButtonLink, Card, InfoGrid, Notice, SourceChip, StatusBadge } from "../../ui/primitives";
 import { KpiFormModal, weighted } from "./KpiFormModal";
 
 export const scorecardStatus = (item?: KpiAssessment) => !item ? "Not Evaluated" : item.status === "completed" ? "Completed" : "Draft";
@@ -37,8 +38,8 @@ export function KpiDetailPage({ id }: { id: string }) {
         <div className="overflow-x-auto">
           <table data-testid="kpi-detail-table" className="w-full min-w-[680px] text-left text-sm">
             <thead className="bg-app text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3"><tr><th className="px-5 py-2.5">No</th><th className="px-5 py-2.5">Core KPI</th><th className="px-5 py-2.5">Weight</th><th className="px-5 py-2.5">Target</th><th className="px-5 py-2.5">Actual</th><th className="px-5 py-2.5">Score</th><th className="px-5 py-2.5 text-right">Weighted</th><th className="px-5 py-2.5">Comment</th></tr></thead>
-            <tbody>{scorecard.lines.map((line) => <tr key={line.indicator_order} data-testid={`kpi-line-${line.indicator_order}`} className="border-t border-line"><td className="px-5 py-3 text-ink-3">{line.indicator_order}</td><td className="px-5 py-3 font-semibold">{line.kpi_name}</td><td className="px-5 py-3 tabular-nums">{line.weight_percent}%</td><td className="px-5 py-3">{line.target || "—"}</td><td className="px-5 py-3">{line.actual || "—"}</td><td className="px-5 py-3 tabular-nums">{line.raw_score ?? "—"}</td><td className="px-5 py-3 text-right font-semibold tabular-nums">{weighted(line)?.toFixed(2) ?? "—"}</td><td data-testid={`kpi-comment-${line.indicator_order}`} className="px-5 py-3 text-ink-2">{line.comment || "—"}</td></tr>)}</tbody>
-            <tfoot className="border-t border-line bg-app"><tr><td colSpan={2} className="px-5 py-3 font-semibold">Total</td><td className="px-5 py-3 font-semibold tabular-nums">{totalWeight}%</td><td colSpan={3} /><td className="px-5 py-3 text-right font-display font-semibold text-base tabular-nums">{formatScore(scorecard.overallScore)}</td><td /></tr></tfoot>
+            <tbody>{scorecard.lines.map((line) => <tr key={line.indicator_order} data-testid={`kpi-line-${line.indicator_order}`} className="border-t border-line"><td className="px-5 py-3 text-ink-3">{line.indicator_order}</td><td className="px-5 py-3 font-semibold">{line.kpi_name}</td><td className="px-5 py-3 tabular-nums">{line.weight_percent}%</td><td className="px-5 py-3">{line.target || "—"}</td><td className="px-5 py-3">{line.actual || "—"}</td><td className="px-5 py-3 tabular-nums">{line.raw_score ?? "—"}</td><td className="px-5 py-3 text-right font-semibold tabular-nums">{weighted(line, scaleMaxOf(scorecard.definitionVersion))?.toFixed(2) ?? "—"}</td><td data-testid={`kpi-comment-${line.indicator_order}`} className="px-5 py-3 text-ink-2">{line.comment || "—"}</td></tr>)}</tbody>
+            <tfoot className="border-t border-line bg-app"><tr><td colSpan={2} className="px-5 py-3 font-semibold">Total</td><td className="px-5 py-3 font-semibold tabular-nums">{totalWeight}%</td><td colSpan={3} /><td className="px-5 py-3 text-right font-display font-semibold text-base tabular-nums">{formatScorecard(scorecard)}</td><td /></tr></tfoot>
           </table>
         </div>
       </Card>
@@ -49,12 +50,12 @@ export function KpiDetailPage({ id }: { id: string }) {
             { label: "Catalog", testId: "catalog", value: `KPI Scorecard ${scorecard.definitionVersion}` },
             { label: "Evaluation date", testId: "evaluation-date", value: formatDate(scorecard.evaluationDate) },
             { label: "Evaluator", testId: "evaluator", value: scorecard.evaluatorName || "—" },
-            { label: "Total KPI", testId: "total-score", value: <strong className="font-display font-semibold text-lg">{formatScore(scorecard.overallScore)}</strong> },
+            { label: "Total KPI", testId: "total-score", value: <><strong className="font-display font-semibold text-lg">{formatScorecard(scorecard)}</strong>{performanceBand(scorecard.overallScore, scorecard.definitionVersion) && <span data-testid="performance-band" className="mt-1 block"><StatusBadge status={performanceBand(scorecard.overallScore, scorecard.definitionVersion)!} /></span>}</> },
             { label: "Recorded", testId: "recorded", value: `${scorecard.actor} · ${formatDate(scorecard.createdAt)}` },
           ]} />
           <p className="mt-5 text-xs text-ink-3">Total = Σ (bobot × skor mentah). Belum ada label tercapai/tidak tercapai karena belum ada batas resmi.</p>
         </Card>
-        <Card title="Catatan evaluasi" testId="notes-related">
+        <Card title="Notes" testId="notes-related">
           <p className="whitespace-pre-wrap text-sm text-ink-2">{scorecard.generalNotes || evaluation?.generalNotes || "Belum ada catatan."}</p>
           <h3 className="mb-1 mt-5 text-xs font-semibold uppercase tracking-[0.04em] text-ink-3">Bukti / referensi</h3>
           <p className="text-sm text-ink-2">{scorecard.evidenceReference || evaluation?.evidenceReference || "—"}</p>

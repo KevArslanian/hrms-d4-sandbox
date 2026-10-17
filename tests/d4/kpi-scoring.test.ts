@@ -1,10 +1,11 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { catalogFor, indicatorsFor, KPI_V51_CATALOG, roleForPosition, roleForPositionTitle, rolesOf, type KpiCatalogSet } from "@/modules/d4/kpi/catalog";
+import { catalogFor, indicatorsFor, KPI_TARGET, KPI_V51_CATALOG, roleForPosition, roleForPositionTitle, rolesOf, targetOf, type KpiCatalogSet } from "@/modules/d4/kpi/catalog";
 import { d4ReferenceFixture } from "@/modules/d4/shared/fixtures";
 import { createFixtureSource } from "@/modules/d4/web/data/fixture-source";
 import type { D4DataSource } from "@/modules/d4/web/data/source";
+import { HIGH_ABOVE, performanceBand, scaleMaxOf, UNDER_BELOW } from "@/modules/d4/kpi/scale";
 import { weighted } from "@/modules/d4/web/features/kpi/KpiFormModal";
 
 const catalog = { rows: KPI_V51_CATALOG };
@@ -54,6 +55,39 @@ describe("weighted KPI score (FR-02.5, FR-02.6)", () => {
   });
 });
 
+describe("KPI score scale per catalog version", () => {
+  it("scores V3.1 and V5.1 on 1–5 and every later version on 1–100", () => {
+    expect([scaleMaxOf("V3.1"), scaleMaxOf("V5.1"), scaleMaxOf(undefined), scaleMaxOf(null)]).toEqual([5, 5, 5, 5]);
+    expect([scaleMaxOf("V6"), scaleMaxOf("V7")]).toEqual([100, 100]);
+  });
+
+  it("bands a 1–100 score: below 80 under, 80–85 acceptable, above 85 high", () => {
+    expect([UNDER_BELOW, HIGH_ABOVE]).toEqual([80, 85]);
+    expect(performanceBand(79.99, "V6")).toBe("Under Performance");
+    expect(performanceBand(80, "V6")).toBe("Acceptable");
+    expect(performanceBand(85, "V6")).toBe("Acceptable");
+    expect(performanceBand(85.01, "V6")).toBe("High Performance");
+  });
+
+  it("has no band for a 1–5 scorecard or a missing score", () => {
+    expect(performanceBand(4.5, "V5.1")).toBeNull();
+    expect(performanceBand(null, "V6")).toBeNull();
+  });
+
+  it("weights a 1–100 raw score with the same formula (weight × score / 100)", () => {
+    expect(weighted({ weight_percent: 25, raw_score: 80 }, 100)).toBe(20);
+    expect(weighted({ weight_percent: 25, raw_score: 80 })).toBeNull(); // 80 is not a valid 1–5 score
+  });
+});
+
+describe("fixed KPI target", () => {
+  it("is 85 when the catalog carries no target, and the catalog target wins when it does", () => {
+    expect(KPI_TARGET).toBe("85");
+    expect(KPI_V51_CATALOG.every((row) => targetOf(row) === "85")).toBe(true);
+    expect(targetOf({ target: "90" })).toBe("90");
+  });
+});
+
 describe("saved scorecard total (fixture source, mirrors the DB trigger d4_calculate_kpi_assessment)", () => {
   let source: D4DataSource;
   beforeEach(() => {
@@ -66,9 +100,33 @@ describe("saved scorecard total (fixture source, mirrors the DB trigger d4_calcu
     const lines = indicatorsFor(catalog, FINANCE_ROLE).map((row, index) => ({
       indicator_order: row.indicator_order, kpi_name: row.kpi_name, weight_percent: row.weight_percent, target: "", actual: "", raw_score: scores[index], comment: "",
     }));
-    const id = await source.createKpiAssessment({ employeeId: ALFA, roleOrder: FINANCE_ROLE, period, evaluationDate: "2026-10-01", evaluatorName: "x", status: "completed", lines, generalNotes: "Catatan uji." });
+    const id = await source.createKpiAssessment({ employeeId: ALFA, roleOrder: FINANCE_ROLE, period, evaluationDate: "2026-10-01", evaluatorName: "x", status: "completed", lines, generalNotes: "Catatan uji.", evidenceReference: "DOC-1" });
     return (await source.loadSnapshot()).kpiAssessments!.find((item) => item.id === id)!.overallScore;
   }
+
+  it("saves a V6 period on the 1–100 scale and totals it with the same formula", async () => {
+    const scores = [90, 80, 70, 85, 100]; // weights 25/25/20/15/15
+    const lines = indicatorsFor(catalog, FINANCE_ROLE).map((row, index) => ({
+      indicator_order: row.indicator_order, kpi_name: row.kpi_name, weight_percent: row.weight_percent, target: "", actual: "", raw_score: scores[index], comment: "",
+    }));
+    const base = { employeeId: ALFA, roleOrder: FINANCE_ROLE, period: "2026-11", evaluationDate: "2026-10-01", evaluatorName: "x", status: "completed" as const, generalNotes: "Catatan", evidenceReference: "DOC-1" };
+    const id = await source.createKpiAssessment({ ...base, lines });
+    const saved = (await source.loadSnapshot()).kpiAssessments!.find((item) => item.id === id)!;
+    expect(saved.definitionVersion).toBe("V6");
+    expect(saved.overallScore).toBe(84.25); // 22.5 + 20 + 14 + 12.75 + 15
+    expect(performanceBand(saved.overallScore, saved.definitionVersion)).toBe("Acceptable");
+    await expect(source.createKpiAssessment({ ...base, period: "2026-10", lines })).rejects.toThrow("1 sampai 5");
+    await expect(source.createKpiAssessment({ ...base, period: "2026-12", lines: lines.map((line) => ({ ...line, raw_score: 101 })) })).rejects.toThrow("1 sampai 100");
+  });
+
+  it("stores the catalog target, not the one in the request", async () => {
+    const lines = indicatorsFor(catalog, FINANCE_ROLE).map((row) => ({
+      indicator_order: row.indicator_order, kpi_name: row.kpi_name, weight_percent: row.weight_percent, target: "999", actual: "", raw_score: 4, comment: "",
+    }));
+    const id = await source.createKpiAssessment({ employeeId: ALFA, roleOrder: FINANCE_ROLE, period: "2026-10", evaluationDate: "2026-10-01", evaluatorName: "x", status: "completed", lines, generalNotes: "Catatan", evidenceReference: "DOC-1" });
+    const saved = (await source.loadSnapshot()).kpiAssessments!.find((item) => item.id === id)!;
+    expect(saved.lines.map((line) => line.target)).toEqual(["85", "85", "85", "85", "85"]);
+  });
 
   it.each([
     // weights 25/25/20/15/15

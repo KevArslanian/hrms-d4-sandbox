@@ -1,4 +1,5 @@
-import { catalogFor, indicatorsFor, roleForPosition } from "../../kpi/catalog";
+import { catalogFor, indicatorsFor, roleForPosition, targetOf } from "../../kpi/catalog";
+import { scaleMaxOf } from "../../kpi/scale";
 import type { KpiAssessmentLine } from "../../supabase/types";
 import { assertNotFutureDate, assertNotSelf, assertPeriodRevision } from "../../shared/rules";
 import { ApiError, employeeFilter, enforce, field, optionalUuid, readJson } from "../_lib/http";
@@ -53,15 +54,18 @@ export async function createAssessment(request: Request) {
     // The Core KPI name is editable per scorecard; order and weight stay locked to the catalog (Excel formula).
     const kpiName = field.text(raw, "kpi_name", { required: true, max: 200 }).trim();
     if (!kpiName) throw new ApiError("VALIDATION_FAILED", `Core KPI ${index + 1} wajib diisi.`);
-    const score = field.score(raw.raw_score, `Skor untuk ${indicator.kpi_name}`, { required: status === "completed" });
+    const score = field.score(raw.raw_score, `Skor untuk ${indicator.kpi_name}`, { required: status === "completed", max: scaleMaxOf(catalog.version) });
     return {
       indicator_order: indicator.indicator_order, kpi_name: kpiName, weight_percent: indicator.weight_percent,
-      target: field.text(raw, "target", { required: false, max: 200 }), actual: field.text(raw, "actual", { required: false, max: 200 }),
+      target: targetOf(indicator), actual: field.text(raw, "actual", { required: false, max: 200 }),
       raw_score: score, comment: field.text(raw, "comment", { required: false, max: 500 }),
     };
   });
   const generalNotes = field.text(body, "generalNotes", { required: false, max: 4000 }).trim();
-  if (!generalNotes) throw new ApiError("VALIDATION_FAILED", "Catatan evaluasi wajib diisi.");
+  if (!generalNotes) throw new ApiError("VALIDATION_FAILED", "Notes wajib diisi.");
+  // Interview D4 (14 Oct 2026): evidence is required.
+  const evidenceReference = field.text(body, "evidenceReference", { required: false, max: 500 }).trim();
+  if (!evidenceReference) throw new ApiError("VALIDATION_FAILED", "Bukti / referensi wajib diisi.");
   const evaluationDate = field.date(body, "evaluationDate", { required: status === "completed" });
   enforce(() => assertNotFutureDate(evaluationDate));
   const id = await repository.saveKpiAssessment({
@@ -70,9 +74,9 @@ export async function createAssessment(request: Request) {
     period, evaluationDate,
     evaluatorName,
     status, lines,
-    // FR-D4-001 v3.1: one Penilaian Kinerja = five KPI + evaluation notes (required) + optional evidence.
+    // FR-D4-001 v3.1: one Penilaian Kinerja = five KPI + notes + evidence, all required.
     generalNotes,
-    evidenceReference: field.text(body, "evidenceReference", { required: false, max: 500 }).trim() || null,
+    evidenceReference,
   });
   return { id, definitionVersion: catalog.version };
 }

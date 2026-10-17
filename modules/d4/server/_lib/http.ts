@@ -73,13 +73,13 @@ export const field = {
     if (value && !/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new ApiError("VALIDATION_FAILED", `Field ${key} harus berformat YYYY-MM-DD.`);
     return value;
   },
-  /** Integer score 1–5 (business rule; 3.5 is rejected). */
-  score(value: unknown, label: string, { required = true } = {}): number | null {
+  /** Integer score 1–`max` (5 for the Excel scale, 100 from catalog V6; 3.5 is rejected). */
+  score(value: unknown, label: string, { required = true, max = 5 }: { required?: boolean; max?: number } = {}): number | null {
     if (value === null || value === undefined || value === "") {
       if (required) throw new ApiError("VALIDATION_FAILED", `${label} wajib diisi.`);
       return null;
     }
-    if (typeof value !== "number" || !Number.isInteger(value) || value < 1 || value > 5) throw new ApiError("VALIDATION_FAILED", `${label} harus bilangan bulat 1 sampai 5.`);
+    if (typeof value !== "number" || !Number.isInteger(value) || value < 1 || value > max) throw new ApiError("VALIDATION_FAILED", `${label} harus bilangan bulat 1 sampai ${max}.`);
     return value;
   },
 };
