@@ -1,3 +1,4 @@
+import { scaleMaxOf } from "../../kpi/scale";
 import { compareCompetencies } from "../../competency/service";
 import type { CompetencyAssessment, CompetencyFinding, CompetencyOverallStatus } from "../../competency/types";
 import type { DevelopmentNeedVersion, DevelopmentSourceType } from "../../development/types";
@@ -218,6 +219,9 @@ export function formatDate(value: string | undefined): string {
 export function formatScore(value: number | null | undefined, scale = 5): string {
   return value === null || value === undefined ? "—" : `${value.toFixed(2)} / ${scale}`;
 }
+
+/** "4.10 / 5" for a V5.1 scorecard, "82.50 / 100" for V6: every scorecard shows the scale it was saved under. */
+export const formatScorecard = (scorecard: { overallScore: number | null; definitionVersion?: string | null }): string => formatScore(scorecard.overallScore, scaleMaxOf(scorecard.definitionVersion));
 
 /** Raw-score criteria from KPI Scorecard V3.1/V5.1 sheet "KPI Scoring Card"; shared by KPI and evaluation results. */
 export const SCORE_LABELS: Record<number, string> = { 1: "Very Poor", 2: "Poor", 3: "Fair", 4: "Good", 5: "Very Good" };

@@ -327,6 +327,36 @@ describe("POST /kpi-assessments", () => {
     expect(saved.map((line) => line.target)).toEqual(["85", "85", "85", "85", "85"]);
   });
 
+  // Catalog V6 (from 2026-11) scores 1–100; V5.1 keeps 1–5.
+  describe("score scale per catalog version", () => {
+    const useV6 = () => {
+      catalogRows = [...KPI_V51_CATALOG, ...KPI_V51_CATALOG.map((row) => ({ ...row, source_version: "V6" }))];
+      catalogVersions = [{ source_version: "V5.1", effective_from: "2000-01" }, { source_version: "V6", effective_from: "2026-11" }];
+    };
+    const withScore = (period: string, rawScore: number) => { const body = kpiBody({ period }); body.lines = body.lines.map((line) => ({ ...line, raw_score: rawScore })); return body; };
+
+    it("accepts a score up to 100 for a V6 period", async () => {
+      useV6();
+      const res = await call(kpi.POST(post(withScore("2026-11", 85))));
+      expect(res.status).toBe(201);
+      expect((writes[0].args[0] as { definitionVersion: string }).definitionVersion).toBe("V6");
+    });
+
+    it("rejects 101 for a V6 period", async () => {
+      useV6();
+      const res = await call(kpi.POST(post(withScore("2026-11", 101))));
+      expect(res.status).toBe(422);
+      expect(writes).toHaveLength(0);
+    });
+
+    it("still rejects a score above 5 for a V5.1 period", async () => {
+      useV6();
+      const res = await call(kpi.POST(post(withScore("2026-10", 85))));
+      expect(res.status).toBe(422);
+      expect(writes).toHaveLength(0);
+    });
+  });
+
   it("rejects an empty Core KPI name", async () => {
     const body = kpiBody();
     body.lines = body.lines.map((line, index) => index ? line : { ...line, kpi_name: " " });

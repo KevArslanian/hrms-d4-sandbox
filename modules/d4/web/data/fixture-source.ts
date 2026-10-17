@@ -1,6 +1,7 @@
 import { compareCompetencies } from "../../competency/service";
 import { developmentFixtureVersions } from "../../development/fixtures";
 import { catalogFor, indicatorsFor, KPI_V51_CATALOG, roleForPosition, seedCatalogSet, targetOf } from "../../kpi/catalog";
+import { scaleMaxOf } from "../../kpi/scale";
 import { performanceFixtureRecords } from "../../performance/fixtures";
 import { validatePerformanceInput } from "../../performance/validation";
 import { d4ReferenceFixture } from "../../shared/fixtures";
@@ -153,6 +154,8 @@ export function createFixtureSource(): D4DataSource {
       const employee = state.reference.employees.find((item) => item.id === input.employeeId);
       if (roleForPosition(periodCatalog, employee?.positionId) !== input.roleOrder) throw new Error("Set KPI yang dipilih bukan milik posisi pegawai ini.");
       if (input.status === "completed" && input.lines.some((line) => line.raw_score === null)) throw new Error("Kelima indikator KPI harus dinilai sebelum diselesaikan.");
+      const maxScore = scaleMaxOf(periodCatalog.version);
+      if (input.lines.some((line) => line.raw_score !== null && (!Number.isInteger(line.raw_score) || line.raw_score < 1 || line.raw_score > maxScore))) throw new Error(`Skor indikator harus bilangan bulat 1 sampai ${maxScore}.`);
       const id = newId("FIX-D4-KPI");
       // The target comes from the catalog, never from the form (same rule as the server).
       input.lines = input.lines.map((line, index) => ({ ...line, target: targetOf(indicators[index]) }));
