@@ -21,7 +21,7 @@ async function kpiDraft(employeeId: string, period: string, patch: Partial<KpiAs
   const snapshot = await source.loadSnapshot();
   const current = snapshot.kpiAssessments!.find((item) => item.employeeId === ALFA)!;
   return { employeeId, roleOrder: current.roleOrder, period, evaluationDate: "2026-10-01", evaluatorName: "x", status: "completed",
-    lines: current.lines.map((line) => ({ ...line, raw_score: 4 })), generalNotes: "Catatan uji.", ...patch };
+    lines: current.lines.map((line) => ({ ...line, raw_score: 4 })), generalNotes: "Catatan uji.", evidenceReference: "DOC-1", ...patch };
 }
 
 describe("performance evaluation (fixture)", () => {
@@ -92,8 +92,9 @@ describe("development and training (fixture)", () => {
     const draft = { employeeId: ALFA, sourceType: "competency_gap" as const, sourceRef: ALFA_GAP, objective: "Uji", priority: "High" as const, notes: "" };
     await expect(source.createDevelopment(draft)).rejects.toThrow(/belum selesai/);
     await source.updateDevelopment("FIX-D4-DEV-001", "Completed", "Selesai");
-    const needId = await source.createDevelopment(draft);
-    expect(latestDevelopment(await source.loadSnapshot()).find((item) => item.needId === needId)?.status).toBe("Identified");
+    const needId = await source.createDevelopment({ ...draft, method: "Coaching", pic: "Budi" });
+    await source.updateDevelopment(needId, "Planned", "");
+    expect(latestDevelopment(await source.loadSnapshot()).find((item) => item.needId === needId)).toMatchObject({ status: "Planned", method: "Coaching", pic: "Budi" });
   });
 
   it("rejects new training for a completed requirement", async () => {
@@ -110,8 +111,9 @@ describe("development and training (fixture)", () => {
   });
 
   it("requires a result on completion and a reason on rollback", async () => {
-    await expect(source.updateTraining("FIX-D4-TRN-001", "Completed", "", "")).rejects.toThrow(/Result wajib diisi/);
-    await source.updateTraining("FIX-D4-TRN-001", "Completed", "Lulus", "");
+    await expect(source.updateTraining("FIX-D4-TRN-001", "Completed", "", "")).rejects.toThrow(/Passed atau Not Passed/);
+    await expect(source.updateTraining("FIX-D4-TRN-001", "Completed", "Lulus", "")).rejects.toThrow(/Passed atau Not Passed/);
+    await source.updateTraining("FIX-D4-TRN-001", "Completed", "Passed", "");
     await expect(source.updateTraining("FIX-D4-TRN-001", "In Progress", "Lulus", "")).rejects.toThrow(/Alasan wajib diisi/);
     await source.updateTraining("FIX-D4-TRN-001", "In Progress", "Lulus", "Perlu sesi ulang");
     const versions = (await source.loadSnapshot()).trainingVersions.filter((item) => item.trainingId === "FIX-D4-TRN-001");

@@ -138,6 +138,14 @@ export const developmentNeeds = (snapshot: Snapshot): readonly DevelopmentNeedVe
 export const trainings = (snapshot: Snapshot): readonly TrainingVersion[] => indexOf(snapshot).trainings;
 /** Latest revision of each need / training of one employee, newest first. */
 export const needsOf = (snapshot: Snapshot, employeeId: string): readonly DevelopmentNeedVersion[] => indexOf(snapshot).needsByEmployee.get(employeeId) ?? [];
+/**
+ * Competency is assessed while an employee is in training or changing position (interview D4, 14 Oct 2026):
+ * an unfinished development requirement, or a saved position change assessment.
+ */
+export const inTrainingOrPositionChange = (snapshot: Snapshot, employeeId: string) =>
+  developmentNeeds(snapshot).some((item) => item.employeeId === employeeId && item.status !== "Completed")
+  || snapshot.competency.some((item) => item.employeeId === employeeId && item.context === "role-change");
+
 export const trainingsOf = (snapshot: Snapshot, employeeId: string): readonly TrainingVersion[] => indexOf(snapshot).trainingsByEmployee.get(employeeId) ?? [];
 export const developmentById = (snapshot: Snapshot, needId: string) => developmentNeeds(snapshot).find((item) => item.needId === needId);
 export const trainingById = (snapshot: Snapshot, trainingId: string) => trainings(snapshot).find((item) => item.trainingId === trainingId);

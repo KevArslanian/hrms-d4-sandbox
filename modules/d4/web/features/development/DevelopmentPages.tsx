@@ -95,6 +95,8 @@ export function DevelopmentDetailPage({ needId }: { needId: string }) {
         <p className="font-display font-semibold text-lg text-ink">{need.objective}</p>
         <div className="mt-6"><InfoGrid columns={3} items={[
           { label: "Priority", testId: "priority", value: statusLabel(need.priority) },
+          { label: "Metode", testId: "method", value: need.method || "—" },
+          { label: "PIC", testId: "pic", value: need.pic || "—" },
           { label: "Status", value: <StatusBadge status={need.status} /> },
           { label: "Last updated", testId: "last-updated", value: `${formatDate(need.createdAt)} · ${need.actor}` },
           { label: "Created", testId: "created", value: formatDate(history[history.length - 1]?.createdAt) },

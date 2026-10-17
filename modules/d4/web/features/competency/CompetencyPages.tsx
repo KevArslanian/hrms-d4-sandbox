@@ -6,7 +6,7 @@ import type { CompetencyFinding } from "../../../competency/types";
 import type { EmployeeReference } from "../../../shared/types";
 import { openNeedFor } from "../../../shared/rules";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { canWrite, currentCompetencyStatus, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, formatDate, includesText, latestCurrentPositionAssessment, positionById, positionOf, today, visibleEmployees, type CurrentCompetencyStatus } from "../../data/selectors";
+import { canWrite, currentCompetencyStatus, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, formatDate, inTrainingOrPositionChange, includesText, latestCurrentPositionAssessment, positionById, positionOf, today, visibleEmployees, type CurrentCompetencyStatus } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, FormError, FormModal, ModalActions, SearchInput, SearchSelectField, SelectFilter, TextField } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
@@ -18,6 +18,8 @@ type Row = { employee: EmployeeReference; position: string; status: CurrentCompe
 
 // Compared with statusLabel(row.status), so these are the English display labels.
 const STATUS_FILTER = ["Not Evaluated", "Met", "Gap", "Insufficient Data"];
+const SCOPE_ACTIVE = "In training / position change";
+const SCOPE_ALL = "All employees";
 
 export function CompetencyListPage() {
   const snapshot = useSnapshot();
@@ -27,25 +29,29 @@ export function CompetencyListPage() {
   const [position, setPosition] = useState("");
   const [department, setDepartment] = useState("");
   const [status, setStatus] = useState("");
+  // Employees see only themselves, so the scope applies to HR and managers.
+  const scoped = snapshot.role !== "EMPLOYEE";
+  const [scope, setScope] = useState(SCOPE_ACTIVE);
   const [devFor, setDevFor] = useState<string | null>(null);
-  const rows = useMemo<Row[]>(() => visibleEmployees(snapshot).map((employee) => {
+  const rows = useMemo<Row[]>(() => visibleEmployees(snapshot).filter((employee) => !scoped || scope === SCOPE_ALL || inTrainingOrPositionChange(snapshot, employee.id)).map((employee) => {
     const gap = currentGap(snapshot, employee);
     const saved = latestCurrentPositionAssessment(snapshot, employee);
     return { employee, position: positionOf(snapshot, employee)?.title ?? "—", status: currentCompetencyStatus(snapshot, employee), findings: gap?.findings ?? [], lastAssessed: saved?.effectiveDate };
   }).filter((row) => includesText(`${row.employee.fullName} ${row.employee.employeeId}`, search)
     && (!position || row.employee.positionId === position) && (!department || row.employee.departmentId === department) && (!status || statusLabel(row.status) === status))
-    .sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName)), [snapshot, search, position, department, status]);
+    .sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName)), [snapshot, scoped, scope, search, position, department, status]);
 
   return <>
-    <PageHeader title="Competency Gap" subtitle="Bandingkan kemampuan dan bukti pegawai dengan persyaratan posisi aktifnya." />
-    <FilterBar canReset={Boolean(search || position || department || status)} onReset={() => { setSearch(""); setPosition(""); setDepartment(""); setStatus(""); }}>
+    <PageHeader title="Competency Gap" subtitle="Bandingkan kemampuan dan bukti pegawai dengan persyaratan posisinya. Kompetensi dinilai saat pegawai sedang training atau naik jabatan." />
+    <FilterBar canReset={Boolean(search || position || department || status || scope !== SCOPE_ACTIVE)} onReset={() => { setSearch(""); setPosition(""); setDepartment(""); setStatus(""); setScope(SCOPE_ACTIVE); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Search name or ID" />
+      {scoped && <SelectFilter label="Scope" testId="competency-scope" value={scope} onChange={setScope} emptyOption={false} options={[SCOPE_ACTIVE, SCOPE_ALL].map((item) => ({ value: item, label: item }))} />}
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All positions" testId="all-positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />}
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All departments" testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />}
       <SelectFilter label="All status" testId="all-gap-status" value={status} onChange={setStatus} options={STATUS_FILTER.map((item) => ({ value: item, label: item }))} />
     </FilterBar>
     <DataTable<Row> rows={rows} noun="employees" rowKey={(row) => row.employee.id}
-      emptyTitle="Tidak ada pegawai yang cocok" emptyText="Ubah kata kunci atau reset filter."
+      emptyTitle="Tidak ada pegawai yang cocok" emptyText={scoped && scope === SCOPE_ACTIVE ? "Belum ada pegawai yang sedang training atau naik jabatan. Pilih All employees untuk memulai penilaian." : "Ubah kata kunci atau reset filter."}
       columns={[
         { key: "employee", header: "Employee", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
         { key: "position", header: "Position", wrap: true, cell: (row) => row.position },
