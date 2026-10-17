@@ -6,13 +6,14 @@ import { useMemo, useState, type ReactNode } from "react";
 import type { EmployeeReference } from "../../../shared/types";
 import type { D4LiveSnapshot, KpiAssessment } from "../../../supabase/types";
 import { useSnapshot } from "../../data/D4DataProvider";
-import { currentCompetencyStatus, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, evaluationsOf, formatDate, formatPeriod, formatScore, includesText, needsOf, positionOf, scorecardsOf, trainings, trainingsOf, visibleEmployees } from "../../data/selectors";
+import { currentCompetencyStatus, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, evaluationsOf, formatDate, formatPeriod, formatScorecard, includesText, needsOf, positionOf, scorecardsOf, trainings, trainingsOf, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
 import { Card, Notice, statusLabel, StatusBadge } from "../../ui/primitives";
 import { weighted } from "../kpi/KpiFormModal";
+import { performanceBand, scaleMaxOf } from "../../../kpi/scale";
 
 type Row = { employee: EmployeeReference; position: string; period?: string; scorecard?: KpiAssessment; gap: string; openNeeds: number; training?: string };
 
@@ -31,7 +32,7 @@ function periodData(snapshot: D4LiveSnapshot, employeeId: string, period: string
  * Dashboard KPI Orang (FR-D4-004): a read-only per-employee summary of the other five features.
  * It reads the same snapshot as the detail pages (FR-06.8), creates no data of its own and shows no achieved
  * label (FR-06.10). Above the table: headline counts and the competency pie asked for in Interview D4 (14 Oct 2026),
- * both over the rows already listed. No performance-band count yet: the score scale is still being changed to 1–100.
+ * both over the rows already listed. Performance-band counts appear once 1–100 (V6) scorecards exist.
  */
 export function DashboardPage() {
   const snapshot = useSnapshot();
@@ -93,8 +94,14 @@ function SummaryStrip({ rows }: { rows: readonly Row[] }) {
     { key: "dev", label: "With open development", value: rows.filter((row) => row.openNeeds > 0).length },
     { key: "training", label: "Training in progress", value: rows.filter((row) => row.training === "In Progress").length },
   ];
+  // Performance bands exist only for 1–100 scorecards (catalog V6 onward); until one is saved there is nothing to count.
+  const bands = (["Under Performance", "Acceptable", "High Performance"] as const).map((band) => ({
+    key: `band-${band.toLowerCase().replace(/\s+/g, "-")}`, label: band,
+    value: rows.filter((row) => row.scorecard && performanceBand(row.scorecard.overallScore, row.scorecard.definitionVersion) === band).length,
+  }));
+  const shown = bands.some((item) => item.value > 0) ? [...tiles, ...bands] : tiles;
   return <section aria-label="Summary" data-testid="dashboard-summary" className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-    {tiles.map((tile) => <div key={tile.key} data-testid={`summary-${tile.key}`} className="rounded-2xl border border-line bg-surface p-5 shadow-card">
+    {shown.map((tile) => <div key={tile.key} data-testid={`summary-${tile.key}`} className="rounded-2xl border border-line bg-surface p-5 shadow-card">
       <p className="text-xs font-semibold uppercase tracking-[0.04em] text-ink-3">{tile.label}</p>
       <p className="mt-2 font-display text-3xl font-semibold tabular-nums text-ink">{tile.value}</p>
       <p className="mt-1 text-xs text-ink-3">dari daftar di bawah</p>
@@ -136,7 +143,8 @@ function CompetencyPie({ rows }: { rows: Row[] }) {
 function ScoreCell({ scorecard }: { scorecard?: KpiAssessment }) {
   if (!scorecard) return <>—</>;
   if (!validScorecard(scorecard)) return <span className="text-xs font-semibold text-danger">Invalid data</span>;
-  return <span className="font-semibold text-ink">{formatScore(scorecard.overallScore)}</span>;
+  const band = performanceBand(scorecard.overallScore, scorecard.definitionVersion);
+  return <span className="font-semibold text-ink">{formatScorecard(scorecard)}{band && <span className="mt-1 block"><StatusBadge status={band} /></span>}</span>;
 }
 
 function SourceLink({ href, children = "View source" }: { href: string; children?: ReactNode }) {
@@ -167,8 +175,8 @@ export function EmployeeProfilePage({ employeeId, initialPeriod = "" }: { employ
       <Card title="Performance Review" className="xl:col-span-2" actions={<SourceLink href={scorecard ? `/performance/scorecard/${scorecard.id}` : `/performance/history/${employee.id}`} />} padded={false}>
         {scorecard ? <div className="overflow-x-auto"><table data-testid="dashboard-kpi-table" className="w-full min-w-[480px] text-left text-sm">
           <thead className="bg-app text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3"><tr><th className="py-2.5 pl-5 pr-2.5">Core KPI</th><th className="px-2.5 py-2.5">Weight</th><th className="px-2.5 py-2.5">Target</th><th className="px-2.5 py-2.5">Actual</th><th className="px-2.5 py-2.5">Score</th><th className="py-2.5 pl-2.5 pr-5 text-right">Weighted</th></tr></thead>
-          <tbody>{scorecard.lines.map((line) => <tr key={line.indicator_order} data-testid={`kpi-line-${line.indicator_order}`} className="border-t border-line"><td className="py-2.5 pl-5 pr-2.5 font-semibold">{line.kpi_name}</td><td className="px-2.5 py-2.5 tabular-nums">{line.weight_percent}%</td><td className="px-2.5 py-2.5">{line.target || "—"}</td><td className="px-2.5 py-2.5">{line.actual || "—"}</td><td className="px-2.5 py-2.5 tabular-nums">{line.raw_score ?? "—"}</td><td className="py-2.5 pl-2.5 pr-5 text-right tabular-nums">{weighted(line)?.toFixed(2) ?? "—"}</td></tr>)}</tbody>
-          <tfoot className="border-t border-line bg-app"><tr><td colSpan={5} className="py-2.5 pl-5 pr-2.5 font-semibold">Total ({formatPeriod(scorecard.period)})</td><td className="whitespace-nowrap py-2.5 pl-2.5 pr-5 text-right font-display font-semibold tabular-nums">{formatScore(scorecard.overallScore)}</td></tr></tfoot>
+          <tbody>{scorecard.lines.map((line) => <tr key={line.indicator_order} data-testid={`kpi-line-${line.indicator_order}`} className="border-t border-line"><td className="py-2.5 pl-5 pr-2.5 font-semibold">{line.kpi_name}</td><td className="px-2.5 py-2.5 tabular-nums">{line.weight_percent}%</td><td className="px-2.5 py-2.5">{line.target || "—"}</td><td className="px-2.5 py-2.5">{line.actual || "—"}</td><td className="px-2.5 py-2.5 tabular-nums">{line.raw_score ?? "—"}</td><td className="py-2.5 pl-2.5 pr-5 text-right tabular-nums">{weighted(line, scaleMaxOf(scorecard.definitionVersion))?.toFixed(2) ?? "—"}</td></tr>)}</tbody>
+          <tfoot className="border-t border-line bg-app"><tr><td colSpan={5} className="py-2.5 pl-5 pr-2.5 font-semibold">Total ({formatPeriod(scorecard.period)})</td><td className="whitespace-nowrap py-2.5 pl-2.5 pr-5 text-right font-display font-semibold tabular-nums">{formatScorecard(scorecard)}</td></tr></tfoot>
         </table></div> : <p className="px-6 pb-6 text-sm text-ink-3">Belum ada Performance Review untuk periode ini.</p>}
       </Card>
       {/* FR-04.3: the evaluation card shows the notes of the Performance Review (older records: the separate evaluation). */}
