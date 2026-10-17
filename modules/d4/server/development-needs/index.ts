@@ -1,6 +1,6 @@
 import type { DevelopmentPriority, DevelopmentSourceType, DevelopmentStatus } from "../../development/types";
 import { latestDevelopment, latestTraining } from "../../supabase/types";
-import { assertDevelopmentChange, assertGapAssessed, assertNoOpenNeed, openTrainingCount } from "../../shared/rules";
+import { assertDevelopmentChange, assertGapAssessed, assertNoOpenNeed, openTrainingCount, passedTrainingCount } from "../../shared/rules";
 import { ApiError, employeeFilter, enforce, field, readJson } from "../_lib/http";
 import { d4Session, requireWriter } from "../_lib/session";
 
@@ -32,6 +32,7 @@ export async function createDevelopment(request: Request) {
     employeeId: field.uuid(body, "employeeId"), sourceType: field.oneOf(body, "sourceType", sourceTypes),
     sourceRef: field.uuid(body, "sourceRef"), objective: field.text(body, "objective", { max: 500 }),
     priority: field.oneOf(body, "priority", priorities), notes: field.text(body, "notes", { required: false, max: 2000 }),
+    method: field.text(body, "method", { required: false, max: 120 }), pic: field.text(body, "pic", { required: false, max: 120 }),
   };
   const snapshot = await repository.loadSnapshot();
   enforce(() => assertNoOpenNeed(latestDevelopment(snapshot), input.employeeId, input.sourceType, input.sourceRef));
@@ -49,7 +50,8 @@ export async function addDevelopmentVersion(request: Request, id: string) {
   const snapshot = await repository.loadSnapshot();
   const current = latestDevelopment(snapshot).find((item) => item.needId === id);
   if (!current) throw new ApiError("NOT_FOUND", "Development requirement tidak ditemukan.");
-  enforce(() => assertDevelopmentChange(current.status, status, notes, openTrainingCount(latestTraining(snapshot), id)));
+  const trainings = latestTraining(snapshot);
+  enforce(() => assertDevelopmentChange(current.status, status, notes, openTrainingCount(trainings, id), passedTrainingCount(trainings, id)));
   await repository.updateDevelopment(id, status, notes);
   return { developmentNeedId: id, status };
 }

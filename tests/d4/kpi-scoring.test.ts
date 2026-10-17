@@ -74,7 +74,7 @@ describe("saved scorecard total (fixture source, mirrors the DB trigger d4_calcu
     const lines = indicatorsFor(catalog, FINANCE_ROLE).map((row, index) => ({
       indicator_order: row.indicator_order, kpi_name: row.kpi_name, weight_percent: row.weight_percent, target: "", actual: "", raw_score: scores[index], comment: "",
     }));
-    const id = await source.createKpiAssessment({ employeeId: ALFA, roleOrder: FINANCE_ROLE, period, evaluationDate: "2026-10-01", evaluatorName: "x", status: "completed", lines, generalNotes: "Catatan uji." });
+    const id = await source.createKpiAssessment({ employeeId: ALFA, roleOrder: FINANCE_ROLE, period, evaluationDate: "2026-10-01", evaluatorName: "x", status: "completed", lines, generalNotes: "Catatan uji.", evidenceReference: "DOC-1" });
     return (await source.loadSnapshot()).kpiAssessments!.find((item) => item.id === id)!.overallScore;
   }
 
@@ -82,7 +82,7 @@ describe("saved scorecard total (fixture source, mirrors the DB trigger d4_calcu
     const lines = indicatorsFor(catalog, FINANCE_ROLE).map((row) => ({
       indicator_order: row.indicator_order, kpi_name: row.kpi_name, weight_percent: row.weight_percent, target: "999", actual: "", raw_score: 4, comment: "",
     }));
-    const id = await source.createKpiAssessment({ employeeId: ALFA, roleOrder: FINANCE_ROLE, period: "2026-10", evaluationDate: "2026-10-01", evaluatorName: "x", status: "completed", lines, generalNotes: "Catatan" });
+    const id = await source.createKpiAssessment({ employeeId: ALFA, roleOrder: FINANCE_ROLE, period: "2026-10", evaluationDate: "2026-10-01", evaluatorName: "x", status: "completed", lines, generalNotes: "Catatan", evidenceReference: "DOC-1" });
     const saved = (await source.loadSnapshot()).kpiAssessments!.find((item) => item.id === id)!;
     expect(saved.lines.map((line) => line.target)).toEqual(["85", "85", "85", "85", "85"]);
   });

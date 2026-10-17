@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CompetencyAssessment } from "@/modules/d4/competency/types";
-import { assertDevelopmentChange, assertGapAssessed, assertNotFutureDate, assertTrainingDate, openTrainingCount, isTrainingRollback, localMonth, localToday, revisionNumber } from "@/modules/d4/shared/rules";
+import { assertDevelopmentChange, assertTrainingResult, passedTrainingCount, assertGapAssessed, assertNotFutureDate, assertTrainingDate, openTrainingCount, isTrainingRollback, localMonth, localToday, revisionNumber } from "@/modules/d4/shared/rules";
 import type { EmployeeReference } from "@/modules/d4/shared/types";
-import { asEmployee, assessableEmployees, canWrite, currentCompetencyStatus, currentGap, latestCurrentPositionAssessment, revisionTag, visibleEmployees, type Snapshot } from "@/modules/d4/web/data/selectors";
+import { asEmployee, assessableEmployees, inTrainingOrPositionChange, canWrite, currentCompetencyStatus, currentGap, latestCurrentPositionAssessment, revisionTag, visibleEmployees, type Snapshot } from "@/modules/d4/web/data/selectors";
 import type { TrainingStatus } from "@/modules/d4/training/types";
 
 const ALFA = "d4000000-0000-4000-8000-000000000009";
@@ -165,6 +165,16 @@ describe("role views (fixture)", () => {
     expect(records.length).toBeGreaterThan(0);
     expect(records.every((item) => item.employeeId === ALFA)).toBe(true);
   });
+
+  it("an employee is in scope for competency only with an open requirement or a position change", async () => {
+    const snapshot = await (await fixtureAs("HR")).loadSnapshot();
+    const open = snapshot.developmentVersions.find((item) => item.status !== "Completed")!;
+    expect(inTrainingOrPositionChange(snapshot, open.employeeId)).toBe(true);
+    const closed = { ...snapshot, developmentVersions: snapshot.developmentVersions.map((item) => ({ ...item, status: "Completed" as const })), competency: [] };
+    expect(inTrainingOrPositionChange(closed, open.employeeId)).toBe(false);
+    const promoted = { ...closed, competency: [{ ...snapshot.competency[0], employeeId: open.employeeId, context: "role-change" as const }] };
+    expect(inTrainingOrPositionChange(promoted, open.employeeId)).toBe(true);
+  });
 });
 
 describe("development status change", () => {
@@ -175,7 +185,17 @@ describe("development status change", () => {
     expect(() => assertDevelopmentChange("Planned", "In Progress", "")).not.toThrow();
     expect(() => assertDevelopmentChange("In Progress", "Completed", "", 1)).toThrow(/masih Planned atau In Progress/);
     expect(() => assertDevelopmentChange("In Progress", "Completed", "Training diganti coaching", 1)).not.toThrow();
-    expect(() => assertDevelopmentChange("In Progress", "Completed", "", 0)).not.toThrow();
+    expect(() => assertDevelopmentChange("In Progress", "Completed", "", 0, 1)).not.toThrow();
+  });
+
+  it("completing a need without a passed training needs a reason; a training result is Passed or Not Passed", () => {
+    expect(() => assertDevelopmentChange("In Progress", "Completed", "", 0, 0)).toThrow(/Belum ada training berhasil Passed/);
+    expect(() => assertDevelopmentChange("In Progress", "Completed", "Ditutup lewat coaching", 0, 0)).not.toThrow();
+    const list = [{ developmentNeedId: "N1", status: "Completed" as const, result: "Passed" }, { developmentNeedId: "N1", status: "Completed" as const, result: "Not Passed" }, { developmentNeedId: "N2", status: "Completed" as const, result: "Passed" }];
+    expect(passedTrainingCount(list, "N1")).toBe(1);
+    expect(() => assertTrainingResult("Completed", "Lulus")).toThrow(/Passed atau Not Passed/);
+    expect(() => assertTrainingResult("Completed", "Not Passed")).not.toThrow();
+    expect(() => assertTrainingResult("In Progress", "")).not.toThrow();
   });
 
   it("counts only Planned/In Progress training of the need", () => {

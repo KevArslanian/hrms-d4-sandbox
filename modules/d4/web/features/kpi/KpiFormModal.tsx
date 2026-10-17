@@ -20,7 +20,7 @@ export function weighted(line: Pick<KpiAssessmentLine, "weight_percent" | "raw_s
   return validScore(line.raw_score) ? line.weight_percent * (line.raw_score ?? 0) / 100 : null;
 }
 
-/** Performance Review (FR-D4-001 v3.1): five Core KPI, evaluation notes and evidence in one form with one Save. */
+/** Performance Review (FR-D4-001 v3.1): five Core KPI, notes and evidence in one form with one Save. */
 export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: string; onClose: () => void; onSaved?: (id: string) => void }) {
   const snapshot = useSnapshot();
   const { catalog: catalogSet, run, busy } = useD4();
@@ -70,7 +70,8 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
     if (!roleOrder || lines.length !== 5 || totalWeight !== 100) { setError("KPI untuk posisi ini belum tersedia di katalog; penilaian tidak dapat disimpan."); return; }
     if (lines.some((line) => !line.kpi_name.trim())) { setError("Setiap Core KPI wajib diberi nama."); return; }
     if (!allScored || !period || !date) { setError("Lengkapi periode, tanggal evaluasi, dan skor 1–5 untuk kelima KPI."); return; }
-    if (!notes.trim()) { setError("Catatan evaluasi wajib diisi."); return; }
+    if (!notes.trim()) { setError("Notes wajib diisi."); return; }
+    if (!evidence.trim()) { setError("Bukti / referensi wajib diisi."); return; }
     if (date > today()) { setError("Tanggal evaluasi tidak boleh lebih dari hari ini."); return; }
     if (existing && !revise) { setError("Performance Review untuk periode ini sudah ada. Centang “Save as revision” atau pilih periode lain."); return; }
     setError("");
@@ -79,7 +80,7 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
     if (result.ok) { onSaved?.(result.value); onClose(); } else setError(result.error);
   }
 
-  return <FormModal size="lg" title="Performance Review" description={`Lima Core KPI dari katalog ${catalog?.version ?? ""} sesuai posisi pegawai (nama bisa diubah, bobot dan target tetap), lalu catatan evaluasi. Satu kali Simpan.`} onClose={onClose}
+  return <FormModal size="lg" title="Performance Review" description={`Lima Core KPI dari katalog ${catalog?.version ?? ""} sesuai posisi pegawai (nama bisa diubah, bobot dan target tetap), lalu notes dan bukti. Satu kali Simpan.`} onClose={onClose}
     footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Simpan" disabled={Boolean(employee) && !lines.length} />}>
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />
@@ -122,9 +123,9 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
         </table>
       </div>}
       <p className="text-xs text-ink-3">Kriteria skor: {[1, 2, 3, 4, 5].map((value) => `${value} ${SCORE_LABELS[value]}`).join(" · ")}. Skor terbobot = bobot × skor mentah; total = jumlah skor terbobot. Penilai mengisi skor mentah; sistem tidak mengubah realisasi menjadi skor dan tidak memberi label tercapai/tidak tercapai.</p>
-      <TextAreaField label="Catatan evaluasi" testId="catatan-evaluasi" required value={notes} onChange={(event) => setNotes(event.target.value)} error={touched && !notes.trim() ? "Catatan evaluasi wajib diisi." : undefined}
+      <TextAreaField label="Notes" testId="catatan-evaluasi" required value={notes} onChange={(event) => setNotes(event.target.value)} error={touched && !notes.trim() ? "Notes wajib diisi." : undefined}
         helper="Kekuatan, hal yang perlu diperbaiki, dan rekomendasi pelatihan — bisa menjadi dasar Development Requirement." />
-      <TextField label="Bukti / referensi" testId="evidence-reference" maxLength={500} value={evidence} onChange={(event) => setEvidence(event.target.value)} helper="Opsional: nomor dokumen atau tautan bukti." />
+      <TextField label="Bukti / referensi" testId="evidence-reference" required maxLength={500} value={evidence} onChange={(event) => setEvidence(event.target.value)} error={touched && !evidence.trim() ? "Bukti / referensi wajib diisi." : undefined} helper="Nomor dokumen, tautan laporan, atau lokasi bukti pencapaian KPI." />
     </form>
   </FormModal>;
 }

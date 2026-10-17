@@ -54,7 +54,7 @@ export function KpiDetailPage({ id }: { id: string }) {
           ]} />
           <p className="mt-5 text-xs text-ink-3">Total = Σ (bobot × skor mentah). Belum ada label tercapai/tidak tercapai karena belum ada batas resmi.</p>
         </Card>
-        <Card title="Catatan evaluasi" testId="notes-related">
+        <Card title="Notes" testId="notes-related">
           <p className="whitespace-pre-wrap text-sm text-ink-2">{scorecard.generalNotes || evaluation?.generalNotes || "Belum ada catatan."}</p>
           <h3 className="mb-1 mt-5 text-xs font-semibold uppercase tracking-[0.04em] text-ink-3">Bukti / referensi</h3>
           <p className="text-sm text-ink-2">{scorecard.evidenceReference || evaluation?.evidenceReference || "—"}</p>
