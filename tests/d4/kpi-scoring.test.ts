@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { catalogFor, indicatorsFor, KPI_V51_CATALOG, roleForPosition, roleForPositionTitle, rolesOf, type KpiCatalogSet } from "@/modules/d4/kpi/catalog";
+import { catalogFor, indicatorsFor, KPI_TARGET, KPI_V51_CATALOG, roleForPosition, roleForPositionTitle, rolesOf, targetOf, type KpiCatalogSet } from "@/modules/d4/kpi/catalog";
 import { d4ReferenceFixture } from "@/modules/d4/shared/fixtures";
 import { createFixtureSource } from "@/modules/d4/web/data/fixture-source";
 import type { D4DataSource } from "@/modules/d4/web/data/source";
@@ -54,6 +54,14 @@ describe("weighted KPI score (FR-02.5, FR-02.6)", () => {
   });
 });
 
+describe("fixed KPI target", () => {
+  it("is 85 when the catalog carries no target, and the catalog target wins when it does", () => {
+    expect(KPI_TARGET).toBe("85");
+    expect(KPI_V51_CATALOG.every((row) => targetOf(row) === "85")).toBe(true);
+    expect(targetOf({ target: "90" })).toBe("90");
+  });
+});
+
 describe("saved scorecard total (fixture source, mirrors the DB trigger d4_calculate_kpi_assessment)", () => {
   let source: D4DataSource;
   beforeEach(() => {
@@ -69,6 +77,15 @@ describe("saved scorecard total (fixture source, mirrors the DB trigger d4_calcu
     const id = await source.createKpiAssessment({ employeeId: ALFA, roleOrder: FINANCE_ROLE, period, evaluationDate: "2026-10-01", evaluatorName: "x", status: "completed", lines, generalNotes: "Catatan uji." });
     return (await source.loadSnapshot()).kpiAssessments!.find((item) => item.id === id)!.overallScore;
   }
+
+  it("stores the catalog target, not the one in the request", async () => {
+    const lines = indicatorsFor(catalog, FINANCE_ROLE).map((row) => ({
+      indicator_order: row.indicator_order, kpi_name: row.kpi_name, weight_percent: row.weight_percent, target: "999", actual: "", raw_score: 4, comment: "",
+    }));
+    const id = await source.createKpiAssessment({ employeeId: ALFA, roleOrder: FINANCE_ROLE, period: "2026-10", evaluationDate: "2026-10-01", evaluatorName: "x", status: "completed", lines, generalNotes: "Catatan" });
+    const saved = (await source.loadSnapshot()).kpiAssessments!.find((item) => item.id === id)!;
+    expect(saved.lines.map((line) => line.target)).toEqual(["85", "85", "85", "85", "85"]);
+  });
 
   it.each([
     // weights 25/25/20/15/15

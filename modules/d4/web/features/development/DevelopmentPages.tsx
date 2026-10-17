@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, GraduationCap, History, Plus, RefreshCw } from "lucide-react";
+import { ClipboardCheck, Eye, GraduationCap, History, Plus, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { DevelopmentNeedVersion, DevelopmentSourceType } from "../../../development/types";
 import { useSnapshot } from "../../data/D4DataProvider";
@@ -87,6 +87,8 @@ export function DevelopmentDetailPage({ needId }: { needId: string }) {
         {writer && <Button icon={<RefreshCw className="size-4" />} onClick={() => setStatusOpen(true)} data-testid="btn-update-status">Update Status</Button>}
         {/* A completed requirement cannot take new training (assertNeedOpen). */}
         {writer && need.status !== "Completed" && <Button icon={<GraduationCap className="size-4" />} onClick={() => setTrainingOpen(true)} data-testid="btn-create-training">Create Training</Button>}
+        {/* Completed does not close the gap by itself: the next step is a fresh competency assessment. */}
+        {writer && need.status === "Completed" && <ButtonLink href={`/competency/${employee.id}`} icon={<ClipboardCheck className="size-4" />} testId="reassess-competency">Reassess Competency</ButtonLink>}
       </>} />
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
       <Card title="Requirement">

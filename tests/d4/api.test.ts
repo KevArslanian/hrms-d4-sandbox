@@ -316,6 +316,16 @@ describe("POST /kpi-assessments", () => {
     expect(saved.weight_percent).toBe(kpiBody().lines[0].weight_percent);
   });
 
+  // The target is fixed (85 unless the catalog carries one); whatever the form sends is ignored.
+  it("stores the fixed target and ignores the target sent by the client", async () => {
+    const body = kpiBody();
+    body.lines = body.lines.map((line) => ({ ...line, target: "999" }));
+    const res = await call(kpi.POST(post(body)));
+    expect(res.status).toBe(201);
+    const saved = (writes[0].args[0] as { lines: { target: string }[] }).lines;
+    expect(saved.map((line) => line.target)).toEqual(["85", "85", "85", "85", "85"]);
+  });
+
   it("rejects an empty Core KPI name", async () => {
     const body = kpiBody();
     body.lines = body.lines.map((line, index) => index ? line : { ...line, kpi_name: " " });

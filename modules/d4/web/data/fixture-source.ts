@@ -1,6 +1,6 @@
 import { compareCompetencies } from "../../competency/service";
 import { developmentFixtureVersions } from "../../development/fixtures";
-import { catalogFor, indicatorsFor, KPI_V51_CATALOG, roleForPosition, seedCatalogSet } from "../../kpi/catalog";
+import { catalogFor, indicatorsFor, KPI_V51_CATALOG, roleForPosition, seedCatalogSet, targetOf } from "../../kpi/catalog";
 import { performanceFixtureRecords } from "../../performance/fixtures";
 import { validatePerformanceInput } from "../../performance/validation";
 import { d4ReferenceFixture } from "../../shared/fixtures";
@@ -22,7 +22,7 @@ const catalog = { version: "V5.1", rows: KPI_V51_CATALOG };
 function kpiLines(roleOrder: number, scores: (number | null)[], actual: string[]): KpiAssessmentLine[] {
   return indicatorsFor(catalog, roleOrder).map((row, index) => ({
     indicator_order: row.indicator_order, kpi_name: row.kpi_name, weight_percent: row.weight_percent,
-    target: "Meets period target", actual: actual[index] ?? "", raw_score: scores[index] ?? null, comment: "",
+    target: targetOf(row), actual: actual[index] ?? "", raw_score: scores[index] ?? null, comment: "",
   }));
 }
 
@@ -153,6 +153,8 @@ export function createFixtureSource(): D4DataSource {
       if (roleForPosition(periodCatalog, employee?.positionId) !== input.roleOrder) throw new Error("Set KPI yang dipilih bukan milik posisi pegawai ini.");
       if (input.status === "completed" && input.lines.some((line) => line.raw_score === null)) throw new Error("Kelima indikator KPI harus dinilai sebelum diselesaikan.");
       const id = newId("FIX-D4-KPI");
+      // The target comes from the catalog, never from the form (same rule as the server).
+      input.lines = input.lines.map((line, index) => ({ ...line, target: targetOf(indicators[index]) }));
       update({ kpiAssessments: [{ ...input, id, definitionVersion: periodCatalog.version, roleName: indicators[0].role_name, overallScore: total(input.lines), createdAt: now(), actor: actorName() }, ...(state.kpiAssessments ?? [])] });
       return id;
     },
