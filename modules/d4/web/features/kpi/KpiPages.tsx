@@ -1,6 +1,6 @@
 "use client";
 
-import { performanceBand, scaleMaxOf } from "../../../kpi/scale";
+import { HIGH_ABOVE, performanceBand, scaleMaxOf, UNDER_BELOW } from "../../../kpi/scale";
 import { History, Plus } from "lucide-react";
 import { useState } from "react";
 import { catalogFor } from "../../../kpi/catalog";
@@ -53,7 +53,7 @@ export function KpiDetailPage({ id }: { id: string }) {
             { label: "Total KPI", testId: "total-score", value: <><strong className="font-display font-semibold text-lg">{formatScorecard(scorecard)}</strong>{performanceBand(scorecard.overallScore, scorecard.definitionVersion) && <span data-testid="performance-band" className="mt-1 block"><StatusBadge status={performanceBand(scorecard.overallScore, scorecard.definitionVersion)!} /></span>}</> },
             { label: "Recorded", testId: "recorded", value: `${scorecard.actor} · ${formatDate(scorecard.createdAt)}` },
           ]} />
-          <p className="mt-5 text-xs text-ink-3">Total = Σ (bobot × skor mentah). Belum ada label tercapai/tidak tercapai karena belum ada batas resmi.</p>
+          <p className="mt-5 text-xs text-ink-3">Total = Σ (bobot × skor). {scaleMaxOf(scorecard.definitionVersion) === 100 ? `Di bawah ${UNDER_BELOW} Under Performance, ${UNDER_BELOW}–${HIGH_ABOVE} Average Performance, di atas ${HIGH_ABOVE} High Performance.` : "Skala 1–5 (V3.1/V5.1) tidak punya kategori performa; kategori berlaku untuk scorecard 1–100 mulai V6."}</p>
         </Card>
         <Card title="Notes" testId="notes-related">
           <p className="whitespace-pre-wrap text-sm text-ink-2">{scorecard.generalNotes || evaluation?.generalNotes || "Belum ada catatan."}</p>

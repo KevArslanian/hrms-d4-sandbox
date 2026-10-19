@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight, Eye, Target } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, Eye, Target } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
-import type { EmployeeReference } from "../../../shared/types";
 import type { D4LiveSnapshot, KpiAssessment } from "../../../supabase/types";
 import { useSnapshot } from "../../data/D4DataProvider";
 import { currentCompetencyStatus, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, evaluationsOf, formatDate, formatPeriod, formatScorecard, includesText, needsOf, positionOf, scorecardsOf, trainings, trainingsOf, visibleEmployees } from "../../data/selectors";
@@ -11,11 +10,12 @@ import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
-import { Card, Notice, statusLabel, StatusBadge } from "../../ui/primitives";
+import { Card, Notice, slug, statusLabel, StatusBadge } from "../../ui/primitives";
 import { weighted } from "../kpi/KpiFormModal";
-import { performanceBand, scaleMaxOf } from "../../../kpi/scale";
+import { HIGH_ABOVE, performanceBand, scaleMaxOf, UNDER_BELOW } from "../../../kpi/scale";
+import { competencySlices, dashboardAlerts, gapRanking, performanceSlices, type DashboardRow, type Slice } from "./summary";
 
-type Row = { employee: EmployeeReference; position: string; period?: string; scorecard?: KpiAssessment; gap: string; openNeeds: number; training?: string };
+type Row = DashboardRow & { position: string; period?: string; openNeeds: number; training?: string };
 
 /** FR-06.9 validation state: a scorecard is only summarised when it has five KPIs whose weights total 100%. */
 const validScorecard = (item: KpiAssessment) => item.lines.length === 5 && item.lines.reduce((sum, line) => sum + line.weight_percent, 0) === 100;
@@ -31,8 +31,8 @@ function periodData(snapshot: D4LiveSnapshot, employeeId: string, period: string
 /**
  * Dashboard KPI Orang (FR-D4-004): a read-only per-employee summary of the other five features.
  * It reads the same snapshot as the detail pages (FR-06.8), creates no data of its own and shows no achieved
- * label (FR-06.10). Above the table: headline counts and the competency pie asked for in Interview D4 (14 Oct 2026),
- * both over the rows already listed. Performance-band counts appear once 1–100 (V6) scorecards exist.
+ * label (FR-06.10). Above the table, over the rows already listed (Interview D4, 14 Oct 2026): headline counts,
+ * performance-category and competency donuts, the competencies with the most gaps, and alerts for HR follow-up.
  */
 export function DashboardPage() {
   const snapshot = useSnapshot();
@@ -66,7 +66,14 @@ export function DashboardPage() {
       <SelectFilter label="Period" testId="latest-period" emptyOption={false} value={period || periods[0] || ""} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
     </FilterBar>
     <SummaryStrip rows={rows} />
-    {snapshot.role !== "EMPLOYEE" && rows.length > 0 && <CompetencyPie rows={rows} />}
+    {snapshot.role !== "EMPLOYEE" && rows.length > 0 && <>
+      <div className="grid gap-6 xl:grid-cols-3">
+        <PerformanceCard rows={rows} />
+        <CompetencyCard rows={rows} />
+        <GapRankingCard snapshot={snapshot} rows={rows} />
+      </div>
+      <AlertsCard snapshot={snapshot} rows={rows} />
+    </>}
     <DataTable<Row> rows={rows} noun="employees" rowKey={(row) => row.employee.id}
       emptyTitle="Tidak ada pegawai yang cocok" emptyText={snapshot.role === "EMPLOYEE" ? "Ubah kata kunci atau periode, lalu coba lagi." : "Ubah kata kunci, posisi, departemen, atau periode, lalu coba lagi."}
       columns={[
@@ -94,14 +101,8 @@ function SummaryStrip({ rows }: { rows: readonly Row[] }) {
     { key: "dev", label: "With open development", value: rows.filter((row) => row.openNeeds > 0).length },
     { key: "training", label: "Training in progress", value: rows.filter((row) => row.training === "In Progress").length },
   ];
-  // Performance bands exist only for 1–100 scorecards (catalog V6 onward); until one is saved there is nothing to count.
-  const bands = (["Under Performance", "Acceptable", "High Performance"] as const).map((band) => ({
-    key: `band-${band.toLowerCase().replace(/\s+/g, "-")}`, label: band,
-    value: rows.filter((row) => row.scorecard && performanceBand(row.scorecard.overallScore, row.scorecard.definitionVersion) === band).length,
-  }));
-  const shown = bands.some((item) => item.value > 0) ? [...tiles, ...bands] : tiles;
   return <section aria-label="Summary" data-testid="dashboard-summary" className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-    {shown.map((tile) => <div key={tile.key} data-testid={`summary-${tile.key}`} className="rounded-2xl border border-line bg-surface p-5 shadow-card">
+    {tiles.map((tile) => <div key={tile.key} data-testid={`summary-${tile.key}`} className="rounded-2xl border border-line bg-surface p-5 shadow-card">
       <p className="text-xs font-semibold uppercase tracking-[0.04em] text-ink-3">{tile.label}</p>
       <p className="mt-2 font-display text-3xl font-semibold tabular-nums text-ink">{tile.value}</p>
       <p className="mt-1 text-xs text-ink-3">dari daftar di bawah</p>
@@ -109,34 +110,108 @@ function SummaryStrip({ rows }: { rows: readonly Row[] }) {
   </section>;
 }
 
-const PIE_COLORS: Record<string, string> = {
-  Terpenuhi: "var(--color-success)", Gap: "var(--color-danger)", "Bukti Belum Cukup": "var(--color-warning)",
-  "Belum Ada Persyaratan": "var(--color-info)", "Not Evaluated": "var(--color-neutral)",
+const BAND_COLORS: Record<string, string> = {
+  "under-performance": "var(--color-warning)", "average-performance": "var(--color-info)", "high-performance": "var(--color-success)",
+};
+const COMPETENCY_COLORS: Record<string, string> = {
+  met: "var(--color-success)", "insufficient-data": "var(--color-warning)", gap: "var(--color-danger)", "not-evaluated": "var(--color-neutral)",
 };
 
-/** Competency status of the employees in the current filter, as a pie (CSS conic-gradient, no chart library). */
-function CompetencyPie({ rows }: { rows: Row[] }) {
-  const counts = Object.keys(PIE_COLORS).map((status) => ({ status, count: rows.filter((row) => row.gap === status).length })).filter((item) => item.count);
-  let start = 0;
-  const stops = counts.map(({ status, count }) => {
-    const end = start + (count / rows.length) * 360;
-    const stop = `${PIE_COLORS[status]} ${start}deg ${end}deg`;
-    start = end;
-    return stop;
-  });
-  const summary = counts.map((item) => `${statusLabel(item.status)} ${item.count}`).join(", ");
-  return <Card title="Competency status" testId="competency-pie" className="mb-6">
-    <div className="flex flex-wrap items-center gap-6">
-      <div role="img" aria-label={`Competency status: ${summary}`} className="size-32 shrink-0 rounded-full" style={{ background: `conic-gradient(${stops.join(", ")})` }} />
-      <ul className="space-y-2 text-sm">
-        {counts.map(({ status, count }) => <li key={status} className="flex items-center gap-2">
-          <span aria-hidden="true" className="size-3 rounded-sm" style={{ background: PIE_COLORS[status] }} />
-          <span className="text-ink-2">{statusLabel(status)}</span>
-          <span className="font-semibold tabular-nums text-ink">{count}</span>
-          <span className="text-xs text-ink-3">({Math.round((count / rows.length) * 100)}%)</span>
-        </li>)}
-      </ul>
+const RING_R = 40;
+const RING = 2 * Math.PI * RING_R;
+/** Surface gap between slices in viewBox units (about 2px at the 144px size), so neighbours read apart without a stroke. */
+const SLICE_GAP = 1.5;
+
+/**
+ * Donut (a pie with the total in the middle) for part-to-whole at a glance. SVG arcs with a surface gap, a native
+ * tooltip per slice, and a legend with counts and shares that doubles as the table view.
+ */
+function Donut({ name, slices, colors, center, centerLabel }: { name: string; slices: readonly Slice[]; colors: Record<string, string>; center: number; centerLabel: string }) {
+  const drawn = slices.filter((slice) => slice.count > 0);
+  const sum = drawn.reduce((total, slice) => total + slice.count, 0);
+  const share = (count: number) => sum ? Math.round((count / sum) * 100) : 0;
+  const arcs = drawn.map((slice, index) => ({ slice, start: (drawn.slice(0, index).reduce((total, item) => total + item.count, 0) / sum) * RING, length: (slice.count / sum) * RING }));
+  const colorOf = (key: string) => colors[key] ?? "var(--color-neutral)";
+  return <div className="flex flex-wrap items-center gap-6">
+    <div className="relative size-36 shrink-0">
+      <svg viewBox="0 0 100 100" className="size-full -rotate-90" role="img" aria-label={`${name}: ${drawn.map((slice) => `${slice.label} ${slice.count}`).join(", ") || "belum ada data"}`}>
+        {!arcs.length && <circle cx="50" cy="50" r={RING_R} fill="none" stroke="var(--color-line)" strokeWidth="12" />}
+        {arcs.map(({ slice, start, length }) => {
+          const dash = arcs.length > 1 ? Math.max(length - SLICE_GAP, 0.5) : length;
+          return <circle key={slice.key} data-testid={`slice-${slice.key}`} cx="50" cy="50" r={RING_R} fill="none" stroke={colorOf(slice.key)} strokeWidth="12" strokeDasharray={`${dash} ${RING - dash}`} strokeDashoffset={-start}>
+            <title>{`${slice.label}: ${slice.count} (${share(slice.count)}%)`}</title>
+          </circle>;
+        })}
+      </svg>
+      <div aria-hidden="true" className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="font-display text-2xl font-semibold tabular-nums text-ink">{center}</span>
+        <span className="text-[11px] text-ink-3">{centerLabel}</span>
+      </div>
     </div>
+    <ul className="min-w-0 space-y-2 text-sm">
+      {slices.map((slice) => <li key={slice.key} data-testid={`legend-${slice.key}`} className="flex items-center gap-2">
+        <span aria-hidden="true" className="size-3 shrink-0 rounded-sm" style={{ background: colorOf(slice.key) }} />
+        <span className="text-ink-2">{slice.label}</span>
+        <span className="font-semibold tabular-nums text-ink">{slice.count}</span>
+        <span className="text-xs text-ink-3">({share(slice.count)}%)</span>
+      </li>)}
+    </ul>
+  </div>;
+}
+
+/** Under / Average / High from the total of the five Core KPI, for the period listed (Interview D4, 14 Oct 2026). */
+function PerformanceCard({ rows }: { rows: readonly Row[] }) {
+  const { slices, rated, total } = performanceSlices(rows);
+  return <Card title="Performance category" testId="performance-pie">
+    <Donut name="Performance category" slices={slices} colors={BAND_COLORS} center={rated} centerLabel={`dari ${total} pegawai`} />
+    <p className="mt-4 text-xs leading-5 text-ink-3">{rated
+      ? `Total 5 Core KPI: di bawah ${UNDER_BELOW} Under, ${UNDER_BELOW}–${HIGH_ABOVE} Average, di atas ${HIGH_ABOVE} High.${total > rated ? ` ${total - rated} pegawai belum punya kategori (belum ada scorecard 1–100).` : ""}`
+      : "Belum ada scorecard skala 1–100 pada periode ini. Kategori berlaku mulai scorecard V6 (periode Nov 2026); scorecard 1–5 (V3.1/V5.1) tidak punya kategori."}</p>
+  </Card>;
+}
+
+function CompetencyCard({ rows }: { rows: readonly Row[] }) {
+  return <Card title="Competency status" testId="competency-pie">
+    <Donut name="Competency status" slices={competencySlices(rows)} colors={COMPETENCY_COLORS} center={rows.length} centerLabel="pegawai" />
+  </Card>;
+}
+
+const GAP_BARS = 5;
+
+/** Ranked bars: which competencies have the most open gaps among the listed, assessed employees. */
+function GapRankingCard({ snapshot, rows }: { snapshot: D4LiveSnapshot; rows: readonly Row[] }) {
+  const ranking = gapRanking(snapshot, rows);
+  const top = ranking.slice(0, GAP_BARS);
+  const max = top[0]?.count ?? 0;
+  return <Card title="Top competency gaps" testId="competency-gap-ranking">
+    {top.length ? <ol className="space-y-3">
+      {top.map((item) => <li key={item.id} data-testid={`gap-bar-${slug(item.name)}`} title={`${item.name}: ${item.count} pegawai`}>
+        <p className="truncate text-sm text-ink-2">{item.name}</p>
+        <div className="mt-1 flex items-center gap-3">
+          <div className="h-2.5 flex-1"><div className="h-full rounded-r-[4px]" style={{ width: `${(item.count / max) * 100}%`, background: "var(--color-danger)" }} /></div>
+          <span className="w-8 text-right text-sm font-semibold tabular-nums text-ink">{item.count}</span>
+        </div>
+      </li>)}
+    </ol> : <p className="text-sm text-ink-3">Tidak ada gap kompetensi terbuka pada daftar ini.</p>}
+    <p className="mt-4 text-xs leading-5 text-ink-3">Jumlah pegawai dengan gap terbuka per kompetensi, dari pegawai yang sudah dinilai.{ranking.length > GAP_BARS ? ` ${ranking.length - GAP_BARS} kompetensi lain juga punya gap.` : ""}</p>
+  </Card>;
+}
+
+function AlertsCard({ snapshot, rows }: { snapshot: D4LiveSnapshot; rows: readonly Row[] }) {
+  const alerts = dashboardAlerts(snapshot, rows);
+  return <Card title="Alerts" testId="dashboard-alerts">
+    {alerts.length ? <ul className="divide-y divide-line">
+      {alerts.map((alert) => <li key={alert.key} data-testid={`alert-${alert.key}`} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
+        <AlertTriangle aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-warning" />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-ink">{alert.title}</p>
+          <p className="mt-0.5 text-sm text-ink-2"><span className="font-semibold tabular-nums">{alert.count}</span> {alert.detail}</p>
+          <p className="mt-1 truncate text-xs text-ink-3">{alert.people.slice(0, 3).join(", ")}{alert.people.length > 3 ? ` dan ${alert.people.length - 3} lainnya` : ""}</p>
+        </div>
+        <SourceLink href={alert.href}>Buka</SourceLink>
+      </li>)}
+    </ul> : <p className="text-sm text-ink-3">Tidak ada alert untuk daftar ini.</p>}
+    <p className="mt-4 text-xs leading-5 text-ink-3">Alert kekosongan field agent, cuti melahirkan, dan pemicu KPI harian 3 hari berturut-turut belum tersedia: datanya ada di squad lain.</p>
   </Card>;
 }
 

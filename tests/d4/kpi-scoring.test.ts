@@ -64,8 +64,8 @@ describe("KPI score scale per catalog version", () => {
   it("bands a 1–100 score: below 80 under, 80–85 acceptable, above 85 high", () => {
     expect([UNDER_BELOW, HIGH_ABOVE]).toEqual([80, 85]);
     expect(performanceBand(79.99, "V6")).toBe("Under Performance");
-    expect(performanceBand(80, "V6")).toBe("Acceptable");
-    expect(performanceBand(85, "V6")).toBe("Acceptable");
+    expect(performanceBand(80, "V6")).toBe("Average Performance");
+    expect(performanceBand(85, "V6")).toBe("Average Performance");
     expect(performanceBand(85.01, "V6")).toBe("High Performance");
   });
 
@@ -114,7 +114,7 @@ describe("saved scorecard total (fixture source, mirrors the DB trigger d4_calcu
     const saved = (await source.loadSnapshot()).kpiAssessments!.find((item) => item.id === id)!;
     expect(saved.definitionVersion).toBe("V6");
     expect(saved.overallScore).toBe(84.25); // 22.5 + 20 + 14 + 12.75 + 15
-    expect(performanceBand(saved.overallScore, saved.definitionVersion)).toBe("Acceptable");
+    expect(performanceBand(saved.overallScore, saved.definitionVersion)).toBe("Average Performance");
     await expect(source.createKpiAssessment({ ...base, period: "2026-10", lines })).rejects.toThrow("1 sampai 5");
     await expect(source.createKpiAssessment({ ...base, period: "2026-12", lines: lines.map((line) => ({ ...line, raw_score: 101 })) })).rejects.toThrow("1 sampai 100");
   });
