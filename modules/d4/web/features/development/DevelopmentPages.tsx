@@ -13,10 +13,17 @@ import { Button, ButtonLink, Card, InfoGrid, Notice, SourceChip, statusLabel, St
 import { TrainingFormModal } from "../training/TrainingModals";
 import { DevelopmentEditModal, DevelopmentFormModal, DevelopmentStatusModal, ReassessmentModal } from "./DevelopmentModals";
 
-/** Reassessment result of a need as a badge, or nothing while it is still open (interview D4: shown in the Action column). */
-export function ReassessmentBadge({ snapshot, needId }: { snapshot: Snapshot; needId: string }) {
+/**
+ * Reassessment result of a need, or nothing while it is still open. It is a state, so it sits with Status.
+ * `compact`: a short line under the status badge in the list, which may wrap so the table still fits a laptop.
+ */
+export function ReassessmentBadge({ snapshot, needId, compact }: { snapshot: Snapshot; needId: string; compact?: boolean }) {
   const state = reassessmentFor(snapshot, needId);
-  return state ? <span data-testid="reassessment-result"><StatusBadge status={state === "pending" ? REASSESSMENT_PENDING : state} /></span> : null;
+  if (!state) return null;
+  const status = state === "pending" ? REASSESSMENT_PENDING : state;
+  return compact
+    ? <span data-testid="reassessment-result" className="block max-w-28 text-xs leading-4 text-ink-2">{statusLabel(status)}</span>
+    : <span data-testid="reassessment-result"><StatusBadge status={status} /></span>;
 }
 
 export function DevelopmentListPage() {
@@ -61,20 +68,23 @@ export function DevelopmentListPage() {
         { key: "objective", header: "Objective", wrap: true, className: "max-w-[320px]", cell: (row) => <span className="line-clamp-2">{row.objective}</span> },
         { key: "source", header: "Source", cell: (row) => <SourceChip label={sourceTypeLabel[row.sourceType]} /> },
         { key: "priority", header: "Priority", cell: (row) => statusLabel(row.priority) },
-        { key: "method", header: "Metode", wrap: true, className: "max-w-[160px]", cell: (row) => row.method || "—" },
-        { key: "pic", header: "PIC", wrap: true, className: "max-w-[160px]", cell: (row) => row.pic || "—" },
-        { key: "status", header: "Status", cell: (row) => <StatusBadge status={row.status} /> },
-        { key: "updated", header: "Updated", cell: (row) => formatDate(row.createdAt) },
+        // One column, as Position / Department on the People Dashboard, so the table fits a laptop screen.
+        { key: "method-pic", header: "Method / PIC", wrap: true, className: "max-w-[160px]", cell: (row) => <>
+          <span data-testid="cell-method" className="block">{row.method || "—"}</span>
+          <span data-testid="cell-pic" className="block text-xs text-ink-3">{row.pic || "—"}</span>
+        </> },
+        { key: "status", header: "Status", wrap: true, cell: (row) => <div className="flex flex-col items-start gap-1"><StatusBadge status={row.status} /><ReassessmentBadge snapshot={snapshot} needId={row.needId} compact /></div> },
+        // Below 1400 px the date gives way (it is also on the detail page), so Method / PIC stays visible for the "Tanpa PIC" alert.
+        { key: "updated", header: "Updated", secondary: true, cell: (row) => formatDate(row.createdAt) },
       ]}
-      // The reassessment result sits next to the menu, so the next action reads from one column.
-      actions={(row) => <div className="flex items-center justify-end gap-2"><ReassessmentBadge snapshot={snapshot} needId={row.needId} /><RowActionMenu label={`Actions for ${row.objective}`} actions={[
+      actions={(row) => <RowActionMenu label={`Actions for ${row.objective}`} actions={[
         { label: "View Detail", testId: "view-detail", icon: <Eye />, href: `/development/${row.needId}` },
         { label: "View History", testId: "view-history", icon: <History />, href: `/development/${row.needId}/history` },
         { label: "Create Training", testId: "create-training", icon: <GraduationCap />, onSelect: () => setTrainingFor(row), hidden: !writer || row.status === "Completed" },
         { label: "Update Status", testId: "update-status", icon: <RefreshCw />, onSelect: () => setStatusFor(row.needId), hidden: !writer },
         { label: "Edit Requirement", testId: "edit-requirement", icon: <Pencil />, onSelect: () => setEditFor(row.needId), hidden: !writer },
         { label: "Record Reassessment", testId: "record-reassessment", icon: <Scale />, onSelect: () => setReassessFor(row.needId), hidden: !writer || row.status !== "Completed" },
-      ]} /></div>} />
+      ]} />} />
     {adding && <DevelopmentFormModal onClose={() => setAdding(false)} />}
     {statusFor && <DevelopmentStatusModal needId={statusFor} onClose={() => setStatusFor(null)} />}
     {editFor && <DevelopmentEditModal needId={editFor} onClose={() => setEditFor(null)} />}
@@ -114,7 +124,7 @@ export function DevelopmentDetailPage({ needId }: { needId: string }) {
         <p className="font-display font-semibold text-lg text-ink">{need.objective}</p>
         <div className="mt-6"><InfoGrid columns={3} items={[
           { label: "Priority", testId: "priority", value: statusLabel(need.priority) },
-          { label: "Metode", testId: "method", value: need.method || "—" },
+          { label: "Method", testId: "method", value: need.method || "—" },
           { label: "PIC", testId: "pic", value: need.pic || "—" },
           { label: "Status", value: <StatusBadge status={need.status} /> },
           { label: "Reassessment", testId: "reassessment", value: reassessmentFor(snapshot, need.needId) ? <ReassessmentBadge snapshot={snapshot} needId={need.needId} /> : "—" },

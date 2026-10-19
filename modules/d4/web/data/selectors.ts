@@ -4,7 +4,7 @@ import type { CompetencyAssessment, CompetencyFinding, CompetencyOverallStatus }
 import type { DevelopmentNeedVersion, DevelopmentSourceType } from "../../development/types";
 import type { PerformanceEvaluation } from "../../performance/types";
 import type { EmployeeReference } from "../../shared/types";
-import { localMonth, localToday, reassessmentOf, revisionNumber } from "../../shared/rules";
+import { localMonth, localToday, REASSESSMENT_LABELS, reassessmentOf, revisionNumber } from "../../shared/rules";
 import { latestDevelopment, latestTraining, type D4LiveSnapshot, type KpiAssessment } from "../../supabase/types";
 import type { TrainingVersion } from "../../training/types";
 
@@ -175,15 +175,15 @@ export const trainingById = (snapshot: Snapshot, trainingId: string) => training
 export const developmentHistory = (snapshot: Snapshot, needId: string): DevelopmentNeedVersion[] => [...(indexOf(snapshot).needHistory.get(needId) ?? [])];
 /** Reassessment result shown for a need: Retraining, Sudah memenuhi, "pending" (Completed, not yet decided) or null. */
 export const reassessmentFor = (snapshot: Snapshot, needId: string) => reassessmentOf(indexOf(snapshot).needHistory.get(needId) ?? []);
-export const REASSESSMENT_PENDING = "Perlu reassess";
+export const REASSESSMENT_PENDING = "Needs reassessment";
 
 /** What a revision changed besides its status, for history lines: priority, method, PIC, reassessment. */
 export function revisionChanges(version: DevelopmentNeedVersion, previous?: DevelopmentNeedVersion): string[] {
   const changes: string[] = [];
   if (previous && version.priority !== previous.priority) changes.push(`Priority ${previous.priority} → ${version.priority}`);
-  if (previous && (version.method ?? "") !== (previous.method ?? "")) changes.push(`Metode: ${previous.method || "—"} → ${version.method || "—"}`);
+  if (previous && (version.method ?? "") !== (previous.method ?? "")) changes.push(`Method: ${previous.method || "—"} → ${version.method || "—"}`);
   if (previous && (version.pic ?? "") !== (previous.pic ?? "")) changes.push(`PIC: ${previous.pic || "—"} → ${version.pic || "—"}`);
-  if (version.reassessment) changes.push(`Reassessment: ${version.reassessment}`);
+  if (version.reassessment) changes.push(`Reassessment: ${REASSESSMENT_LABELS[version.reassessment]}`);
   return changes;
 }
 
