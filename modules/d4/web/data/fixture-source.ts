@@ -5,7 +5,7 @@ import { scaleMaxOf } from "../../kpi/scale";
 import { performanceFixtureRecords } from "../../performance/fixtures";
 import { validatePerformanceInput } from "../../performance/validation";
 import { d4ReferenceFixture } from "../../shared/fixtures";
-import { assertDevelopmentChange, assertGapAssessed, assertTrainingDate, assertNeedOpen, assertNoOpenNeed, openTrainingCount, passedTrainingCount, assertTrainingResult, assertNotFutureDate, assertNotSelf, assertPeriodRevision, assertTrainingChange } from "../../shared/rules";
+import { assertGapAssessed, assertTrainingDate, assertNeedOpen, assertNoOpenNeed, assertTrainingResult, assertNotFutureDate, assertNotSelf, assertPeriodRevision, assertTrainingChange, nextDevelopmentRevision } from "../../shared/rules";
 import type { D4LiveSnapshot, KpiAssessment, KpiAssessmentLine } from "../../supabase/types";
 import { latestDevelopment, latestTraining } from "../../supabase/types";
 import { trainingFixtureVersions } from "../../training/fixtures";
@@ -146,7 +146,7 @@ export function createFixtureSource(): D4DataSource {
       assertNotFutureDate(input.evaluationDate);
       assertPeriodRevision(state.kpiAssessments ?? [], input.employeeId, input.period, revisionOf, "Scorecard");
       if (!input.generalNotes.trim()) throw new Error("Notes wajib diisi.");
-      if (!input.evidenceReference) throw new Error("Bukti / referensi wajib diisi.");
+      if (!input.evidenceReference) throw new Error("Reference wajib diisi.");
       const periodCatalog = catalogFor(seedCatalogSet(state.reference.positions), input.period);
       if (!periodCatalog) throw new Error(`Belum ada katalog KPI yang berlaku untuk periode ${input.period}.`);
       const indicators = indicatorsFor(periodCatalog, input.roleOrder);
@@ -169,7 +169,7 @@ export function createFixtureSource(): D4DataSource {
       const comparison = compareCompetencies(input.employeeId, input.positionId, state.reference);
       if (!comparison.findings.length) throw new Error("Posisi ini belum memiliki persyaratan kompetensi.");
       const id = newId("FIX-D4-COMP");
-      update({ competency: [{ id, source: "local-demo", employeeId: input.employeeId, positionId: input.positionId, effectiveDate: input.effectiveDate, context: employee.positionId === input.positionId ? "current-position" : "role-change", findings: comparison.findings, overallStatus: comparison.overallStatus, createdAt: now(), actor: actorName() }, ...state.competency] });
+      update({ competency: [{ id, source: "local-demo", employeeId: input.employeeId, positionId: input.positionId, effectiveDate: input.effectiveDate, context: employee.positionId === input.positionId ? "current-position" : "role-change", findings: comparison.findings, overallStatus: comparison.overallStatus, createdAt: now(), actor: actorName(), assessedWith: input.assessedWith?.trim() || null }, ...state.competency] });
       return id;
     },
     async createDevelopment(input) {
@@ -182,13 +182,14 @@ export function createFixtureSource(): D4DataSource {
       update({ developmentVersions: [{ ...input, id: newId("FIX-D4-DEV-V"), needId, revision: 1, source: "local-demo", status: "Identified", createdAt: now(), actor: actorName() }, ...state.developmentVersions] });
       return needId;
     },
-    async updateDevelopment(needId, status, notes) {
+    async updateDevelopment(needId, status, notes, edit) {
       assertWriter();
-      const current = latestDevelopment(state).find((item) => item.needId === needId);
+      const needs = latestDevelopment(state);
+      const current = needs.find((item) => item.needId === needId);
       if (!current) throw new Error("Development requirement tidak ditemukan.");
-      const trainings = latestTraining(state);
-      assertDevelopmentChange(current.status, status, notes, openTrainingCount(trainings, needId), passedTrainingCount(trainings, needId));
-      update({ developmentVersions: [{ ...current, id: newId("FIX-D4-DEV-V"), revision: current.revision + 1, status, notes, createdAt: now(), actor: actorName() }, ...state.developmentVersions] });
+      // The spread carries priority/method/PIC forward; reassessment belongs to the revision that records it.
+      const next = nextDevelopmentRevision(current, { ...edit, status, notes }, needs, latestTraining(state));
+      update({ developmentVersions: [{ ...current, ...next, id: newId("FIX-D4-DEV-V"), revision: current.revision + 1, createdAt: now(), actor: actorName() }, ...state.developmentVersions] });
     },
     async createTraining(input) {
       assertWriter();

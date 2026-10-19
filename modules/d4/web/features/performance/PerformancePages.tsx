@@ -119,7 +119,7 @@ export function PerformanceDetailPage({ id }: { id: string }) {
         <p className="whitespace-pre-wrap text-sm text-ink-2">{evaluation.generalNotes || "Belum ada catatan evaluasi."}</p>
       </Card>
       <div className="space-y-6">
-        <Card title="Bukti / referensi" testId="evidence">
+        <Card title="Reference" testId="evidence">
           <p className="text-sm text-ink-2">{evaluation.evidenceReference || "Belum ada bukti atau referensi."}</p>
           <p className="mt-1 text-xs text-ink-3">Recorded by {evaluation.actor} · {formatDate(evaluation.createdAt)}</p>
         </Card>

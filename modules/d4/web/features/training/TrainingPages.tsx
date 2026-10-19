@@ -1,6 +1,6 @@
 "use client";
 
-import { ClipboardCheck, Eye, FileSearch, History, RefreshCw } from "lucide-react";
+import { ClipboardCheck, Eye, FileSearch, History, RefreshCw, Scale } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { TrainingVersion } from "../../../training/types";
 import { useSnapshot } from "../../data/D4DataProvider";
@@ -10,6 +10,8 @@ import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
 import { Button, ButtonLink, Card, InfoGrid, Notice, SourceChip, statusLabel, StatusBadge } from "../../ui/primitives";
+import { ReassessmentModal } from "../development/DevelopmentModals";
+import { ReassessmentBadge } from "../development/DevelopmentPages";
 import { TrainingProgressModal } from "./TrainingModals";
 
 export function TrainingListPage() {
@@ -62,6 +64,7 @@ export function TrainingListPage() {
 export function TrainingDetailPage({ trainingId }: { trainingId: string }) {
   const snapshot = useSnapshot();
   const [progressOpen, setProgressOpen] = useState(false);
+  const [reassessOpen, setReassessOpen] = useState(false);
   const record = trainingById(snapshot, trainingId);
   const employee = record && employeeById(snapshot, record.employeeId);
   if (!record || !employee || !visibleEmployees(snapshot).some((item) => item.id === employee.id)) return <NotFound what="Training" backHref="/training" backLabel="Back to Training Tracking" />;
@@ -74,6 +77,8 @@ export function TrainingDetailPage({ trainingId }: { trainingId: string }) {
         {canWrite(snapshot) && <Button icon={<RefreshCw className="size-4" />} onClick={() => setProgressOpen(true)} data-testid="btn-update-progress">Update Progress</Button>}
         {/* Completed does not close the gap by itself: the next step is a fresh competency assessment. */}
         {canWrite(snapshot) && record.status === "Completed" && <ButtonLink href={`/competency/${employee.id}`} icon={<ClipboardCheck className="size-4" />} testId="reassess-competency">Reassess Competency</ButtonLink>}
+        {/* The result is recorded on the source requirement once it is Completed. */}
+        {canWrite(snapshot) && record.status === "Completed" && need?.status === "Completed" && <Button icon={<Scale className="size-4" />} onClick={() => setReassessOpen(true)} data-testid="btn-record-reassessment">Record Reassessment</Button>}
       </>} />
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
       <Card title="Training">
@@ -90,12 +95,14 @@ export function TrainingDetailPage({ trainingId }: { trainingId: string }) {
       </Card>
       <div className="space-y-6">
         <Card title="Source requirement" testId="source-requirement">
-          {need ? <><SourceChip label="Development Requirement" reference={statusLabel(need.status)} href={`/development/${need.needId}`} /><p className="mt-3 text-sm text-ink">{need.objective}</p></> : <p className="text-sm text-ink-3">Requirement sumber tidak tersedia.</p>}
+          {need ? <><SourceChip label="Development Requirement" reference={statusLabel(need.status)} href={`/development/${need.needId}`} /><p className="mt-3 text-sm text-ink">{need.objective}</p>
+            <div className="mt-3"><ReassessmentBadge snapshot={snapshot} needId={need.needId} /></div></> : <p className="text-sm text-ink-3">Requirement sumber tidak tersedia.</p>}
         </Card>
         <Notice tone="warning">Training yang Completed tidak otomatis membuat gap kompetensi terpenuhi. Gap tetap terbuka sampai dinilai ulang.</Notice>
       </div>
     </div>
     {progressOpen && <TrainingProgressModal trainingId={record.trainingId} onClose={() => setProgressOpen(false)} />}
+    {reassessOpen && need && <ReassessmentModal needId={need.needId} onClose={() => setReassessOpen(false)} />}
   </>;
 }
 

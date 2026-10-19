@@ -3,7 +3,7 @@ import type { DevelopmentNeedVersion } from "@/modules/d4/development/types";
 import type { KpiAssessment } from "@/modules/d4/supabase/types";
 import type { TrainingVersion } from "@/modules/d4/training/types";
 import { currentCompetencyStatus, currentGap, type Snapshot } from "@/modules/d4/web/data/selectors";
-import { competencySlices, dashboardAlerts, gapRanking, performanceSlices, type DashboardRow } from "@/modules/d4/web/features/dashboard/summary";
+import { competencySlices, dashboardAlerts, employeeHistory, gapRanking, performanceSlices, type DashboardRow } from "@/modules/d4/web/features/dashboard/summary";
 
 async function hrSnapshot(): Promise<Snapshot> {
   vi.stubEnv("NEXT_PUBLIC_D4_FIXTURE_ROLE", "HR");
@@ -73,5 +73,42 @@ describe("People Dashboard charts", () => {
     expect(keys(notPassed)).toContain("training-not-passed");
     const retrained = { ...notPassed, trainingVersions: [...notPassed.trainingVersions, training("T2", "2026-10-20", "Planned", "")] };
     expect(keys(retrained)).not.toContain("training-not-passed");
+  });
+});
+
+describe("employee history timeline", () => {
+  const ALFA = "d4000000-0000-4000-8000-000000000009";
+  const OPERATIONS = "d4000000-0000-4000-8000-000000000018";
+
+  it("merges every module newest first, by WIB day, and links each entry to its source", async () => {
+    const base = await hrSnapshot();
+    const assessment = base.competency.find((item) => item.employeeId === ALFA)!;
+    const need = base.developmentVersions.find((item) => item.employeeId === ALFA)!;
+    const training = base.trainingVersions.find((item) => item.employeeId === ALFA)!;
+    const snapshot: Snapshot = {
+      ...base,
+      competency: [
+        { ...assessment, id: "C-OLD", effectiveDate: "2026-10-03", createdAt: "2026-10-03T02:00:00.000Z" },
+        { ...assessment, id: "C-MOVE", positionId: OPERATIONS, context: "role-change", effectiveDate: "2026-10-05", createdAt: "2026-10-05T09:00:00.000Z", assessedWith: "Rina, Ops Manager" },
+        { ...base.competency.find((item) => item.employeeId !== ALFA)!, id: "C-OTHER", effectiveDate: "2026-10-06" },
+      ],
+      kpiAssessments: [{ ...base.kpiAssessments!.find((item) => item.employeeId === ALFA)!, id: "K1", period: "2026-11", definitionVersion: "V6", overallScore: 82.5, evaluationDate: "2026-10-05", createdAt: "2026-10-05T01:00:00.000Z" }],
+      developmentVersions: [
+        { ...need, id: "D1", revision: 1, status: "Identified", pic: "", createdAt: "2026-10-01T03:00:00.000Z" },
+        { ...need, id: "D2", revision: 2, status: "Planned", pic: "Bu Maya", createdAt: "2026-10-05T03:00:00.000Z" },
+      ],
+      // 20:00 UTC on the 4th is 03:00 WIB on the 5th: same day as the others, not the day before.
+      trainingVersions: [{ ...training, id: "T1", revision: 1, status: "Completed", result: "Passed", createdAt: "2026-10-04T20:00:00.000Z" }],
+    };
+    const history = employeeHistory(snapshot, ALFA);
+    expect(history.map((item) => item.id)).toEqual(["competency-C-MOVE", "development-D2", "performance-K1", "training-T1", "competency-C-OLD", "development-D1"]);
+    const [move, revision, review, trained] = history;
+    expect(move).toMatchObject({ title: "Perubahan posisi · Operations Staff", date: "Efektif 5 Oct 2026", href: `/competency/${ALFA}/history` });
+    expect(move.body).toContain("Dinilai bersama Rina, Ops Manager");
+    expect(revision).toMatchObject({ status: "Planned", href: `/development/${need.needId}` });
+    expect(revision.body).toContain("PIC: Bu Maya");
+    expect(review).toMatchObject({ title: "Performance Review Nov 2026 · 82.50 / 100", status: "Average Performance", href: "/performance/scorecard/K1" });
+    expect(trained).toMatchObject({ status: "Completed", body: expect.stringContaining("Result: Passed"), href: `/training/${training.trainingId}` });
+    expect(history.at(-2)?.title).toMatch(/^Competency assessment/);
   });
 });

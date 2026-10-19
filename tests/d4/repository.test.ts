@@ -5,17 +5,19 @@ import { ApiError, databaseError } from "@/modules/d4/shared/errors";
 import { compareCompetencies } from "@/modules/d4/competency/service";
 import { SupabaseD4Repository } from "@/modules/d4/supabase/repository";
 import type { EvaluationInput } from "@/modules/d4/performance/types";
+import type { DevelopmentRevision } from "@/modules/d4/shared/rules";
 
 // A minimal stand-in for the Supabase query builder; nothing reaches a real database.
 type Result = { data: unknown; error: { message: string; code?: string } | null };
 function fakeClient(results: Record<string, Result>) {
   const calls: string[] = [];
+  const inserts: { table: string; payload: Record<string, unknown> }[] = [];
   let getUser = 0;
   const from = (table: string) => {
     let op = "select";
     const builder = {
       select: () => builder, eq: () => builder, order: () => builder, limit: () => builder, range: () => builder, single: () => builder, maybeSingle: () => builder,
-      insert: () => { op = "insert"; return builder; },
+      insert: (payload: Record<string, unknown>) => { op = "insert"; inserts.push({ table, payload }); return builder; },
       then: (resolve: (value: Result) => unknown) => {
         calls.push(`${table}:${op}`);
         return Promise.resolve(results[`${table}:${op}`] ?? { data: [], error: null }).then(resolve);
@@ -24,7 +26,7 @@ function fakeClient(results: Record<string, Result>) {
     return builder;
   };
   const client = { from, auth: { getUser: async () => { getUser += 1; return { data: { user: { id: "user" } }, error: null }; } } };
-  return { client: client as unknown as SupabaseClient, calls, getUserCalls: () => getUser };
+  return { client: client as unknown as SupabaseClient, calls, inserts, getUserCalls: () => getUser };
 }
 
 const reference = d4ReferenceFixture;
@@ -34,6 +36,8 @@ const evaluation = (employeeId: string): EvaluationInput => ({
   employeeId, period: "2026-10", evaluationDate: "2026-10-03", evaluator: "Evaluator", status: "completed",
   reviewStatus: "Needs Review", overallScore: 4, aspects: [], generalNotes: "Uji", evidenceReference: null,
 });
+const current = { priority: "Medium" as const, method: "Coaching", pic: "" };
+const revision = (patch: Partial<DevelopmentRevision> = {}): DevelopmentRevision => ({ status: "Planned", notes: "", reassessment: null, ...current, ...patch });
 const code = async (promise: Promise<unknown>) => promise.then(() => "OK", (error) => error instanceof ApiError ? error.code : "UNTYPED");
 
 describe("duplicate and concurrent writes", () => {
@@ -91,9 +95,9 @@ describe("typed repository errors", () => {
 
   it("maps an RLS denial to FORBIDDEN and leaves unknown database errors untyped", async () => {
     const denied = fakeClient({ "d4_development_need_versions:select": { data: null, error: { code: "42501", message: "permission denied for table x" } } });
-    expect(await code(new SupabaseD4Repository(denied.client).updateDevelopment("n", "Planned", ""))).toBe("FORBIDDEN");
+    expect(await code(new SupabaseD4Repository(denied.client).updateDevelopment("n", revision(), current))).toBe("FORBIDDEN");
     const broken = fakeClient({ "d4_development_need_versions:select": { data: null, error: { code: "XX000", message: "internal" } } });
-    expect(await code(new SupabaseD4Repository(broken.client).updateDevelopment("n", "Planned", ""))).toBe("UNTYPED");
+    expect(await code(new SupabaseD4Repository(broken.client).updateDevelopment("n", revision(), current))).toBe("UNTYPED");
   });
 });
 
@@ -132,3 +136,54 @@ describe("large tables", () => {
   });
 });
 
+
+// Code ships before migration 20261019120000: the new columns are sent only when they carry a value.
+describe("development revision and co-assessor columns", () => {
+  const versionTable = { "d4_development_need_versions:select": { data: { revision: 2 }, error: null }, "d4_development_need_versions:insert": { data: { id: "v" }, error: null } };
+
+  it("writes a status-only revision with the columns that exist before the migration", async () => {
+    const { client, inserts } = fakeClient(versionTable);
+    await new SupabaseD4Repository(client).updateDevelopment("n", revision({ status: "In Progress", notes: " Mulai " }), current);
+    expect(inserts[0].payload).toEqual({ development_need_id: "n", revision: 3, status: "In Progress", notes: "Mulai" });
+  });
+
+  it("sends only the priority, method or PIC that changed, and a recorded reassessment", async () => {
+    const { client, inserts } = fakeClient(versionTable);
+    await new SupabaseD4Repository(client).updateDevelopment("n", revision({ priority: "High", pic: "Bu Maya" }), current);
+    expect(inserts[0].payload).toMatchObject({ priority: "High", pic: "Bu Maya" });
+    expect(inserts[0].payload).not.toHaveProperty("method");
+    await new SupabaseD4Repository(client).updateDevelopment("n", revision({ status: "Completed", reassessment: "Sudah memenuhi" }), current);
+    expect(inserts[1].payload).toMatchObject({ status: "Completed", reassessment: "Sudah memenuhi" });
+    expect(inserts[1].payload).not.toHaveProperty("priority");
+  });
+
+  it("carries a changed PIC forward to later revisions that only change the status", async () => {
+    const employee = reference.employees[0];
+    const at = (n: number) => `2026-10-0${n}T08:00:00.000Z`;
+    const { client } = fakeClient({
+      "d4_user_access:select": { data: { app_role: "HR", employee_id: employee.id }, error: null },
+      "d4_development_needs:select": { data: [{ id: "n", employee_id: employee.id, source_type: "competency_gap", position_requirement_id: "r", competency_assessment_id: null, performance_evaluation_id: null, objective: "Uji", priority: "Medium", method: "Training", pic: null }], error: null },
+      "d4_development_need_versions:select": { data: [
+        { id: "v4", development_need_id: "n", revision: 4, status: "In Progress", notes: "", actor_employee_id: employee.id, created_at: at(4) },
+        { id: "v3", development_need_id: "n", revision: 3, status: "Planned", notes: "", pic: "Bu Maya", priority: "High", actor_employee_id: employee.id, created_at: at(3) },
+        { id: "v2", development_need_id: "n", revision: 2, status: "Planned", notes: "", method: "", actor_employee_id: employee.id, created_at: at(2) },
+        { id: "v1", development_need_id: "n", revision: 1, status: "Identified", notes: "", actor_employee_id: employee.id, created_at: at(1) },
+      ], error: null },
+    });
+    const versions = (await new SupabaseD4Repository(client).loadSnapshot()).developmentVersions;
+    expect(versions.map((item) => [item.revision, item.priority, item.method, item.pic])).toEqual([[4, "High", "", "Bu Maya"], [3, "High", "", "Bu Maya"], [2, "Medium", "", ""], [1, "Medium", "Training", ""]]);
+  });
+
+  it("stores assessed_with only when filled, and a different co-assessor the same day is a new snapshot", async () => {
+    const { findings, overallStatus } = compareCompetencies(competencyInput.employeeId, competencyInput.positionId, reference);
+    const stored = { "d4_competency_assessments:select": { data: [{ id: "existing", overall_status: overallStatus, findings, assessed_with: null }], error: null }, "d4_competency_assessments:insert": { data: { id: "new" }, error: null } };
+    const plain = fakeClient(stored);
+    expect(await new SupabaseD4Repository(plain.client).saveCompetency({ ...competencyInput, assessedWith: "  " }, reference)).toBe("existing");
+    const withSupervisor = fakeClient(stored);
+    expect(await new SupabaseD4Repository(withSupervisor.client).saveCompetency({ ...competencyInput, assessedWith: " Rina, Finance Manager " }, reference)).toBe("new");
+    expect(withSupervisor.inserts[0].payload).toMatchObject({ assessed_with: "Rina, Finance Manager" });
+    const first = fakeClient({ "d4_competency_assessments:insert": { data: { id: "new" }, error: null } });
+    await new SupabaseD4Repository(first.client).saveCompetency(competencyInput, reference);
+    expect(first.inserts[0].payload).not.toHaveProperty("assessed_with");
+  });
+});
