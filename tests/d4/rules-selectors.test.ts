@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CompetencyAssessment } from "@/modules/d4/competency/types";
 import type { DevelopmentNeedVersion } from "@/modules/d4/development/types";
-import { assertDevelopmentChange, assertTrainingResult, passedTrainingCount, assertGapAssessed, assertNotFutureDate, assertTrainingDate, nextDevelopmentRevision, openTrainingCount, isTrainingRollback, localMonth, localToday, reassessmentOf, revisionNumber } from "@/modules/d4/shared/rules";
+import { assertDevelopmentChange, assertTrainingResult, passedTrainingCount, assertGapAssessed, assertNotFutureDate, assertTrainingDate, nextDevelopmentRevision, openTrainingCount, isTrainingRollback, localMonth, localToday, reassessmentOf, retrainedAt, revisionNumber } from "@/modules/d4/shared/rules";
 import type { EmployeeReference } from "@/modules/d4/shared/types";
 import { asEmployee, assessableEmployees, inTrainingOrPositionChange, canWrite, currentCompetencyStatus, currentGap, latestCurrentPositionAssessment, objectiveFromFinding, revisionChanges, revisionTag, visibleEmployees, type Snapshot } from "@/modules/d4/web/data/selectors";
 import type { TrainingStatus } from "@/modules/d4/training/types";
@@ -212,7 +212,8 @@ describe("development status change", () => {
   it("completing a need without a passed training needs a reason; a training result is Passed or Not Passed", () => {
     expect(() => assertDevelopmentChange("In Progress", "Completed", "", 0, 0)).toThrow(/Belum ada training berhasil Passed/);
     expect(() => assertDevelopmentChange("In Progress", "Completed", "Ditutup lewat coaching", 0, 0)).not.toThrow();
-    const list = [{ developmentNeedId: "N1", status: "Completed" as const, result: "Passed" }, { developmentNeedId: "N1", status: "Completed" as const, result: "Not Passed" }, { developmentNeedId: "N2", status: "Completed" as const, result: "Passed" }];
+    const createdAt = "2026-10-01T08:00:00.000Z";
+    const list = [{ developmentNeedId: "N1", status: "Completed" as const, result: "Passed", createdAt }, { developmentNeedId: "N1", status: "Completed" as const, result: "Not Passed", createdAt }, { developmentNeedId: "N2", status: "Completed" as const, result: "Passed", createdAt }];
     expect(passedTrainingCount(list, "N1")).toBe(1);
     expect(() => assertTrainingResult("Completed", "Lulus")).toThrow(/Passed atau Not Passed/);
     expect(() => assertTrainingResult("Completed", "Not Passed")).not.toThrow();
@@ -244,7 +245,7 @@ describe("development revision: edit, reassessment, objective", () => {
     id: "V1", needId: "N1", revision: 1, source: "fixture", employeeId: ALFA, sourceType: "competency_gap", sourceRef: "REQ-1",
     objective: "Uji", priority: "Medium", method: "Training", pic: "", status: "In Progress", notes: "", createdAt: "2026-10-01T08:00:00.000Z", actor: "Mercury", ...patch,
   });
-  const passed = [{ developmentNeedId: "N1", status: "Completed" as const, result: "Passed" }];
+  const passed = [{ developmentNeedId: "N1", status: "Completed" as const, result: "Passed", createdAt: "2026-10-02T08:00:00.000Z" }];
 
   it("edits priority, method and PIC without a status change; left-out fields keep their value", () => {
     expect(nextDevelopmentRevision(need(), { status: "In Progress", notes: "", priority: "High", pic: " Bu Maya " }, [], [])).toEqual({
@@ -272,6 +273,28 @@ describe("development revision: edit, reassessment, objective", () => {
     expect(() => nextDevelopmentRevision(done, { status: "Planned", notes: "", reassessment: "Retraining" }, [done, other], [])).toThrow(/sudah memiliki development requirement/);
   });
 
+  it("after a Retraining, completing again needs a training passed since then or a reason", () => {
+    const at = (day: number) => `2026-10-0${day}T08:00:00.000Z`;
+    const history = [need({ id: "V2", revision: 2, status: "Completed", createdAt: at(2) }), need({ id: "V3", revision: 3, status: "Planned", reassessment: "Retraining", createdAt: at(3) })];
+    const reopened = history[1];
+    const firstRound = { developmentNeedId: "N1", status: "Completed" as const, result: "Passed", createdAt: at(1) };
+    expect(retrainedAt([need(), ...history])).toBe(at(3));
+    expect(retrainedAt([need()])).toBeUndefined();
+    expect(() => nextDevelopmentRevision(reopened, { status: "Completed", notes: "" }, [], [firstRound], history)).toThrow(/Belum ada training berhasil Passed/);
+    expect(() => nextDevelopmentRevision(reopened, { status: "Completed", notes: "Ditutup lewat coaching" }, [], [firstRound], history)).not.toThrow();
+    expect(() => nextDevelopmentRevision(reopened, { status: "Completed", notes: "" }, [], [firstRound, { ...firstRound, createdAt: at(4) }], history)).not.toThrow();
+  });
+
+  it("does not record the decision already in force again, also after a later edit", () => {
+    const decided = need({ id: "V3", revision: 3, status: "Completed", reassessment: "Sudah memenuhi" });
+    const history = [need({ id: "V2", revision: 2, status: "Completed" }), decided];
+    expect(() => nextDevelopmentRevision(decided, { status: "Completed", notes: "", reassessment: "Sudah memenuhi" }, [], [], history)).toThrow(/Tidak ada perubahan/);
+    const edited = need({ id: "V4", revision: 4, status: "Completed", pic: "Bu Maya" });
+    expect(() => nextDevelopmentRevision(edited, { status: "Completed", notes: "", reassessment: "Sudah memenuhi" }, [], [], [...history, edited])).toThrow(/Tidak ada perubahan/);
+    // Changing the decision is a change.
+    expect(nextDevelopmentRevision(edited, { status: "Planned", notes: "", reassessment: "Retraining" }, [], [], [...history, edited])).toMatchObject({ status: "Planned", reassessment: "Retraining" });
+  });
+
   it("shows the decision of the current round: pending once Completed again after a Retraining", () => {
     const v = (revision: number, status: DevelopmentNeedVersion["status"], reassessment: DevelopmentNeedVersion["reassessment"] = null) => ({ revision, status, reassessment });
     expect(reassessmentOf([v(1, "Identified"), v(2, "In Progress")])).toBeNull();
@@ -284,7 +307,8 @@ describe("development revision: edit, reassessment, objective", () => {
   });
 
   it("lists what a revision changed and suggests an objective from a gap finding", () => {
-    expect(revisionChanges(need({ revision: 2, priority: "High", pic: "Bu Maya", reassessment: "Retraining" }), need())).toEqual(["Priority Medium → High", "PIC: Bu Maya", "Reassessment: Retraining"]);
+    expect(revisionChanges(need({ revision: 2, priority: "High", pic: "Bu Maya", reassessment: "Retraining" }), need())).toEqual(["Priority Medium → High", "PIC: — → Bu Maya", "Reassessment: Retraining"]);
+    expect(revisionChanges(need({ revision: 2, method: "Coaching" }), need())).toEqual(["Metode: Training → Coaching"]);
     expect(revisionChanges(need())).toEqual([]);
     expect(objectiveFromFinding({ competencyName: "Perencanaan Strategi & Anggaran", actualLevel: 3, requiredLevel: 4 })).toBe("Naikkan Perencanaan Strategi & Anggaran dari level 3 ke 4");
     expect(objectiveFromFinding({ competencyName: "Safety", actualLevel: null, requiredLevel: 3 })).toBe("Naikkan Safety ke level 3");

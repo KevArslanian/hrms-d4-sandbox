@@ -2,7 +2,7 @@ import { performanceBand, type PerformanceBand } from "../../../kpi/scale";
 import { localToday } from "../../../shared/rules";
 import type { EmployeeReference } from "../../../shared/types";
 import type { KpiAssessment } from "../../../supabase/types";
-import { currentGap, developmentHistory, formatDate, formatPeriod, formatScorecard, needsOf, positionById, revisionChanges, scorecardsOf, trainingHistory, trainingsOf, type Snapshot } from "../../data/selectors";
+import { currentGap, developmentHistory, formatDate, formatPeriod, formatScorecard, needsOf, positionById, reassessmentFor, revisionChanges, scorecardsOf, trainingHistory, trainingsOf, type Snapshot } from "../../data/selectors";
 import type { TimelineEntry } from "../../ui/layout";
 import { slug, statusLabel } from "../../ui/primitives";
 
@@ -72,7 +72,8 @@ export function dashboardAlerts(snapshot: Snapshot, rows: readonly DashboardRow[
       // A need answers this gap only when it was raised from the same position requirement.
       const linked = needs.filter((need) => need.sourceType === "competency_gap" && need.sourceRef === finding.requirementId);
       if (!linked.length) found.noPlan.push(name);
-      else if (linked.every((need) => need.status === "Completed")) found.completedGap.push(name);
+      // Cleared once HR records the reassessment decision for every completed need of this gap.
+      else if (linked.every((need) => need.status === "Completed") && linked.some((need) => reassessmentFor(snapshot, need.needId) === "pending")) found.completedGap.push(name);
     }
     const trainings = trainingsOf(snapshot, row.employee.id);
     for (const need of needs) {

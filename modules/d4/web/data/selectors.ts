@@ -181,8 +181,8 @@ export const REASSESSMENT_PENDING = "Perlu reassess";
 export function revisionChanges(version: DevelopmentNeedVersion, previous?: DevelopmentNeedVersion): string[] {
   const changes: string[] = [];
   if (previous && version.priority !== previous.priority) changes.push(`Priority ${previous.priority} → ${version.priority}`);
-  if (previous && (version.method ?? "") !== (previous.method ?? "")) changes.push(`Metode: ${version.method || "—"}`);
-  if (previous && (version.pic ?? "") !== (previous.pic ?? "")) changes.push(`PIC: ${version.pic || "—"}`);
+  if (previous && (version.method ?? "") !== (previous.method ?? "")) changes.push(`Metode: ${previous.method || "—"} → ${version.method || "—"}`);
+  if (previous && (version.pic ?? "") !== (previous.pic ?? "")) changes.push(`PIC: ${previous.pic || "—"} → ${version.pic || "—"}`);
   if (version.reassessment) changes.push(`Reassessment: ${version.reassessment}`);
   return changes;
 }
@@ -258,3 +258,7 @@ export const thisMonth = () => localMonth();
 export function includesText(haystack: string, needle: string) {
   return !needle.trim() || haystack.toLocaleLowerCase().includes(needle.trim().toLocaleLowerCase());
 }
+
+/** What list search matches for an employee: name, Employee ID and position title (interview D4: find a user by name or position). */
+export const employeeSearchText = (snapshot: Snapshot, employee?: EmployeeReference) =>
+  `${employee?.fullName ?? ""} ${employee?.employeeId ?? ""} ${positionOf(snapshot, employee)?.title ?? ""}`;

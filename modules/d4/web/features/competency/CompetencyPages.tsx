@@ -6,7 +6,7 @@ import type { CompetencyFinding } from "../../../competency/types";
 import type { EmployeeReference } from "../../../shared/types";
 import { openNeedFor } from "../../../shared/rules";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { canWrite, currentCompetencyStatus, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, formatDate, inTrainingOrPositionChange, includesText, latestCurrentPositionAssessment, positionById, positionOf, today, visibleEmployees, type CurrentCompetencyStatus } from "../../data/selectors";
+import { canWrite, currentCompetencyStatus, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, employeeSearchText, formatDate, inTrainingOrPositionChange, includesText, latestCurrentPositionAssessment, positionById, positionOf, today, visibleEmployees, type CurrentCompetencyStatus } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, FormError, FormModal, ModalActions, SearchInput, SearchSelectField, SelectFilter, TextField } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
@@ -45,14 +45,14 @@ export function CompetencyListPage() {
     const gap = currentGap(snapshot, employee);
     const saved = latestCurrentPositionAssessment(snapshot, employee);
     return { employee, position: positionOf(snapshot, employee)?.title ?? "—", status: currentCompetencyStatus(snapshot, employee), findings: gap?.findings ?? [], lastAssessed: saved?.effectiveDate };
-  }).filter((row) => includesText(`${row.employee.fullName} ${row.employee.employeeId}`, search)
+  }).filter((row) => includesText(employeeSearchText(snapshot, row.employee), search)
     && (!position || row.employee.positionId === position) && (!department || row.employee.departmentId === department) && (!status || statusLabel(row.status) === status))
     .sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName)), [snapshot, scoped, scope, search, position, department, status]);
 
   return <>
     <PageHeader title="Competency Gap" subtitle="Bandingkan kemampuan dan bukti pegawai dengan persyaratan posisinya. Kompetensi dinilai saat pegawai sedang training atau naik jabatan." />
     <FilterBar canReset={Boolean(search || position || department || status || scope !== SCOPE_ACTIVE)} onReset={() => { setSearch(""); setPosition(""); setDepartment(""); setStatus(""); setScope(SCOPE_ACTIVE); }}>
-      <SearchInput value={search} onChange={setSearch} placeholder="Search name or ID" />
+      <SearchInput value={search} onChange={setSearch} placeholder="Search name or position" />
       {scoped && <SelectFilter label="Scope" testId="competency-scope" value={scope} onChange={setScope} emptyOption={false} options={[SCOPE_ACTIVE, SCOPE_ALL].map((item) => ({ value: item, label: item }))} />}
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All positions" testId="all-positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />}
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All departments" testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />}

@@ -4,7 +4,7 @@ import { ClipboardCheck, Eye, FileSearch, History, RefreshCw, Scale } from "luci
 import { useMemo, useState } from "react";
 import type { TrainingVersion } from "../../../training/types";
 import { useSnapshot } from "../../data/D4DataProvider";
-import { canWrite, employeeById, employeeMeta, formatDate, formatPeriod, includesText, trainingById, trainingHistory, trainings, trainingSource, visibleEmployees } from "../../data/selectors";
+import { canWrite, employeeById, employeeMeta, employeeSearchText, formatDate, formatPeriod, includesText, trainingById, trainingHistory, trainings, trainingSource, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
@@ -29,7 +29,7 @@ export function TrainingListPage() {
   const periods = [...new Set(all.map((item) => item.date.slice(0, 7)))].sort().reverse();
   const rows = all.filter((item) => {
     const employee = employeeById(snapshot, item.employeeId);
-    return includesText(`${employee?.fullName ?? ""} ${employee?.employeeId ?? ""} ${item.activity}`, search)
+    return includesText(`${employeeSearchText(snapshot, employee)} ${item.activity}`, search)
       && (!department || employee?.departmentId === department)
       && (!period || item.date.startsWith(period)) && (!status || item.status === status);
   });
@@ -37,7 +37,7 @@ export function TrainingListPage() {
   return <>
     <PageHeader title="Training Tracking" subtitle="Pantau training dan development dari requirement sumber sampai hasilnya." />
     <FilterBar canReset={Boolean(search || department || period || status)} onReset={() => { setSearch(""); setDepartment(""); setPeriod(""); setStatus(""); }}>
-      <SearchInput value={search} onChange={setSearch} placeholder="Search keyword" />
+      <SearchInput value={search} onChange={setSearch} placeholder="Search name or position" />
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All departments" testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />}
       <SelectFilter label="All periods" testId="all-periods" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
       <SelectFilter label="All status" testId="all-status" value={status} onChange={setStatus} options={["Planned", "In Progress", "Completed", "Cancelled"].map((item) => ({ value: item, label: statusLabel(item) }))} />

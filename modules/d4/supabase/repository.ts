@@ -236,10 +236,11 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
     // with the stored one instead of a second row. A changed snapshot (new evidence the same day) is still saved.
     // Narrows, not closes, the race until the database index is approved.
     const assessedWith = input.assessedWith?.trim() ?? "";
-    // "*": assessed_with exists only after migration 20261019120000. A different co-assessor is a new snapshot.
+    // "*": assessed_with exists only after migration 20261019120000. A different co-assessor is a new snapshot;
+    // an empty one changes nothing, as on the competency page.
     const sameDay = take(await this.client.from("d4_competency_assessments").select("*")
       .eq("employee_id", employee.id).eq("position_id", position.id).eq("effective_date", input.effectiveDate), "Cek assessment") as { id: string; overall_status: string; findings: unknown; assessed_with?: string | null }[];
-    const identical = sameDay.find((row) => row.overall_status === comparison.overallStatus && JSON.stringify(row.findings) === JSON.stringify(comparison.findings) && (row.assessed_with ?? "") === assessedWith);
+    const identical = sameDay.find((row) => row.overall_status === comparison.overallStatus && JSON.stringify(row.findings) === JSON.stringify(comparison.findings) && (!assessedWith || (row.assessed_with ?? "") === assessedWith));
     if (identical) return identical.id;
     const result = await this.client.from("d4_competency_assessments").insert({
       employee_id: employee.id, position_id: position.id, position_title_snapshot: position.title,
