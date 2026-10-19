@@ -130,6 +130,7 @@ const writeRoutes: [string, () => Promise<Response>][] = [
   ["POST /competency-assessments", () => competency.POST(post({ employeeId: ALFA, positionId: FINANCE_STAFF, effectiveDate: "2026-10-01" }))],
   ["POST /development-needs", () => dev.POST(post({ employeeId: ALFA, sourceType: "performance_context", sourceRef: KPI_ALFA, objective: "Uji", priority: "High" }))],
   ["POST /development-needs/:id/versions", () => devVersions.POST(post({ status: "In Progress", notes: "Uji" }), params(NEED))],
+  ["POST /development-needs/:id/versions (edit)", () => devVersions.POST(post({ status: "Planned", notes: "", priority: "High", pic: "Bu Maya" }), params(NEED))],
   ["POST /training-records", () => training.POST(post({ employeeId: ALFA, developmentNeedId: NEED, activity: "Uji", date: "2026-10-01", status: "Planned" }))],
   ["POST /training-records/:id/versions", () => trainingVersions.POST(post({ status: "In Progress", notes: "Uji" }), params(TRAINING))],
 ];
@@ -269,7 +270,7 @@ describe("POST /kpi-assessments", () => {
     ["fractional score", { fractional: true }, /bilangan bulat/],
     ["unknown employee", { employeeId: uuid(500) }, /tidak ditemukan/],
     ["no evaluation notes", { generalNotes: "   " }, /Notes wajib/],
-    ["no evidence", { evidenceReference: " " }, /Bukti \/ referensi wajib/],
+    ["no evidence", { evidenceReference: " " }, /Reference wajib/],
   ])("rejects %s", async (_name, patch: Record<string, unknown>, message) => {
     const { fractional, ...rest } = patch;
     const body = kpiBody(rest);
@@ -441,6 +442,40 @@ describe("unknown or malformed ids", () => {
   it("returns 201 for a status update of an existing development need", async () => {
     const res = await call(devVersions.POST(post({ status: "In Progress", notes: "Dimulai" }), params(NEED)));
     expect(res.status).toBe(201);
-    expect(writes[0]).toMatchObject({ method: "updateDevelopment", args: [NEED, "In Progress", "Dimulai"] });
+    expect(writes[0]).toMatchObject({ method: "updateDevelopment", args: [NEED, { status: "In Progress", notes: "Dimulai", priority: "High", reassessment: null }, { status: "Planned" }] });
+  });
+
+  it("edits priority, method and PIC of a development need without a status change; null keeps the value", async () => {
+    const res = await call(devVersions.POST(post({ status: "Planned", notes: "Kebijakan pajak berubah", priority: "Low", method: "Coaching", pic: null }), params(NEED)));
+    expect(res.status).toBe(201);
+    expect(writes[0].args[1]).toMatchObject({ status: "Planned", priority: "Low", method: "Coaching", pic: "" });
+    // The repository gets the current revision to send only the changed columns.
+    expect(writes[0].args[2]).toMatchObject({ priority: "High", status: "Planned" });
+  });
+
+  it.each([
+    ["unknown priority", { status: "Planned", priority: "Urgent" }, /priority/],
+    ["unknown reassessment", { status: "Planned", reassessment: "Maybe" }, /reassessment/],
+    ["reassessment of an open need", { status: "Planned", reassessment: "Retraining" }, /setelah development requirement Completed/],
+    ["no change", { status: "Planned" }, /Tidak ada perubahan/],
+  ])("rejects a development revision with %s (422)", async (_name, body, message) => {
+    const res = await call(devVersions.POST(post(body), params(NEED)));
+    expect(res.status).toBe(422);
+    expect(res.body.error?.message).toMatch(message);
+    expect(writes).toHaveLength(0);
+  });
+
+  it("records Retraining on a Completed need as a reopened revision", async () => {
+    snapshot = { ...snapshot, developmentVersions: snapshot.developmentVersions.map((item) => item.needId === NEED ? { ...item, status: "Completed" as const } : item) };
+    const res = await call(devVersions.POST(post({ status: "Planned", notes: "", reassessment: "Retraining" }), params(NEED)));
+    expect(res.status).toBe(201);
+    expect(writes[0].args[1]).toMatchObject({ status: "Planned", reassessment: "Retraining" });
+  });
+
+  it("passes the trimmed co-assessor of a competency assessment to the repository", async () => {
+    const res = await call(competency.POST(post({ employeeId: ALFA, positionId: FINANCE_STAFF, effectiveDate: "2026-10-01", assessedWith: "  Rina, Finance Manager " })));
+    expect(res.status).toBe(201);
+    expect(writes[0].args[0]).toMatchObject({ assessedWith: "Rina, Finance Manager" });
+    expect((await call(competency.POST(post({ employeeId: ALFA, positionId: FINANCE_STAFF, effectiveDate: "2026-10-01", assessedWith: "x".repeat(201) })))).status).toBe(422);
   });
 });

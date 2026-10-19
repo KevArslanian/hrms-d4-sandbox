@@ -11,7 +11,7 @@ import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, FormError, FormModal, ModalActions, SearchInput, SearchSelectField, SelectFilter, TextField } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
-import { Button, ButtonLink, Card, Notice, SourceChip, statusLabel, StatusBadge } from "../../ui/primitives";
+import { Button, ButtonLink, Card, InfoGrid, Notice, SourceChip, statusLabel, StatusBadge } from "../../ui/primitives";
 import { DevelopmentFormModal } from "../development/DevelopmentModals";
 
 type Row = { employee: EmployeeReference; position: string; status: CurrentCompetencyStatus; findings: CompetencyFinding[]; lastAssessed?: string };
@@ -20,6 +20,14 @@ type Row = { employee: EmployeeReference; position: string; status: CurrentCompe
 const STATUS_FILTER = ["Not Evaluated", "Met", "Gap", "Insufficient Data"];
 const SCOPE_ACTIVE = "In training / position change";
 const SCOPE_ALL = "All employees";
+
+/** Optional "Dinilai bersama" (interview D4: after training HR evaluates with the department that raised the need). */
+function AssessedWithField({ value, onChange, className }: { value: string; onChange: (value: string) => void; className?: string }) {
+  return <TextField label="Assessed with" testId="assessed-with" maxLength={200} value={value} onChange={(event) => onChange(event.target.value)} className={className}
+    placeholder="Contoh: Rina, Finance Manager" helper="Opsional. Dinilai bersama atasan atau departemen yang mengajukan kebutuhan pegawai (nama/jabatan)." />;
+}
+
+const assessedWithText = (value?: string | null) => value?.trim() ? `Dinilai bersama ${value.trim()}` : "";
 
 export function CompetencyListPage() {
   const snapshot = useSnapshot();
@@ -76,11 +84,12 @@ function PositionChangeModal({ employee, onClose }: { employee: EmployeeReferenc
   const { run, busy } = useD4();
   const [position, setPosition] = useState("");
   const [date, setDate] = useState(today());
+  const [assessedWith, setAssessedWith] = useState("");
   const [error, setError] = useState("");
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!position) { setError("Pilih posisi baru."); return; }
-    const result = await run((source) => source.saveCompetency({ employeeId: employee.id, positionId: position, effectiveDate: date }), "Penilaian perubahan posisi tersimpan.");
+    const result = await run((source) => source.saveCompetency({ employeeId: employee.id, positionId: position, effectiveDate: date, assessedWith }), "Penilaian perubahan posisi tersimpan.");
     if (result.ok) onClose(); else setError(result.error);
   }
   return <FormModal title="Position Change Assessment" description="Bandingkan kemampuan pegawai dengan persyaratan posisi baru. Riwayat gap untuk posisi lama tetap disimpan." onClose={onClose}
@@ -90,6 +99,7 @@ function PositionChangeModal({ employee, onClose }: { employee: EmployeeReferenc
       <SearchSelectField label="New position" testId="new-position" required value={position} onChange={(value) => setPosition(value)} placeholder="Select position"
         options={snapshot.reference.positions.filter((item) => item.id !== employee.positionId).map((item) => ({ value: item.id, label: `${item.title}` }))} />
       <TextField label="Effective date" testId="effective-date" required type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+      <AssessedWithField value={assessedWith} onChange={setAssessedWith} />
       <Notice>Penilaian ini tidak mengubah data master posisi pegawai dan tidak memindahkan siapa pun secara otomatis.</Notice>
     </form>
   </FormModal>;
@@ -101,6 +111,7 @@ export function CompetencyDetailPage({ employeeId }: { employeeId: string }) {
   const writer = canWrite(snapshot);
   const [devRef, setDevRef] = useState<string | null>(null);
   const [changing, setChanging] = useState(false);
+  const [assessedWith, setAssessedWith] = useState("");
   const employee = employeeById(snapshot, employeeId);
   if (!employee || !visibleEmployees(snapshot).some((item) => item.id === employeeId)) return <NotFound what="Employee" backHref="/competency" backLabel="Back to Competency Gap" />;
   const gap = currentGap(snapshot, employee);
@@ -109,9 +120,11 @@ export function CompetencyDetailPage({ employeeId }: { employeeId: string }) {
   const assessed = Boolean(saved);
   // Saving again the same day with the same result only duplicates history.
   const sameAsSaved = (item: CompetencyFinding) => `${item.requirementId}:${item.actualLevel}:${item.status}`;
-  const savedToday = Boolean(saved && gap && saved.effectiveDate === today()
+  // Naming a different co-assessor makes it a new snapshot, as on the server; an empty field changes nothing.
+  const savedToday = Boolean(saved && gap && saved.effectiveDate === today() && (!assessedWith.trim() || (saved.assessedWith ?? "") === assessedWith.trim())
     && saved.findings.map(sameAsSaved).sort().join("|") === gap.findings.map(sameAsSaved).sort().join("|"));
-  const saveSnapshot = () => employee.positionId && void run((source) => source.saveCompetency({ employeeId: employee.id, positionId: employee.positionId!, effectiveDate: today() }), "Penilaian kompetensi tersimpan ke riwayat.");
+  const canSave = writer && Boolean(gap?.findings.length);
+  const saveSnapshot = () => employee.positionId && void run((source) => source.saveCompetency({ employeeId: employee.id, positionId: employee.positionId!, effectiveDate: today(), assessedWith }), "Penilaian kompetensi tersimpan ke riwayat.");
 
   return <>
     <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Competency Gap", href: "/competency" }, { label: "Detail" }]} backHref="/competency"
@@ -120,9 +133,19 @@ export function CompetencyDetailPage({ employeeId }: { employeeId: string }) {
       actions={<>
         <ButtonLink href={`/competency/${employee.id}/history`} icon={<History className="size-4" />} testId="view-history">View History</ButtonLink>
         {writer && <Button icon={<ArrowRightLeft className="size-4" />} onClick={() => setChanging(true)} data-testid="btn-assess-position-change">Assess Position Change</Button>}
-        {writer && gap && gap.findings.length > 0 && <Button icon={<Save className="size-4" />} disabled={busy || savedToday} title={savedToday ? "Sudah disimpan hari ini dengan hasil yang sama." : undefined} onClick={saveSnapshot} data-testid="btn-save-assessment">{savedToday ? "Saved Today" : "Save Assessment"}</Button>}
+        {canSave && <Button icon={<Save className="size-4" />} disabled={busy || savedToday} title={savedToday ? "Sudah disimpan hari ini dengan hasil yang sama." : undefined} onClick={saveSnapshot} data-testid="btn-save-assessment">{savedToday ? "Saved Today" : "Save Assessment"}</Button>}
       </>} />
     <Notice>{!assessed && <>Status keseluruhan tetap <strong>Not Evaluated</strong> sampai penilaian untuk posisi aktif disimpan; Development Requirement dari gap baru bisa dibuat setelah itu. </>}Bukti yang belum ada pada perbandingan persyaratan ditandai <strong>Insufficient Data</strong>, bukan otomatis Gap. Gap tidak pernah otomatis menetapkan training, promosi, atau sertifikasi.</Notice>
+    {(saved || canSave) && <Card title="Assessment" testId="assessment-saved">
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(260px,1fr)] lg:items-start">
+        <InfoGrid columns={3} items={[
+          { label: "Last saved", testId: "last-saved", value: saved ? formatDate(saved.effectiveDate) : "Not saved yet" },
+          { label: "Recorded by", testId: "recorded-by", value: saved?.actor ?? "—" },
+          { label: "Last assessed with", testId: "assessed-with-saved", value: saved?.assessedWith || "—" },
+        ]} />
+        {canSave && <AssessedWithField value={assessedWith} onChange={setAssessedWith} />}
+      </div>
+    </Card>}
     <Card title="Requirement vs capability" testId="requirement-vs-capability" padded={false}>
       <div className="overflow-x-auto">
         <table data-testid="competency-gap-table" className="w-full min-w-[760px] text-left text-sm">
@@ -163,7 +186,7 @@ export function CompetencyHistoryPage({ employeeId }: { employeeId: string }) {
       <Timeline empty="Belum ada penilaian kompetensi yang tersimpan untuk pegawai ini." entries={saved.map((item) => ({
         id: item.id, date: formatDate(item.effectiveDate), status: item.overallStatus, actor: item.actor,
         title: `${positionById(snapshot, item.positionId)?.title ?? "Position"} — ${item.context === "role-change" ? "position change" : "current position"}`,
-        body: `${item.findings.length} requirement · ${item.findings.filter((finding) => finding.status === "Gap").length} gap · ${item.findings.filter((finding) => finding.status === "Bukti Belum Cukup").length} insufficient data`,
+        body: [`${item.findings.length} requirement · ${item.findings.filter((finding) => finding.status === "Gap").length} gap · ${item.findings.filter((finding) => finding.status === "Bukti Belum Cukup").length} insufficient data`, assessedWithText(item.assessedWith)].filter(Boolean).join(" · "),
       }))} />
     </Card>
   </>;

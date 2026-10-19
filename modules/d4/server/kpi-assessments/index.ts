@@ -65,7 +65,7 @@ export async function createAssessment(request: Request) {
   if (!generalNotes) throw new ApiError("VALIDATION_FAILED", "Notes wajib diisi.");
   // Interview D4 (14 Oct 2026): evidence is required.
   const evidenceReference = field.text(body, "evidenceReference", { required: false, max: 500 }).trim();
-  if (!evidenceReference) throw new ApiError("VALIDATION_FAILED", "Bukti / referensi wajib diisi.");
+  if (!evidenceReference) throw new ApiError("VALIDATION_FAILED", "Reference wajib diisi.");
   const evaluationDate = field.date(body, "evaluationDate", { required: status === "completed" });
   enforce(() => assertNotFutureDate(evaluationDate));
   const id = await repository.saveKpiAssessment({

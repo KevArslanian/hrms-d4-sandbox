@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CompetencyAssessment } from "@/modules/d4/competency/types";
-import { assertDevelopmentChange, assertTrainingResult, passedTrainingCount, assertGapAssessed, assertNotFutureDate, assertTrainingDate, openTrainingCount, isTrainingRollback, localMonth, localToday, revisionNumber } from "@/modules/d4/shared/rules";
+import type { DevelopmentNeedVersion } from "@/modules/d4/development/types";
+import { assertDevelopmentChange, assertTrainingResult, passedTrainingCount, assertGapAssessed, assertNotFutureDate, assertTrainingDate, nextDevelopmentRevision, openTrainingCount, isTrainingRollback, localMonth, localToday, reassessmentOf, revisionNumber } from "@/modules/d4/shared/rules";
 import type { EmployeeReference } from "@/modules/d4/shared/types";
-import { asEmployee, assessableEmployees, inTrainingOrPositionChange, canWrite, currentCompetencyStatus, currentGap, latestCurrentPositionAssessment, revisionTag, visibleEmployees, type Snapshot } from "@/modules/d4/web/data/selectors";
+import { asEmployee, assessableEmployees, inTrainingOrPositionChange, canWrite, currentCompetencyStatus, currentGap, latestCurrentPositionAssessment, objectiveFromFinding, revisionChanges, revisionTag, visibleEmployees, type Snapshot } from "@/modules/d4/web/data/selectors";
 import type { TrainingStatus } from "@/modules/d4/training/types";
 
 const ALFA = "d4000000-0000-4000-8000-000000000009";
@@ -235,6 +236,58 @@ describe("development status change", () => {
     expect(() => assertTrainingDate("Completed", "2999-01-01")).toThrow(/lebih dari hari ini/);
     expect(() => assertTrainingDate("Planned", "2999-01-01")).not.toThrow();
     expect(() => assertTrainingDate("Completed", localToday())).not.toThrow();
+  });
+});
+
+describe("development revision: edit, reassessment, objective", () => {
+  const need = (patch: Partial<DevelopmentNeedVersion> = {}): DevelopmentNeedVersion => ({
+    id: "V1", needId: "N1", revision: 1, source: "fixture", employeeId: ALFA, sourceType: "competency_gap", sourceRef: "REQ-1",
+    objective: "Uji", priority: "Medium", method: "Training", pic: "", status: "In Progress", notes: "", createdAt: "2026-10-01T08:00:00.000Z", actor: "Mercury", ...patch,
+  });
+  const passed = [{ developmentNeedId: "N1", status: "Completed" as const, result: "Passed" }];
+
+  it("edits priority, method and PIC without a status change; left-out fields keep their value", () => {
+    expect(nextDevelopmentRevision(need(), { status: "In Progress", notes: "", priority: "High", pic: " Bu Maya " }, [], [])).toEqual({
+      status: "In Progress", notes: "", priority: "High", method: "Training", pic: "Bu Maya", reassessment: null,
+    });
+    expect(nextDevelopmentRevision(need(), { status: "In Progress", notes: "", method: "" }, [], []).method).toBe("");
+    // Editing a Completed need does not ask again for the reasons needed to complete it.
+    expect(() => nextDevelopmentRevision(need({ status: "Completed" }), { status: "Completed", notes: "", priority: "Low" }, [], [])).not.toThrow();
+    expect(() => nextDevelopmentRevision(need(), { status: "In Progress", notes: "x", priority: "Medium", method: "Training", pic: "" }, [], [])).toThrow(/Tidak ada perubahan/);
+    // A status change still follows the status rules.
+    expect(() => nextDevelopmentRevision(need(), { status: "Completed", notes: "" }, [], [])).toThrow(/Belum ada training berhasil Passed/);
+    expect(() => nextDevelopmentRevision(need(), { status: "Completed", notes: "" }, [], passed)).not.toThrow();
+  });
+
+  it("records a reassessment only on a Completed need: Retraining reopens it as Planned, Sudah memenuhi keeps it Completed", () => {
+    const done = need({ status: "Completed" });
+    expect(() => nextDevelopmentRevision(need(), { status: "In Progress", notes: "", reassessment: "Sudah memenuhi" }, [], [])).toThrow(/setelah development requirement Completed/);
+    expect(() => nextDevelopmentRevision(done, { status: "Completed", notes: "", reassessment: "Retraining" }, [], [])).toThrow(/status Planned/);
+    expect(() => nextDevelopmentRevision(done, { status: "Planned", notes: "", reassessment: "Sudah memenuhi" }, [], [])).toThrow(/tetap Completed/);
+    // The decision is the reason for moving back, so no extra note is needed.
+    expect(nextDevelopmentRevision(done, { status: "Planned", notes: "", reassessment: "Retraining" }, [], [])).toMatchObject({ status: "Planned", reassessment: "Retraining" });
+    expect(nextDevelopmentRevision(done, { status: "Completed", notes: "", reassessment: "Sudah memenuhi" }, [], [])).toMatchObject({ status: "Completed", reassessment: "Sudah memenuhi" });
+    // Reopening is refused when a new requirement was already raised for the same gap.
+    const other = need({ needId: "N2", status: "Planned" });
+    expect(() => nextDevelopmentRevision(done, { status: "Planned", notes: "", reassessment: "Retraining" }, [done, other], [])).toThrow(/sudah memiliki development requirement/);
+  });
+
+  it("shows the decision of the current round: pending once Completed again after a Retraining", () => {
+    const v = (revision: number, status: DevelopmentNeedVersion["status"], reassessment: DevelopmentNeedVersion["reassessment"] = null) => ({ revision, status, reassessment });
+    expect(reassessmentOf([v(1, "Identified"), v(2, "In Progress")])).toBeNull();
+    expect(reassessmentOf([v(1, "In Progress"), v(2, "Completed")])).toBe("pending");
+    expect(reassessmentOf([v(3, "Completed", "Sudah memenuhi"), v(2, "Completed"), v(1, "In Progress")])).toBe("Sudah memenuhi");
+    const retrain = [v(1, "In Progress"), v(2, "Completed"), v(3, "Planned", "Retraining"), v(4, "In Progress")];
+    expect(reassessmentOf(retrain)).toBe("Retraining");
+    expect(reassessmentOf([...retrain, v(5, "Completed")])).toBe("pending");
+    expect(reassessmentOf([...retrain, v(5, "Completed"), v(6, "Completed", "Sudah memenuhi")])).toBe("Sudah memenuhi");
+  });
+
+  it("lists what a revision changed and suggests an objective from a gap finding", () => {
+    expect(revisionChanges(need({ revision: 2, priority: "High", pic: "Bu Maya", reassessment: "Retraining" }), need())).toEqual(["Priority Medium → High", "PIC: Bu Maya", "Reassessment: Retraining"]);
+    expect(revisionChanges(need())).toEqual([]);
+    expect(objectiveFromFinding({ competencyName: "Perencanaan Strategi & Anggaran", actualLevel: 3, requiredLevel: 4 })).toBe("Naikkan Perencanaan Strategi & Anggaran dari level 3 ke 4");
+    expect(objectiveFromFinding({ competencyName: "Safety", actualLevel: null, requiredLevel: 3 })).toBe("Naikkan Safety ke level 3");
   });
 });
 

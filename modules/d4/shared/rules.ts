@@ -1,4 +1,4 @@
-import type { DevelopmentNeedVersion, DevelopmentSourceType, DevelopmentStatus } from "../development/types";
+import type { DevelopmentNeedVersion, DevelopmentPriority, DevelopmentReassessment, DevelopmentSourceType, DevelopmentStatus } from "../development/types";
 import type { TrainingStatus } from "../training/types";
 import { ApiError } from "./errors";
 
@@ -85,6 +85,56 @@ export function assertDevelopmentChange(from: DevelopmentStatus, to: Development
   if (isDevelopmentRollback(from, to) && !notes.trim()) throw new ApiError("VALIDATION_FAILED", `Alasan wajib diisi saat status mundur dari ${from} ke ${to}.`);
   if (to === "Completed" && openTrainings > 0 && !notes.trim()) throw new ApiError("VALIDATION_FAILED", "Training untuk requirement ini masih Planned atau In Progress. Selesaikan atau batalkan dulu, atau jelaskan alasannya di Notes.");
   if (to === "Completed" && passedTrainings === 0 && !notes.trim()) throw new ApiError("VALIDATION_FAILED", "Belum ada training berhasil Passed untuk requirement ini. Jelaskan di Notes mengapa requirement tetap diselesaikan.");
+}
+
+export const REASSESSMENTS = ["Retraining", "Sudah memenuhi"] as const;
+
+/** A requested revision. Priority, method and PIC left out keep their current value. */
+export type DevelopmentChange = { status: DevelopmentStatus; notes: string; priority?: DevelopmentPriority; method?: string; pic?: string; reassessment?: DevelopmentReassessment };
+export type DevelopmentRevision = { status: DevelopmentStatus; notes: string; priority: DevelopmentPriority; method: string; pic: string; reassessment: DevelopmentReassessment | null };
+
+/**
+ * The next revision of a need, checked the same way by the fixture and the server. Priority, method and PIC stay
+ * editable after creation (interview D4: priority follows context, e.g. a tax policy change). A reassessment is
+ * recorded only on a Completed need: Retraining reopens it as Planned so training can be repeated, Sudah memenuhi
+ * keeps it Completed.
+ */
+export function nextDevelopmentRevision(current: DevelopmentNeedVersion, change: DevelopmentChange, latestNeeds: readonly DevelopmentNeedVersion[], latestTrainings: readonly { developmentNeedId: string; status: TrainingStatus; result: string }[]): DevelopmentRevision {
+  const next: DevelopmentRevision = {
+    status: change.status, notes: change.notes, priority: change.priority ?? current.priority,
+    method: (change.method ?? current.method ?? "").trim(), pic: (change.pic ?? current.pic ?? "").trim(), reassessment: change.reassessment ?? null,
+  };
+  if (next.reassessment) {
+    if (current.status !== "Completed") throw new ApiError("VALIDATION_FAILED", "Hasil reassessment hanya dicatat setelah development requirement Completed.");
+    if (next.reassessment === "Retraining" && next.status !== "Planned") throw new ApiError("VALIDATION_FAILED", "Retraining membuka kembali requirement dengan status Planned.");
+    if (next.reassessment === "Sudah memenuhi" && next.status !== "Completed") throw new ApiError("VALIDATION_FAILED", "Sudah memenuhi berarti requirement tetap Completed.");
+  }
+  const edited = next.priority !== current.priority || next.method !== (current.method ?? "") || next.pic !== (current.pic ?? "");
+  if (next.status === current.status && !edited && !next.reassessment) throw new ApiError("VALIDATION_FAILED", "Tidak ada perubahan untuk disimpan.");
+  // Retraining is the reason for moving back, so it needs no extra note.
+  if (next.status !== current.status && next.reassessment !== "Retraining") {
+    assertDevelopmentChange(current.status, next.status, next.notes, openTrainingCount(latestTrainings, current.needId), passedTrainingCount(latestTrainings, current.needId));
+  }
+  // Reopening must not leave two open needs for the same gap (a new one may have been raised after completion).
+  if (current.status === "Completed" && next.status !== "Completed") {
+    assertNoOpenNeed(latestNeeds.filter((item) => item.needId !== current.needId), current.employeeId, current.sourceType, current.sourceRef);
+  }
+  return next;
+}
+
+/**
+ * The reassessment that applies to a need now, from its revisions (any order). A Completed need shows the decision
+ * recorded since it last became Completed, or "pending"; a need reopened by Retraining shows Retraining until it is
+ * Completed again.
+ */
+export function reassessmentOf(history: readonly Pick<DevelopmentNeedVersion, "revision" | "status" | "reassessment">[]): DevelopmentReassessment | "pending" | null {
+  const versions = [...history].sort((a, b) => b.revision - a.revision);
+  const done = versions[0]?.status === "Completed";
+  for (const version of versions) {
+    if ((version.status === "Completed") !== done) break;
+    if (version.reassessment && (done || version.reassessment === "Retraining")) return version.reassessment;
+  }
+  return done ? "pending" : null;
 }
 
 /** Planned/In Progress trainings of a need: completing the need while these run needs a reason. */

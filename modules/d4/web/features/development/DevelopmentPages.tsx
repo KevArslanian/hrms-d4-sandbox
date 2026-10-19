@@ -1,17 +1,23 @@
 "use client";
 
-import { ClipboardCheck, Eye, GraduationCap, History, Plus, RefreshCw } from "lucide-react";
+import { ClipboardCheck, Eye, GraduationCap, History, Pencil, Plus, RefreshCw, Scale } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { DevelopmentNeedVersion, DevelopmentSourceType } from "../../../development/types";
 import { useSnapshot } from "../../data/D4DataProvider";
-import { canWrite, describeSource, developmentById, developmentHistory, developmentNeeds, employeeById, employeeMeta, formatDate, formatPeriod, includesText, sourceTypeLabel, trainings, visibleEmployees } from "../../data/selectors";
+import { canWrite, describeSource, developmentById, developmentHistory, developmentNeeds, employeeById, employeeMeta, formatDate, formatPeriod, includesText, REASSESSMENT_PENDING, reassessmentFor, revisionChanges, sourceTypeLabel, trainings, visibleEmployees, type Snapshot } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
 import { Button, ButtonLink, Card, InfoGrid, Notice, SourceChip, statusLabel, StatusBadge } from "../../ui/primitives";
 import { TrainingFormModal } from "../training/TrainingModals";
-import { DevelopmentFormModal, DevelopmentStatusModal } from "./DevelopmentModals";
+import { DevelopmentEditModal, DevelopmentFormModal, DevelopmentStatusModal, ReassessmentModal } from "./DevelopmentModals";
+
+/** Reassessment result of a need as a badge, or nothing while it is still open (interview D4: shown in the Action column). */
+export function ReassessmentBadge({ snapshot, needId }: { snapshot: Snapshot; needId: string }) {
+  const state = reassessmentFor(snapshot, needId);
+  return state ? <span data-testid="reassessment-result"><StatusBadge status={state === "pending" ? REASSESSMENT_PENDING : state} /></span> : null;
+}
 
 export function DevelopmentListPage() {
   const snapshot = useSnapshot();
@@ -23,6 +29,8 @@ export function DevelopmentListPage() {
   const [period, setPeriod] = useState("");
   const [adding, setAdding] = useState(false);
   const [statusFor, setStatusFor] = useState<string | null>(null);
+  const [editFor, setEditFor] = useState<string | null>(null);
+  const [reassessFor, setReassessFor] = useState<string | null>(null);
   const [trainingFor, setTrainingFor] = useState<DevelopmentNeedVersion | null>(null);
   // FR-04.8: filter by employee, source, period (month the requirement was last recorded) and status.
   const periods = useMemo(() => [...new Set(developmentNeeds(snapshot).map((need) => need.createdAt.slice(0, 7)))].sort().reverse(), [snapshot]);
@@ -56,14 +64,19 @@ export function DevelopmentListPage() {
         { key: "status", header: "Status", cell: (row) => <StatusBadge status={row.status} /> },
         { key: "updated", header: "Updated", cell: (row) => formatDate(row.createdAt) },
       ]}
-      actions={(row) => <RowActionMenu label={`Actions for ${row.objective}`} actions={[
+      // The reassessment result sits next to the menu, so the next action reads from one column.
+      actions={(row) => <div className="flex items-center justify-end gap-2"><ReassessmentBadge snapshot={snapshot} needId={row.needId} /><RowActionMenu label={`Actions for ${row.objective}`} actions={[
         { label: "View Detail", testId: "view-detail", icon: <Eye />, href: `/development/${row.needId}` },
         { label: "View History", testId: "view-history", icon: <History />, href: `/development/${row.needId}/history` },
         { label: "Create Training", testId: "create-training", icon: <GraduationCap />, onSelect: () => setTrainingFor(row), hidden: !writer || row.status === "Completed" },
         { label: "Update Status", testId: "update-status", icon: <RefreshCw />, onSelect: () => setStatusFor(row.needId), hidden: !writer },
-      ]} />} />
+        { label: "Edit Requirement", testId: "edit-requirement", icon: <Pencil />, onSelect: () => setEditFor(row.needId), hidden: !writer },
+        { label: "Record Reassessment", testId: "record-reassessment", icon: <Scale />, onSelect: () => setReassessFor(row.needId), hidden: !writer || row.status !== "Completed" },
+      ]} /></div>} />
     {adding && <DevelopmentFormModal onClose={() => setAdding(false)} />}
     {statusFor && <DevelopmentStatusModal needId={statusFor} onClose={() => setStatusFor(null)} />}
+    {editFor && <DevelopmentEditModal needId={editFor} onClose={() => setEditFor(null)} />}
+    {reassessFor && <ReassessmentModal needId={reassessFor} onClose={() => setReassessFor(null)} />}
     {trainingFor && <TrainingFormModal employeeId={trainingFor.employeeId} developmentNeedId={trainingFor.needId} onClose={() => setTrainingFor(null)} />}
   </>;
 }
@@ -72,6 +85,8 @@ export function DevelopmentDetailPage({ needId }: { needId: string }) {
   const snapshot = useSnapshot();
   const writer = canWrite(snapshot);
   const [statusOpen, setStatusOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [reassessOpen, setReassessOpen] = useState(false);
   const [trainingOpen, setTrainingOpen] = useState(false);
   const need = developmentById(snapshot, needId);
   const employee = need && employeeById(snapshot, need.employeeId);
@@ -84,11 +99,13 @@ export function DevelopmentDetailPage({ needId }: { needId: string }) {
       name={employee.fullName} meta={[...employeeMeta(snapshot, employee), `Revision ${need.revision}`]} status={need.status}
       actions={<>
         <ButtonLink href={`/development/${need.needId}/history`} icon={<History className="size-4" />} testId="view-history">View History</ButtonLink>
+        {writer && <Button icon={<Pencil className="size-4" />} onClick={() => setEditOpen(true)} data-testid="btn-edit-requirement">Edit Requirement</Button>}
         {writer && <Button icon={<RefreshCw className="size-4" />} onClick={() => setStatusOpen(true)} data-testid="btn-update-status">Update Status</Button>}
         {/* A completed requirement cannot take new training (assertNeedOpen). */}
         {writer && need.status !== "Completed" && <Button icon={<GraduationCap className="size-4" />} onClick={() => setTrainingOpen(true)} data-testid="btn-create-training">Create Training</Button>}
         {/* Completed does not close the gap by itself: the next step is a fresh competency assessment. */}
         {writer && need.status === "Completed" && <ButtonLink href={`/competency/${employee.id}`} icon={<ClipboardCheck className="size-4" />} testId="reassess-competency">Reassess Competency</ButtonLink>}
+        {writer && need.status === "Completed" && <Button icon={<Scale className="size-4" />} onClick={() => setReassessOpen(true)} data-testid="btn-record-reassessment">Record Reassessment</Button>}
       </>} />
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
       <Card title="Requirement">
@@ -98,6 +115,7 @@ export function DevelopmentDetailPage({ needId }: { needId: string }) {
           { label: "Metode", testId: "method", value: need.method || "—" },
           { label: "PIC", testId: "pic", value: need.pic || "—" },
           { label: "Status", value: <StatusBadge status={need.status} /> },
+          { label: "Reassessment", testId: "reassessment", value: reassessmentFor(snapshot, need.needId) ? <ReassessmentBadge snapshot={snapshot} needId={need.needId} /> : "—" },
           { label: "Last updated", testId: "last-updated", value: `${formatDate(need.createdAt)} · ${need.actor}` },
           { label: "Created", testId: "created", value: formatDate(history[history.length - 1]?.createdAt) },
           { label: "Revisions", testId: "revisions", value: String(history.length) },
@@ -119,6 +137,8 @@ export function DevelopmentDetailPage({ needId }: { needId: string }) {
     </div>
     <Notice>Status development atau training yang selesai tidak otomatis menutup gap kompetensi; gap tetap harus dinilai ulang.</Notice>
     {statusOpen && <DevelopmentStatusModal needId={need.needId} onClose={() => setStatusOpen(false)} />}
+    {editOpen && <DevelopmentEditModal needId={need.needId} onClose={() => setEditOpen(false)} />}
+    {reassessOpen && <ReassessmentModal needId={need.needId} onClose={() => setReassessOpen(false)} />}
     {trainingOpen && <TrainingFormModal employeeId={need.employeeId} developmentNeedId={need.needId} onClose={() => setTrainingOpen(false)} />}
   </>;
 }
@@ -132,8 +152,9 @@ export function DevelopmentHistoryPage({ needId }: { needId: string }) {
     <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Development Requirement", href: "/development" }, { label: "History" }]} backHref={`/development/${need.needId}`}
       name={employee.fullName} meta={employeeMeta(snapshot, employee)} status={need.status} />
     <Card title="Revision history" testId="revision-history">
-      <Timeline empty="Belum ada revisi." entries={developmentHistory(snapshot, need.needId).map((item) => ({
-        id: item.id, date: formatDate(item.createdAt), title: `Revision ${item.revision}`, status: item.status, actor: item.actor, body: item.notes || undefined,
+      <Timeline empty="Belum ada revisi." entries={developmentHistory(snapshot, need.needId).map((item, index, all) => ({
+        id: item.id, date: formatDate(item.createdAt), title: `Revision ${item.revision}`, status: item.status, actor: item.actor,
+        body: [...revisionChanges(item, all[index + 1]), item.notes].filter(Boolean).join(" · ") || undefined,
       }))} />
     </Card>
   </>;

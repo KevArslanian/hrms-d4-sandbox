@@ -75,7 +75,7 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
     if (lines.some((line) => !line.kpi_name.trim())) { setError("Setiap Core KPI wajib diberi nama."); return; }
     if (!allScored || !period || !date) { setError(`Lengkapi periode, tanggal evaluasi, dan skor 1–${max} untuk kelima KPI.`); return; }
     if (!notes.trim()) { setError("Notes wajib diisi."); return; }
-    if (!evidence.trim()) { setError("Bukti / referensi wajib diisi."); return; }
+    if (!evidence.trim()) { setError("Reference wajib diisi."); return; }
     if (date > today()) { setError("Tanggal evaluasi tidak boleh lebih dari hari ini."); return; }
     if (existing && !revise) { setError("Performance Review untuk periode ini sudah ada. Centang “Save as revision” atau pilih periode lain."); return; }
     setError("");
@@ -127,11 +127,11 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
         </table>
       </div>}
       <p className="text-xs text-ink-3">{max === 5
-        ? `Kriteria skor: ${[1, 2, 3, 4, 5].map((value) => `${value} ${SCORE_LABELS[value]}`).join(" · ")}. Skor terbobot = bobot × skor mentah; total = jumlah skor terbobot. Penilai mengisi skor mentah; sistem tidak mengubah realisasi menjadi skor dan tidak memberi label tercapai/tidak tercapai.`
-        : `Skor 1–100 dengan target ${KPI_TARGET}. Di bawah ${UNDER_BELOW} = Under Performance, ${UNDER_BELOW}–${HIGH_ABOVE} = Average Performance, di atas ${HIGH_ABOVE} = High Performance. Skor terbobot = bobot × skor mentah; total = jumlah skor terbobot. Penilai mengisi skor mentah; sistem tidak mengubah realisasi menjadi skor.`}</p>
+        ? `Kriteria skor: ${[1, 2, 3, 4, 5].map((value) => `${value} ${SCORE_LABELS[value]}`).join(" · ")}. Skor terbobot = bobot × skor; total = jumlah skor terbobot. Penilai mengisi skor; sistem tidak mengubah realisasi menjadi skor dan tidak memberi label tercapai/tidak tercapai.`
+        : `Skor 1–100 dengan target ${KPI_TARGET}. Di bawah ${UNDER_BELOW} = Under Performance, ${UNDER_BELOW}–${HIGH_ABOVE} = Average Performance, di atas ${HIGH_ABOVE} = High Performance. Skor terbobot = bobot × skor; total = jumlah skor terbobot. Penilai mengisi skor; sistem tidak mengubah realisasi menjadi skor.`}</p>
       <TextAreaField label="Notes" testId="catatan-evaluasi" required value={notes} onChange={(event) => setNotes(event.target.value)} error={touched && !notes.trim() ? "Notes wajib diisi." : undefined}
         helper="Kekuatan, hal yang perlu diperbaiki, dan rekomendasi pelatihan — bisa menjadi dasar Development Requirement." />
-      <TextField label="Bukti / referensi" testId="evidence-reference" required maxLength={500} value={evidence} onChange={(event) => setEvidence(event.target.value)} error={touched && !evidence.trim() ? "Bukti / referensi wajib diisi." : undefined} helper="Nomor dokumen, tautan laporan, atau lokasi bukti pencapaian KPI." />
+      <TextField label="Reference" testId="evidence-reference" required maxLength={500} value={evidence} onChange={(event) => setEvidence(event.target.value)} error={touched && !evidence.trim() ? "Reference wajib diisi." : undefined} helper="Nomor dokumen, tautan laporan, atau lokasi bukti pencapaian KPI." />
     </form>
   </FormModal>;
 }

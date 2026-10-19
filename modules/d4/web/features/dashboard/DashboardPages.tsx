@@ -8,12 +8,12 @@ import { useSnapshot } from "../../data/D4DataProvider";
 import { currentCompetencyStatus, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, evaluationsOf, formatDate, formatPeriod, formatScorecard, includesText, needsOf, positionOf, scorecardsOf, trainings, trainingsOf, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
-import { DetailHeader, NotFound, PageHeader } from "../../ui/layout";
+import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
 import { Card, Notice, slug, statusLabel, StatusBadge } from "../../ui/primitives";
 import { weighted } from "../kpi/KpiFormModal";
 import { HIGH_ABOVE, performanceBand, scaleMaxOf, UNDER_BELOW } from "../../../kpi/scale";
-import { competencySlices, dashboardAlerts, gapRanking, performanceSlices, type DashboardRow, type Slice } from "./summary";
+import { competencySlices, dashboardAlerts, employeeHistory, gapRanking, performanceSlices, type DashboardRow, type Slice } from "./summary";
 
 type Row = DashboardRow & { position: string; period?: string; openNeeds: number; training?: string };
 
@@ -272,6 +272,10 @@ export function EmployeeProfilePage({ employeeId, initialPeriod = "" }: { employ
             <p className="mt-1.5 text-xs text-ink-3">{linked.length ? linked.map((item) => `${item.activity} (${statusLabel(item.status)}, ${formatDate(item.date)})`).join(" · ") : "Belum ada training"}</p>
           </li>;
         })}</ul> : <p className="text-sm text-ink-3">Belum ada development requirement.</p>}
+      </Card>
+      <Card title="Riwayat" testId="employee-history" className="xl:col-span-2">
+        <Timeline empty="Belum ada riwayat penilaian, development, atau training untuk pegawai ini." entries={employeeHistory(snapshot, employee.id)} />
+        <p className="mt-4 text-xs leading-5 text-ink-3">Gabungan riwayat Competency Gap, Performance Review, Development Requirement, dan Training, terbaru di atas. Riwayat posisi hanya dari penilaian perubahan posisi; D4 tidak menyimpan riwayat jabatan.</p>
       </Card>
     </div>
   </>;

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFixtureSource } from "@/modules/d4/web/data/fixture-source";
 import type { D4DataSource, EvaluationDraft, KpiAssessmentDraft } from "@/modules/d4/web/data/source";
 import { latestDevelopment, latestTraining } from "@/modules/d4/supabase/types";
@@ -131,5 +131,41 @@ describe("development and training (fixture)", () => {
   it("rejects an unknown training or requirement", async () => {
     await expect(source.updateTraining("NOPE", "Planned", "", "")).rejects.toThrow(/tidak ditemukan/);
     await expect(source.updateDevelopment("NOPE", "Planned", "")).rejects.toThrow(/tidak ditemukan/);
+  });
+});
+
+describe("development edit and reassessment (fixture)", () => {
+  afterEach(() => { vi.unstubAllEnvs(); });
+  const latest = async (needId: string) => latestDevelopment(await source.loadSnapshot()).find((item) => item.needId === needId)!;
+
+  it("edits priority, method and PIC as a new revision and keeps them on later status changes", async () => {
+    await source.updateDevelopment("FIX-D4-DEV-002", "In Progress", "Kebijakan pajak berubah", { priority: "High", method: "Coaching", pic: "Bu Maya" });
+    expect(await latest("FIX-D4-DEV-002")).toMatchObject({ revision: 2, status: "In Progress", priority: "High", method: "Coaching", pic: "Bu Maya" });
+    await source.updateDevelopment("FIX-D4-DEV-002", "Completed", "Briefing selesai, dinilai ulang");
+    expect(await latest("FIX-D4-DEV-002")).toMatchObject({ revision: 3, status: "Completed", priority: "High", pic: "Bu Maya" });
+    await expect(source.updateDevelopment("FIX-D4-DEV-002", "Completed", "", { priority: "High" })).rejects.toThrow(/Tidak ada perubahan/);
+  });
+
+  it("Retraining reopens the requirement for a new training; the next completion asks for a new decision", async () => {
+    await source.updateDevelopment("FIX-D4-DEV-001", "Completed", "Workshop dibatalkan, diganti coaching");
+    await source.updateDevelopment("FIX-D4-DEV-001", "Planned", "", { reassessment: "Retraining" });
+    expect(await latest("FIX-D4-DEV-001")).toMatchObject({ status: "Planned", reassessment: "Retraining" });
+    await source.createTraining({ employeeId: ALFA, developmentNeedId: "FIX-D4-DEV-001", activity: "Workshop ulang", date: "2026-10-01", status: "Planned", result: "", notes: "" });
+    // The decision belongs to the revision that recorded it, not to the ones after it.
+    await source.updateDevelopment("FIX-D4-DEV-001", "In Progress", "");
+    expect((await latest("FIX-D4-DEV-001")).reassessment).toBeNull();
+    await expect(source.updateDevelopment("FIX-D4-DEV-001", "In Progress", "", { reassessment: "Sudah memenuhi" })).rejects.toThrow(/setelah development requirement Completed/);
+  });
+
+  it("stores who the competency was assessed with", async () => {
+    const id = await source.saveCompetency({ employeeId: ALFA, positionId: "d4000000-0000-4000-8000-000000000008", effectiveDate: "2026-10-19", assessedWith: " Rina, Finance Manager " });
+    expect((await source.loadSnapshot()).competency.find((item) => item.id === id)?.assessedWith).toBe("Rina, Finance Manager");
+  });
+
+  it("refuses edits and reassessments for an employee (read-only)", async () => {
+    vi.stubEnv("NEXT_PUBLIC_D4_FIXTURE_ROLE", "EMPLOYEE");
+    vi.resetModules();
+    const { createFixtureSource: create } = await import("@/modules/d4/web/data/fixture-source");
+    await expect(create().updateDevelopment("FIX-D4-DEV-001", "Planned", "", { priority: "Low" })).rejects.toThrow(/HR atau manager/);
   });
 });
