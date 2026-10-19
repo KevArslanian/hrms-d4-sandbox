@@ -273,7 +273,7 @@ export function EmployeeProfilePage({ employeeId, initialPeriod = "" }: { employ
           </li>;
         })}</ul> : <p className="text-sm text-ink-3">Belum ada development requirement.</p>}
       </Card>
-      <Card title="Riwayat" testId="employee-history" className="xl:col-span-2">
+      <Card title="History" testId="employee-history" className="xl:col-span-2">
         <Timeline empty="Belum ada riwayat penilaian, development, atau training untuk pegawai ini." entries={employeeHistory(snapshot, employee.id)} />
         <p className="mt-4 text-xs leading-5 text-ink-3">Gabungan riwayat Competency Gap, Performance Review, Development Requirement, dan Training, terbaru di atas. Riwayat posisi hanya dari penilaian perubahan posisi; D4 tidak menyimpan riwayat jabatan.</p>
       </Card>

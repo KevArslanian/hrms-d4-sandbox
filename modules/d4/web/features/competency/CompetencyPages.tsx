@@ -133,18 +133,19 @@ export function CompetencyDetailPage({ employeeId }: { employeeId: string }) {
       actions={<>
         <ButtonLink href={`/competency/${employee.id}/history`} icon={<History className="size-4" />} testId="view-history">View History</ButtonLink>
         {writer && <Button icon={<ArrowRightLeft className="size-4" />} onClick={() => setChanging(true)} data-testid="btn-assess-position-change">Assess Position Change</Button>}
-        {canSave && <Button icon={<Save className="size-4" />} disabled={busy || savedToday} title={savedToday ? "Sudah disimpan hari ini dengan hasil yang sama." : undefined} onClick={saveSnapshot} data-testid="btn-save-assessment">{savedToday ? "Saved Today" : "Save Assessment"}</Button>}
       </>} />
     <Notice>{!assessed && <>Status keseluruhan tetap <strong>Not Evaluated</strong> sampai penilaian untuk posisi aktif disimpan; Development Requirement dari gap baru bisa dibuat setelah itu. </>}Bukti yang belum ada pada perbandingan persyaratan ditandai <strong>Insufficient Data</strong>, bukan otomatis Gap. Gap tidak pernah otomatis menetapkan training, promosi, atau sertifikasi.</Notice>
     {(saved || canSave) && <Card title="Assessment" testId="assessment-saved">
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(260px,1fr)] lg:items-start">
-        <InfoGrid columns={3} items={[
-          { label: "Last saved", testId: "last-saved", value: saved ? formatDate(saved.effectiveDate) : "Not saved yet" },
-          { label: "Recorded by", testId: "recorded-by", value: saved?.actor ?? "—" },
-          { label: "Last assessed with", testId: "assessed-with-saved", value: saved?.assessedWith || "—" },
-        ]} />
-        {canSave && <AssessedWithField value={assessedWith} onChange={setAssessedWith} />}
-      </div>
+      <InfoGrid columns={3} items={[
+        { label: "Last saved", testId: "last-saved", value: saved ? formatDate(saved.effectiveDate) : "Not saved yet" },
+        { label: "Recorded by", testId: "recorded-by", value: saved?.actor ?? "—" },
+        { label: "Last assessed with", testId: "assessed-with-saved", value: saved?.assessedWith || "—" },
+      ]} />
+      {/* The next save sits apart from what was saved last, and its button sits right next to the field it sends. */}
+      {canSave && <div className="mt-5 flex flex-wrap items-start gap-x-3 gap-y-2 border-t border-line pt-5">
+        <AssessedWithField className="min-w-[240px] flex-[1_1_320px]" value={assessedWith} onChange={setAssessedWith} />
+        <Button icon={<Save className="size-4" />} className="sm:mt-[26px]" disabled={busy || savedToday} title={savedToday ? "Sudah disimpan hari ini dengan hasil yang sama." : undefined} onClick={saveSnapshot} data-testid="btn-save-assessment">{savedToday ? "Saved Today" : "Save Assessment"}</Button>
+      </div>}
     </Card>}
     <Card title="Requirement vs capability" testId="requirement-vs-capability" padded={false}>
       <div className="overflow-x-auto">

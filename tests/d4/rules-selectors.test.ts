@@ -308,7 +308,9 @@ describe("development revision: edit, reassessment, objective", () => {
 
   it("lists what a revision changed and suggests an objective from a gap finding", () => {
     expect(revisionChanges(need({ revision: 2, priority: "High", pic: "Bu Maya", reassessment: "Retraining" }), need())).toEqual(["Priority Medium → High", "PIC: — → Bu Maya", "Reassessment: Retraining"]);
-    expect(revisionChanges(need({ revision: 2, method: "Coaching" }), need())).toEqual(["Metode: Training → Coaching"]);
+    // The stored partner term is shown with its English label.
+    expect(revisionChanges(need({ revision: 2, reassessment: "Sudah memenuhi" }), need())).toEqual(["Reassessment: Meets requirement"]);
+    expect(revisionChanges(need({ revision: 2, method: "Coaching" }), need())).toEqual(["Method: Training → Coaching"]);
     expect(revisionChanges(need())).toEqual([]);
     expect(objectiveFromFinding({ competencyName: "Perencanaan Strategi & Anggaran", actualLevel: 3, requiredLevel: 4 })).toBe("Naikkan Perencanaan Strategi & Anggaran dari level 3 ke 4");
     expect(objectiveFromFinding({ competencyName: "Safety", actualLevel: null, requiredLevel: 3 })).toBe("Naikkan Safety ke level 3");

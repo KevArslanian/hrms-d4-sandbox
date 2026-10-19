@@ -113,7 +113,7 @@ export function employeeHistory(snapshot: Snapshot, employeeId: string): History
     const roleChange = item.context === "role-change";
     entries.push({ id: `competency-${item.id}`, kind: "competency", day: item.effectiveDate, createdAt: item.createdAt, actor: item.actor,
       date: `${roleChange ? "Efektif " : ""}${formatDate(item.effectiveDate)}`, status: item.overallStatus, href: `/competency/${employeeId}/history`,
-      title: roleChange ? `Perubahan posisi · ${position}` : `Competency assessment · ${position}`,
+      title: roleChange ? `Position change assessment · ${position}` : `Competency assessment · ${position}`,
       body: [`${item.findings.length} requirement · ${item.findings.filter((finding) => finding.status === "Gap").length} gap`, item.assessedWith?.trim() && `Dinilai bersama ${item.assessedWith.trim()}`].filter(Boolean).join(" · ") });
   }
   for (const item of scorecardsOf(snapshot, employeeId)) {

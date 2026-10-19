@@ -106,7 +106,7 @@ describe("employee history timeline", () => {
     const history = employeeHistory(snapshot, ALFA);
     expect(history.map((item) => item.id)).toEqual(["competency-C-MOVE", "development-D2", "performance-K1", "training-T1", "competency-C-OLD", "development-D1"]);
     const [move, revision, review, trained] = history;
-    expect(move).toMatchObject({ title: "Perubahan posisi · Operations Staff", date: "Efektif 5 Oct 2026", href: `/competency/${ALFA}/history` });
+    expect(move).toMatchObject({ title: "Position change assessment · Operations Staff", date: "Efektif 5 Oct 2026", href: `/competency/${ALFA}/history` });
     expect(move.body).toContain("Dinilai bersama Rina, Ops Manager");
     expect(revision).toMatchObject({ status: "Planned", href: `/development/${need.needId}` });
     expect(revision.body).toContain("PIC: — → Bu Maya");

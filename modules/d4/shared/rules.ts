@@ -88,6 +88,8 @@ export function assertDevelopmentChange(from: DevelopmentStatus, to: Development
 }
 
 export const REASSESSMENTS = ["Retraining", "Sudah memenuhi"] as const;
+/** English display label of each stored decision (the stored value stays the partner's term). */
+export const REASSESSMENT_LABELS: Record<DevelopmentReassessment, string> = { Retraining: "Retraining", "Sudah memenuhi": "Meets requirement" };
 
 /** A requested revision. Priority, method and PIC left out keep their current value. */
 export type DevelopmentChange = { status: DevelopmentStatus; notes: string; priority?: DevelopmentPriority; method?: string; pic?: string; reassessment?: DevelopmentReassessment };

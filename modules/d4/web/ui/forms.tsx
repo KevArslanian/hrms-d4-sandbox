@@ -145,6 +145,21 @@ export function TextAreaField({ label, testId, required, error, helper, classNam
   </FieldShell>;
 }
 
+/** A few choices that should all stay visible (fewer than five): radio buttons instead of a dropdown. */
+export function RadioField({ label, testId, required, error, helper, className, value, onChange, options }: Common & { value: string; onChange: (value: string) => void; options: readonly (Option & { description?: string; testId?: string })[] }) {
+  const id = useId();
+  const name = testId ?? slug(label);
+  return <fieldset data-testid={`input-${name}`} aria-invalid={Boolean(error)} aria-describedby={error || helper ? `${id}-message` : undefined} className={cx("min-w-0", className)}>
+    <legend className="mb-1.5 block text-sm font-semibold text-ink-2">{label}{required && <span className="text-danger"> *</span>}</legend>
+    <div className="grid gap-2 sm:grid-cols-2">{options.map((option) => <label key={option.value} className="flex cursor-pointer items-start gap-2.5 rounded-[10px] border border-line-strong px-3 py-2.5 has-[:checked]:border-primary-500 has-[:checked]:bg-primary-50 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary-500/15">
+      <input type="radio" name={`${id}-${name}`} value={option.value} checked={value === option.value} onChange={() => onChange(option.value)} required={required}
+        data-testid={`input-${name}-${option.testId ?? slug(option.value)}`} className="mt-0.5 size-4 shrink-0 accent-primary-600" />
+      <span className="min-w-0"><span className="block text-sm font-semibold text-ink">{option.label}</span>{option.description && <span className="mt-0.5 block text-xs text-ink-3">{option.description}</span>}</span>
+    </label>)}</div>
+    {error ? <p id={`${id}-message`} className="mt-1.5 text-xs text-danger">{error}</p> : helper ? <p id={`${id}-message`} className="mt-1.5 text-xs text-ink-3">{helper}</p> : null}
+  </fieldset>;
+}
+
 export function ReadOnlyField({ label, testId, value, className }: { label: string; testId?: string; value: ReactNode; className?: string }) {
   return <div className={cx("min-w-0", className)}>
     <p className="mb-1.5 text-sm font-semibold text-ink-2">{label}</p>
