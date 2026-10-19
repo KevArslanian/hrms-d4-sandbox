@@ -7,7 +7,7 @@ import type { PerformanceEvaluation } from "../../../performance/types";
 import type { EmployeeReference } from "../../../shared/types";
 import type { KpiAssessment } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { canAssess, canWrite, departmentOf, describeSource, developmentNeeds, employeeById, employeeMeta, evaluationsOf, formatDate, formatPeriod, formatScorecard, includesText, latestScorecard, positionOf, revisionTag, scorecardsOf, thisMonth, visibleEmployees } from "../../data/selectors";
+import { canAssess, canWrite, departmentOf, describeSource, developmentNeeds, employeeById, employeeMeta, employeeSearchText, evaluationsOf, formatDate, formatPeriod, formatScorecard, includesText, latestScorecard, positionOf, revisionTag, scorecardsOf, thisMonth, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
@@ -49,17 +49,17 @@ export function PerformanceListPage() {
       // Older records kept the notes in a separate evaluation; show them until the period is assessed again.
       evaluation: scorecard && evaluationsOf(snapshot, employee.id).find((item) => item.period === scorecard.period),
     };
-  }).filter((row) => includesText(`${row.employee.fullName} ${row.employee.employeeId}`, search)
+  }).filter((row) => includesText(employeeSearchText(snapshot, row.employee), search)
     && (!position || row.employee.positionId === position) && (!department || row.employee.departmentId === department)
     && (!progress || scorecardStatus(row.scorecard) === progress))
     .sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName)), [snapshot, catalog, catalogSet, search, position, department, period, progress]);
 
   return <>
-    <PageHeader title="Performance Review" subtitle="Lima Core KPI dan catatan evaluasi per pegawai dan periode, dalam satu penilaian."
+    <PageHeader title="Performance Review" subtitle="Lima Core KPI dan Notes per pegawai dan periode, dalam satu penilaian."
       actions={writer && <Button icon={<Plus className="size-4" />} onClick={() => setAdding({})} data-testid="btn-add-penilaian">Add Performance Review</Button>} />
     <CatalogNotice />
     <FilterBar canReset={Boolean(search || position || department || period || progress)} onReset={() => { setSearch(""); setPosition(""); setDepartment(""); setPeriod(""); setProgress(""); }}>
-      <SearchInput value={search} onChange={setSearch} placeholder="Search name or ID" />
+      <SearchInput value={search} onChange={setSearch} placeholder="Search name or position" />
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All positions" testId="all-positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />}
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All departments" testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />}
       <SelectFilter label="All periods" testId="latest-period" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
@@ -73,7 +73,7 @@ export function PerformanceListPage() {
         { key: "period", header: "Period", cell: (row) => formatPeriod(row.scorecard?.period) },
         { key: "total", header: "Total KPI", className: "tabular-nums", cell: (row) => row.scorecard ? <span className="font-semibold">{formatScorecard(row.scorecard)}</span>
           : row.hasKpi ? "—" : <span className="text-xs text-ink-3">Not in catalog {catalog?.version} yet</span> },
-        { key: "notes", header: "Catatan", wrap: true, secondary: true, className: "max-w-[280px]", cell: (row) => {
+        { key: "notes", header: "Notes", wrap: true, secondary: true, className: "max-w-[280px]", cell: (row) => {
           const notes = row.scorecard?.generalNotes || row.evaluation?.generalNotes;
           return notes ? <span className="line-clamp-2">{notes}</span> : "—";
         } },
@@ -106,7 +106,7 @@ export function PerformanceDetailPage({ id }: { id: string }) {
         <ButtonLink href={`/performance/history/${employee.id}`} icon={<History className="size-4" />} testId="view-history">View History</ButtonLink>
         {scorecard && <ButtonLink href={`/performance/scorecard/${scorecard.id}`} icon={<Target className="size-4" />}>Performance Review</ButtonLink>}
       </>} />
-    <Notice tone="info">Evaluasi ini dicatat sebelum KPI dan catatan evaluasi digabung menjadi satu Performance Review. Data lama hanya dapat dibaca.</Notice>
+    <Notice tone="info">Evaluasi ini dicatat sebelum KPI dan Notes digabung menjadi satu Performance Review. Data lama hanya dapat dibaca.</Notice>
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
       <Card title="Evaluation summary" testId="evaluation-summary">
         <InfoGrid columns={3} items={[
@@ -115,12 +115,12 @@ export function PerformanceDetailPage({ id }: { id: string }) {
           { label: "Evaluator", testId: "evaluator", value: evaluation.evaluator || "—" },
           { label: "Department", testId: "department", value: departmentOf(snapshot, employee)?.name ?? "—" },
         ]} />
-        <h3 className="mb-2 mt-8 text-sm font-semibold text-ink-2">Catatan evaluasi</h3>
-        <p className="whitespace-pre-wrap text-sm text-ink-2">{evaluation.generalNotes || "Belum ada catatan evaluasi."}</p>
+        <h3 className="mb-2 mt-8 text-sm font-semibold text-ink-2">Notes</h3>
+        <p className="whitespace-pre-wrap text-sm text-ink-2">{evaluation.generalNotes || "Belum ada notes."}</p>
       </Card>
       <div className="space-y-6">
         <Card title="Reference" testId="evidence">
-          <p className="text-sm text-ink-2">{evaluation.evidenceReference || "Belum ada bukti atau referensi."}</p>
+          <p className="text-sm text-ink-2">{evaluation.evidenceReference || "Belum ada reference."}</p>
           <p className="mt-1 text-xs text-ink-3">Recorded by {evaluation.actor} · {formatDate(evaluation.createdAt)}</p>
         </Card>
         {needs.length > 0 && <Card title="Related records" testId="related-records">

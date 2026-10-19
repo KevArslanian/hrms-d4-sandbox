@@ -472,6 +472,17 @@ describe("unknown or malformed ids", () => {
     expect(writes[0].args[1]).toMatchObject({ status: "Planned", reassessment: "Retraining" });
   });
 
+  it("records Sudah memenuhi on a Completed need once; the same decision again is no change", async () => {
+    snapshot = { ...snapshot, developmentVersions: snapshot.developmentVersions.map((item) => item.needId === NEED ? { ...item, status: "Completed" as const } : item) };
+    const res = await call(devVersions.POST(post({ status: "Completed", notes: "", reassessment: "Sudah memenuhi" }), params(NEED)));
+    expect(res.status).toBe(201);
+    expect(writes[0].args[1]).toMatchObject({ status: "Completed", reassessment: "Sudah memenuhi" });
+    snapshot = { ...snapshot, developmentVersions: snapshot.developmentVersions.map((item) => item.needId === NEED ? { ...item, reassessment: "Sudah memenuhi" as const } : item) };
+    const again = await call(devVersions.POST(post({ status: "Completed", notes: "", reassessment: "Sudah memenuhi" }), params(NEED)));
+    expect(again.status).toBe(422);
+    expect(again.body.error?.message).toMatch(/Tidak ada perubahan/);
+  });
+
   it("passes the trimmed co-assessor of a competency assessment to the repository", async () => {
     const res = await call(competency.POST(post({ employeeId: ALFA, positionId: FINANCE_STAFF, effectiveDate: "2026-10-01", assessedWith: "  Rina, Finance Manager " })));
     expect(res.status).toBe(201);

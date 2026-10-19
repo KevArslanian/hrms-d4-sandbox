@@ -62,7 +62,7 @@ export async function addDevelopmentVersion(request: Request, id: string) {
   const needs = latestDevelopment(snapshot);
   const current = needs.find((item) => item.needId === id);
   if (!current) throw new ApiError("NOT_FOUND", "Development requirement tidak ditemukan.");
-  const next = nextDevelopmentRevision(current, change, needs, latestTraining(snapshot));
+  const next = nextDevelopmentRevision(current, change, needs, latestTraining(snapshot), snapshot.developmentVersions.filter((item) => item.needId === id));
   await repository.updateDevelopment(id, next, current);
   return { developmentNeedId: id, status: next.status };
 }

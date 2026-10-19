@@ -4,7 +4,7 @@ import { ClipboardCheck, Eye, GraduationCap, History, Pencil, Plus, RefreshCw, S
 import { useMemo, useState } from "react";
 import type { DevelopmentNeedVersion, DevelopmentSourceType } from "../../../development/types";
 import { useSnapshot } from "../../data/D4DataProvider";
-import { canWrite, describeSource, developmentById, developmentHistory, developmentNeeds, employeeById, employeeMeta, formatDate, formatPeriod, includesText, REASSESSMENT_PENDING, reassessmentFor, revisionChanges, sourceTypeLabel, trainings, visibleEmployees, type Snapshot } from "../../data/selectors";
+import { canWrite, describeSource, developmentById, developmentHistory, developmentNeeds, employeeById, employeeMeta, employeeSearchText, formatDate, formatPeriod, includesText, REASSESSMENT_PENDING, reassessmentFor, revisionChanges, sourceTypeLabel, trainings, visibleEmployees, type Snapshot } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
@@ -38,7 +38,7 @@ export function DevelopmentListPage() {
     const visible = new Set(visibleEmployees(snapshot).map((item) => item.id));
     return developmentNeeds(snapshot).filter((need) => {
       const employee = employeeById(snapshot, need.employeeId);
-      return visible.has(need.employeeId) && includesText(`${employee?.fullName ?? ""} ${employee?.employeeId ?? ""} ${need.objective}`, search)
+      return visible.has(need.employeeId) && includesText(`${employeeSearchText(snapshot, employee)} ${need.objective}`, search)
         && (!department || employee?.departmentId === department)
         && (!sourceType || need.sourceType === sourceType) && (!status || need.status === status) && (!period || need.createdAt.startsWith(period));
     });
@@ -48,7 +48,7 @@ export function DevelopmentListPage() {
     <PageHeader title="Development Requirement" subtitle="Kebutuhan development dan training dengan alasan dan sumber yang dapat ditelusuri."
       actions={writer && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)} data-testid="btn-add-requirement">Add Requirement</Button>} />
     <FilterBar canReset={Boolean(search || department || sourceType || status || period)} onReset={() => { setSearch(""); setDepartment(""); setSourceType(""); setStatus(""); setPeriod(""); }}>
-      <SearchInput value={search} onChange={setSearch} placeholder="Search keyword" />
+      <SearchInput value={search} onChange={setSearch} placeholder="Search name or position" />
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All departments" testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />}
       <SelectFilter label="All sources" testId="all-sources" value={sourceType} onChange={setSourceType} options={(Object.keys(sourceTypeLabel) as DevelopmentSourceType[]).map((key) => ({ value: key, label: sourceTypeLabel[key] }))} />
       <SelectFilter label="All periods" testId="all-periods" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
@@ -61,6 +61,8 @@ export function DevelopmentListPage() {
         { key: "objective", header: "Objective", wrap: true, className: "max-w-[320px]", cell: (row) => <span className="line-clamp-2">{row.objective}</span> },
         { key: "source", header: "Source", cell: (row) => <SourceChip label={sourceTypeLabel[row.sourceType]} /> },
         { key: "priority", header: "Priority", cell: (row) => statusLabel(row.priority) },
+        { key: "method", header: "Metode", wrap: true, className: "max-w-[160px]", cell: (row) => row.method || "—" },
+        { key: "pic", header: "PIC", wrap: true, className: "max-w-[160px]", cell: (row) => row.pic || "—" },
         { key: "status", header: "Status", cell: (row) => <StatusBadge status={row.status} /> },
         { key: "updated", header: "Updated", cell: (row) => formatDate(row.createdAt) },
       ]}

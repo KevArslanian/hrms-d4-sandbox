@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useMemo, useState, type FormEvent } from "react";
 import type { DevelopmentPriority, DevelopmentReassessment, DevelopmentSourceType, DevelopmentStatus } from "../../../development/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { isDevelopmentRollback, openNeedFor, REASSESSMENTS } from "../../../shared/rules";
-import { currentGap, developmentById, developmentNeeds, employeeById, formatDate, formatPeriod, latestCurrentPositionAssessment, objectiveFromFinding, positionOf, scorecardsOf, sourceTypeLabel, today, trainings, visibleEmployees } from "../../data/selectors";
+import { isDevelopmentRollback, openNeedFor, passedTrainingCount, REASSESSMENTS, retrainedAt } from "../../../shared/rules";
+import { currentGap, developmentById, developmentHistory, developmentNeeds, employeeById, formatDate, formatPeriod, latestCurrentPositionAssessment, objectiveFromFinding, positionOf, reassessmentFor, scorecardsOf, sourceTypeLabel, today, trainings, visibleEmployees } from "../../data/selectors";
 import { FormError, FormModal, ModalActions, ReadOnlyField, SearchSelectField, SelectField, TextAreaField, TextField } from "../../ui/forms";
 import { Notice, statusLabel } from "../../ui/primitives";
 
@@ -127,11 +127,13 @@ export function DevelopmentStatusModal({ needId, onClose }: { needId: string; on
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
   const openTrainings = trainings(snapshot).filter((item) => item.developmentNeedId === needId && (item.status === "Planned" || item.status === "In Progress"));
-  const passed = trainings(snapshot).filter((item) => item.developmentNeedId === needId && item.status === "Completed" && item.result === "Passed");
+  // After a Retraining only trainings passed since then count, as on the server.
+  const since = retrainedAt(developmentHistory(snapshot, needId));
+  const passed = passedTrainingCount(trainings(snapshot), needId, since);
   const rollback = current ? isDevelopmentRollback(current.status, status) : false;
   // Same rules as the server: completing while training still runs, or without a passed training, needs a reason.
   const completingOpen = status === "Completed" && openTrainings.length > 0;
-  const completingUnpassed = status === "Completed" && passed.length === 0;
+  const completingUnpassed = status === "Completed" && passed === 0;
   const needsReason = rollback || completingOpen || completingUnpassed;
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -148,7 +150,7 @@ export function DevelopmentStatusModal({ needId, onClose }: { needId: string; on
         {(["Identified", "Planned", "In Progress", "Completed"] as const).map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}
       </SelectField>
       {status === "Completed" && openTrainings.length > 0 && <Notice tone="warning">Masih ada {openTrainings.length} training berstatus Planned/In Progress untuk requirement ini ({openTrainings.map((item) => item.activity).join(", ")}). Selesaikan atau batalkan terlebih dahulu, atau jelaskan alasannya di Notes.</Notice>}
-      {completingUnpassed && <Notice tone="warning">Belum ada training dengan hasil Passed untuk requirement ini. Jika gap ditutup dengan cara lain (misalnya coaching), jelaskan di Notes.</Notice>}
+      {completingUnpassed && <Notice tone="warning">Belum ada training dengan hasil Passed untuk requirement ini{since ? " sejak Retraining terakhir" : ""}. Jika gap ditutup dengan cara lain (misalnya coaching), jelaskan di Notes.</Notice>}
       <TextAreaField label="Notes" testId="notes" required={needsReason} value={notes} onChange={(event) => setNotes(event.target.value)} helper={status === current?.status ? `Status sudah ${status}. Pilih status lain untuk menyimpan.` : rollback ? "Wajib: status mundur ke tahap sebelumnya." : completingOpen ? "Wajib: jelaskan mengapa requirement diselesaikan saat training masih berjalan." : completingUnpassed ? "Wajib: belum ada training yang Passed." : undefined} />
       <Notice>Perubahan disimpan sebagai revisi baru; riwayat sebelumnya tetap tersedia. Status Completed tidak otomatis menutup gap kompetensi.</Notice>
     </form>
@@ -201,19 +203,22 @@ export function ReassessmentModal({ needId, onClose }: { needId: string; onClose
   const [error, setError] = useState("");
   const [touched, setTouched] = useState(false);
   if (!current) return null;
+  // The decision already in force for this round; recording it again changes nothing.
+  const recorded = reassessmentFor(snapshot, needId);
   async function submit(event: FormEvent) {
     event.preventDefault();
     setTouched(true);
+    if (decision && decision === recorded) return;
     if (!decision) { setError("Pilih hasil reassessment: Retraining atau Sudah memenuhi."); return; }
     const status: DevelopmentStatus = decision === "Retraining" ? "Planned" : "Completed";
     const result = await run((source) => source.updateDevelopment(needId, status, notes, { reassessment: decision }), "Hasil reassessment tersimpan sebagai revisi baru.");
     if (result.ok) onClose(); else setError(result.error);
   }
-  return <FormModal title="Record Reassessment" description={current.objective} onClose={onClose} footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Reassessment" />}>
+  return <FormModal title="Record Reassessment" description={current.objective} onClose={onClose} footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Reassessment" disabled={Boolean(decision) && decision === recorded} />}>
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />
       <SelectField label="Reassessment result" testId="reassessment" required value={decision} onChange={(event) => setDecision(event.target.value as DevelopmentReassessment | "")}
-        error={touched && !decision ? "Hasil reassessment wajib dipilih." : undefined} helper="Hasil penilaian ulang kompetensi setelah training/development selesai.">
+        error={touched && !decision ? "Hasil reassessment wajib dipilih." : undefined} helper={decision && decision === recorded ? `${decision} sudah tercatat untuk requirement ini.` : "Hasil penilaian ulang kompetensi setelah training/development selesai."}>
         <option value="">Select result</option>
         {REASSESSMENTS.map((item) => <option key={item} value={item}>{item}</option>)}
       </SelectField>

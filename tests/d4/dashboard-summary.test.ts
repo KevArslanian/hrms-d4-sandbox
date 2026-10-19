@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DevelopmentNeedVersion } from "@/modules/d4/development/types";
 import type { KpiAssessment } from "@/modules/d4/supabase/types";
 import type { TrainingVersion } from "@/modules/d4/training/types";
-import { currentCompetencyStatus, currentGap, type Snapshot } from "@/modules/d4/web/data/selectors";
+import { currentCompetencyStatus, currentGap, employeeSearchText, includesText, positionOf, type Snapshot } from "@/modules/d4/web/data/selectors";
 import { competencySlices, dashboardAlerts, employeeHistory, gapRanking, performanceSlices, type DashboardRow } from "@/modules/d4/web/features/dashboard/summary";
 
 async function hrSnapshot(): Promise<Snapshot> {
@@ -62,6 +62,9 @@ describe("People Dashboard charts", () => {
     const completed = { ...noNeeds, developmentVersions: [need("Completed")] };
     expect(keys(completed)).toContain("completed-gap-open");
     expect(keys(completed)).not.toContain("gap-no-requirement");
+    // Cleared once HR records the reassessment decision.
+    const decided = { ...noNeeds, developmentVersions: [need("Completed"), need("Completed", { id: "T-Decided", revision: 2, reassessment: "Sudah memenuhi" })] };
+    expect(keys(decided)).not.toContain("completed-gap-open");
 
     const noPic = { ...noNeeds, developmentVersions: [need("In Progress", { pic: "" })] };
     expect(keys(noPic)).toContain("requirement-no-pic");
@@ -106,9 +109,20 @@ describe("employee history timeline", () => {
     expect(move).toMatchObject({ title: "Perubahan posisi · Operations Staff", date: "Efektif 5 Oct 2026", href: `/competency/${ALFA}/history` });
     expect(move.body).toContain("Dinilai bersama Rina, Ops Manager");
     expect(revision).toMatchObject({ status: "Planned", href: `/development/${need.needId}` });
-    expect(revision.body).toContain("PIC: Bu Maya");
+    expect(revision.body).toContain("PIC: — → Bu Maya");
     expect(review).toMatchObject({ title: "Performance Review Nov 2026 · 82.50 / 100", status: "Average Performance", href: "/performance/scorecard/K1" });
     expect(trained).toMatchObject({ status: "Completed", body: expect.stringContaining("Result: Passed"), href: `/training/${training.trainingId}` });
     expect(history.at(-2)?.title).toMatch(/^Competency assessment/);
+  });
+});
+
+describe("list search", () => {
+  it("finds an employee by position title as well as by name and Employee ID", async () => {
+    const snapshot = await hrSnapshot();
+    const person = snapshot.reference.employees.find((item) => positionOf(snapshot, item))!;
+    const title = positionOf(snapshot, person)!.title;
+    expect(includesText(employeeSearchText(snapshot, person), title.toUpperCase())).toBe(true);
+    expect(includesText(employeeSearchText(snapshot, person), person.employeeId)).toBe(true);
+    expect(includesText(employeeSearchText(snapshot, person), "posisi-yang-tidak-ada")).toBe(false);
   });
 });

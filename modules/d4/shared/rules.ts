@@ -97,9 +97,10 @@ export type DevelopmentRevision = { status: DevelopmentStatus; notes: string; pr
  * The next revision of a need, checked the same way by the fixture and the server. Priority, method and PIC stay
  * editable after creation (interview D4: priority follows context, e.g. a tax policy change). A reassessment is
  * recorded only on a Completed need: Retraining reopens it as Planned so training can be repeated, Sudah memenuhi
- * keeps it Completed.
+ * keeps it Completed. `history` is every revision of this need; without it only `current` is known.
  */
-export function nextDevelopmentRevision(current: DevelopmentNeedVersion, change: DevelopmentChange, latestNeeds: readonly DevelopmentNeedVersion[], latestTrainings: readonly { developmentNeedId: string; status: TrainingStatus; result: string }[]): DevelopmentRevision {
+export function nextDevelopmentRevision(current: DevelopmentNeedVersion, change: DevelopmentChange, latestNeeds: readonly DevelopmentNeedVersion[], latestTrainings: readonly TrainingOutcome[], history: readonly DevelopmentNeedVersion[] = []): DevelopmentRevision {
+  const versions = history.length ? history : [current];
   const next: DevelopmentRevision = {
     status: change.status, notes: change.notes, priority: change.priority ?? current.priority,
     method: (change.method ?? current.method ?? "").trim(), pic: (change.pic ?? current.pic ?? "").trim(), reassessment: change.reassessment ?? null,
@@ -110,10 +111,13 @@ export function nextDevelopmentRevision(current: DevelopmentNeedVersion, change:
     if (next.reassessment === "Sudah memenuhi" && next.status !== "Completed") throw new ApiError("VALIDATION_FAILED", "Sudah memenuhi berarti requirement tetap Completed.");
   }
   const edited = next.priority !== current.priority || next.method !== (current.method ?? "") || next.pic !== (current.pic ?? "");
-  if (next.status === current.status && !edited && !next.reassessment) throw new ApiError("VALIDATION_FAILED", "Tidak ada perubahan untuk disimpan.");
+  // Recording the decision already in force (e.g. Sudah memenuhi twice) changes nothing.
+  const repeated = next.reassessment !== null && next.reassessment === reassessmentOf(versions);
+  if (next.status === current.status && !edited && (!next.reassessment || repeated)) throw new ApiError("VALIDATION_FAILED", "Tidak ada perubahan untuk disimpan.");
   // Retraining is the reason for moving back, so it needs no extra note.
   if (next.status !== current.status && next.reassessment !== "Retraining") {
-    assertDevelopmentChange(current.status, next.status, next.notes, openTrainingCount(latestTrainings, current.needId), passedTrainingCount(latestTrainings, current.needId));
+    // After a Retraining only trainings passed since then count: the earlier pass is why the need was reopened.
+    assertDevelopmentChange(current.status, next.status, next.notes, openTrainingCount(latestTrainings, current.needId), passedTrainingCount(latestTrainings, current.needId, retrainedAt(versions)));
   }
   // Reopening must not leave two open needs for the same gap (a new one may have been raised after completion).
   if (current.status === "Completed" && next.status !== "Completed") {
@@ -141,9 +145,15 @@ export function reassessmentOf(history: readonly Pick<DevelopmentNeedVersion, "r
 export const openTrainingCount = (trainings: readonly { developmentNeedId: string; status: TrainingStatus }[], needId: string) =>
   trainings.filter((item) => item.developmentNeedId === needId && (item.status === "Planned" || item.status === "In Progress")).length;
 
-/** Completed trainings of a need that the employee passed. */
-export const passedTrainingCount = (trainings: readonly { developmentNeedId: string; status: TrainingStatus; result: string }[], needId: string) =>
-  trainings.filter((item) => item.developmentNeedId === needId && item.status === "Completed" && item.result === "Passed").length;
+type TrainingOutcome = { developmentNeedId: string; status: TrainingStatus; result: string; createdAt: string };
+
+/** When a need was last reopened by Retraining (latest such revision), if ever. */
+export const retrainedAt = (history: readonly Pick<DevelopmentNeedVersion, "reassessment" | "createdAt">[]) =>
+  history.reduce<string | undefined>((last, item) => item.reassessment === "Retraining" && (!last || item.createdAt > last) ? item.createdAt : last, undefined);
+
+/** Completed trainings of a need that the employee passed; with `since`, only those recorded after it (the current round). */
+export const passedTrainingCount = (trainings: readonly TrainingOutcome[], needId: string, since?: string) =>
+  trainings.filter((item) => item.developmentNeedId === needId && item.status === "Completed" && item.result === "Passed" && (!since || item.createdAt > since)).length;
 
 /** Outcome of a completed training: Not Passed keeps the need open so the training can be repeated. */
 export const TRAINING_RESULTS = ["Passed", "Not Passed"] as const;

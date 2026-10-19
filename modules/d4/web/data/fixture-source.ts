@@ -188,7 +188,7 @@ export function createFixtureSource(): D4DataSource {
       const current = needs.find((item) => item.needId === needId);
       if (!current) throw new Error("Development requirement tidak ditemukan.");
       // The spread carries priority/method/PIC forward; reassessment belongs to the revision that records it.
-      const next = nextDevelopmentRevision(current, { ...edit, status, notes }, needs, latestTraining(state));
+      const next = nextDevelopmentRevision(current, { ...edit, status, notes }, needs, latestTraining(state), state.developmentVersions.filter((item) => item.needId === needId));
       update({ developmentVersions: [{ ...current, ...next, id: newId("FIX-D4-DEV-V"), revision: current.revision + 1, createdAt: now(), actor: actorName() }, ...state.developmentVersions] });
     },
     async createTraining(input) {

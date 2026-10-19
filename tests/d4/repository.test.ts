@@ -186,4 +186,11 @@ describe("development revision and co-assessor columns", () => {
     await new SupabaseD4Repository(first.client).saveCompetency(competencyInput, reference);
     expect(first.inserts[0].payload).not.toHaveProperty("assessed_with");
   });
+
+  it("treats an empty co-assessor as no change against today's snapshot that names one, as the page does", async () => {
+    const { findings, overallStatus } = compareCompetencies(competencyInput.employeeId, competencyInput.positionId, reference);
+    const { client, calls } = fakeClient({ "d4_competency_assessments:select": { data: [{ id: "existing", overall_status: overallStatus, findings, assessed_with: "Rina" }], error: null } });
+    expect(await new SupabaseD4Repository(client).saveCompetency({ ...competencyInput, assessedWith: "" }, reference)).toBe("existing");
+    expect(calls).not.toContain("d4_competency_assessments:insert");
+  });
 });
