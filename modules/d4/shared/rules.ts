@@ -1,5 +1,5 @@
 import type { DevelopmentNeedVersion, DevelopmentPriority, DevelopmentReassessment, DevelopmentSourceType, DevelopmentStatus } from "../development/types";
-import type { TrainingStatus } from "../training/types";
+import type { TrainingFollowUp, TrainingStatus, TrainingVersion } from "../training/types";
 import { ApiError } from "./errors";
 
 /**
@@ -191,3 +191,43 @@ export function assertEvaluationInPeriod(period: string, date: string | null | u
 export function assertNotFutureDate(date: string | null | undefined, label = "Tanggal evaluasi") {
   if (date && date > localToday()) throw new ApiError("VALIDATION_FAILED", `${label} tidak boleh lebih dari hari ini.`);
 }
+
+/** Q16 (20 Oct 2026): every Not Passed training needs a follow-up from HR, recorded once as a new version of it. */
+export const TRAINING_FOLLOW_UPS = ["Retraining", "Other follow-up"] as const;
+
+type FollowUpVersion = Pick<TrainingVersion, "revision" | "status" | "result" | "followUp">;
+
+/**
+ * The follow-up recorded for a training's current Not Passed result, from its versions (any order), or null. Later
+ * versions with the same result (notes only) keep it; a version with another status or result ends the search.
+ */
+export function followUpOf(history: readonly FollowUpVersion[]): TrainingFollowUp | null {
+  for (const version of [...history].sort((a, b) => b.revision - a.revision)) {
+    if (version.status !== "Completed" || version.result !== "Not Passed") return null;
+    if (version.followUp) return version.followUp;
+  }
+  return null;
+}
+
+/** `activity` and `date` describe the new training and are used only for Retraining. */
+export type TrainingFollowUpInput = { followUp: TrainingFollowUp; notes: string; activity?: string; date?: string };
+
+/**
+ * Checked the same way by the fixture and the server: only a training whose latest version is Completed + Not Passed
+ * takes a follow-up, and only once. Retraining creates the next training for the same, still open requirement; any
+ * other follow-up (coaching, rotation, escalation to the supervisor) needs a note.
+ */
+export function assertTrainingFollowUp(history: readonly FollowUpVersion[], input: TrainingFollowUpInput, need: Pick<DevelopmentNeedVersion, "status"> | undefined) {
+  const latest = [...history].sort((a, b) => b.revision - a.revision)[0];
+  if (latest?.status !== "Completed" || latest.result !== "Not Passed") throw new ApiError("VALIDATION_FAILED", "Tindak lanjut hanya dicatat untuk training Completed dengan hasil Not Passed.");
+  if (followUpOf(history)) throw new ApiError("VALIDATION_FAILED", "Tindak lanjut untuk hasil Not Passed ini sudah dicatat. Lihat riwayat training.");
+  if (input.followUp === "Other follow-up" && !input.notes.trim()) throw new ApiError("VALIDATION_FAILED", "Catatan wajib diisi untuk Other follow-up: coaching, rotasi, atau eskalasi ke atasan.");
+  if (input.followUp === "Retraining") {
+    if (!input.activity?.trim() || !input.date) throw new ApiError("VALIDATION_FAILED", "Isi nama training dan tanggal untuk Retraining.");
+    if (need?.status === "Completed") throw new ApiError("VALIDATION_FAILED", "Development requirement ini sudah Completed; Retraining butuh requirement yang masih terbuka. Pilih Other follow-up atau buka kembali requirement-nya.");
+  }
+}
+
+/** Notes of the training created by Retraining: where it comes from, then HR's own note. */
+export const retrainingNotes = (previous: Pick<TrainingVersion, "activity" | "date">, notes: string) =>
+  [`Retraining setelah "${previous.activity}" (${previous.date}) Not Passed.`, notes.trim()].filter(Boolean).join("\n");

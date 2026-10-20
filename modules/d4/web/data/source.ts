@@ -1,7 +1,7 @@
 import type { KpiCatalogSet } from "../../kpi/catalog";
 import type { DevelopmentPriority, DevelopmentSourceType, DevelopmentStatus } from "../../development/types";
 import type { EvaluationInput } from "../../performance/types";
-import type { DevelopmentChange } from "../../shared/rules";
+import type { DevelopmentChange, TrainingFollowUpInput } from "../../shared/rules";
 import type { D4LiveSnapshot, KpiAssessmentLine } from "../../supabase/types";
 import type { TrainingStatus } from "../../training/types";
 
@@ -41,4 +41,6 @@ export interface D4DataSource {
   updateDevelopment(needId: string, status: DevelopmentStatus, notes: string, edit?: DevelopmentEdit): Promise<void>;
   createTraining(input: TrainingDraft): Promise<string>;
   updateTraining(trainingId: string, status: TrainingStatus, result: string, notes: string): Promise<void>;
+  /** Q16: follow-up of a Not Passed training; returns the new training id for Retraining, else null. */
+  recordTrainingFollowUp(trainingId: string, input: TrainingFollowUpInput): Promise<string | null>;
 }
