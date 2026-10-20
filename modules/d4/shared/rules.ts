@@ -176,6 +176,18 @@ export function assertTrainingDate(status: TrainingStatus, date: string) {
   if (status === "Completed") assertNotFutureDate(date, "Tanggal training yang sudah selesai");
 }
 
+/**
+ * Message when an evaluation date falls before its period starts (D4-FN-01), or "" when it does not. Together with
+ * assertNotFutureDate this keeps the period at or before the current month. A missing date is reported elsewhere.
+ */
+export const periodDateError = (period: string, date: string | null | undefined) =>
+  date && period && date < `${period}-01` ? "Tanggal evaluasi tidak boleh sebelum awal periode." : "";
+
+export function assertEvaluationInPeriod(period: string, date: string | null | undefined) {
+  const message = periodDateError(period, date);
+  if (message) throw new ApiError("VALIDATION_FAILED", message);
+}
+
 /** Evaluation dates are when the evaluation happened, so they cannot be later than today (WIB). */
 export function assertNotFutureDate(date: string | null | undefined, label = "Tanggal evaluasi") {
   if (date && date > localToday()) throw new ApiError("VALIDATION_FAILED", `${label} tidak boleh lebih dari hari ini.`);

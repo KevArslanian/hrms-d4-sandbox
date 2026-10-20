@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { catalogFor, indicatorsFor, KPI_TARGET, KPI_V51_CATALOG, roleForPosition, roleForPositionTitle, rolesOf, targetOf, type KpiCatalogSet } from "@/modules/d4/kpi/catalog";
 import { d4ReferenceFixture } from "@/modules/d4/shared/fixtures";
 import { createFixtureSource } from "@/modules/d4/web/data/fixture-source";
@@ -93,14 +93,18 @@ describe("saved scorecard total (fixture source, mirrors the DB trigger d4_calcu
   beforeEach(() => {
     // The fixture source waits 250 ms per read to imitate the network; run it immediately.
     vi.spyOn(globalThis, "setTimeout").mockImplementation(((run: () => void) => { run(); return 0; }) as unknown as typeof setTimeout);
+    // V6 periods start in Nov 2026; an evaluation is dated on or after its period starts (D4-FN-01) and never in the future.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-12-20T03:00:00Z"));
     source = createFixtureSource();
   });
+  afterEach(() => { vi.useRealTimers(); });
 
   async function save(scores: number[], period: string) {
     const lines = indicatorsFor(catalog, FINANCE_ROLE).map((row, index) => ({
       indicator_order: row.indicator_order, kpi_name: row.kpi_name, weight_percent: row.weight_percent, target: "", actual: "", raw_score: scores[index], comment: "",
     }));
-    const id = await source.createKpiAssessment({ employeeId: ALFA, roleOrder: FINANCE_ROLE, period, evaluationDate: "2026-10-01", evaluatorName: "x", status: "completed", lines, generalNotes: "Catatan uji.", evidenceReference: "DOC-1" });
+    const id = await source.createKpiAssessment({ employeeId: ALFA, roleOrder: FINANCE_ROLE, period, evaluationDate: "2026-12-15", evaluatorName: "x", status: "completed", lines, generalNotes: "Catatan uji.", evidenceReference: "DOC-1" });
     return (await source.loadSnapshot()).kpiAssessments!.find((item) => item.id === id)!.overallScore;
   }
 
@@ -109,7 +113,7 @@ describe("saved scorecard total (fixture source, mirrors the DB trigger d4_calcu
     const lines = indicatorsFor(catalog, FINANCE_ROLE).map((row, index) => ({
       indicator_order: row.indicator_order, kpi_name: row.kpi_name, weight_percent: row.weight_percent, target: "", actual: "", raw_score: scores[index], comment: "",
     }));
-    const base = { employeeId: ALFA, roleOrder: FINANCE_ROLE, period: "2026-11", evaluationDate: "2026-10-01", evaluatorName: "x", status: "completed" as const, generalNotes: "Catatan", evidenceReference: "DOC-1" };
+    const base = { employeeId: ALFA, roleOrder: FINANCE_ROLE, period: "2026-11", evaluationDate: "2026-12-15", evaluatorName: "x", status: "completed" as const, generalNotes: "Catatan", evidenceReference: "DOC-1" };
     const id = await source.createKpiAssessment({ ...base, lines });
     const saved = (await source.loadSnapshot()).kpiAssessments!.find((item) => item.id === id)!;
     expect(saved.definitionVersion).toBe("V6");
