@@ -5,6 +5,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 
+// B2 (PISD-B) tidak memuat webfont, jadi var font jatuh ke system stack. Samakan.
+const B2_FONT_STACK = "-apple-system, system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', 'Noto Sans', Arial, sans-serif";
+const B2_FONT_VARS = { '--font-montserrat': B2_FONT_STACK, '--font-syne': B2_FONT_STACK } as React.CSSProperties;
+
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState<string>('');
@@ -111,7 +115,7 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="relative min-h-screen w-full overflow-x-hidden bg-[#07111F] text-[#0D1B2A] selection:bg-[#3B6FF5] selection:text-white font-[family-name:var(--font-montserrat)]">
+    <main className="relative min-h-screen w-full overflow-x-hidden bg-[#07111F] text-[#0D1B2A] selection:bg-[#3B6FF5] selection:text-white font-[family-name:var(--font-montserrat)]" style={B2_FONT_VARS}>
       {/* 1. BACKGROUND GAMBAR LOGISTIK FULL SCREEN */}
       <div className="absolute inset-0 z-0">
         <img
@@ -130,10 +134,10 @@ export default function LoginPage() {
 
       {/* 2. BRAND TEXT (TITLE) MENGGUNAKAN FONT SYNE */}
       <div className="hidden md:flex absolute top-1/2 -translate-y-1/2 right-8 lg:right-16 xl:right-24 z-20 pointer-events-none flex-col items-end text-right max-w-lg">
-        <span className="mb-4 rounded-2xl bg-white p-2 shadow-xl"><img src="/andima-logo.png" alt="Logo Andima" width={77} height={52} data-testid="login-logo" /></span>
-        <h1 className="font-[family-name:var(--font-syne)] text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-wider text-white drop-shadow-[0_4px_20px_rgba(0,0,0,0.9)] leading-tight">
+        <div className="w-32 sm:w-40 lg:w-48 mb-4"><img src="/andima-logo.png" alt="Logo Andima" width={400} height={246} className="w-full h-auto object-contain drop-shadow-lg" data-testid="login-logo" /></div>
+        <h1 className="font-[family-name:var(--font-syne)] text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-wider text-white drop-shadow-md leading-tight">
           PT. ANDIMA<br />
-          <span className="font-[family-name:var(--font-syne)] text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-wider text-white drop-shadow-[0_4px_20px_rgba(0,0,0,0.9)] leading-tight">TRANSPORTINDO</span>
+          <span className="font-[family-name:var(--font-syne)] text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-wider text-white drop-shadow-md leading-tight">TRANSPORTINDO</span>
         </h1>
       </div>
 
@@ -161,14 +165,14 @@ export default function LoginPage() {
             <form id="login-form" data-testid="login-form" onSubmit={handleSubmit} className="space-y-6 font-[family-name:var(--font-montserrat)] relative z-10" noValidate>
               <div>
                 <label htmlFor="email" className="block text-xs font-bold uppercase tracking-wider text-[#0F172A] mb-2.5">
-                  Username
+                  Username / Email
                 </label>
                 <input
                   id="email"
                   name="email"
                   data-testid="input-email"
                   type="email"
-                  placeholder="manajemen@andima.co.id"
+                  placeholder="name@andima.co.id"
                   value={email}
                   onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
                   disabled={isLocked || isPermanentlyBlocked}
@@ -257,7 +261,7 @@ export default function LoginPage() {
             </form>
 
             <p className="relative z-10 mt-4 text-center text-sm text-[#334155]">
-              Not login ?{' '}
+              Not registered?{' '}
               <Link id="link-register" data-testid="link-register" href="/register" className="font-bold text-[#3B6FF5] hover:underline">Register</Link>
             </p>
 

@@ -15,8 +15,14 @@ interface FieldErrors {
   departementId?: string;
 }
 
+// B2 (PISD-B) tidak memuat webfont, jadi var font jatuh ke system stack. Samakan.
+const B2_FONT_STACK = "-apple-system, system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', 'Noto Sans', Arial, sans-serif";
+const B2_FONT_VARS = { '--font-montserrat': B2_FONT_STACK, '--font-syne': B2_FONT_STACK } as React.CSSProperties;
+
 export default function RegisterPage() {
   const router = useRouter();
+  const hour = new Date().getHours();
+  const greeting = hour >= 3 && hour < 12 ? 'Good Morning' : hour >= 12 && hour < 17 ? 'Good Afternoon' : 'Good Evening';
   const [fullName, setFullName] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
@@ -197,20 +203,19 @@ export default function RegisterPage() {
       }
     };
   return (
-    <main className="relative h-dvh w-full overflow-x-hidden overflow-y-auto bg-[#07111F] text-[#172033] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <main className="relative h-dvh w-full overflow-x-hidden overflow-y-auto bg-[#07111F] text-[#172033] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" style={B2_FONT_VARS}>
       {/* CONTAINER FORM REGISTRASI */}
       <div className="w-full min-h-full lg:w-1/2 min-w-0 flex flex-col justify-center p-4 sm:p-8 lg:p-10 relative z-10">
         <div className="w-full max-w-2xl shrink-0 mx-auto p-6 sm:p-9 rounded-3xl bg-gradient-to-b from-white/85 via-white/70 to-white/60 backdrop-blur-2xl border border-white/80 shadow-[0_20px_50px_rgba(7,17,31,0.5),inset_0_2px_4px_rgba(255,255,255,0.9)] relative overflow-hidden">
           
           {/* Header */}
-          <div className="mb-5 sm:mb-6 relative z-10">
-            <img src="/andima-logo.png" alt="Logo Andima" width={70} height={48} className="mb-3" data-testid="register-logo" />
-            <span className="text-xs sm:text-sm text-[#172033] uppercase tracking-widest block mb-1 font-bold">
-              Register Account
-            </span>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-wide text-[#172033] uppercase leading-tight">
-              PT ANDIMA TRANSPORTINDO
-            </h1>
+          <div className="mb-7 text-left relative z-10">
+            <h2 suppressHydrationWarning className="font-[family-name:var(--font-syne)] text-xl sm:text-2xl font-bold text-[#0D1B2A] tracking-tight">
+              {greeting},
+            </h2>
+            <p className="font-[family-name:var(--font-montserrat)] text-sm text-[#334155] mt-1.5 font-medium">
+              Please register with your identity.
+            </p>
           </div>
 
           {/* Form */}
@@ -383,7 +388,10 @@ export default function RegisterPage() {
                   {/* GANTI DENGAN UUID ASLI DARI TABEL POSISI KAMU */}
                   <option value="40a8e1f1-0713-4e5d-a7af-061b6e5f495c">Freight Forwarding Specialist</option>
                   <option value="96c66ea1-44b6-474f-9410-ad992dd14b93">HR Administrator</option>
-                  <option value="265c9357-105c-437c-a244-6897122f17c1">Tim IT</option>
+                  <option value="265c9357-105c-437c-a244-6897122f17c1">Information Technology</option>
+                  <option value="0ec333af-8737-413f-adab-841a3067e485">Director</option>
+                  <option value="10da1bac-a6a8-472e-a171-e4984ab768d9">Accounting Associate</option>
+                  <option value="58706b7f-950b-4e71-b066-792fbd91424d">Sales Executive</option>
                 </select>
                 {fieldErrors.positionId && <p className="text-red-600 text-xs font-semibold mt-1 ml-1">{fieldErrors.positionId}</p>}
               </div>
@@ -411,6 +419,8 @@ export default function RegisterPage() {
                   <option value="72cd470d-216c-48b6-abd9-0cd05a4d8974">Human Resources</option>
                   <option value="d38c1ed7-abd4-4a57-ab9d-0ba1d396fbfc">Logistics & Shipment Operations</option>
                   <option value="8113ab6f-d5cc-4c94-bbf6-e08047931fab">Information Technology</option>
+                  <option value="1653db5f-2b64-418f-b28b-68cb7b9dae8e">Finance, Accounting & Tax</option>
+                  <option value="97ac5d35-5da2-4f5d-9d36-78500f403cc7">Commercial & Customer Success</option>
                 </select>
                 {fieldErrors.departementId && <p className="text-red-600 text-xs font-semibold mt-1 ml-1">{fieldErrors.departementId}</p>}
               </div>
@@ -470,6 +480,13 @@ export default function RegisterPage() {
         />
         <div className="absolute inset-0 bg-gradient-to-r from-[#0D1B2A] via-[#0D1B2A]/85 via-40% to-transparent pointer-events-none" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#07111F] via-transparent to-transparent pointer-events-none" />
+      </div>
+      <div className="hidden md:flex absolute top-1/2 -translate-y-1/2 right-8 lg:right-16 xl:right-24 z-20 pointer-events-none flex-col items-end text-right max-w-lg">
+        <div className="w-32 sm:w-40 lg:w-48 mb-4"><img src="/andima-logo.png" alt="Logo Andima" width={400} height={246} className="w-full h-auto object-contain drop-shadow-lg" data-testid="register-logo" /></div>
+        <h1 className="font-[family-name:var(--font-syne)] text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-wider text-white drop-shadow-md leading-tight">
+          PT. ANDIMA<br />
+          <span className="font-[family-name:var(--font-syne)] text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-wider text-white drop-shadow-md leading-tight">TRANSPORTINDO</span>
+        </h1>
       </div>
     </main>
   );
