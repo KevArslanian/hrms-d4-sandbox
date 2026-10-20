@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CompetencyAssessment } from "@/modules/d4/competency/types";
 import type { DevelopmentNeedVersion } from "@/modules/d4/development/types";
-import { assertDevelopmentChange, assertTrainingResult, passedTrainingCount, assertGapAssessed, assertNotFutureDate, assertTrainingDate, nextDevelopmentRevision, openTrainingCount, isTrainingRollback, localMonth, localToday, reassessmentOf, retrainedAt, revisionNumber } from "@/modules/d4/shared/rules";
+import { assertDevelopmentChange, assertTrainingResult, passedTrainingCount, assertGapAssessed, assertNotFutureDate, assertEvaluationInPeriod, assertTrainingDate, nextDevelopmentRevision, openTrainingCount, isTrainingRollback, localMonth, localToday, reassessmentOf, retrainedAt, revisionNumber } from "@/modules/d4/shared/rules";
 import type { EmployeeReference } from "@/modules/d4/shared/types";
 import { asEmployee, assessableEmployees, inTrainingOrPositionChange, canWrite, currentCompetencyStatus, currentGap, latestCurrentPositionAssessment, objectiveFromFinding, revisionChanges, revisionTag, visibleEmployees, type Snapshot } from "@/modules/d4/web/data/selectors";
 import type { TrainingStatus } from "@/modules/d4/training/types";
@@ -325,5 +325,18 @@ describe("future evaluation date", () => {
     expect(() => assertNotFutureDate(today)).not.toThrow();
     expect(() => assertNotFutureDate("2020-01-01")).not.toThrow();
     expect(() => assertNotFutureDate(tomorrow.toISOString().slice(0, 10))).toThrow(/lebih dari hari ini/);
+  });
+});
+
+// D4-FN-01: an evaluation happens on or after the first day of its period, so with the rule above the period is never in the future.
+describe("evaluation date within period", () => {
+  it("rejects a date before the first day of the period", () => {
+    expect(() => assertEvaluationInPeriod("2026-09", "2026-08-31")).toThrow("Tanggal evaluasi tidak boleh sebelum awal periode.");
+    expect(() => assertEvaluationInPeriod("2026-12", "2026-10-20")).toThrow(/awal periode/);
+  });
+  it("allows the first day of the period and any later date", () => {
+    expect(() => assertEvaluationInPeriod("2026-09", "2026-09-01")).not.toThrow();
+    expect(() => assertEvaluationInPeriod("2026-09", "2026-10-05")).not.toThrow();
+    expect(() => assertEvaluationInPeriod("2026-09", "")).not.toThrow(); // a missing date is reported by its own check
   });
 });

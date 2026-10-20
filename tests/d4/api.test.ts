@@ -244,6 +244,12 @@ describe("POST /performance-evaluations", () => {
     expect(writes).toHaveLength(0);
   });
 
+  it("rejects a period that has not started yet (D4-FN-01)", async () => {
+    const res = await call(perf.POST(post(evaluationBody({ period: "2026-12", evaluationDate: "2026-10-01" }))));
+    expect(res).toMatchObject({ status: 422, body: { error: { code: "VALIDATION_FAILED", message: "Tanggal evaluasi tidak boleh sebelum awal periode." } } });
+    expect(writes).toHaveLength(0);
+  });
+
   it("accepts a revision of the current record", async () => {
     const res = await call(perf.POST(post(evaluationBody({ employeeId: ALFA, revisionOf: PERF_ALFA }))));
     expect(res.status).toBe(201);
@@ -279,6 +285,12 @@ describe("POST /kpi-assessments", () => {
     expect(res.status).toBeGreaterThanOrEqual(400);
     expect(res.status).toBeLessThan(500);
     expect(res.body.error?.message).toMatch(message);
+    expect(writes).toHaveLength(0);
+  });
+
+  it("rejects a scorecard for a period that has not started yet (D4-FN-01)", async () => {
+    const res = await call(kpi.POST(post(kpiBody({ period: "2026-11", evaluationDate: "2026-10-01" }))));
+    expect(res).toMatchObject({ status: 422, body: { error: { code: "VALIDATION_FAILED", message: "Tanggal evaluasi tidak boleh sebelum awal periode." } } });
     expect(writes).toHaveLength(0);
   });
 
@@ -334,7 +346,10 @@ describe("POST /kpi-assessments", () => {
       catalogRows = [...KPI_V51_CATALOG, ...KPI_V51_CATALOG.map((row) => ({ ...row, source_version: "V6" }))];
       catalogVersions = [{ source_version: "V5.1", effective_from: "2000-01" }, { source_version: "V6", effective_from: "2026-11" }];
     };
-    const withScore = (period: string, rawScore: number) => { const body = kpiBody({ period }); body.lines = body.lines.map((line) => ({ ...line, raw_score: rawScore })); return body; };
+    const withScore = (period: string, rawScore: number) => { const body = kpiBody({ period, evaluationDate: "2026-11-15" }); body.lines = body.lines.map((line) => ({ ...line, raw_score: rawScore })); return body; };
+    // A V6 scorecard is dated in or after Nov 2026 (D4-FN-01), so these run on a clock in that month.
+    beforeEach(() => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-11-20T03:00:00Z")); });
+    afterEach(() => { vi.useRealTimers(); });
 
     it("accepts a score up to 100 for a V6 period", async () => {
       useV6();
