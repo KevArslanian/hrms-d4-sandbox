@@ -171,7 +171,7 @@ export function createFixtureSource(): D4DataSource {
       if (roleForPosition(periodCatalog, employee?.positionId) !== input.roleOrder) throw new Error("Set KPI yang dipilih bukan milik posisi pegawai ini.");
       if (input.status === "completed" && input.lines.some((line) => line.raw_score === null)) throw new Error("Kelima indikator KPI harus dinilai sebelum diselesaikan.");
       const maxScore = scaleMaxOf(periodCatalog.version);
-      if (input.lines.some((line) => line.raw_score !== null && (!Number.isInteger(line.raw_score) || line.raw_score < 1 || line.raw_score > maxScore))) throw new Error(`Skor indikator harus bilangan bulat 1 sampai ${maxScore}.`);
+      if (input.lines.some((line) => line.raw_score !== null && (!Number.isInteger(line.raw_score) || line.raw_score < 1 || line.raw_score > maxScore))) throw new Error(`Actual setiap indikator harus bilangan bulat 1 sampai ${maxScore}.`);
       const id = newId("FIX-D4-KPI");
       // The target comes from the catalog, never from the form (same rule as the server).
       input.lines = input.lines.map((line, index) => ({ ...line, target: targetOf(indicators[index]) }));
