@@ -62,9 +62,9 @@ describe("People Dashboard charts", () => {
     const completed = { ...noNeeds, developmentVersions: [need("Completed")] };
     expect(keys(completed)).toContain("completed-gap-open");
     expect(keys(completed)).not.toContain("gap-no-requirement");
-    // Cleared once HR records the reassessment decision.
+    // Q14 (P7-E): a recorded decision alone no longer clears it; only a newer assessment showing the level met does.
     const decided = { ...noNeeds, developmentVersions: [need("Completed"), need("Completed", { id: "T-Decided", revision: 2, reassessment: "Sudah memenuhi" })] };
-    expect(keys(decided)).not.toContain("completed-gap-open");
+    expect(keys(decided)).toContain("completed-gap-open");
 
     const noPic = { ...noNeeds, developmentVersions: [need("In Progress", { pic: "" })] };
     expect(keys(noPic)).toContain("requirement-no-pic");
