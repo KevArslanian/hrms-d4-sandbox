@@ -87,9 +87,8 @@ export function assertDevelopmentChange(from: DevelopmentStatus, to: Development
   if (to === "Completed" && passedTrainings === 0 && !notes.trim()) throw new ApiError("VALIDATION_FAILED", "Belum ada training berhasil Passed untuk requirement ini. Jelaskan di Notes mengapa requirement tetap diselesaikan.");
 }
 
-export const REASSESSMENTS = ["Retraining", "Sudah memenuhi"] as const;
-/** English display label of each stored decision (the stored value stays the partner's term). */
-export const REASSESSMENT_LABELS: Record<DevelopmentReassessment, string> = { Retraining: "Retraining", "Sudah memenuhi": "Meets requirement" };
+/** Stored and shown as is (Q11: the value is the English label). */
+export const REASSESSMENTS = ["Retraining", "Meets requirement"] as const;
 
 /** A requested revision. Priority, method and PIC left out keep their current value. */
 export type DevelopmentChange = { status: DevelopmentStatus; notes: string; priority?: DevelopmentPriority; method?: string; pic?: string; reassessment?: DevelopmentReassessment };
@@ -98,7 +97,7 @@ export type DevelopmentRevision = { status: DevelopmentStatus; notes: string; pr
 /**
  * The next revision of a need, checked the same way by the fixture and the server. Priority, method and PIC stay
  * editable after creation (interview D4: priority follows context, e.g. a tax policy change). A reassessment is
- * recorded only on a Completed need: Retraining reopens it as Planned so training can be repeated, Sudah memenuhi
+ * recorded only on a Completed need: Retraining reopens it as Planned so training can be repeated, Meets requirement
  * keeps it Completed. `history` is every revision of this need; without it only `current` is known.
  */
 export function nextDevelopmentRevision(current: DevelopmentNeedVersion, change: DevelopmentChange, latestNeeds: readonly DevelopmentNeedVersion[], latestTrainings: readonly TrainingOutcome[], history: readonly DevelopmentNeedVersion[] = []): DevelopmentRevision {
@@ -110,10 +109,10 @@ export function nextDevelopmentRevision(current: DevelopmentNeedVersion, change:
   if (next.reassessment) {
     if (current.status !== "Completed") throw new ApiError("VALIDATION_FAILED", "Hasil reassessment hanya dicatat setelah development requirement Completed.");
     if (next.reassessment === "Retraining" && next.status !== "Planned") throw new ApiError("VALIDATION_FAILED", "Retraining membuka kembali requirement dengan status Planned.");
-    if (next.reassessment === "Sudah memenuhi" && next.status !== "Completed") throw new ApiError("VALIDATION_FAILED", "Sudah memenuhi berarti requirement tetap Completed.");
+    if (next.reassessment === "Meets requirement" && next.status !== "Completed") throw new ApiError("VALIDATION_FAILED", "Meets requirement berarti requirement tetap Completed.");
   }
   const edited = next.priority !== current.priority || next.method !== (current.method ?? "") || next.pic !== (current.pic ?? "");
-  // Recording the decision already in force (e.g. Sudah memenuhi twice) changes nothing.
+  // Recording the decision already in force (e.g. Meets requirement twice) changes nothing.
   const repeated = next.reassessment !== null && next.reassessment === reassessmentOf(versions);
   if (next.status === current.status && !edited && (!next.reassessment || repeated)) throw new ApiError("VALIDATION_FAILED", "Tidak ada perubahan untuk disimpan.");
   // Retraining is the reason for moving back, so it needs no extra note.

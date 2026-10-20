@@ -260,14 +260,14 @@ describe("development revision: edit, reassessment, objective", () => {
     expect(() => nextDevelopmentRevision(need(), { status: "Completed", notes: "" }, [], passed)).not.toThrow();
   });
 
-  it("records a reassessment only on a Completed need: Retraining reopens it as Planned, Sudah memenuhi keeps it Completed", () => {
+  it("records a reassessment only on a Completed need: Retraining reopens it as Planned, Meets requirement keeps it Completed", () => {
     const done = need({ status: "Completed" });
-    expect(() => nextDevelopmentRevision(need(), { status: "In Progress", notes: "", reassessment: "Sudah memenuhi" }, [], [])).toThrow(/setelah development requirement Completed/);
+    expect(() => nextDevelopmentRevision(need(), { status: "In Progress", notes: "", reassessment: "Meets requirement" }, [], [])).toThrow(/setelah development requirement Completed/);
     expect(() => nextDevelopmentRevision(done, { status: "Completed", notes: "", reassessment: "Retraining" }, [], [])).toThrow(/status Planned/);
-    expect(() => nextDevelopmentRevision(done, { status: "Planned", notes: "", reassessment: "Sudah memenuhi" }, [], [])).toThrow(/tetap Completed/);
+    expect(() => nextDevelopmentRevision(done, { status: "Planned", notes: "", reassessment: "Meets requirement" }, [], [])).toThrow(/tetap Completed/);
     // The decision is the reason for moving back, so no extra note is needed.
     expect(nextDevelopmentRevision(done, { status: "Planned", notes: "", reassessment: "Retraining" }, [], [])).toMatchObject({ status: "Planned", reassessment: "Retraining" });
-    expect(nextDevelopmentRevision(done, { status: "Completed", notes: "", reassessment: "Sudah memenuhi" }, [], [])).toMatchObject({ status: "Completed", reassessment: "Sudah memenuhi" });
+    expect(nextDevelopmentRevision(done, { status: "Completed", notes: "", reassessment: "Meets requirement" }, [], [])).toMatchObject({ status: "Completed", reassessment: "Meets requirement" });
     // Reopening is refused when a new requirement was already raised for the same gap.
     const other = need({ needId: "N2", status: "Planned" });
     expect(() => nextDevelopmentRevision(done, { status: "Planned", notes: "", reassessment: "Retraining" }, [done, other], [])).toThrow(/sudah memiliki development requirement/);
@@ -286,11 +286,11 @@ describe("development revision: edit, reassessment, objective", () => {
   });
 
   it("does not record the decision already in force again, also after a later edit", () => {
-    const decided = need({ id: "V3", revision: 3, status: "Completed", reassessment: "Sudah memenuhi" });
+    const decided = need({ id: "V3", revision: 3, status: "Completed", reassessment: "Meets requirement" });
     const history = [need({ id: "V2", revision: 2, status: "Completed" }), decided];
-    expect(() => nextDevelopmentRevision(decided, { status: "Completed", notes: "", reassessment: "Sudah memenuhi" }, [], [], history)).toThrow(/Tidak ada perubahan/);
+    expect(() => nextDevelopmentRevision(decided, { status: "Completed", notes: "", reassessment: "Meets requirement" }, [], [], history)).toThrow(/Tidak ada perubahan/);
     const edited = need({ id: "V4", revision: 4, status: "Completed", pic: "Bu Maya" });
-    expect(() => nextDevelopmentRevision(edited, { status: "Completed", notes: "", reassessment: "Sudah memenuhi" }, [], [], [...history, edited])).toThrow(/Tidak ada perubahan/);
+    expect(() => nextDevelopmentRevision(edited, { status: "Completed", notes: "", reassessment: "Meets requirement" }, [], [], [...history, edited])).toThrow(/Tidak ada perubahan/);
     // Changing the decision is a change.
     expect(nextDevelopmentRevision(edited, { status: "Planned", notes: "", reassessment: "Retraining" }, [], [], [...history, edited])).toMatchObject({ status: "Planned", reassessment: "Retraining" });
   });
@@ -299,17 +299,17 @@ describe("development revision: edit, reassessment, objective", () => {
     const v = (revision: number, status: DevelopmentNeedVersion["status"], reassessment: DevelopmentNeedVersion["reassessment"] = null) => ({ revision, status, reassessment });
     expect(reassessmentOf([v(1, "Identified"), v(2, "In Progress")])).toBeNull();
     expect(reassessmentOf([v(1, "In Progress"), v(2, "Completed")])).toBe("pending");
-    expect(reassessmentOf([v(3, "Completed", "Sudah memenuhi"), v(2, "Completed"), v(1, "In Progress")])).toBe("Sudah memenuhi");
+    expect(reassessmentOf([v(3, "Completed", "Meets requirement"), v(2, "Completed"), v(1, "In Progress")])).toBe("Meets requirement");
     const retrain = [v(1, "In Progress"), v(2, "Completed"), v(3, "Planned", "Retraining"), v(4, "In Progress")];
     expect(reassessmentOf(retrain)).toBe("Retraining");
     expect(reassessmentOf([...retrain, v(5, "Completed")])).toBe("pending");
-    expect(reassessmentOf([...retrain, v(5, "Completed"), v(6, "Completed", "Sudah memenuhi")])).toBe("Sudah memenuhi");
+    expect(reassessmentOf([...retrain, v(5, "Completed"), v(6, "Completed", "Meets requirement")])).toBe("Meets requirement");
   });
 
   it("lists what a revision changed and suggests an objective from a gap finding", () => {
     expect(revisionChanges(need({ revision: 2, priority: "High", pic: "Bu Maya", reassessment: "Retraining" }), need())).toEqual(["Priority Medium → High", "PIC: — → Bu Maya", "Reassessment: Retraining"]);
     // The stored partner term is shown with its English label.
-    expect(revisionChanges(need({ revision: 2, reassessment: "Sudah memenuhi" }), need())).toEqual(["Reassessment: Meets requirement"]);
+    expect(revisionChanges(need({ revision: 2, reassessment: "Meets requirement" }), need())).toEqual(["Reassessment: Meets requirement"]);
     expect(revisionChanges(need({ revision: 2, method: "Coaching" }), need())).toEqual(["Method: Training → Coaching"]);
     expect(revisionChanges(need())).toEqual([]);
     expect(objectiveFromFinding({ competencyName: "Perencanaan Strategi & Anggaran", actualLevel: 3, requiredLevel: 4 })).toBe("Naikkan Perencanaan Strategi & Anggaran dari level 3 ke 4");

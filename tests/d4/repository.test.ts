@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { d4ReferenceFixture } from "@/modules/d4/shared/fixtures";
@@ -5,7 +7,7 @@ import { ApiError, databaseError } from "@/modules/d4/shared/errors";
 import { compareCompetencies } from "@/modules/d4/competency/service";
 import { SupabaseD4Repository } from "@/modules/d4/supabase/repository";
 import type { EvaluationInput } from "@/modules/d4/performance/types";
-import type { DevelopmentRevision } from "@/modules/d4/shared/rules";
+import { REASSESSMENTS, type DevelopmentRevision } from "@/modules/d4/shared/rules";
 
 // A minimal stand-in for the Supabase query builder; nothing reaches a real database.
 type Result = { data: unknown; error: { message: string; code?: string } | null };
@@ -152,8 +154,8 @@ describe("development revision and co-assessor columns", () => {
     await new SupabaseD4Repository(client).updateDevelopment("n", revision({ priority: "High", pic: "Bu Maya" }), current);
     expect(inserts[0].payload).toMatchObject({ priority: "High", pic: "Bu Maya" });
     expect(inserts[0].payload).not.toHaveProperty("method");
-    await new SupabaseD4Repository(client).updateDevelopment("n", revision({ status: "Completed", reassessment: "Sudah memenuhi" }), current);
-    expect(inserts[1].payload).toMatchObject({ status: "Completed", reassessment: "Sudah memenuhi" });
+    await new SupabaseD4Repository(client).updateDevelopment("n", revision({ status: "Completed", reassessment: "Meets requirement" }), current);
+    expect(inserts[1].payload).toMatchObject({ status: "Completed", reassessment: "Meets requirement" });
     expect(inserts[1].payload).not.toHaveProperty("priority");
   });
 
@@ -192,5 +194,16 @@ describe("development revision and co-assessor columns", () => {
     const { client, calls } = fakeClient({ "d4_competency_assessments:select": { data: [{ id: "existing", overall_status: overallStatus, findings, assessed_with: "Rina" }], error: null } });
     expect(await new SupabaseD4Repository(client).saveCompetency({ ...competencyInput, assessedWith: "" }, reference)).toBe("existing");
     expect(calls).not.toContain("d4_competency_assessments:insert");
+  });
+});
+
+describe("migration 20261019120000 (not applied yet)", () => {
+  it("accepts every reassessment value the app sends, and fits the longest one in the column", () => {
+    const sql = readFileSync(fileURLToPath(new URL("../../supabase/migrations/20261019120000_d4_development_edit_reassessment.sql", import.meta.url)), "utf8");
+    const column = sql.match(/add column reassessment varchar\((\d+)\) check \(reassessment in \(([^)]*)\)\)/);
+    expect(column).not.toBeNull();
+    expect(column![2].split(",").map((item) => item.trim().replace(/^'|'$/g, ""))).toEqual([...REASSESSMENTS]);
+    expect(Math.max(...REASSESSMENTS.map((item) => item.length))).toBeLessThanOrEqual(Number(column![1]));
+    for (const value of REASSESSMENTS) expect(sql).toContain(`reassessment = '${value}' and status`);
   });
 });
