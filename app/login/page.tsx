@@ -123,7 +123,7 @@ export default function LoginPage() {
             <form id="login-form" data-testid="login-form" onSubmit={handleSubmit} className="space-y-6 font-[family-name:var(--font-montserrat)] relative z-10" noValidate>
               <div>
                 <label htmlFor="email" className="block text-xs font-bold uppercase tracking-wider text-[#0F172A] mb-2.5">
-                  Username / Email
+                  Email
                 </label>
                 <input
                   id="email"

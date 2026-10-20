@@ -11,4 +11,9 @@ describe("login page", () => {
     expect(source).not.toMatch(/blocked/i);
     expect(source).not.toMatch(/loginAttempts|handleFailedAttempt|Remaining attempts|Please wait/);
   });
+
+  // D4-UI-03: the field is an email (type="email", email format check), not a username.
+  it("labels the email field Email", () => {
+    expect(source).toMatch(/<label htmlFor="email"[^>]*>\s*Email\s*<\/label>/);
+  });
 });
