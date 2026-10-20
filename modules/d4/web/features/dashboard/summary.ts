@@ -56,6 +56,13 @@ export function gapRanking(snapshot: Snapshot, rows: readonly DashboardRow[]) {
   return [...counts.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 }
 
+/**
+ * Requirements still to finish for one employee, behind the "Need training" tile (UAT-19): the latest revision of
+ * each need that is not Completed. Retraining reopens a need as Planned, so it counts again; a Completed need still
+ * awaiting reassessment does not, because its training is done.
+ */
+export const openNeedCount = (snapshot: Snapshot, employeeId: string) => needsOf(snapshot, employeeId).filter((need) => need.status !== "Completed").length;
+
 export type DashboardAlert = { key: string; title: string; detail: string; href: string; count: number; people: string[] };
 
 /**
