@@ -4,7 +4,7 @@ import { ClipboardCheck, Eye, GraduationCap, History, Pencil, Plus, RefreshCw, S
 import { useMemo, useState } from "react";
 import type { DevelopmentNeedVersion, DevelopmentSourceType } from "../../../development/types";
 import { useSnapshot } from "../../data/D4DataProvider";
-import { canWrite, describeSource, developmentById, developmentHistory, developmentNeeds, employeeById, employeeMeta, employeeSearchText, formatDate, formatPeriod, includesText, REASSESSMENT_PENDING, reassessmentFor, revisionChanges, sourceTypeLabel, trainings, visibleEmployees, type Snapshot } from "../../data/selectors";
+import { canWrite, describeSource, developmentById, developmentHistory, developmentNeeds, employeeById, employeeMeta, formatDate, formatPeriod, REASSESSMENT_PENDING, reassessmentFor, revisionChanges, sourceTypeLabel, trainings, visibleEmployees, type Snapshot } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
@@ -12,6 +12,8 @@ import { RowActionMenu } from "../../ui/RowActionMenu";
 import { Button, ButtonLink, Card, InfoGrid, Notice, SourceChip, statusLabel, StatusBadge } from "../../ui/primitives";
 import { TrainingFormModal } from "../training/TrainingModals";
 import { DevelopmentEditModal, DevelopmentFormModal, DevelopmentStatusModal, ReassessmentModal } from "./DevelopmentModals";
+import { competencyOptions } from "../competency/rows";
+import { developmentRows } from "./rows";
 
 /**
  * Reassessment result of a need, or nothing while it is still open. It is a state, so it sits with Status.
@@ -34,32 +36,28 @@ export function DevelopmentListPage() {
   const [sourceType, setSourceType] = useState("");
   const [status, setStatus] = useState("");
   const [period, setPeriod] = useState("");
+  const [competency, setCompetency] = useState("");
+  const [priority, setPriority] = useState("");
   const [adding, setAdding] = useState(false);
   const [statusFor, setStatusFor] = useState<string | null>(null);
   const [editFor, setEditFor] = useState<string | null>(null);
   const [reassessFor, setReassessFor] = useState<string | null>(null);
   const [trainingFor, setTrainingFor] = useState<DevelopmentNeedVersion | null>(null);
-  // FR-04.8: filter by employee, source, period (month the requirement was last recorded) and status.
+  // FR-04.8: filter by employee, source, period (month the requirement was last recorded) and status; FR-D4-002 B adds competency and priority.
   const periods = useMemo(() => [...new Set(developmentNeeds(snapshot).map((need) => need.createdAt.slice(0, 7)))].sort().reverse(), [snapshot]);
-  const rows = useMemo(() => {
-    const visible = new Set(visibleEmployees(snapshot).map((item) => item.id));
-    return developmentNeeds(snapshot).filter((need) => {
-      const employee = employeeById(snapshot, need.employeeId);
-      return visible.has(need.employeeId) && includesText(`${employeeSearchText(snapshot, employee)} ${need.objective}`, search)
-        && (!department || employee?.departmentId === department)
-        && (!sourceType || need.sourceType === sourceType) && (!status || need.status === status) && (!period || need.createdAt.startsWith(period));
-    });
-  }, [snapshot, search, department, sourceType, status, period]);
+  const rows = useMemo(() => developmentRows(snapshot, { search, department, sourceType, status, period, competency, priority }), [snapshot, search, department, sourceType, status, period, competency, priority]);
 
   return <>
     <PageHeader title="Development Requirement" subtitle="Kebutuhan development dan training dengan alasan dan sumber yang dapat ditelusuri."
       actions={writer && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)} data-testid="btn-add-requirement">Add Requirement</Button>} />
-    <FilterBar canReset={Boolean(search || department || sourceType || status || period)} onReset={() => { setSearch(""); setDepartment(""); setSourceType(""); setStatus(""); setPeriod(""); }}>
+    <FilterBar canReset={Boolean(search || department || sourceType || status || period || competency || priority)} onReset={() => { setSearch(""); setDepartment(""); setSourceType(""); setStatus(""); setPeriod(""); setCompetency(""); setPriority(""); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Search name or position" />
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All departments" testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />}
       <SelectFilter label="All sources" testId="all-sources" value={sourceType} onChange={setSourceType} options={(Object.keys(sourceTypeLabel) as DevelopmentSourceType[]).map((key) => ({ value: key, label: sourceTypeLabel[key] }))} />
       <SelectFilter label="All periods" testId="all-periods" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
       <SelectFilter label="All status" testId="all-status" value={status} onChange={setStatus} options={["Identified", "Planned", "In Progress", "Completed"].map((item) => ({ value: item, label: statusLabel(item) }))} />
+      <SelectFilter label="All competencies" testId="all-competencies" value={competency} onChange={setCompetency} options={competencyOptions(snapshot)} />
+      <SelectFilter label="All priorities" testId="all-priorities" value={priority} onChange={setPriority} options={["High", "Medium", "Low"].map((item) => ({ value: item, label: statusLabel(item) }))} />
     </FilterBar>
     <DataTable<DevelopmentNeedVersion> rows={rows} noun="requirements" rowKey={(row) => row.needId}
       emptyTitle="Belum ada development requirement" emptyText="Buat dari gap kompetensi, perubahan posisi, atau evaluasi performance."

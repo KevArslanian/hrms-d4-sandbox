@@ -12,7 +12,7 @@ export type Slice = { key: string; label: string; count: number };
 
 const bandOf = (row: DashboardRow) => row.scorecard ? performanceBand(row.scorecard.overallScore, row.scorecard.definitionVersion) : null;
 
-const BANDS: readonly PerformanceBand[] = ["Under Performance", "Average Performance", "High Performance"];
+export const BANDS: readonly PerformanceBand[] = ["Under Performance", "Average Performance", "High Performance"];
 
 /**
  * Performance category of the listed rows (interview D4, 14 Oct 2026). Only 1–100 scorecards have a category;
@@ -27,7 +27,7 @@ export function performanceSlices(rows: readonly DashboardRow[]) {
   };
 }
 
-const COMPETENCY_ORDER = ["Met", "Insufficient Data", "Gap", "Not Evaluated"];
+export const COMPETENCY_ORDER = ["Met", "Insufficient Data", "Gap", "Not Evaluated"];
 
 /** Competency status by display label, so two stored statuses that read "Insufficient Data" are one slice. */
 export function competencySlices(rows: readonly DashboardRow[]): Slice[] {
@@ -36,6 +36,16 @@ export function competencySlices(rows: readonly DashboardRow[]): Slice[] {
   const rank = (label: string) => COMPETENCY_ORDER.includes(label) ? COMPETENCY_ORDER.indexOf(label) : COMPETENCY_ORDER.length;
   return [...counts].map(([label, count]) => ({ key: slug(label), label, count })).sort((a, b) => rank(a.label) - rank(b.label));
 }
+
+/** Empty string = no filter. `band` a PerformanceBand, `competency` a competency status label, `training` the latest training status. */
+export type DashboardFilters = { band: string; competency: string; training: string };
+
+/**
+ * FR-D4-004 B filters, combinable with each other and with search, position, department and period. A row without a
+ * 1–100 scorecard has no category, so it drops out once a category is chosen; a row without training likewise.
+ */
+export const matchesDashboardFilters = (row: DashboardRow & { training?: string }, filters: DashboardFilters) =>
+  (!filters.band || bandOf(row) === filters.band) && (!filters.competency || statusLabel(row.gap) === filters.competency) && (!filters.training || row.training === filters.training);
 
 /** Open gap findings of assessed rows; "Not Evaluated" rows are skipped so the bars match the competency donut. */
 function gapFindings(snapshot: Snapshot, row: DashboardRow) {
@@ -55,6 +65,13 @@ export function gapRanking(snapshot: Snapshot, rows: readonly DashboardRow[]) {
   }
   return [...counts.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 }
+
+/**
+ * Requirements still to finish for one employee, behind the "Need training" tile (UAT-19): the latest revision of
+ * each need that is not Completed. Retraining reopens a need as Planned, so it counts again; a Completed need still
+ * awaiting reassessment does not, because its training is done.
+ */
+export const openNeedCount = (snapshot: Snapshot, employeeId: string) => needsOf(snapshot, employeeId).filter((need) => need.status !== "Completed").length;
 
 export type DashboardAlert = { key: string; title: string; detail: string; href: string; count: number; people: string[] };
 
