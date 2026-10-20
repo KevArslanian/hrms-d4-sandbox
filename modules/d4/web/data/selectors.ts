@@ -200,6 +200,8 @@ export const sourceTypeLabel: Record<DevelopmentSourceType, string> = {
   role_change: "Position Change",
   performance_context: "Performance Review",
 };
+/** Q9: a new requirement starts from a competency gap; Position Change and Performance Review stay as other sources. */
+export const DEFAULT_SOURCE_TYPE: DevelopmentSourceType = "competency_gap";
 
 /** Resolves a development need's source reference to a readable label and a link to the source record (FR-D4-005). */
 export function describeSource(snapshot: Snapshot, need: Pick<DevelopmentNeedVersion, "sourceType" | "sourceRef" | "employeeId">): { label: string; href: string | null } {
