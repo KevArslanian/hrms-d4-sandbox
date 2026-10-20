@@ -147,7 +147,7 @@ export function TrainingFollowUpModal({ trainingId, onClose }: { trainingId: str
     footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Follow-up" />}>
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />
-      <RadioField label="Follow-up" testId="follow-up" required value={followUp} onChange={(value) => setFollowUp(value as TrainingFollowUp)} options={FOLLOW_UP_OPTIONS}
+      <RadioField label="Follow-up" testId="follow-up" required value={followUp} onChange={(value) => { setFollowUp(value as TrainingFollowUp); setError(""); }} options={FOLLOW_UP_OPTIONS}
         error={touched && !followUp ? "Pilih tindak lanjut." : undefined} />
       {retraining && <div className="grid gap-4 sm:grid-cols-2">
         <ReadOnlyField label="Source requirement" testId="retraining-source" value={need ? need.objective : "—"} className="sm:col-span-2" />

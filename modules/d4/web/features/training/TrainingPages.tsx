@@ -101,7 +101,7 @@ export function TrainingDetailPage({ trainingId }: { trainingId: string }) {
         <h3 className="mb-2 mt-8 text-sm font-semibold text-ink-2">Notes</h3>
         <p className="whitespace-pre-wrap text-sm text-ink-2">{record.notes || "—"}</p>
       </Card>
-      <div className="space-y-6">
+      <div className="min-w-0 space-y-6">
         {/* Q14: a Passed training is followed by HR reassessing the competency in D4; D3 reads that result. */}
         {canWrite(snapshot) && record.status === "Completed" && record.result === "Passed" && <Card title="Next step" testId="reassess-cta">
           <p className="text-sm text-ink-2">Training Passed. Nilai ulang kompetensi {employee.fullName} di Competency Gap. Gap dianggap tertutup hanya bila penilaian baru menunjukkan level terpenuhi.</p>
