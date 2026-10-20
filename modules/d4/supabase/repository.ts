@@ -5,10 +5,10 @@ import type { DevelopmentNeedVersion, DevelopmentPriority, DevelopmentReassessme
 import type { EvaluationAspect, EvaluationInput, PerformanceEvaluation } from "../performance/types";
 import { validatePerformanceInput } from "../performance/validation";
 import { ApiError, databaseError, enforce } from "../shared/errors";
-import type { DevelopmentRevision } from "../shared/rules";
+import { retrainingNotes, type DevelopmentRevision, type TrainingFollowUpInput } from "../shared/rules";
 import type { ReferenceDataRepository } from "../shared/services";
 import type { ReferenceDataSnapshot } from "../shared/types";
-import type { TrainingStatus, TrainingVersion } from "../training/types";
+import type { TrainingFollowUp, TrainingStatus, TrainingVersion } from "../training/types";
 import type { D3KpiRecord, D4LiveSnapshot, KpiAssessment, KpiAssessmentInput, KpiAssessmentLine } from "./types";
 
 type QueryResult<T> = { data: T | null; error: { message: string; code?: string } | null };
@@ -50,7 +50,11 @@ interface RawDevelopment { id: string; employee_id: string; source_type: Develop
 // priority/method/pic: null = unchanged in this revision, "" = cleared. Absent before migration 20261019120000.
 interface RawDevelopmentVersion { id: string; development_need_id: string; revision: number; status: DevelopmentNeedVersion["status"]; notes: string; priority?: DevelopmentPriority | null; method?: string | null; pic?: string | null; reassessment?: DevelopmentReassessment | null; actor_employee_id: string; created_at: string }
 interface RawTraining { id: string; employee_id: string; development_need_id: string; activity: string; activity_date: string }
-interface RawTrainingVersion { id: string; training_id: string; revision: number; status: TrainingStatus; result: string; notes: string; actor_employee_id: string; created_at: string }
+// follow_up is absent before migration 20261020130000.
+interface RawTrainingVersion { id: string; training_id: string; revision: number; status: TrainingStatus; result: string; notes: string; follow_up?: TrainingFollowUp | null; actor_employee_id: string; created_at: string }
+
+/** Shown when a follow-up is saved before migration 20261020130000 adds d4_training_versions.follow_up. */
+export const FOLLOW_UP_NOT_READY = "Tindak lanjut training belum bisa disimpan karena database belum diperbarui (migrasi 20261020130000). Hubungi admin HRMS; data lain tetap bisa disimpan.";
 
 function actorName(reference: ReferenceDataSnapshot, employeeId: string): string {
   return reference.employees.find((item) => item.id === employeeId)?.fullName ?? `Employee ${employeeId.slice(0, 8)}`;
@@ -119,7 +123,8 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
       allRows(() => this.client.from("d4_development_needs").select("*").order("id")),
       allRows(() => this.client.from("d4_development_need_versions").select("*").order("created_at", { ascending: false }).order("id")),
       allRows(() => this.client.from("d4_training_records").select("id,employee_id,development_need_id,activity,activity_date").order("id")),
-      allRows(() => this.client.from("d4_training_versions").select("id,training_id,revision,status,result,notes,actor_employee_id,created_at").order("created_at", { ascending: false }).order("id")),
+      // "*": naming follow_up would fail the whole snapshot before migration 20261020130000.
+      allRows(() => this.client.from("d4_training_versions").select("*").order("created_at", { ascending: false }).order("id")),
     ])]);
     if (accessError) throw databaseError(accessError, "Hak akses");
     if (!access) throw new ApiError("FORBIDDEN", "Anda sudah login, tetapi akun ini belum punya akses ke data HRMS. Hubungi admin HRMS untuk mengaktifkan role Anda.");
@@ -183,7 +188,7 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
       return [{ id: version.id, trainingId: trainingRecord.id, revision: version.revision, source: "supabase" as const,
         employeeId: trainingRecord.employee_id, developmentNeedId: trainingRecord.development_need_id,
         activity: trainingRecord.activity, date: trainingRecord.activity_date, status: version.status,
-        result: version.result, notes: version.notes, createdAt: version.created_at,
+        result: version.result, notes: version.notes, followUp: version.follow_up ?? null, createdAt: version.created_at,
         actor: actorName(reference, version.actor_employee_id) }];
     });
     return { reference, role: access.app_role, actorEmployeeId: access.employee_id,
@@ -313,5 +318,28 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
       training_id: trainingId, revision: current.revision + 1,
       status, result: result.trim(), notes: notes.trim(),
     }).select("id").single(), "Save training revision");
+  }
+
+  /**
+   * Q16: the follow-up is a new version of the Not Passed training, inserted first so that nothing is written before
+   * migration 20261020130000 (the column is missing: PGRST204 / 42703). Retraining then creates the next training for
+   * the same requirement through the existing RPC; returns its id.
+   */
+  async recordTrainingFollowUp(trainingId: string, input: TrainingFollowUpInput, snapshot: D4LiveSnapshot): Promise<string | null> {
+    await this.requireUser();
+    const current = take(await this.client.from("d4_training_versions").select("revision")
+      .eq("training_id", trainingId).order("revision", { ascending: false }).limit(1).single(), "Training history") as { revision: number };
+    const saved = await this.client.from("d4_training_versions").insert({
+      training_id: trainingId, revision: current.revision + 1, status: "Completed", result: "Not Passed", notes: input.notes.trim(), follow_up: input.followUp,
+    }).select("id").single();
+    if (saved.error?.code === "PGRST204" || saved.error?.code === "42703") throw new ApiError("CONFIGURATION_ERROR", FOLLOW_UP_NOT_READY);
+    take(saved, "Save training follow-up");
+    if (input.followUp !== "Retraining") return null;
+    const previous = snapshot.trainingVersions.find((item) => item.trainingId === trainingId);
+    if (!previous) throw new ApiError("NOT_FOUND", "Training tidak ditemukan.");
+    // ponytail: two writes, not one transaction. If this one fails the follow-up stays recorded and HR adds the
+    // training from the requirement (Add Training); an RPC doing both is the upgrade if that ever happens.
+    return this.createTraining({ employeeId: previous.employeeId, developmentNeedId: previous.developmentNeedId, activity: input.activity ?? "",
+      date: input.date ?? "", status: "Planned", result: "", notes: retrainingNotes(previous, input.notes) }, snapshot);
   }
 }

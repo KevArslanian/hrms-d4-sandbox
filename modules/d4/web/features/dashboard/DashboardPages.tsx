@@ -5,7 +5,7 @@ import { AlertTriangle, ArrowUpRight, Eye, Target } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import type { D4LiveSnapshot, KpiAssessment } from "../../../supabase/types";
 import { useSnapshot } from "../../data/D4DataProvider";
-import { currentCompetencyStatus, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, employeeSearchText, evaluationsOf, formatDate, formatPeriod, formatScorecard, includesText, positionOf, scorecardsOf, trainings, trainingsOf, visibleEmployees } from "../../data/selectors";
+import { canWrite, currentCompetencyStatus, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, employeeSearchText, evaluationsOf, formatDate, formatPeriod, formatScorecard, includesText, positionOf, scorecardsOf, trainings, trainingsOf, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
@@ -13,7 +13,8 @@ import { RowActionMenu } from "../../ui/RowActionMenu";
 import { Card, Notice, slug, statusLabel, StatusBadge } from "../../ui/primitives";
 import { LineComment, weighted } from "../kpi/KpiFormModal";
 import { HIGH_ABOVE, performanceBand, scaleMaxOf, UNDER_BELOW } from "../../../kpi/scale";
-import { BANDS, COMPETENCY_ORDER, competencySlices, dashboardAlerts, employeeHistory, gapRanking, matchesDashboardFilters, openNeedCount, performanceSlices, type DashboardRow, type Slice } from "./summary";
+import { BANDS, COMPETENCY_ORDER, competencySlices, dashboardAlerts, employeeHistory, gapRanking, matchesDashboardFilters, openNeedCount, performanceSlices, type AssignTarget, type DashboardRow, type Slice } from "./summary";
+import { DevelopmentFormModal } from "../development/DevelopmentModals";
 
 type Row = DashboardRow & { position: string; period?: string; openNeeds: number; training?: string };
 
@@ -210,19 +211,28 @@ function GapRankingCard({ snapshot, rows }: { snapshot: D4LiveSnapshot; rows: re
 
 function AlertsCard({ snapshot, rows }: { snapshot: D4LiveSnapshot; rows: readonly Row[] }) {
   const alerts = dashboardAlerts(snapshot, rows);
+  const [assignFor, setAssignFor] = useState<AssignTarget | null>(null);
   return <Card title="Alerts" testId="dashboard-alerts">
     {alerts.length ? <ul className="divide-y divide-line">
       {alerts.map((alert) => <li key={alert.key} data-testid={`alert-${alert.key}`} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
         <AlertTriangle aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-warning" />
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-ink">{alert.title}</p>
+          <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-ink">{alert.title}{alert.label && <span data-testid={`alert-label-${alert.key}`} className="rounded-full bg-warning-bg px-2 py-0.5 text-[11px] font-semibold text-warning">{alert.label}</span>}</p>
           <p className="mt-0.5 text-sm text-ink-2"><span className="font-semibold tabular-nums">{alert.count}</span> {alert.detail}</p>
-          <p className="mt-1 truncate text-xs text-ink-3">{alert.people.slice(0, 3).join(", ")}{alert.people.length > 3 ? ` dan ${alert.people.length - 3} lainnya` : ""}</p>
+          {/* Q16: each Under Performance employee can be assigned training straight from here. */}
+          {alert.assign?.length && canWrite(snapshot) ? <ul className="mt-2 flex flex-wrap gap-2">{alert.assign.map((item) => <li key={item.employeeId} className="min-w-0 max-w-full">
+            <button type="button" data-testid={`btn-assign-training-${item.employeeId}`} onClick={() => setAssignFor(item)}
+              className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-line px-2.5 py-1 text-xs hover:border-primary-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/15">
+              <span className="truncate text-ink-2">{item.name}</span><span className="shrink-0 font-semibold text-primary-600">Assign training</span>
+            </button>
+          </li>)}</ul>
+            : <p className="mt-1 truncate text-xs text-ink-3">{alert.people.slice(0, 3).join(", ")}{alert.people.length > 3 ? ` dan ${alert.people.length - 3} lainnya` : ""}</p>}
         </div>
         <SourceLink href={alert.href}>Buka</SourceLink>
       </li>)}
     </ul> : <p className="text-sm text-ink-3">Tidak ada alert untuk daftar ini.</p>}
     <p className="mt-4 text-xs leading-5 text-ink-3">Alert kekosongan field agent, cuti melahirkan, dan pemicu KPI harian 3 hari berturut-turut belum tersedia: datanya ada di squad lain.</p>
+    {assignFor && <DevelopmentFormModal employeeId={assignFor.employeeId} sourceType="performance_context" sourceRef={assignFor.scorecardId} onClose={() => setAssignFor(null)} />}
   </Card>;
 }
 

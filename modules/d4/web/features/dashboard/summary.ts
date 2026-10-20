@@ -1,8 +1,11 @@
+import type { CompetencyAssessment } from "../../../competency/types";
+import type { DevelopmentNeedVersion } from "../../../development/types";
 import { performanceBand, type PerformanceBand } from "../../../kpi/scale";
-import { localToday } from "../../../shared/rules";
+import { followUpOf, localToday, retrainedAt } from "../../../shared/rules";
 import type { EmployeeReference } from "../../../shared/types";
 import type { KpiAssessment } from "../../../supabase/types";
-import { currentGap, developmentHistory, formatDate, formatPeriod, formatScorecard, needsOf, positionById, reassessmentFor, revisionChanges, scorecardsOf, trainingHistory, trainingsOf, type Snapshot } from "../../data/selectors";
+import type { TrainingVersion } from "../../../training/types";
+import { currentGap, developmentHistory, formatDate, formatPeriod, formatScorecard, needsOf, positionById, revisionChanges, scorecardsOf, trainingHistory, trainingsOf, type Snapshot } from "../../data/selectors";
 import type { TimelineEntry } from "../../ui/layout";
 import { slug, statusLabel } from "../../ui/primitives";
 
@@ -73,7 +76,49 @@ export function gapRanking(snapshot: Snapshot, rows: readonly DashboardRow[]) {
  */
 export const openNeedCount = (snapshot: Snapshot, employeeId: string) => needsOf(snapshot, employeeId).filter((need) => need.status !== "Completed").length;
 
-export type DashboardAlert = { key: string; title: string; detail: string; href: string; count: number; people: string[] };
+/** When a training was recorded Completed with its current result: the first version of that run (later ones only add notes). */
+function completedAt(history: readonly TrainingVersion[]): string | undefined {
+  let at = history[0]?.createdAt;
+  for (const version of history) {
+    if (version.status !== "Completed" || version.result !== history[0].result) break;
+    at = version.createdAt;
+  }
+  return at;
+}
+
+/**
+ * Q14 (20 Oct 2026): when the training of a gap-based need finished, or undefined while it has not. A need counts once
+ * it is Completed or a training of the current round (since the last Retraining) was Passed. The moment is when the
+ * latest completed training was recorded Completed; a need completed without training counts from when it was raised.
+ */
+export function trainingFinishedAt(snapshot: Snapshot, need: DevelopmentNeedVersion): string | undefined {
+  const history = developmentHistory(snapshot, need.needId);
+  const since = retrainedAt(history);
+  const done = trainingsOf(snapshot, need.employeeId).filter((item) => item.developmentNeedId === need.needId && item.status === "Completed" && (!since || item.createdAt > since))
+    .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
+  if (need.status !== "Completed" && !done.some((item) => item.result === "Passed")) return undefined;
+  return done[0] ? completedAt(trainingHistory(snapshot, done[0].trainingId)) : history.at(-1)?.createdAt ?? need.createdAt;
+}
+
+/**
+ * Q14: HR reassesses in D4 after training. The gap counts as closed only when the latest competency assessment saved
+ * after `finishedAt` that covers the requirement shows it met. An older assessment, newer skill data that was never
+ * saved as an assessment, or a recorded reassessment decision does not close it.
+ */
+export function gapClosedAfter(assessments: readonly Pick<CompetencyAssessment, "createdAt" | "findings">[], requirementId: string, finishedAt: string): boolean {
+  const finding = (item: Pick<CompetencyAssessment, "findings">) => item.findings.find((entry) => entry.requirementId === requirementId);
+  const latest = assessments.filter((item) => Date.parse(item.createdAt) > Date.parse(finishedAt) && finding(item))
+    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))[0];
+  return latest ? finding(latest)?.status === "Terpenuhi" : false;
+}
+
+/** Under Performance row HR can assign training to (Q16): a requirement from that period's scorecard. */
+export type AssignTarget = { employeeId: string; name: string; scorecardId: string };
+/**
+ * `label`: state shown next to the title, e.g. a Not Passed training still awaiting HR's follow-up (Q16).
+ * `assign`: per employee of the Under Performance alert, the scorecard a training requirement is raised from.
+ */
+export type DashboardAlert = { key: string; title: string; detail: string; href: string; count: number; people: string[]; label?: string; assign?: AssignTarget[] };
 
 /**
  * Follow-ups HR should act on, computed from D4 data only (interview D4, 14 Oct 2026). Alerts that need data D4
@@ -81,16 +126,24 @@ export type DashboardAlert = { key: string; title: string; detail: string; href:
  */
 export function dashboardAlerts(snapshot: Snapshot, rows: readonly DashboardRow[]): DashboardAlert[] {
   const found = { under: [] as string[], completedGap: [] as string[], notPassed: [] as string[], noPlan: [] as string[], noPic: [] as string[] };
+  const assign: AssignTarget[] = [];
   for (const row of rows) {
     const name = row.employee.fullName;
-    if (bandOf(row) === "Under Performance") found.under.push(name);
+    if (row.scorecard && bandOf(row) === "Under Performance") {
+      found.under.push(name);
+      assign.push({ employeeId: row.employee.id, name, scorecardId: row.scorecard.id });
+    }
     const needs = needsOf(snapshot, row.employee.id);
     for (const finding of gapFindings(snapshot, row)) {
       // A need answers this gap only when it was raised from the same position requirement.
-      const linked = needs.filter((need) => need.sourceType === "competency_gap" && need.sourceRef === finding.requirementId);
-      if (!linked.length) found.noPlan.push(name);
-      // Cleared once HR records the reassessment decision for every completed need of this gap.
-      else if (linked.every((need) => need.status === "Completed") && linked.some((need) => reassessmentFor(snapshot, need.needId) === "pending")) found.completedGap.push(name);
+      if (!needs.some((need) => need.sourceType === "competency_gap" && need.sourceRef === finding.requirementId)) found.noPlan.push(name);
+    }
+    // Requirement Completed or training Passed, but no newer assessment shows the level met (Q14). Only requirements of
+    // the current position count: an assessment never covers a requirement of a former position.
+    for (const need of needs) {
+      const finished = need.sourceType === "competency_gap" ? trainingFinishedAt(snapshot, need) : undefined;
+      if (!finished || !snapshot.reference.positionRequirements.some((item) => item.id === need.sourceRef && item.positionId === row.employee.positionId)) continue;
+      if (!gapClosedAfter(snapshot.competency.filter((item) => item.employeeId === row.employee.id), need.sourceRef, finished)) found.completedGap.push(name);
     }
     const trainings = trainingsOf(snapshot, row.employee.id);
     for (const need of needs) {
@@ -98,13 +151,14 @@ export function dashboardAlerts(snapshot: Snapshot, rows: readonly DashboardRow[
       if (!need.pic?.trim()) found.noPic.push(name);
       const last = trainings.filter((item) => item.developmentNeedId === need.needId && item.status !== "Cancelled")
         .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))[0];
-      if (last?.status === "Completed" && last.result === "Not Passed") found.notPassed.push(name);
+      // Q16: waits for HR's follow-up. Retraining adds a newer training; any recorded follow-up clears it.
+      if (last?.status === "Completed" && last.result === "Not Passed" && !followUpOf(trainingHistory(snapshot, last.trainingId))) found.notPassed.push(name);
     }
   }
   const alerts: (Omit<DashboardAlert, "count" | "people"> & { list: string[] })[] = [
-    { key: "under-performance", list: found.under, title: "Under Performance", href: "/performance", detail: "pegawai di bawah 80 pada periode ini. KPI bisa menjadi pemicu pemanggilan HR." },
-    { key: "completed-gap-open", list: found.completedGap, title: "Completed, gap masih terbuka", href: "/development", detail: "gap kompetensi masih terbuka padahal development requirement-nya Completed. Lakukan reassess." },
-    { key: "training-not-passed", list: found.notPassed, title: "Training Not Passed", href: "/training", detail: "development requirement dengan training terakhir Not Passed. Jadwalkan training ulang." },
+    { key: "under-performance", list: found.under, assign, title: "Under Performance", href: "/performance", detail: "pegawai di bawah 80 pada periode ini. HR menindaklanjuti dengan Assign training: development requirement dari Performance Review-nya." },
+    { key: "completed-gap-open", list: found.completedGap, title: "Completed, gap masih terbuka", href: "/competency", detail: "development requirement Completed atau training Passed, tetapi belum ada penilaian kompetensi baru yang menunjukkan level terpenuhi. Nilai ulang di Competency Gap." },
+    { key: "training-not-passed", list: found.notPassed, title: "Training Not Passed", label: "Awaiting follow-up", href: "/training", detail: "development requirement dengan training terakhir Not Passed dan belum ada tindak lanjut. Catat Retraining atau Other follow-up di detail training." },
     { key: "gap-no-requirement", list: found.noPlan, title: "Gap tanpa development requirement", href: "/competency", detail: "gap kompetensi belum dibuatkan development requirement." },
     { key: "requirement-no-pic", list: found.noPic, title: "Tanpa PIC", href: "/development", detail: "development requirement terbuka belum punya PIC." },
   ];
@@ -151,7 +205,7 @@ export function employeeHistory(snapshot: Snapshot, employeeId: string): History
       entries.push({ id: `training-${version.id}`, kind: "training", day: dayOf(version.createdAt), createdAt: version.createdAt, actor: version.actor,
         date: formatDate(version.createdAt), status: version.status, href: `/training/${training.trainingId}`,
         title: `Training v${version.revision}: ${version.activity}`,
-        body: [version.result && `Result: ${version.result}`, version.notes].filter(Boolean).join(" · ") || undefined });
+        body: [version.result && `Result: ${version.result}`, version.followUp && `Follow-up: ${version.followUp}`, version.notes].filter(Boolean).join(" · ") || undefined });
     }
   }
   return entries.sort((a, b) => b.day.localeCompare(a.day) || b.createdAt.localeCompare(a.createdAt));
