@@ -1,6 +1,7 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { KPI_V51_CATALOG, seedCatalogSet, type KpiCatalogVersion, type RoleKpiRow } from "@/modules/d4/kpi/catalog";
 import { createFixtureSource } from "@/modules/d4/web/data/fixture-source";
+import { ApiError } from "@/modules/d4/shared/errors";
 import type { D4LiveSnapshot } from "@/modules/d4/supabase/types";
 
 // The real route handlers and the real session guard (modules/d4/server/_lib/session.ts) run here.
@@ -484,6 +485,13 @@ describe("training result and follow-up", () => {
     const res = await followUp({ followUp: "Retraining", notes: "", activity: "Ulang", date: "2026-10-27" });
     expect(res.status).toBe(422);
     expect(res.body.error?.message).toMatch(/sudah dicatat/);
+  });
+
+  it("answers 503 with the repository's message before migration 20261020130000, not a 500", async () => {
+    const { FOLLOW_UP_NOT_READY } = await vi.importActual<typeof import("@/modules/d4/supabase/repository")>("@/modules/d4/supabase/repository");
+    vi.spyOn(repository, "recordTrainingFollowUp").mockRejectedValueOnce(new ApiError("CONFIGURATION_ERROR", FOLLOW_UP_NOT_READY));
+    const res = await followUp({ followUp: "Other follow-up", notes: "Coaching" });
+    expect(res).toEqual({ status: 503, body: { error: { code: "CONFIGURATION_ERROR", message: FOLLOW_UP_NOT_READY } } });
   });
 
   it("rejects Retraining for a Completed requirement but still allows Other follow-up", async () => {
