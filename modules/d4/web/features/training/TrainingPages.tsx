@@ -94,6 +94,11 @@ export function TrainingDetailPage({ trainingId }: { trainingId: string }) {
         <p className="whitespace-pre-wrap text-sm text-ink-2">{record.notes || "—"}</p>
       </Card>
       <div className="space-y-6">
+        {/* Q14: a Passed training is followed by HR reassessing the competency in D4; D3 reads that result. */}
+        {canWrite(snapshot) && record.status === "Completed" && record.result === "Passed" && <Card title="Next step" testId="reassess-cta">
+          <p className="text-sm text-ink-2">Training Passed. Nilai ulang kompetensi {employee.fullName} di Competency Gap. Gap dianggap tertutup hanya bila penilaian baru menunjukkan level terpenuhi.</p>
+          <div className="mt-4"><ButtonLink href={`/competency/${employee.id}`} variant="primary" icon={<ClipboardCheck className="size-4" />} testId="cta-reassess-competency">Reassess competency</ButtonLink></div>
+        </Card>}
         <Card title="Source requirement" testId="source-requirement">
           {need ? <><SourceChip label="Development Requirement" reference={statusLabel(need.status)} href={`/development/${need.needId}`} /><p className="mt-3 text-sm text-ink">{need.objective}</p>
             <div className="mt-3"><ReassessmentBadge snapshot={snapshot} needId={need.needId} /></div></> : <p className="text-sm text-ink-3">Requirement sumber tidak tersedia.</p>}
