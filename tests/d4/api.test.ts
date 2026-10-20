@@ -440,6 +440,15 @@ describe("development needs and training", () => {
   });
 });
 
+// Q16 (20 Oct 2026): every completed training is Passed or Not Passed; Not Passed needs HR's follow-up.
+describe("training result and follow-up", () => {
+  it.each([["no result", {}], ["a free-text result", { result: "Lulus" }]])("rejects creating a Completed training with %s (422)", async (_name, patch) => {
+    const res = await call(training.POST(post({ employeeId: ALFA, developmentNeedId: NEED, activity: "Uji", date: "2026-10-01", status: "Completed", ...patch })));
+    expect(res).toMatchObject({ status: 422, body: { error: { code: "VALIDATION_FAILED" } } });
+    expect(writes).toHaveLength(0);
+  });
+});
+
 describe("unknown or malformed ids", () => {
   it.each([["unknown uuid", uuid(404)], ["non-uuid", "not-a-uuid"]])("returns 404 on version endpoints for %s", async (_name, id) => {
     const devRes = await call(devVersions.POST(post({ status: "Planned" }), params(id)));
