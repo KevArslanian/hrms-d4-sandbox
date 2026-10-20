@@ -4,6 +4,7 @@ import React, { useState, useEffect, FormEvent, ChangeEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
+import { loginErrorMessage } from '@/lib/loginErrorMessage';
 
 // B2 (PISD-B) tidak memuat webfont, jadi var font jatuh ke system stack. Samakan.
 const B2_FONT_STACK = "-apple-system, system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', 'Noto Sans', Arial, sans-serif";
@@ -79,18 +80,18 @@ export default function LoginPage() {
     if (isLocked || isPermanentlyBlocked) return;
 
     if (!email.trim() || !password.trim()) {
-      setErrorMessage('Email and Password are required.');
+      setErrorMessage('Email dan password wajib diisi.');
       return;
     }
 
     if (!validateEmailFormat(email)) {
-      setErrorMessage('Invalid email format (example: name@andima.co.id).');
+      setErrorMessage('Format email tidak valid (contoh: nama@andima.co.id).');
       return;
     }
 
     if (!validatePasswordStrength(password)) {
       setErrorMessage(
-        'Password must be at least 10 characters long and contain a mix of letters, numbers, and special characters.'
+        'Password minimal 10 karakter dan harus berisi huruf, angka, dan karakter khusus.'
       );
       return;
     }
@@ -98,11 +99,11 @@ export default function LoginPage() {
     setIsSigningIn(true);
     void supabase.auth.signInWithPassword({ email: email.toLowerCase().trim(), password })
       .then(({ error }) => {
+        // supabase-js returns network errors here instead of throwing them (D4-FN-02).
         if (error) {
-          const message = error.message.toLowerCase().includes('email not confirmed')
-            ? 'Email belum dikonfirmasi. Selesaikan konfirmasi melalui email terlebih dahulu.'
-            : 'Email atau password salah.';
-          handleFailedAttempt(message);
+          const { message, countsAsAttempt } = loginErrorMessage(error);
+          // An unreachable server or the Supabase rate limit says nothing about the password, so it costs no attempt.
+          if (countsAsAttempt) handleFailedAttempt(message); else setErrorMessage(message);
           return;
         }
 
@@ -110,7 +111,7 @@ export default function LoginPage() {
         setSuccessMessage('Login berhasil! Mengalihkan ke dashboard...');
         window.setTimeout(() => { router.push('/dashboard'); }, 1200);
       })
-      .catch(() => setErrorMessage('Tidak dapat menghubungi server login. Silakan coba lagi.'))
+      .catch((cause: unknown) => setErrorMessage(loginErrorMessage(cause).message))
       .finally(() => setIsSigningIn(false));
   };
 
