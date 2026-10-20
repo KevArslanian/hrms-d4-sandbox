@@ -1,8 +1,9 @@
 "use client";
 
-import { ClipboardCheck, Eye, FileSearch, History, RefreshCw, Scale } from "lucide-react";
+import { ClipboardCheck, Eye, FileSearch, History, ListChecks, RefreshCw, Scale } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { TrainingVersion } from "../../../training/types";
+import { followUpOf } from "../../../shared/rules";
 import { useSnapshot } from "../../data/D4DataProvider";
 import { canWrite, employeeById, employeeMeta, employeeSearchText, formatDate, formatPeriod, includesText, trainingById, trainingHistory, trainings, trainingSource, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
@@ -12,7 +13,7 @@ import { RowActionMenu } from "../../ui/RowActionMenu";
 import { Button, ButtonLink, Card, InfoGrid, Notice, SourceChip, statusLabel, StatusBadge } from "../../ui/primitives";
 import { ReassessmentModal } from "../development/DevelopmentModals";
 import { ReassessmentBadge } from "../development/DevelopmentPages";
-import { TrainingProgressModal } from "./TrainingModals";
+import { TrainingFollowUpModal, TrainingProgressModal } from "./TrainingModals";
 
 export function TrainingListPage() {
   const snapshot = useSnapshot();
@@ -65,10 +66,17 @@ export function TrainingDetailPage({ trainingId }: { trainingId: string }) {
   const snapshot = useSnapshot();
   const [progressOpen, setProgressOpen] = useState(false);
   const [reassessOpen, setReassessOpen] = useState(false);
+  const [followUpOpen, setFollowUpOpen] = useState(false);
   const record = trainingById(snapshot, trainingId);
   const employee = record && employeeById(snapshot, record.employeeId);
   if (!record || !employee || !visibleEmployees(snapshot).some((item) => item.id === employee.id)) return <NotFound what="Training" backHref="/training" backLabel="Back to Training Tracking" />;
   const need = trainingSource(snapshot, record);
+  // Q16: a Not Passed result waits for HR's follow-up; Retraining links to the trainings created with it.
+  const notPassed = record.status === "Completed" && record.result === "Not Passed";
+  const versions = trainingHistory(snapshot, record.trainingId);
+  const followUp = followUpOf(versions) && versions.find((item) => item.followUp);
+  const retrainings = followUp?.followUp === "Retraining" ? trainings(snapshot).filter((item) => item.developmentNeedId === record.developmentNeedId && item.trainingId !== record.trainingId
+    && (trainingHistory(snapshot, item.trainingId).at(-1)?.createdAt ?? "") >= followUp.createdAt) : [];
   return <>
     <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Training Tracking", href: "/training" }, { label: "Detail" }]} backHref="/training"
       name={employee.fullName} meta={[...employeeMeta(snapshot, employee), record.activity]} status={record.status}
@@ -99,6 +107,16 @@ export function TrainingDetailPage({ trainingId }: { trainingId: string }) {
           <p className="text-sm text-ink-2">Training Passed. Nilai ulang kompetensi {employee.fullName} di Competency Gap. Gap dianggap tertutup hanya bila penilaian baru menunjukkan level terpenuhi.</p>
           <div className="mt-4"><ButtonLink href={`/competency/${employee.id}`} variant="primary" icon={<ClipboardCheck className="size-4" />} testId="cta-reassess-competency">Reassess competency</ButtonLink></div>
         </Card>}
+        {notPassed && <Card title="Follow-up" testId="training-follow-up">
+          {followUp ? <>
+            <p className="text-sm text-ink"><span data-testid="follow-up-value" className="font-semibold">{followUp.followUp}</span> · {formatDate(followUp.createdAt)} · {followUp.actor}</p>
+            {followUp.notes && <p className="mt-2 whitespace-pre-wrap text-sm text-ink-2">{followUp.notes}</p>}
+            {retrainings.map((item) => <div key={item.trainingId} data-testid={`retraining-${item.trainingId}`} className="mt-3"><SourceChip label="Retraining" reference={`${item.activity} · ${statusLabel(item.status)}`} href={`/training/${item.trainingId}`} /></div>)}
+          </> : <>
+            <Notice tone="warning"><strong>Awaiting follow-up.</strong> Hasil Not Passed wajib ditindaklanjuti HR: Retraining, atau Other follow-up (coaching, rotasi, eskalasi ke atasan) dengan catatan.</Notice>
+            {canWrite(snapshot) && <div className="mt-4"><Button icon={<ListChecks className="size-4" />} onClick={() => setFollowUpOpen(true)} data-testid="btn-record-follow-up">Record Follow-up</Button></div>}
+          </>}
+        </Card>}
         <Card title="Source requirement" testId="source-requirement">
           {need ? <><SourceChip label="Development Requirement" reference={statusLabel(need.status)} href={`/development/${need.needId}`} /><p className="mt-3 text-sm text-ink">{need.objective}</p>
             <div className="mt-3"><ReassessmentBadge snapshot={snapshot} needId={need.needId} /></div></> : <p className="text-sm text-ink-3">Requirement sumber tidak tersedia.</p>}
@@ -108,6 +126,7 @@ export function TrainingDetailPage({ trainingId }: { trainingId: string }) {
     </div>
     {progressOpen && <TrainingProgressModal trainingId={record.trainingId} onClose={() => setProgressOpen(false)} />}
     {reassessOpen && need && <ReassessmentModal needId={need.needId} onClose={() => setReassessOpen(false)} />}
+    {followUpOpen && <TrainingFollowUpModal trainingId={record.trainingId} onClose={() => setFollowUpOpen(false)} />}
   </>;
 }
 
@@ -122,7 +141,7 @@ export function TrainingHistoryPage({ trainingId }: { trainingId: string }) {
     <Card title="Status history" testId="status-history">
       <Timeline empty="Belum ada riwayat status." entries={trainingHistory(snapshot, record.trainingId).map((item) => ({
         id: item.id, date: formatDate(item.createdAt), title: `Version ${item.revision}`, status: item.status, actor: item.actor,
-        body: [item.result && `Result: ${item.result}`, item.notes].filter(Boolean).join(" · ") || undefined,
+        body: [item.result && `Result: ${item.result}`, item.followUp && `Follow-up: ${item.followUp}`, item.notes].filter(Boolean).join(" · ") || undefined,
       }))} />
     </Card>
   </>;
