@@ -5,7 +5,7 @@ import { AlertTriangle, ArrowUpRight, Eye, Target } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import type { D4LiveSnapshot, KpiAssessment } from "../../../supabase/types";
 import { useSnapshot } from "../../data/D4DataProvider";
-import { currentCompetencyStatus, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, employeeSearchText, evaluationsOf, formatDate, formatPeriod, formatScorecard, includesText, needsOf, positionOf, scorecardsOf, trainings, trainingsOf, visibleEmployees } from "../../data/selectors";
+import { currentCompetencyStatus, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, employeeSearchText, evaluationsOf, formatDate, formatPeriod, formatScorecard, includesText, positionOf, scorecardsOf, trainings, trainingsOf, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
@@ -13,7 +13,7 @@ import { RowActionMenu } from "../../ui/RowActionMenu";
 import { Card, Notice, slug, statusLabel, StatusBadge } from "../../ui/primitives";
 import { weighted } from "../kpi/KpiFormModal";
 import { HIGH_ABOVE, performanceBand, scaleMaxOf, UNDER_BELOW } from "../../../kpi/scale";
-import { competencySlices, dashboardAlerts, employeeHistory, gapRanking, performanceSlices, type DashboardRow, type Slice } from "./summary";
+import { competencySlices, dashboardAlerts, employeeHistory, gapRanking, openNeedCount, performanceSlices, type DashboardRow, type Slice } from "./summary";
 
 type Row = DashboardRow & { position: string; period?: string; openNeeds: number; training?: string };
 
@@ -48,7 +48,7 @@ export function DashboardPage() {
     return {
       employee, position: positionOf(snapshot, employee)?.title ?? "—", period: data.period, scorecard: data.scorecard,
       gap: currentCompetencyStatus(snapshot, employee),
-      openNeeds: needsOf(snapshot, employee.id).filter((item) => item.status !== "Completed").length,
+      openNeeds: openNeedCount(snapshot, employee.id),
       training: trainingsOf(snapshot, employee.id)[0]?.status,
     };
   }).filter((row) => includesText(employeeSearchText(snapshot, row.employee), search) && (!position || row.employee.positionId === position) && (!department || row.employee.departmentId === department))
@@ -98,14 +98,15 @@ function SummaryStrip({ rows }: { rows: readonly Row[] }) {
   const tiles = [
     { key: "total", label: "Employees", value: rows.length },
     { key: "kpi", label: "KPI scorecard complete", value: rows.filter((row) => row.scorecard && validScorecard(row.scorecard)).length },
-    { key: "dev", label: "With open development", value: rows.filter((row) => row.openNeeds > 0).length },
+    // UAT-19: the partner asked for "jumlah karyawan yang butuh training"; testId summary-dev stays for Katalon.
+    { key: "dev", label: "Need training", hint: "punya development requirement yang belum selesai", value: rows.filter((row) => row.openNeeds > 0).length },
     { key: "training", label: "Training in progress", value: rows.filter((row) => row.training === "In Progress").length },
   ];
   return <section aria-label="Summary" data-testid="dashboard-summary" className="grid grid-cols-2 gap-4 xl:grid-cols-4">
     {tiles.map((tile) => <div key={tile.key} data-testid={`summary-${tile.key}`} className="rounded-2xl border border-line bg-surface p-5 shadow-card">
       <p className="text-xs font-semibold uppercase tracking-[0.04em] text-ink-3">{tile.label}</p>
       <p className="mt-2 font-display text-3xl font-semibold tabular-nums text-ink">{tile.value}</p>
-      <p className="mt-1 text-xs text-ink-3">dari daftar di bawah</p>
+      <p className="mt-1 text-xs text-ink-3">{tile.hint ?? "dari daftar di bawah"}</p>
     </div>)}
   </section>;
 }
