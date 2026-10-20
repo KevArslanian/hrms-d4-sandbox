@@ -491,13 +491,13 @@ describe("unknown or malformed ids", () => {
     expect(writes[0].args[1]).toMatchObject({ status: "Planned", reassessment: "Retraining" });
   });
 
-  it("records Sudah memenuhi on a Completed need once; the same decision again is no change", async () => {
+  it("records Meets requirement on a Completed need once; the same decision again is no change", async () => {
     snapshot = { ...snapshot, developmentVersions: snapshot.developmentVersions.map((item) => item.needId === NEED ? { ...item, status: "Completed" as const } : item) };
-    const res = await call(devVersions.POST(post({ status: "Completed", notes: "", reassessment: "Sudah memenuhi" }), params(NEED)));
+    const res = await call(devVersions.POST(post({ status: "Completed", notes: "", reassessment: "Meets requirement" }), params(NEED)));
     expect(res.status).toBe(201);
-    expect(writes[0].args[1]).toMatchObject({ status: "Completed", reassessment: "Sudah memenuhi" });
-    snapshot = { ...snapshot, developmentVersions: snapshot.developmentVersions.map((item) => item.needId === NEED ? { ...item, reassessment: "Sudah memenuhi" as const } : item) };
-    const again = await call(devVersions.POST(post({ status: "Completed", notes: "", reassessment: "Sudah memenuhi" }), params(NEED)));
+    expect(writes[0].args[1]).toMatchObject({ status: "Completed", reassessment: "Meets requirement" });
+    snapshot = { ...snapshot, developmentVersions: snapshot.developmentVersions.map((item) => item.needId === NEED ? { ...item, reassessment: "Meets requirement" as const } : item) };
+    const again = await call(devVersions.POST(post({ status: "Completed", notes: "", reassessment: "Meets requirement" }), params(NEED)));
     expect(again.status).toBe(422);
     expect(again.body.error?.message).toMatch(/Tidak ada perubahan/);
   });

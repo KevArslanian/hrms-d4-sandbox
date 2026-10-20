@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Draf, menunggu persetujuan user/PO. Bagian 2 (tampilan) menunggu jawaban mitra Q15. |
+| **Status** | Draf, menunggu persetujuan user/PO. Bagian 2 (tampilan, Q15) dikerjakan 20 Okt 2026: lihat bagian 5a. |
 | **Tanggal** | 20 Okt 2026 |
 | **Dasar** | Revisi D4 20 Okt 2026, Prompt 9 bagian 1 |
 | **Sumber** | Wawancara awal D4 bagian 4.4–4.8 dan 4.10; transkrip 14 Okt 2026 bagian 2 (00:23:06–00:25:28 dan 00:46:17–00:49:43); `supabase/seed/d4-simulasi-master.sql`; `modules/d4/shared/fixtures/reference-data.ts`; migrasi D4; aturan di `modules/d4/shared/rules.ts` dan `modules/d4/web/data/selectors.ts` |
@@ -128,7 +128,7 @@ Trainee (PROBATION/INTERN) atau perubahan posisi
   -> Development Requirement (objective "Naikkan X dari level a ke b", method, PIC, priority)
   -> Training (Planned -> In Progress -> Completed / Cancelled)
   -> Hasil training: Passed / Not Passed
-  -> Reassessment: Retraining (buka lagi) atau Meets requirement / "Sudah memenuhi" (selesai)
+  -> Reassessment: Retraining (buka lagi) atau Meets requirement (selesai)
 ```
 
 | Langkah | Yang terjadi di D4 | Aturan |
@@ -139,7 +139,7 @@ Trainee (PROBATION/INTERN) atau perubahan posisi
 | 4. Development Requirement | Dari baris Gap, HR memilih **Create Development Requirement**. Source: **Competency Gap** (posisi aktif) atau **Position Change**. Objective terisi otomatis dari gap dan masih bisa diubah: "Naikkan {kompetensi} dari level {a} ke {b}" (bila level belum ada: "Naikkan {kompetensi} ke level {b}"). HR juga mengisi **Priority** (Low / Medium / High), **Method**, dan **PIC**. | Gap dari posisi aktif hanya bisa dibuat setelah penilaian disimpan. Satu gap hanya punya satu requirement terbuka. Priority, method, dan PIC bisa diubah kemudian sebagai revisi. |
 | 5. Training | Dari requirement, HR membuat training: aktivitas, tanggal, status **Planned → In Progress → Completed** atau **Cancelled**. | Training harus merujuk ke requirement milik pegawai yang sama dan masih terbuka. Tanggal training Completed tidak boleh di masa depan. |
 | 6. Hasil training | Training **Completed** wajib punya hasil **Passed** atau **Not Passed**. | Not Passed membuat requirement tetap terbuka, lalu training diulang. Requirement bisa ditutup (Completed) tanpa training Passed hanya dengan alasan di Notes. |
-| 7. Reassessment | Setelah requirement Completed, HR menilai ulang kompetensi (**Reassess Competency**, simpan penilaian baru) lalu mencatat keputusan (**Record Reassessment**): **Retraining** membuka requirement kembali sebagai Planned untuk training ulang; **Meets requirement** (nilai tersimpan "Sudah memenuhi") membuat requirement tetap Completed. | Training Completed atau requirement Completed **tidak** menutup gap. Gap tertutup hanya bila penilaian baru menunjukkan level terpenuhi. Dashboard memberi alert "Completed, gap masih terbuka" sampai keputusan reassessment dicatat. |
+| 7. Reassessment | Setelah requirement Completed, HR menilai ulang kompetensi (**Reassess Competency**, simpan penilaian baru) lalu mencatat keputusan (**Record Reassessment**): **Retraining** membuka requirement kembali sebagai Planned untuk training ulang; **Meets requirement** membuat requirement tetap Completed (nilai tersimpan sama dengan labelnya, keputusan Q11). | Training Completed atau requirement Completed **tidak** menutup gap. Gap tertutup hanya bila penilaian baru menunjukkan level terpenuhi. Dashboard memberi alert "Completed, gap masih terbuka" sampai keputusan reassessment dicatat. |
 
 Alert di People Dashboard yang menjaga alur ini:
 - **Gap tanpa development requirement**
@@ -189,7 +189,27 @@ Untuk data contoh di mode fixture:
 | HR Documentation | On-the-job training | (belum ada) |
 | Sales & Negotiation | Coaching | (belum ada) |
 
-**PIC** (penanggung jawab) wajib jelas supaya pegawai tidak "terlantar" di development requirement (transkrip 00:48:14–00:49:24). Contohnya: untuk Sales Administration Associate, PIC-nya Sales Executive yang meminta pegawai itu. Usulan jawaban Q13: pegawai Human Capital & Culture, dengan teks bebas tetap boleh.
+**PIC** (penanggung jawab) wajib jelas supaya pegawai tidak "terlantar" di development requirement (transkrip 00:48:14–00:49:24). Contohnya: untuk Sales Administration Associate, PIC-nya Sales Executive yang meminta pegawai itu. Keputusan Q13 (20 Okt 2026): PIC dipilih dari daftar semua pegawai (dropdown cari, label nama dan posisi) dan disimpan sebagai nama. PIC lama yang diketik bebas tetap tampil dan bisa dipertahankan saat Edit.
+
+## 5a. Tampilan detail Competency Gap (Q15)
+
+Keputusan Q15 (20 Okt 2026): per kompetensi tampil level dibutuhkan, level dimiliki, selisih, status, bukti, dan requirement penutupnya beserta statusnya. Arahan transkrip 00:25:11: tunjukkan logikanya, bukan sekadar data. Halaman: `/competency/<employeeId>`, kartu **Requirement vs capability**.
+
+| Kolom | Isi | Logika |
+|---|---|---|
+| Competency | Nama kompetensi dari requirement posisi aktif | Satu baris per requirement posisi |
+| Required | Level minimal posisi | `position_requirements` (D3) |
+| Actual | Level pegawai, "—" bila belum tercatat | `employee_skills` (D3) |
+| Difference | Actual − Required: "−1" berarti kurang satu level, "0" pas, "+1" lebih; "—" bila level belum ada | Merah bila negatif |
+| Evidence | Catatan bukti, "Belum ada bukti" bila kosong | Bukti wajib sebelum disimpulkan |
+| Status | Badge **Met / Gap / Insufficient Data** dan satu kalimat alasan | Level kosong: "Level belum tercatat …". Ada level tanpa bukti: "Level a belum punya bukti …" (Insufficient Data, bukan Gap). Kurang: "Level a di bawah minimal b: kurang n level." Cukup: "Level a memenuhi minimal b." |
+| Development requirement | Objective requirement penutup (tautan ke detailnya), badge statusnya, hasil reassessment (Needs reassessment, Retraining, Meets requirement), dan training terakhir beserta hasilnya | Requirement yang belum Completed didahulukan; bila tidak ada, requirement terbaru. Gap tanpa requirement terbuka menampilkan **Create Development Requirement** (atau "Simpan penilaian dulu" sebelum penilaian disimpan). Met: "Tidak perlu". Insufficient Data: "Lengkapi level dan bukti dulu". |
+
+Di atas tabel ada satu paragraf aturan: Difference = level dimiliki − level dibutuhkan; Gap tertutup hanya bila penilaian baru menunjukkan level sudah memenuhi, bukan karena requirement atau training Completed.
+
+Di layar di bawah 768 px tiap kompetensi tampil sebagai blok bertumpuk dengan nama kolom di atas tiap nilai, jadi halaman tidak perlu digeser.
+
+Fungsi murni (dites di `tests/d4/development-gap-view.test.ts`): `findingLogic`, `formatDifference`, dan `closingRequirement` di `modules/d4/web/features/competency/rows.ts`.
 
 ## 6. Batasan
 
@@ -207,7 +227,6 @@ Untuk data contoh di mode fixture:
 | # | Pertanyaan | Dampak |
 |---|---|---|
 | Q14 | Setelah training Passed, siapa yang memperbarui level kompetensi? (usulan: HR lewat penilaian ulang di D4, D3 membaca hasilnya) | Menentukan kapan gap tertutup (langkah 7) |
-| Q15 | Tampilan Competency Gap yang diharapkan? (usulan: per kompetensi menampilkan level dibutuhkan, dimiliki, selisih, status, bukti, dan requirement penutupnya) | Bagian 2 Prompt 9 |
 | - | Apakah daftar S01–S16 dan level di bagian 3.2 disetujui sebagai daftar resmi, dan siapa yang mengisinya di D3? | Isi requirement posisi |
 | - | Apakah "Certification" dan "External training" masuk daftar saran Method? | Pilihan Method di form |
 | - | Requirement untuk Commissioner, para Director, HR Manager, dan HR Associate Officer | Posisi tanpa requirement (bagian 3.2) |

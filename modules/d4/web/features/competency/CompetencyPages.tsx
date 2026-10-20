@@ -1,19 +1,22 @@
 "use client";
 
 import { ArrowRightLeft, Eye, FilePlus2, History, Save } from "lucide-react";
+import Link from "next/link";
 import { useMemo, useState, type FormEvent } from "react";
 import type { CompetencyFinding } from "../../../competency/types";
+import type { DevelopmentNeedVersion } from "../../../development/types";
 import type { EmployeeReference } from "../../../shared/types";
 import { openNeedFor } from "../../../shared/rules";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { canWrite, currentCompetencyStatus, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, formatDate, latestCurrentPositionAssessment, positionById, today, visibleEmployees } from "../../data/selectors";
+import { canWrite, currentCompetencyStatus, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, formatDate, latestCurrentPositionAssessment, positionById, today, trainingsOf, visibleEmployees, type Snapshot } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, FormError, FormModal, ModalActions, SearchInput, SearchSelectField, SelectFilter, TextField } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
-import { Button, ButtonLink, Card, InfoGrid, Notice, SourceChip, statusLabel, StatusBadge } from "../../ui/primitives";
+import { Button, ButtonLink, Card, cx, InfoGrid, Notice, statusLabel, StatusBadge } from "../../ui/primitives";
 import { DevelopmentFormModal } from "../development/DevelopmentModals";
-import { competencyOptions, competencyRows, type CompetencyRow as Row } from "./rows";
+import { ReassessmentBadge } from "../development/DevelopmentPages";
+import { closingRequirement, competencyOptions, competencyRows, findingLogic, formatDifference, type CompetencyRow as Row } from "./rows";
 
 // Compared with statusLabel(row.status), so these are the English display labels.
 const STATUS_FILTER = ["Not Evaluated", "Met", "Gap", "Insufficient Data"];
@@ -24,7 +27,20 @@ function AssessedWithField({ value, onChange, className }: { value: string; onCh
     placeholder="Contoh: Rina, Finance Manager" helper="Opsional. Dinilai bersama atasan atau departemen yang mengajukan kebutuhan pegawai (nama/jabatan)." />;
 }
 
+// Below md each competency becomes a stacked block and every cell shows its column name (same pattern as the KPI lines table).
+const stacked = "max-md:p-0 max-md:before:mb-1 max-md:before:block max-md:before:text-[11px] max-md:before:font-semibold max-md:before:uppercase max-md:before:tracking-[0.04em] max-md:before:text-ink-3 max-md:before:content-[attr(data-label)]";
+
 const assessedWithText = (value?: string | null) => value?.trim() ? `Dinilai bersama ${value.trim()}` : "";
+
+/** The requirement that closes a gap (Q15): its objective links to it, then its status, the reassessment and the latest training. */
+function ClosingRequirement({ snapshot, need }: { snapshot: Snapshot; need: DevelopmentNeedVersion }) {
+  const training = trainingsOf(snapshot, need.employeeId).find((item) => item.developmentNeedId === need.needId);
+  return <div className="flex max-w-[280px] flex-col items-start gap-1.5">
+    <Link href={`/development/${need.needId}`} data-testid="link-gap-requirement" className="line-clamp-2 font-semibold text-primary-600 hover:underline">{need.objective}</Link>
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1"><StatusBadge status={need.status} /><ReassessmentBadge snapshot={snapshot} needId={need.needId} compact /></div>
+    {training && <span data-testid="gap-training" className="text-xs text-ink-3">Training: {training.activity} · {statusLabel(training.status === "Completed" && training.result ? training.result : training.status)}</span>}
+  </div>;
+}
 
 export function CompetencyListPage() {
   const snapshot = useSnapshot();
@@ -116,7 +132,7 @@ export function CompetencyDetailPage({ employeeId }: { employeeId: string }) {
   const employee = employeeById(snapshot, employeeId);
   if (!employee || !visibleEmployees(snapshot).some((item) => item.id === employeeId)) return <NotFound what="Employee" backHref="/competency" backLabel="Back to Competency Gap" />;
   const gap = currentGap(snapshot, employee);
-  const needs = developmentNeeds(snapshot).filter((item) => item.employeeId === employee.id && item.sourceType === "competency_gap");
+  const needs = developmentNeeds(snapshot);
   const saved = latestCurrentPositionAssessment(snapshot, employee);
   const assessed = Boolean(saved);
   // Saving again the same day with the same result only duplicates history.
@@ -149,22 +165,33 @@ export function CompetencyDetailPage({ employeeId }: { employeeId: string }) {
       </div>}
     </Card>}
     <Card title="Requirement vs capability" testId="requirement-vs-capability" padded={false}>
+      {/* Q15: the rule behind each row, so the table shows the logic and not only the data. */}
+      <p data-testid="gap-logic" className="px-6 pb-4 text-xs leading-5 text-ink-3">Difference = level dimiliki − level dibutuhkan. Negatif dengan bukti berarti <strong>Gap</strong>; level atau bukti yang belum ada berarti <strong>Insufficient Data</strong>. Gap tertutup hanya bila penilaian baru menunjukkan level sudah memenuhi; requirement atau training yang Completed tidak menutupnya sendiri.</p>
       <div className="overflow-x-auto">
-        <table data-testid="competency-gap-table" className="w-full min-w-[760px] text-left text-sm">
-          <thead className="bg-app text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3"><tr><th className="px-5 py-2.5">Competency</th><th className="px-5 py-2.5">Required</th><th className="px-5 py-2.5">Actual</th><th className="px-5 py-2.5">Evidence</th><th className="px-5 py-2.5">Status</th><th className="px-5 py-2.5 text-right">Action</th></tr></thead>
-          <tbody>{(gap?.findings ?? []).map((finding) => {
-            // Prefer the unfinished need; a completed one does not block raising a new need for a gap that remains.
-            const open = needs.find((need) => need.sourceRef === finding.requirementId && need.status !== "Completed");
-            const linked = open ?? needs.find((need) => need.sourceRef === finding.requirementId);
-            return <tr key={finding.requirementId} data-testid={`gap-${finding.requirementId}`} className="border-t border-line align-middle">
-              <td className="px-5 py-3 font-semibold">{finding.competencyName}</td>
-              <td className="px-5 py-3 tabular-nums">Level {finding.requiredLevel}</td>
-              <td className="px-5 py-3 tabular-nums">{finding.actualLevel === null ? "—" : `Level ${finding.actualLevel}`}</td>
-              <td className="max-w-[280px] px-5 py-3 text-ink-2">{finding.evidenceNotes?.trim() || "Belum ada bukti"}</td>
-              <td className="px-5 py-3"><StatusBadge status={finding.status} /></td>
-              <td className="px-5 py-3 text-right">{linked && (open || finding.status !== "Gap" || !writer) ? <SourceChip label="Development" reference={statusLabel(linked.status)} href={`/development/${linked.needId}`} />
-                : finding.status === "Gap" && writer && !assessed ? <span className="text-xs text-ink-3">Simpan penilaian dulu</span>
-                : finding.status === "Gap" && writer ? <Button variant="ghost" className="h-9" icon={<FilePlus2 className="size-4" />} onClick={() => setDevRef(finding.requirementId)} data-testid="btn-create-development-requirement">Create Development Requirement</Button> : "—"}</td>
+        <table data-testid="competency-gap-table" className="w-full text-left text-sm max-md:block md:min-w-[980px]">
+          <thead className="bg-app text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3 max-md:hidden"><tr><th className="px-5 py-2.5">Competency</th><th className="px-5 py-2.5">Required</th><th className="px-5 py-2.5">Actual</th><th className="px-5 py-2.5">Difference</th><th className="px-5 py-2.5">Evidence</th><th className="px-5 py-2.5">Status</th><th className="px-5 py-2.5">Development requirement</th></tr></thead>
+          <tbody className="max-md:block">{(gap?.findings ?? []).map((finding) => {
+            // The unfinished requirement first; a completed one stays visible but does not block raising a new one for a gap that remains.
+            const linked = closingRequirement(needs, employee.id, finding.requirementId);
+            const open = linked && linked.status !== "Completed";
+            const logic = findingLogic(finding);
+            return <tr key={finding.requirementId} data-testid={`gap-${finding.requirementId}`} className="border-t border-line align-top max-md:grid max-md:grid-cols-3 max-md:gap-3 max-md:p-5">
+              <td data-label="Competency" className={cx("px-5 py-3 font-semibold max-md:col-span-3", stacked)}>{finding.competencyName}</td>
+              <td data-label="Required" className={cx("whitespace-nowrap px-5 py-3 tabular-nums", stacked)}>Level {finding.requiredLevel}</td>
+              <td data-label="Actual" className={cx("whitespace-nowrap px-5 py-3 tabular-nums", stacked)}>{finding.actualLevel === null ? "—" : `Level ${finding.actualLevel}`}</td>
+              <td data-testid="gap-difference" data-label="Difference" className={cx("px-5 py-3 tabular-nums", stacked, logic.difference !== null && logic.difference < 0 && "font-semibold text-danger")}>{formatDifference(logic.difference)}</td>
+              <td data-label="Evidence" className={cx("max-w-[240px] px-5 py-3 text-ink-2 max-md:col-span-3 max-md:max-w-none", stacked)}>{finding.evidenceNotes?.trim() || "Belum ada bukti"}</td>
+              <td data-label="Status" className={cx("max-w-[220px] px-5 py-3 max-md:col-span-3 max-md:max-w-none", stacked)}><StatusBadge status={finding.status} /><span data-testid="gap-reason" className="mt-1.5 block text-xs leading-4 text-ink-3">{logic.reason}</span></td>
+              <td data-testid="gap-requirement" data-label="Development requirement" className={cx("px-5 py-3 max-md:col-span-3", stacked)}>
+                <div className="flex flex-col items-start gap-2">
+                  {linked && <ClosingRequirement snapshot={snapshot} need={linked} />}
+                  {!open && finding.status === "Gap" && (writer
+                    ? assessed ? <Button variant="ghost" className="h-9" icon={<FilePlus2 className="size-4" />} onClick={() => setDevRef(finding.requirementId)} data-testid="btn-create-development-requirement">Create Development Requirement</Button>
+                      : <span className="text-xs text-ink-3">Simpan penilaian dulu</span>
+                    : !linked && <span className="text-xs text-ink-3">Belum ada requirement</span>)}
+                  {!linked && finding.status !== "Gap" && <span className="text-xs text-ink-3">{finding.status === "Terpenuhi" ? "Tidak perlu" : "Lengkapi level dan bukti dulu"}</span>}
+                </div>
+              </td>
             </tr>;
           })}</tbody>
         </table>
