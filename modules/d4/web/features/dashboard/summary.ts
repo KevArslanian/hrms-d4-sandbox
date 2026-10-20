@@ -112,8 +112,13 @@ export function gapClosedAfter(assessments: readonly Pick<CompetencyAssessment, 
   return latest ? finding(latest)?.status === "Terpenuhi" : false;
 }
 
-/** `label`: state shown next to the title, e.g. a Not Passed training still awaiting HR's follow-up (Q16). */
-export type DashboardAlert = { key: string; title: string; detail: string; href: string; count: number; people: string[]; label?: string };
+/** Under Performance row HR can assign training to (Q16): a requirement from that period's scorecard. */
+export type AssignTarget = { employeeId: string; name: string; scorecardId: string };
+/**
+ * `label`: state shown next to the title, e.g. a Not Passed training still awaiting HR's follow-up (Q16).
+ * `assign`: per employee of the Under Performance alert, the scorecard a training requirement is raised from.
+ */
+export type DashboardAlert = { key: string; title: string; detail: string; href: string; count: number; people: string[]; label?: string; assign?: AssignTarget[] };
 
 /**
  * Follow-ups HR should act on, computed from D4 data only (interview D4, 14 Oct 2026). Alerts that need data D4
@@ -121,9 +126,13 @@ export type DashboardAlert = { key: string; title: string; detail: string; href:
  */
 export function dashboardAlerts(snapshot: Snapshot, rows: readonly DashboardRow[]): DashboardAlert[] {
   const found = { under: [] as string[], completedGap: [] as string[], notPassed: [] as string[], noPlan: [] as string[], noPic: [] as string[] };
+  const assign: AssignTarget[] = [];
   for (const row of rows) {
     const name = row.employee.fullName;
-    if (bandOf(row) === "Under Performance") found.under.push(name);
+    if (row.scorecard && bandOf(row) === "Under Performance") {
+      found.under.push(name);
+      assign.push({ employeeId: row.employee.id, name, scorecardId: row.scorecard.id });
+    }
     const needs = needsOf(snapshot, row.employee.id);
     for (const finding of gapFindings(snapshot, row)) {
       // A need answers this gap only when it was raised from the same position requirement.
@@ -147,7 +156,7 @@ export function dashboardAlerts(snapshot: Snapshot, rows: readonly DashboardRow[
     }
   }
   const alerts: (Omit<DashboardAlert, "count" | "people"> & { list: string[] })[] = [
-    { key: "under-performance", list: found.under, title: "Under Performance", href: "/performance", detail: "pegawai di bawah 80 pada periode ini. KPI bisa menjadi pemicu pemanggilan HR." },
+    { key: "under-performance", list: found.under, assign, title: "Under Performance", href: "/performance", detail: "pegawai di bawah 80 pada periode ini. HR menindaklanjuti dengan Assign training: development requirement dari Performance Review-nya." },
     { key: "completed-gap-open", list: found.completedGap, title: "Completed, gap masih terbuka", href: "/competency", detail: "development requirement Completed atau training Passed, tetapi belum ada penilaian kompetensi baru yang menunjukkan level terpenuhi. Nilai ulang di Competency Gap." },
     { key: "training-not-passed", list: found.notPassed, title: "Training Not Passed", label: "Awaiting follow-up", href: "/training", detail: "development requirement dengan training terakhir Not Passed dan belum ada tindak lanjut. Catat Retraining atau Other follow-up di detail training." },
     { key: "gap-no-requirement", list: found.noPlan, title: "Gap tanpa development requirement", href: "/competency", detail: "gap kompetensi belum dibuatkan development requirement." },
