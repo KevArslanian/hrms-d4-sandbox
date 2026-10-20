@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, FormEvent, ChangeEvent } from 'react';
+import React, { useState, FormEvent, ChangeEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
@@ -18,24 +18,8 @@ export default function LoginPage() {
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState<string>('');
   const [isSigningIn, setIsSigningIn] = useState<boolean>(false);
-  const [loginAttempts, setLoginAttempts] = useState<number>(0);
-  const [isLocked, setIsLocked] = useState<boolean>(false);
-  const [isPermanentlyBlocked, setIsPermanentlyBlocked] = useState<boolean>(false);
-  const [countdown, setCountdown] = useState<number>(0);
   const hour = new Date().getHours();
   const greeting = hour >= 3 && hour < 12 ? 'Good Morning' : hour >= 12 && hour < 17 ? 'Good Afternoon' : 'Good Evening';
-
-  useEffect(() => {
-    if (!isLocked || isPermanentlyBlocked || countdown <= 0) return;
-    const timer = setTimeout(() => {
-      if (countdown === 1) {
-        setIsLocked(false);
-        setErrorMessage('');
-      }
-      setCountdown(countdown - 1);
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, [isLocked, countdown, isPermanentlyBlocked]);
 
   const validateEmailFormat = (emailVal: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -49,35 +33,10 @@ export default function LoginPage() {
     return passVal.length >= 10 && hasLetter && hasDigit && hasSpecial;
   };
 
-  const handleFailedAttempt = (customMessage: string) => {
-    const newAttempts = loginAttempts + 1;
-    setLoginAttempts(newAttempts);
-
-    if (newAttempts >= 5) {
-      setIsLocked(true);
-      setIsPermanentlyBlocked(true);
-      setErrorMessage('Your account has been blocked. Please contact the IT administrator.');
-    } else if (newAttempts === 4) {
-      setErrorMessage(
-        `${customMessage} Warning: 1 more failed attempt will block your account!`
-      );
-    } else if (newAttempts === 3) {
-      setIsLocked(true);
-      setCountdown(30);
-      setErrorMessage(
-        'Too many failed login attempts (3/5). Please wait 30 seconds before trying again.'
-      );
-    } else {
-      setErrorMessage(`${customMessage} (Remaining attempts: ${5 - newAttempts})`);
-    }
-  };
-
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setErrorMessage('');
     setSuccessMessage('');
-
-    if (isLocked || isPermanentlyBlocked) return;
 
     if (!email.trim() || !password.trim()) {
       setErrorMessage('Email dan password wajib diisi.');
@@ -99,19 +58,17 @@ export default function LoginPage() {
     setIsSigningIn(true);
     void supabase.auth.signInWithPassword({ email: email.toLowerCase().trim(), password })
       .then(({ error }) => {
-        // supabase-js returns network errors here instead of throwing them (D4-FN-02).
+        // supabase-js returns network errors here instead of throwing them (D4-FN-02). The attempt limit is the
+        // Supabase rate limit (429); a counter kept in this page reset on refresh (D4-SEC-01).
         if (error) {
-          const { message, countsAsAttempt } = loginErrorMessage(error);
-          // An unreachable server or the Supabase rate limit says nothing about the password, so it costs no attempt.
-          if (countsAsAttempt) handleFailedAttempt(message); else setErrorMessage(message);
+          setErrorMessage(loginErrorMessage(error));
           return;
         }
 
-        setLoginAttempts(0);
         setSuccessMessage('Login berhasil! Mengalihkan ke dashboard...');
         window.setTimeout(() => { router.push('/dashboard'); }, 1200);
       })
-      .catch((cause: unknown) => setErrorMessage(loginErrorMessage(cause).message))
+      .catch((cause: unknown) => setErrorMessage(loginErrorMessage(cause)))
       .finally(() => setIsSigningIn(false));
   };
 
@@ -176,7 +133,6 @@ export default function LoginPage() {
                   placeholder="name@andima.co.id"
                   value={email}
                   onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
-                  disabled={isLocked || isPermanentlyBlocked}
                   className="w-full px-4.5 py-3.5 rounded-xl bg-white/70 backdrop-blur-md text-[#0D1B2A] placeholder-[#64748B] text-sm focus:outline-none transition-all disabled:opacity-50 border border-white/90 shadow-[inset_0_2px_4px_rgba(0,0,0,0.04)] focus:bg-white focus:border-[#3B6FF5] focus:ring-2 focus:ring-[#3B6FF5]/30 font-medium"
                 />
               </div>
@@ -194,7 +150,6 @@ export default function LoginPage() {
                     placeholder="••••••••••••"
                     value={password}
                     onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
-                    disabled={isLocked || isPermanentlyBlocked}
                     className="w-full pl-4.5 pr-12 py-3.5 rounded-xl bg-white/70 backdrop-blur-md text-[#0D1B2A] placeholder-[#64748B] text-sm focus:outline-none transition-all disabled:opacity-50 border border-white/90 shadow-[inset_0_2px_4px_rgba(0,0,0,0.04)] focus:bg-white focus:border-[#3B6FF5] focus:ring-2 focus:ring-[#3B6FF5]/30 font-medium"
                   />
 
@@ -208,7 +163,6 @@ export default function LoginPage() {
                     onMouseLeave={() => setShowPassword(false)}
                     onTouchStart={() => setShowPassword(true)}
                     onTouchEnd={() => setShowPassword(false)}
-                    disabled={isLocked || isPermanentlyBlocked}
                     tabIndex={-1}
                     className="absolute right-4 top-1/2 -translate-y-1/2 text-[#64748B] hover:text-[#3B6FF5] p-1 transition-colors disabled:opacity-50"
                   >
@@ -250,14 +204,10 @@ export default function LoginPage() {
                 name="btn-login"
                 data-testid="btn-login"
                 type="submit"
-                disabled={isLocked || isPermanentlyBlocked || isSigningIn}
+                disabled={isSigningIn}
                 className="w-full py-4 px-5 text-white font-extrabold rounded-xl text-sm tracking-wider uppercase transition-all mt-2 disabled:opacity-50 bg-[#3B6FF5] hover:bg-[#2B5CE5] shadow-[0_8px_25px_rgba(59,111,245,0.4)] active:scale-[0.99] cursor-pointer disabled:cursor-not-allowed font-[family-name:var(--font-montserrat)]"
               >
-                {isPermanentlyBlocked
-                  ? 'ACCOUNT BLOCKED'
-                  : isLocked
-                  ? `Please wait ${countdown}s`
-                  : isSigningIn ? 'SIGNING IN…' : 'LOGIN'}
+                {isSigningIn ? 'SIGNING IN…' : 'LOGIN'}
               </button>
             </form>
 
