@@ -128,7 +128,7 @@ Trainee (PROBATION/INTERN) atau perubahan posisi
   -> Development Requirement (objective "Naikkan X dari level a ke b", method, PIC, priority)
   -> Training (Planned -> In Progress -> Completed / Cancelled)
   -> Hasil training: Passed / Not Passed
-  -> Reassessment: Retraining (buka lagi) atau Meets requirement / "Sudah memenuhi" (selesai)
+  -> Reassessment: Retraining (buka lagi) atau Meets requirement (selesai)
 ```
 
 | Langkah | Yang terjadi di D4 | Aturan |
@@ -139,7 +139,7 @@ Trainee (PROBATION/INTERN) atau perubahan posisi
 | 4. Development Requirement | Dari baris Gap, HR memilih **Create Development Requirement**. Source: **Competency Gap** (posisi aktif) atau **Position Change**. Objective terisi otomatis dari gap dan masih bisa diubah: "Naikkan {kompetensi} dari level {a} ke {b}" (bila level belum ada: "Naikkan {kompetensi} ke level {b}"). HR juga mengisi **Priority** (Low / Medium / High), **Method**, dan **PIC**. | Gap dari posisi aktif hanya bisa dibuat setelah penilaian disimpan. Satu gap hanya punya satu requirement terbuka. Priority, method, dan PIC bisa diubah kemudian sebagai revisi. |
 | 5. Training | Dari requirement, HR membuat training: aktivitas, tanggal, status **Planned → In Progress → Completed** atau **Cancelled**. | Training harus merujuk ke requirement milik pegawai yang sama dan masih terbuka. Tanggal training Completed tidak boleh di masa depan. |
 | 6. Hasil training | Training **Completed** wajib punya hasil **Passed** atau **Not Passed**. | Not Passed membuat requirement tetap terbuka, lalu training diulang. Requirement bisa ditutup (Completed) tanpa training Passed hanya dengan alasan di Notes. |
-| 7. Reassessment | Setelah requirement Completed, HR menilai ulang kompetensi (**Reassess Competency**, simpan penilaian baru) lalu mencatat keputusan (**Record Reassessment**): **Retraining** membuka requirement kembali sebagai Planned untuk training ulang; **Meets requirement** (nilai tersimpan "Sudah memenuhi") membuat requirement tetap Completed. | Training Completed atau requirement Completed **tidak** menutup gap. Gap tertutup hanya bila penilaian baru menunjukkan level terpenuhi. Dashboard memberi alert "Completed, gap masih terbuka" sampai keputusan reassessment dicatat. |
+| 7. Reassessment | Setelah requirement Completed, HR menilai ulang kompetensi (**Reassess Competency**, simpan penilaian baru) lalu mencatat keputusan (**Record Reassessment**): **Retraining** membuka requirement kembali sebagai Planned untuk training ulang; **Meets requirement** membuat requirement tetap Completed (nilai tersimpan sama dengan labelnya, keputusan Q11). | Training Completed atau requirement Completed **tidak** menutup gap. Gap tertutup hanya bila penilaian baru menunjukkan level terpenuhi. Dashboard memberi alert "Completed, gap masih terbuka" sampai keputusan reassessment dicatat. |
 
 Alert di People Dashboard yang menjaga alur ini:
 - **Gap tanpa development requirement**

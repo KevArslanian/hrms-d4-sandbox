@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { Link2 } from "lucide-react";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
-import { REASSESSMENT_LABELS } from "../../shared/rules";
 
 export const cx = (...values: (string | false | null | undefined)[]) => values.filter(Boolean).join(" ");
 
@@ -47,7 +46,7 @@ const statusTone: Record<string, Tone> = {
   // KPI score bands (1–100 scorecards): below 80 yellow, 80–85 average, above 85 high.
   "Under Performance": "warning", "Average Performance": "info", "High Performance": "success",
   // Reassessment after a Completed development requirement.
-  Retraining: "warning", "Sudah memenuhi": "success", "Needs reassessment": "neutral",
+  Retraining: "warning", "Meets requirement": "success", "Needs reassessment": "neutral",
   "Data Belum Cukup": "neutral", "Bukti Belum Cukup": "neutral", "Not Evaluated": "neutral", "Belum Ada Persyaratan": "neutral", "Belum Ada Posisi": "neutral",
 };
 
@@ -57,7 +56,6 @@ const STATUS_LABELS: Record<string, string> = {
   Terpenuhi: "Met", "Data Belum Cukup": "Insufficient Data", "Bukti Belum Cukup": "Insufficient Data",
   // No requirement or no position means nothing can be concluded, so it reads as Insufficient Data (3 competency statuses).
   "Belum Ada Persyaratan": "Insufficient Data", "Belum Ada Posisi": "Insufficient Data",
-  ...REASSESSMENT_LABELS,
 };
 
 export const statusLabel = (status: string) => STATUS_LABELS[status] ?? status;

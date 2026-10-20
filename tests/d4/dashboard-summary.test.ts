@@ -63,7 +63,7 @@ describe("People Dashboard charts", () => {
     expect(keys(completed)).toContain("completed-gap-open");
     expect(keys(completed)).not.toContain("gap-no-requirement");
     // Cleared once HR records the reassessment decision.
-    const decided = { ...noNeeds, developmentVersions: [need("Completed"), need("Completed", { id: "T-Decided", revision: 2, reassessment: "Sudah memenuhi" })] };
+    const decided = { ...noNeeds, developmentVersions: [need("Completed"), need("Completed", { id: "T-Decided", revision: 2, reassessment: "Meets requirement" })] };
     expect(keys(decided)).not.toContain("completed-gap-open");
 
     const noPic = { ...noNeeds, developmentVersions: [need("In Progress", { pic: "" })] };

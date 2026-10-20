@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useMemo, useState, type FormEvent } from "react";
 import type { DevelopmentPriority, DevelopmentReassessment, DevelopmentSourceType, DevelopmentStatus } from "../../../development/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { isDevelopmentRollback, openNeedFor, passedTrainingCount, REASSESSMENT_LABELS, retrainedAt } from "../../../shared/rules";
+import { isDevelopmentRollback, openNeedFor, passedTrainingCount, retrainedAt } from "../../../shared/rules";
 import { currentGap, developmentById, developmentHistory, developmentNeeds, employeeById, formatDate, formatPeriod, latestCurrentPositionAssessment, objectiveFromFinding, positionOf, reassessmentFor, scorecardsOf, sourceTypeLabel, today, trainings, visibleEmployees } from "../../data/selectors";
 import { FormError, FormModal, ModalActions, RadioField, ReadOnlyField, SearchSelectField, SelectField, TextAreaField, TextField } from "../../ui/forms";
 import { Notice, statusLabel } from "../../ui/primitives";
@@ -220,13 +220,13 @@ export function ReassessmentModal({ needId, onClose }: { needId: string; onClose
       <FormError message={error} />
       <RadioField label="Reassessment result" testId="reassessment" required value={decision} onChange={(value) => setDecision(value as DevelopmentReassessment)}
         error={touched && !decision ? "Hasil reassessment wajib dipilih." : undefined}
-        helper={decision && decision === recorded ? `${REASSESSMENT_LABELS[decision]} sudah tercatat untuk requirement ini.` : "Hasil penilaian ulang kompetensi setelah training/development selesai."}
+        helper={decision && decision === recorded ? `${decision} sudah tercatat untuk requirement ini.` : "Hasil penilaian ulang kompetensi setelah training/development selesai."}
         options={[
-          { value: "Retraining", label: REASSESSMENT_LABELS.Retraining, description: "Gap belum tertutup, perlu training ulang." },
-          { value: "Sudah memenuhi", label: REASSESSMENT_LABELS["Sudah memenuhi"], description: "Kompetensi sudah sesuai persyaratan posisi.", testId: "meets-requirement" },
+          { value: "Retraining", label: "Retraining", description: "Gap belum tertutup, perlu training ulang." },
+          { value: "Meets requirement", label: "Meets requirement", description: "Kompetensi sudah sesuai persyaratan posisi.", testId: "meets-requirement" },
         ]} />
       {decision === "Retraining" && <Notice tone="warning">Requirement dibuka kembali dengan status Planned agar training ulang bisa dibuat dari requirement yang sama.</Notice>}
-      {decision === "Sudah memenuhi" && <Notice>Requirement tetap Completed. Pastikan penilaian kompetensi terbaru sudah disimpan di Competency Gap.</Notice>}
+      {decision === "Meets requirement" && <Notice>Requirement tetap Completed. Pastikan penilaian kompetensi terbaru sudah disimpan di Competency Gap.</Notice>}
       <TextAreaField label="Notes" testId="notes" value={notes} onChange={(event) => setNotes(event.target.value)} helper="Opsional. Misalnya hasil evaluasi bersama atasan atau departemen pengaju." />
       <p className="text-xs text-ink-3">Belum menilai ulang? <Link href={`/competency/${current.employeeId}`} className="font-semibold text-primary-600 hover:underline">Buka Competency Gap</Link> lalu simpan penilaian terbaru.</p>
     </form>
