@@ -4,8 +4,11 @@ import { currentCompetencyStatus, currentGap, employeeSearchText, inTrainingOrPo
 import { statusLabel } from "../../ui/primitives";
 
 export type CompetencyRow = { employee: EmployeeReference; position: string; status: CurrentCompetencyStatus; findings: CompetencyFinding[]; lastAssessed?: string };
-/** Empty string = no filter. `status` is the English display label (statusLabel). */
-export type CompetencyFilters = { search: string; position: string; department: string; status: string };
+/** Empty string = no filter. `status` is the English display label (statusLabel); `competency` a competency id. */
+export type CompetencyFilters = { search: string; position: string; department: string; status: string; competency: string };
+
+/** Competency filter options (FR-D4-002 A and B), by name. */
+export const competencyOptions = (snapshot: Snapshot) => [...snapshot.reference.competencies].sort((a, b) => a.name.localeCompare(b.name)).map((item) => ({ value: item.id, label: item.name }));
 
 /**
  * Rows of the Competency Gap list (UAT-11). HR and managers only see employees in scope: trainees, a position
@@ -20,6 +23,6 @@ export function competencyRows(snapshot: Snapshot, filters: CompetencyFilters): 
     return { employee, position: positionOf(snapshot, employee)?.title ?? "—", status: currentCompetencyStatus(snapshot, employee), findings: gap?.findings ?? [], lastAssessed: saved?.effectiveDate };
   }).filter((row) => includesText(employeeSearchText(snapshot, row.employee), filters.search)
     && (!filters.position || row.employee.positionId === filters.position) && (!filters.department || row.employee.departmentId === filters.department)
-    && (!filters.status || statusLabel(row.status) === filters.status))
+    && (!filters.status || statusLabel(row.status) === filters.status) && (!filters.competency || row.findings.some((item) => item.competencyId === filters.competency)))
     .sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName));
 }
