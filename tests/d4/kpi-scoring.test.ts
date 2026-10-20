@@ -6,7 +6,7 @@ import { d4ReferenceFixture } from "@/modules/d4/shared/fixtures";
 import { createFixtureSource } from "@/modules/d4/web/data/fixture-source";
 import type { D4DataSource } from "@/modules/d4/web/data/source";
 import { HIGH_ABOVE, performanceBand, scaleMaxOf, UNDER_BELOW } from "@/modules/d4/kpi/scale";
-import { periodChange, weighted } from "@/modules/d4/web/features/kpi/KpiFormModal";
+import { actualInput, legacyRealisation, periodChange, scorecardTotal, weighted } from "@/modules/d4/web/features/kpi/KpiFormModal";
 
 const catalog = { rows: KPI_V51_CATALOG };
 const ALFA = "d4000000-0000-4000-8000-000000000009"; // Finance Staff → role 10 (weights 25/25/20/15/15)
@@ -80,6 +80,52 @@ describe("KPI score scale per catalog version", () => {
   });
 });
 
+// Q4 (20 Oct 2026): Actual and Score are one column. The number typed in Actual is the raw score; notes go to Comment.
+describe("KPI form: Actual is the score (Q4)", () => {
+  const WEIGHTS = [25, 25, 20, 15, 15]; // Finance Staff, same weights in V5.1 and V6
+  const fromActual = (actuals: string[]) => actuals.map((value, index) => ({ weight_percent: WEIGHTS[index], ...actualInput(value) }));
+
+  it("turns the number typed in Actual into the raw score and keeps the same number as the actual text", () => {
+    expect(actualInput("4")).toEqual({ actual: "4", raw_score: 4 });
+    expect(actualInput(" 90 ")).toEqual({ actual: "90", raw_score: 90 });
+    expect(actualInput("")).toEqual({ actual: "", raw_score: null });
+    expect(actualInput("abc")).toEqual({ actual: "", raw_score: null });
+  });
+
+  it("weights and totals a V5.1 scorecard (Actual 1–5)", () => {
+    const max = scaleMaxOf("V5.1");
+    const lines = fromActual(["5", "3", "4", "2", "1"]);
+    expect(lines.map((line) => weighted(line, max))).toEqual([1.25, 0.75, 0.8, 0.3, 0.15]);
+    expect(scorecardTotal(lines, max)).toBe(3.25); // raw 3.2499999999999996
+  });
+
+  it("weights and totals a V6 scorecard (Actual 1–100)", () => {
+    const max = scaleMaxOf("V6");
+    const lines = fromActual(["90", "80", "70", "85", "100"]);
+    expect(lines.map((line) => weighted(line, max))).toEqual([22.5, 20, 14, 12.75, 15]);
+    expect(scorecardTotal(lines, max)).toBe(84.25);
+  });
+
+  it.each([["V5.1", "0"], ["V5.1", "6"], ["V5.1", "3.5"], ["V5.1", ""], ["V6", "0"], ["V6", "101"], ["V6", "3.5"], ["V6", ""]])("%s: Actual %j gives no weighted value and no total", (version, bad) => {
+    const max = scaleMaxOf(version);
+    const ok = String(max === 5 ? 4 : 90);
+    const lines = fromActual([ok, ok, ok, ok, bad]);
+    expect(weighted(lines[4], max)).toBeNull();
+    expect(scorecardTotal(lines, max)).toBeNull();
+  });
+
+  it("has no total until all five lines are scored", () => {
+    expect(scorecardTotal(fromActual(["4", "4", "4", "4"]), 5)).toBeNull();
+  });
+
+  it("shows realisation text from the old Actual column, and nothing for a line saved since Q4", () => {
+    expect(legacyRealisation({ actual: "110% dari target", raw_score: 4 })).toBe("110% dari target");
+    expect(legacyRealisation({ actual: "4", raw_score: 4 })).toBe("");
+    expect(legacyRealisation({ actual: "", raw_score: 4 })).toBe("");
+    expect(legacyRealisation(actualInput("85"))).toBe("");
+  });
+});
+
 // D4-UI-04: a Save error built for Oct (score 1–5) must not stay on screen after switching to Nov (score 1–100).
 describe("KPI form: changing the period", () => {
   const set = seedCatalogSet(d4ReferenceFixture.positions);
@@ -142,6 +188,24 @@ describe("saved scorecard total (fixture source, mirrors the DB trigger d4_calcu
     expect(performanceBand(saved.overallScore, saved.definitionVersion)).toBe("Average Performance");
     await expect(source.createKpiAssessment({ ...base, period: "2026-10", lines })).rejects.toThrow("1 sampai 5");
     await expect(source.createKpiAssessment({ ...base, period: "2026-12", lines: lines.map((line) => ({ ...line, raw_score: 101 })) })).rejects.toThrow("1 sampai 100");
+  });
+
+  it("saves the Actual typed in the form as the score and keeps Comment as the realisation note (Q4, V6)", async () => {
+    const actuals = ["90", "80", "70", "85", "100"];
+    const lines = indicatorsFor(catalog, FINANCE_ROLE).map((row, index) => ({
+      indicator_order: row.indicator_order, kpi_name: row.kpi_name, weight_percent: row.weight_percent, target: "", ...actualInput(actuals[index]), comment: "Realisasi 98% SLA",
+    }));
+    const id = await source.createKpiAssessment({ employeeId: ALFA, roleOrder: FINANCE_ROLE, period: "2026-11", evaluationDate: "2026-12-15", evaluatorName: "x", status: "completed", lines, generalNotes: "Catatan", evidenceReference: "DOC-1" });
+    const saved = (await source.loadSnapshot()).kpiAssessments!.find((item) => item.id === id)!;
+    expect(saved.overallScore).toBe(84.25);
+    expect(saved.lines.map((line) => [line.actual, line.raw_score, legacyRealisation(line), line.comment])).toEqual(actuals.map((value) => [value, Number(value), "", "Realisasi 98% SLA"]));
+  });
+
+  it("still reads a scorecard saved before Q4: same total, old realisation text kept for Comment", async () => {
+    const old = (await source.loadSnapshot()).kpiAssessments!.find((item) => item.status === "completed" && item.definitionVersion === "V5.1")!;
+    expect(old.lines.every((line) => line.actual.trim() !== "")).toBe(true);
+    expect(scorecardTotal(old.lines, scaleMaxOf(old.definitionVersion))).toBe(old.overallScore);
+    expect(old.lines.map(legacyRealisation)).toEqual(old.lines.map((line) => line.actual));
   });
 
   it("stores the catalog target, not the one in the request", async () => {

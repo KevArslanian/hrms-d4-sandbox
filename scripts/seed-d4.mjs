@@ -85,7 +85,8 @@ async function main() {
       period: PERIOD, evaluation_date: TODAY, evaluator_name: evaluator, status: "completed",
       lines: indicators.map((row, i) => ({
         indicator_order: row.indicator_order, kpi_name: row.kpi_name, weight_percent: row.weight_percent,
-        target: row.target ?? "Sesuai target periode", actual: "Lihat laporan periode", raw_score: sample.kpi[i], comment: "",
+        // Q4: Actual is the score; realisation notes go to Comment.
+        target: row.target ?? "Sesuai target periode", actual: String(sample.kpi[i]), raw_score: sample.kpi[i], comment: "Lihat laporan periode",
       })),
       general_notes: `Scorecard contoh untuk demo D4. ${MARKER}`,
     }).select("id").single(), "KPI assessment");
