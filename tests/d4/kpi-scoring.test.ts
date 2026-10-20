@@ -1,12 +1,12 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { catalogFor, indicatorsFor, KPI_TARGET, KPI_V51_CATALOG, roleForPosition, roleForPositionTitle, rolesOf, targetOf, type KpiCatalogSet } from "@/modules/d4/kpi/catalog";
+import { catalogFor, indicatorsFor, KPI_TARGET, KPI_V51_CATALOG, roleForPosition, roleForPositionTitle, rolesOf, seedCatalogSet, targetOf, type KpiCatalogSet } from "@/modules/d4/kpi/catalog";
 import { d4ReferenceFixture } from "@/modules/d4/shared/fixtures";
 import { createFixtureSource } from "@/modules/d4/web/data/fixture-source";
 import type { D4DataSource } from "@/modules/d4/web/data/source";
 import { HIGH_ABOVE, performanceBand, scaleMaxOf, UNDER_BELOW } from "@/modules/d4/kpi/scale";
-import { weighted } from "@/modules/d4/web/features/kpi/KpiFormModal";
+import { periodChange, weighted } from "@/modules/d4/web/features/kpi/KpiFormModal";
 
 const catalog = { rows: KPI_V51_CATALOG };
 const ALFA = "d4000000-0000-4000-8000-000000000009"; // Finance Staff → role 10 (weights 25/25/20/15/15)
@@ -77,6 +77,25 @@ describe("KPI score scale per catalog version", () => {
   it("weights a 1–100 raw score with the same formula (weight × score / 100)", () => {
     expect(weighted({ weight_percent: 25, raw_score: 80 }, 100)).toBe(20);
     expect(weighted({ weight_percent: 25, raw_score: 80 })).toBeNull(); // 80 is not a valid 1–5 score
+  });
+});
+
+// D4-UI-04: a Save error built for Oct (score 1–5) must not stay on screen after switching to Nov (score 1–100).
+describe("KPI form: changing the period", () => {
+  const set = seedCatalogSet(d4ReferenceFixture.positions);
+  const alfa = d4ReferenceFixture.employees.find((item) => item.id === ALFA)!;
+
+  it("clears an earlier Save error and reloads the KPI set when the catalog version changes", () => {
+    const change = periodChange(set, "2026-10", "2026-11", alfa);
+    expect(change.error).toBe("");
+    expect(change.roleOrder).toBe(FINANCE_ROLE);
+    expect(change.lines).toHaveLength(5);
+    expect(change.lines!.every((line) => line.raw_score === null)).toBe(true);
+  });
+
+  it("clears the error but keeps the entered lines within the same catalog version", () => {
+    expect(periodChange(set, "2026-10", "2026-09", alfa)).toEqual({ error: "" });
+    expect(periodChange(set, "2026-10", "2026-11", undefined)).toEqual({ error: "" }); // no employee chosen yet
   });
 });
 
