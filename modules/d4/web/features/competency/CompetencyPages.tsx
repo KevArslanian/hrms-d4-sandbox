@@ -52,15 +52,14 @@ export function CompetencyListPage() {
   const [status, setStatus] = useState("");
   const [competency, setCompetency] = useState("");
   const [devFor, setDevFor] = useState<string | null>(null);
-  const [changing, setChanging] = useState(false);
+  const [changing, setChanging] = useState<EmployeeReference | null>(null);
   const rows = useMemo(() => competencyRows(snapshot, { search, position, department, status, competency }), [snapshot, search, position, department, status, competency]);
   const filtered = Boolean(search || position || department || status || competency);
-  // UAT-11: the list holds only employees in scope; anyone else starts with Assess Position Change.
-  const outOfScope = writer ? "Untuk pegawai lain, klik Assess Position Change lalu pilih pegawai dan posisi barunya." : "Penilaian perubahan posisi untuk pegawai lain dimulai oleh HR.";
+  // UAT-11: the list holds only employees in scope; anyone else is reached from People Dashboard, whose employee detail links here.
+  const outOfScope = writer ? "Untuk pegawai lain, buka detailnya dari People Dashboard lalu klik Assess Position Change." : "Penilaian perubahan posisi untuk pegawai lain dimulai oleh HR.";
 
   return <>
-    <PageHeader title="Competency Gap" subtitle="Bandingkan kemampuan dan bukti pegawai dengan persyaratan posisinya. Daftar berisi pegawai yang sedang training (status Probation/Intern), naik jabatan dalam 6 bulan terakhir, atau masih punya development requirement terbuka."
-      actions={writer && <Button icon={<ArrowRightLeft className="size-4" />} onClick={() => setChanging(true)} data-testid="btn-assess-position-change">Assess Position Change</Button>} />
+    <PageHeader title="Competency Gap" subtitle="Bandingkan kemampuan pegawai dengan persyaratan posisinya." />
     <FilterBar canReset={filtered} onReset={() => { setSearch(""); setPosition(""); setDepartment(""); setStatus(""); setCompetency(""); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Search name or position" />
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All positions" testId="all-positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />}
@@ -84,37 +83,33 @@ export function CompetencyListPage() {
         { label: "View History", testId: "view-history", icon: <History />, href: `/competency/${row.employee.id}/history` },
         { label: "Create Development Requirement", testId: "create-development-requirement", icon: <FilePlus2 />, onSelect: () => setDevFor(row.employee.id),
           hidden: !writer || row.status === "Not Evaluated" || row.findings.filter((item) => item.status === "Gap").every((item) => openNeedFor(allNeeds, row.employee.id, "competency_gap", item.requirementId)) },
+        { label: "Assess Position Change", testId: "assess-position-change", icon: <ArrowRightLeft />, onSelect: () => setChanging(row.employee), hidden: !writer },
       ]} />} />
     {devFor && <DevelopmentFormModal employeeId={devFor} sourceType="competency_gap" onClose={() => setDevFor(null)} />}
-    {changing && <PositionChangeModal onClose={() => setChanging(false)} />}
+    {changing && <PositionChangeModal employee={changing} onClose={() => setChanging(null)} />}
   </>;
 }
 
-/** Without `employee` (opened from the list) HR picks any visible employee first, so nobody needs to be in scope already. */
-function PositionChangeModal({ employee: fixed, onClose }: { employee?: EmployeeReference; onClose: () => void }) {
+/** Opened for one employee, from the list row menu or the detail page. */
+function PositionChangeModal({ employee, onClose }: { employee: EmployeeReference; onClose: () => void }) {
   const snapshot = useSnapshot();
   const { run, busy } = useD4();
-  const [employeeId, setEmployeeId] = useState(fixed?.id ?? "");
-  const employee = fixed ?? employeeById(snapshot, employeeId);
   const [position, setPosition] = useState("");
   const [date, setDate] = useState(today());
   const [assessedWith, setAssessedWith] = useState("");
   const [error, setError] = useState("");
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (!employee) { setError("Pilih pegawai."); return; }
     if (!position) { setError("Pilih posisi baru."); return; }
     const result = await run((source) => source.saveCompetency({ employeeId: employee.id, positionId: position, effectiveDate: date, assessedWith }), "Penilaian perubahan posisi tersimpan.");
     if (result.ok) onClose(); else setError(result.error);
   }
-  return <FormModal title="Position Change Assessment" description="Bandingkan kemampuan pegawai dengan persyaratan posisi baru. Riwayat gap untuk posisi lama tetap disimpan." onClose={onClose}
+  return <FormModal title="Position Change Assessment" description={`${employee.fullName} · ${employee.employeeId}. Riwayat gap untuk posisi lama tetap disimpan.`} onClose={onClose}
     footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Assessment" />}>
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />
-      {!fixed && <SearchSelectField label="Employee" testId="employee" required value={employeeId} onChange={(value) => { setEmployeeId(value); setPosition(""); setError(""); }} placeholder="Select employee"
-        options={visibleEmployees(snapshot).map((item) => ({ value: item.id, label: `${item.fullName} · ${item.employeeId}` }))} />}
       <SearchSelectField label="New position" testId="new-position" required value={position} onChange={(value) => setPosition(value)} placeholder="Select position"
-        options={snapshot.reference.positions.filter((item) => item.id !== employee?.positionId).map((item) => ({ value: item.id, label: `${item.title}` }))} />
+        options={snapshot.reference.positions.filter((item) => item.id !== employee.positionId).map((item) => ({ value: item.id, label: `${item.title}` }))} />
       <TextField label="Effective date" testId="effective-date" required type="date" value={date} onChange={(event) => setDate(event.target.value)} />
       <AssessedWithField value={assessedWith} onChange={setAssessedWith} />
       <Notice>Penilaian ini tidak mengubah data master posisi pegawai dan tidak memindahkan siapa pun secara otomatis.</Notice>
