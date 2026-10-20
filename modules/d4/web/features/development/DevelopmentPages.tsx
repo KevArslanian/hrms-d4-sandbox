@@ -16,8 +16,8 @@ import { competencyOptions } from "../competency/rows";
 import { developmentRows } from "./rows";
 
 /**
- * Reassessment result of a need, or nothing while it is still open. It is a state, so it sits with Status.
- * `compact`: a short line under the status badge in the list, which may wrap so the table still fits a laptop.
+ * Reassessment result of a need, or nothing while it is still open.
+ * `compact`: a short line in the list's Action column, which may wrap so the table still fits a laptop.
  */
 export function ReassessmentBadge({ snapshot, needId, compact }: { snapshot: Snapshot; needId: string; compact?: boolean }) {
   const state = reassessmentFor(snapshot, needId);
@@ -26,6 +26,19 @@ export function ReassessmentBadge({ snapshot, needId, compact }: { snapshot: Sna
   return compact
     ? <span data-testid="reassessment-result" className="block max-w-28 text-xs leading-4 text-ink-2">{statusLabel(status)}</span>
     : <span data-testid="reassessment-result"><StatusBadge status={status} /></span>;
+}
+
+/**
+ * Action column of the list (Q10): a Completed requirement waiting for HR's decision gets the Record Reassessment
+ * button; once recorded, the decision shows here instead (Retraining stays until the requirement is Completed again).
+ * The button wraps to two lines so the column stays narrow; changing a recorded decision goes through the ⋮ menu.
+ */
+function ReassessmentAction({ snapshot, needId, writer, onRecord }: { snapshot: Snapshot; needId: string; writer: boolean; onRecord: () => void }) {
+  const state = reassessmentFor(snapshot, needId);
+  if (state === "pending" && writer) return <button type="button" data-testid="btn-row-record-reassessment" onClick={onRecord}
+    className="inline-flex items-center gap-1.5 rounded-lg bg-primary-50 px-2.5 py-1.5 text-left text-xs font-semibold leading-4 text-primary-600 hover:bg-primary-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500">
+    <Scale aria-hidden="true" className="size-3.5 shrink-0" />Record Reassessment</button>;
+  return state ? <ReassessmentBadge snapshot={snapshot} needId={needId} compact /> : <span className="text-ink-3">—</span>;
 }
 
 export function DevelopmentListPage() {
@@ -63,15 +76,19 @@ export function DevelopmentListPage() {
       emptyTitle="Belum ada development requirement" emptyText="Buat dari gap kompetensi, perubahan posisi, atau evaluasi performance."
       columns={[
         { key: "employee", header: "Employee", cell: (row) => { const employee = employeeById(snapshot, row.employeeId); return <PersonCell name={employee?.fullName ?? "—"} code={employee?.employeeId ?? ""} />; } },
-        { key: "objective", header: "Objective", wrap: true, className: "max-w-[320px]", cell: (row) => <span className="line-clamp-2">{row.objective}</span> },
-        { key: "source", header: "Source", cell: (row) => <SourceChip label={sourceTypeLabel[row.sourceType]} /> },
+        // The source sits under the objective it explains, so the Action column fits 1280 px without scrolling (Q10).
+        { key: "objective-source", header: "Objective / Source", wrap: true, className: "max-w-[320px]", cell: (row) => <>
+          <span data-testid="cell-objective" className="line-clamp-2">{row.objective}</span>
+          <span data-testid="cell-source" className="mt-1.5 block"><SourceChip label={sourceTypeLabel[row.sourceType]} /></span>
+        </> },
         { key: "priority", header: "Priority", cell: (row) => statusLabel(row.priority) },
         // One column, as Position / Department on the People Dashboard, so the table fits a laptop screen.
         { key: "method-pic", header: "Method / PIC", wrap: true, className: "max-w-[160px]", cell: (row) => <>
           <span data-testid="cell-method" className="block">{row.method || "—"}</span>
           <span data-testid="cell-pic" className="block text-xs text-ink-3">{row.pic || "—"}</span>
         </> },
-        { key: "status", header: "Status", wrap: true, cell: (row) => <div className="flex flex-col items-start gap-1"><StatusBadge status={row.status} /><ReassessmentBadge snapshot={snapshot} needId={row.needId} compact /></div> },
+        { key: "status", header: "Status", cell: (row) => <StatusBadge status={row.status} /> },
+        { key: "action", header: "Action", wrap: true, cell: (row) => <ReassessmentAction snapshot={snapshot} needId={row.needId} writer={writer} onRecord={() => setReassessFor(row.needId)} /> },
         // Below 1400 px the date gives way (it is also on the detail page), so Method / PIC stays visible for the "Tanpa PIC" alert.
         { key: "updated", header: "Updated", secondary: true, cell: (row) => formatDate(row.createdAt) },
       ]}
