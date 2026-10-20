@@ -11,7 +11,7 @@
 
 ## 1. Tujuan dan cakupan
 
-Dokumen ini memetakan setiap requirement D4 ke test case yang dapat dijalankan QA. ID test case diturunkan langsung dari checklist kartu QA di board Planka *Squad D4*, jadi satu baris checklist = satu TC ID. Test case baru (TC-D4-001) ditambahkan karena FR-D4-001 belum punya skenario di checklist mana pun.
+Dokumen ini memetakan setiap requirement D4 ke test case yang dapat dijalankan QA. ID test case diturunkan langsung dari checklist kartu QA di board Planka *Squad D4*, jadi satu baris checklist = satu TC ID. Test case baru (TC-D4-001) ditambahkan karena FR-D4-001 belum punya skenario di checklist mana pun. TC-D4-002-16 s.d. 19 (skala 1–100 katalog V6 dan kategori performa) ditambahkan 20 Okt 2026 dan belum ada di checklist Planka.
 
 Di luar cakupan: sertifikasi/renewal, trigger performance-gap formal, dan reassessment wajib (Academic/Project Extension sampai ada sumber resmi — lihat TS-D4-002/003).
 
@@ -20,7 +20,7 @@ Di luar cakupan: sertifikasi/renewal, trigger performance-gap formal, dan reasse
 | Requirement | Prefix TC | Jumlah TC | Kartu QA |
 |---|---|---|---|
 | US-D4-001 / FR-D4-001 Performance Evaluation | TC-D4-001 | 6 (baru) | [QA] Pengujian Phase 1 |
-| US-D4-002 / FR-D4-002 KPI Scorecard | TC-D4-002 | 19 | [QA] Pengujian Phase 1 |
+| US-D4-002 / FR-D4-002 KPI Scorecard | TC-D4-002 | 19 (4 baru) | [QA] Pengujian Phase 1 |
 | US-D4-003 / FR-D4-003 Competency Gap | TC-D4-003 | 12 | [QA] Pengujian Phase 2 |
 | US-D4-004 / FR-D4-004 Development Requirement | TC-D4-004 | 12 | [QA] Pengujian Phase 2 |
 | US-D4-005 / FR-D4-005 Training Tracking | TC-D4-005 | 15 | [QA] Pengujian Phase 3 |
@@ -284,4 +284,5 @@ Rekomendasi: QA memakai ID RTM ini saat mencatat hasil agar tidak ada dua nomor 
 ## 8. Yang masih harus dilakukan QA
 
 - Review coverage bersama PO sebelum eksekusi (item checklist tetap terbuka sampai review dilakukan).
+- Tambahkan TC-D4-002-16 s.d. 19 ke checklist kartu **[QA] Pengujian Phase 1**.
 - Isi expected result detail per TC dari Acceptance Criteria FR masing-masing.
