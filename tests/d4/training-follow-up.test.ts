@@ -9,7 +9,8 @@ import { trainingFixtureVersions } from "@/modules/d4/training/fixtures";
 import type { TrainingVersion } from "@/modules/d4/training/types";
 import type { D4DataSource } from "@/modules/d4/web/data/source";
 import { currentCompetencyStatus, type Snapshot } from "@/modules/d4/web/data/selectors";
-import { dashboardAlerts, employeeHistory } from "@/modules/d4/web/features/dashboard/summary";
+import { dashboardAlerts, employeeHistory, type DashboardRow } from "@/modules/d4/web/features/dashboard/summary";
+import { sourceOptions } from "@/modules/d4/web/features/development/DevelopmentModals";
 
 // Q16 (20 Oct 2026): every training ends Passed or Not Passed; a Not Passed one needs HR's follow-up, Retraining or
 // Other follow-up with a note, recorded insert-only. People are picked by id (Prompt 5 rule 3).
@@ -167,5 +168,31 @@ describe("follow-up storage in Supabase", () => {
     const loaded = await new SupabaseD4Repository(client).loadSnapshot();
     expect(selects).toContain("d4_training_versions:*");
     expect(loaded.trainingVersions.map((item) => [item.revision, item.followUp])).toEqual([[2, "Other follow-up"], [1, null]]);
+  });
+});
+
+describe("Under Performance: assign training from the alert (Q16)", () => {
+  it("lists each employee with the scorecard the training requirement is raised from, a valid performance source", async () => {
+    const source = await hrSource();
+    const base = await source.loadSnapshot();
+    // V6 (1–100) starts Nov 2026; the fixture has none, so one under 80 is added here.
+    const september = base.kpiAssessments!.find((item) => item.employeeId === ALFA)!;
+    const low = { ...september, id: "T-KPI-UNDER", definitionVersion: "V6", period: "2026-11", overallScore: 72.5 };
+    const snapshot: Snapshot = { ...base, kpiAssessments: [low, ...base.kpiAssessments!] };
+    const rows: DashboardRow[] = snapshot.reference.employees.map((employee) => ({ employee, gap: currentCompetencyStatus(snapshot, employee), scorecard: employee.id === ALFA ? low : undefined }));
+    const alert = dashboardAlerts(snapshot, rows).find((item) => item.key === "under-performance")!;
+    expect(alert.assign).toEqual([{ employeeId: ALFA, name: snapshot.reference.employees.find((item) => item.id === ALFA)!.fullName, scorecardId: "T-KPI-UNDER" }]);
+    // DevelopmentFormModal preselects sourceRef only when it is one of its performance_context options.
+    expect(sourceOptions(snapshot, ALFA, "performance_context").map((item) => item.ref)).toContain("T-KPI-UNDER");
+    // Average or unrated rows get no action.
+    const average = rows.map((row) => row.employee.id === ALFA ? { ...row, scorecard: { ...low, overallScore: 80 } } : row);
+    expect(dashboardAlerts(snapshot, average).find((item) => item.key === "under-performance")).toBeUndefined();
+  });
+
+  it("the fixture source saves the requirement the form submits for that scorecard", async () => {
+    const source = await hrSource();
+    const scorecard = (await source.loadSnapshot()).kpiAssessments!.find((item) => item.employeeId === ALFA && item.status === "completed")!;
+    const needId = await source.createDevelopment({ employeeId: ALFA, sourceType: "performance_context", sourceRef: scorecard.id, objective: "Naikkan skor KPI", priority: "High", notes: "" });
+    expect((await source.loadSnapshot()).developmentVersions.find((item) => item.needId === needId)).toMatchObject({ sourceType: "performance_context", sourceRef: scorecard.id, status: "Identified" });
   });
 });
