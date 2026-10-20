@@ -1,4 +1,6 @@
 import type { CompetencyFinding } from "../../../competency/types";
+import type { DevelopmentNeedVersion } from "../../../development/types";
+import { openNeedFor } from "../../../shared/rules";
 import type { EmployeeReference } from "../../../shared/types";
 import { currentCompetencyStatus, currentGap, employeeSearchText, inTrainingOrPositionChange, includesText, latestCurrentPositionAssessment, positionOf, visibleEmployees, type CurrentCompetencyStatus, type Snapshot } from "../../data/selectors";
 import { statusLabel } from "../../ui/primitives";
@@ -25,4 +27,27 @@ export function competencyRows(snapshot: Snapshot, filters: CompetencyFilters): 
     && (!filters.position || row.employee.positionId === filters.position) && (!filters.department || row.employee.departmentId === filters.department)
     && (!filters.status || statusLabel(row.status) === filters.status) && (!filters.competency || row.findings.some((item) => item.competencyId === filters.competency)))
     .sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName));
+}
+
+/** Difference shown per competency, actual minus required: "−1" is one level short, "—" while no level is recorded. */
+export const formatDifference = (difference: number | null) =>
+  difference === null ? "—" : difference > 0 ? `+${difference}` : difference < 0 ? `−${-difference}` : "0";
+
+/**
+ * Why a competency has its status (Q15: show the logic, not only the data). Same rules as compareCompetencies:
+ * no level or no evidence is Insufficient Data, a level below the requirement is a Gap, otherwise Met.
+ */
+export function findingLogic(finding: Pick<CompetencyFinding, "requiredLevel" | "actualLevel" | "evidenceNotes">): { difference: number | null; reason: string } {
+  const { requiredLevel: required, actualLevel: actual } = finding;
+  if (actual === null) return { difference: null, reason: `Level belum tercatat, jadi belum bisa dibandingkan dengan minimal ${required}.` };
+  const difference = actual - required;
+  if (!finding.evidenceNotes?.trim()) return { difference, reason: `Level ${actual} belum punya bukti, jadi belum disimpulkan Gap atau Met.` };
+  return { difference, reason: difference < 0 ? `Level ${actual} di bawah minimal ${required}: kurang ${-difference} level.` : `Level ${actual} memenuhi minimal ${required}.` };
+}
+
+/** The requirement raised to close a competency gap: the unfinished one first, otherwise the latest one (Q15). */
+export function closingRequirement(needs: readonly DevelopmentNeedVersion[], employeeId: string, requirementId: string): DevelopmentNeedVersion | undefined {
+  return openNeedFor(needs, employeeId, "competency_gap", requirementId) ?? needs
+    .filter((need) => need.employeeId === employeeId && need.sourceType === "competency_gap" && need.sourceRef === requirementId)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
 }
