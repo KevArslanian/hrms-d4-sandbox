@@ -1,21 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight, Eye, Target } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, Eye, Target } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
-import type { EmployeeReference } from "../../../shared/types";
 import type { D4LiveSnapshot, KpiAssessment } from "../../../supabase/types";
 import { useSnapshot } from "../../data/D4DataProvider";
-import { currentCompetencyStatus, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, evaluationsOf, formatDate, formatPeriod, formatScorecard, includesText, needsOf, positionOf, scorecardsOf, trainings, trainingsOf, visibleEmployees } from "../../data/selectors";
+import { canWrite, currentCompetencyStatus, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, employeeSearchText, evaluationsOf, formatDate, formatPeriod, formatScorecard, includesText, positionOf, scorecardsOf, trainings, trainingsOf, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
-import { DetailHeader, NotFound, PageHeader } from "../../ui/layout";
+import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
-import { Card, Notice, statusLabel, StatusBadge } from "../../ui/primitives";
-import { weighted } from "../kpi/KpiFormModal";
-import { performanceBand, scaleMaxOf } from "../../../kpi/scale";
+import { Card, Notice, slug, statusLabel, StatusBadge } from "../../ui/primitives";
+import { LineComment, weighted } from "../kpi/KpiFormModal";
+import { HIGH_ABOVE, performanceBand, scaleMaxOf, UNDER_BELOW } from "../../../kpi/scale";
+import { BANDS, COMPETENCY_ORDER, competencySlices, dashboardAlerts, employeeHistory, gapRanking, matchesDashboardFilters, openNeedCount, performanceSlices, type AssignTarget, type DashboardRow, type Slice } from "./summary";
+import { DevelopmentFormModal } from "../development/DevelopmentModals";
 
-type Row = { employee: EmployeeReference; position: string; period?: string; scorecard?: KpiAssessment; gap: string; openNeeds: number; training?: string };
+type Row = DashboardRow & { position: string; period?: string; openNeeds: number; training?: string };
 
 /** FR-06.9 validation state: a scorecard is only summarised when it has five KPIs whose weights total 100%. */
 const validScorecard = (item: KpiAssessment) => item.lines.length === 5 && item.lines.reduce((sum, line) => sum + line.weight_percent, 0) === 100;
@@ -31,8 +32,8 @@ function periodData(snapshot: D4LiveSnapshot, employeeId: string, period: string
 /**
  * Dashboard KPI Orang (FR-D4-004): a read-only per-employee summary of the other five features.
  * It reads the same snapshot as the detail pages (FR-06.8), creates no data of its own and shows no achieved
- * label (FR-06.10). Above the table: headline counts and the competency pie asked for in Interview D4 (14 Oct 2026),
- * both over the rows already listed. Performance-band counts appear once 1–100 (V6) scorecards exist.
+ * label (FR-06.10). Above the table, over the rows already listed (Interview D4, 14 Oct 2026): headline counts,
+ * performance-category and competency donuts, the competencies with the most gaps, and alerts for HR follow-up.
  */
 export function DashboardPage() {
   const snapshot = useSnapshot();
@@ -40,6 +41,9 @@ export function DashboardPage() {
   const [position, setPosition] = useState("");
   const [department, setDepartment] = useState("");
   const [period, setPeriod] = useState("");
+  const [band, setBand] = useState("");
+  const [competency, setCompetency] = useState("");
+  const [training, setTraining] = useState("");
   const periods = useMemo(() => [...new Set([...(snapshot.kpiAssessments ?? []), ...snapshot.performance].map((item) => item.period))].sort().reverse(), [snapshot]);
 
   const rows = useMemo<Row[]>(() => visibleEmployees(snapshot).map((employee) => {
@@ -48,27 +52,41 @@ export function DashboardPage() {
     return {
       employee, position: positionOf(snapshot, employee)?.title ?? "—", period: data.period, scorecard: data.scorecard,
       gap: currentCompetencyStatus(snapshot, employee),
-      openNeeds: needsOf(snapshot, employee.id).filter((item) => item.status !== "Completed").length,
+      openNeeds: openNeedCount(snapshot, employee.id),
       training: trainingsOf(snapshot, employee.id)[0]?.status,
     };
-  }).filter((row) => includesText(`${row.employee.fullName} ${row.employee.employeeId}`, search) && (!position || row.employee.positionId === position) && (!department || row.employee.departmentId === department))
-    .sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName)), [snapshot, search, position, department, period, periods]);
+  }).filter((row) => includesText(employeeSearchText(snapshot, row.employee), search) && (!position || row.employee.positionId === position) && (!department || row.employee.departmentId === department)
+    && matchesDashboardFilters(row, { band, competency, training }))
+    .sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName)), [snapshot, search, position, department, period, periods, band, competency, training]);
 
   const profileHref = (row: Row) => `/dashboard/employee/${row.employee.id}${row.period ? `?period=${row.period}` : ""}`;
 
   return <>
     <PageHeader title="People Dashboard" subtitle="KPI, performance, gap kompetensi, development, dan training per pegawai untuk periode yang sama." />
-    <FilterBar canReset={Boolean(search || position || department || period)} onReset={() => { setSearch(""); setPosition(""); setDepartment(""); setPeriod(""); }}>
-      <SearchInput value={search} onChange={setSearch} placeholder="Search name or ID" />
+    <FilterBar canReset={Boolean(search || position || department || period || band || competency || training)} onReset={() => { setSearch(""); setPosition(""); setDepartment(""); setPeriod(""); setBand(""); setCompetency(""); setTraining(""); }}>
+      <SearchInput value={search} onChange={setSearch} placeholder="Search name or position" />
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All positions" testId="all-positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />}
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All departments" testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />}
       {/* The dashboard always shows one period, so there is no "All periods" choice; it starts on the latest one. */}
       <SelectFilter label="Period" testId="latest-period" emptyOption={false} value={period || periods[0] || ""} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
+      {/* FR-D4-004 B: performance category (1–100 scorecards only), competency status and latest training status. */}
+      {snapshot.role !== "EMPLOYEE" && <>
+        <SelectFilter label="All categories" testId="all-categories" value={band} onChange={setBand} options={BANDS.map((item) => ({ value: item, label: item }))} />
+        <SelectFilter label="All competency status" testId="all-competency-status" value={competency} onChange={setCompetency} options={COMPETENCY_ORDER.map((item) => ({ value: item, label: item }))} />
+        <SelectFilter label="All training status" testId="all-training-status" value={training} onChange={setTraining} options={["Planned", "In Progress", "Completed", "Cancelled"].map((item) => ({ value: item, label: statusLabel(item) }))} />
+      </>}
     </FilterBar>
     <SummaryStrip rows={rows} />
-    {snapshot.role !== "EMPLOYEE" && rows.length > 0 && <CompetencyPie rows={rows} />}
+    {snapshot.role !== "EMPLOYEE" && rows.length > 0 && <>
+      <div className="grid gap-6 xl:grid-cols-3">
+        <PerformanceCard rows={rows} />
+        <CompetencyCard rows={rows} />
+        <GapRankingCard snapshot={snapshot} rows={rows} />
+      </div>
+      <AlertsCard snapshot={snapshot} rows={rows} />
+    </>}
     <DataTable<Row> rows={rows} noun="employees" rowKey={(row) => row.employee.id}
-      emptyTitle="Tidak ada pegawai yang cocok" emptyText={snapshot.role === "EMPLOYEE" ? "Ubah kata kunci atau periode, lalu coba lagi." : "Ubah kata kunci, posisi, departemen, atau periode, lalu coba lagi."}
+      emptyTitle="Tidak ada pegawai yang cocok" emptyText={snapshot.role === "EMPLOYEE" ? "Ubah kata kunci atau periode, lalu coba lagi." : "Ubah kata kunci, filter, atau periode, lalu coba lagi."}
       columns={[
         { key: "employee", header: "Employee", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
         // Position and department share one column so the nine summary columns fit at 1440px.
@@ -91,52 +109,130 @@ function SummaryStrip({ rows }: { rows: readonly Row[] }) {
   const tiles = [
     { key: "total", label: "Employees", value: rows.length },
     { key: "kpi", label: "KPI scorecard complete", value: rows.filter((row) => row.scorecard && validScorecard(row.scorecard)).length },
-    { key: "dev", label: "With open development", value: rows.filter((row) => row.openNeeds > 0).length },
+    // UAT-19: the partner asked for "jumlah karyawan yang butuh training"; testId summary-dev stays for Katalon.
+    { key: "dev", label: "Need training", hint: "punya development requirement yang belum selesai", value: rows.filter((row) => row.openNeeds > 0).length },
     { key: "training", label: "Training in progress", value: rows.filter((row) => row.training === "In Progress").length },
   ];
-  // Performance bands exist only for 1–100 scorecards (catalog V6 onward); until one is saved there is nothing to count.
-  const bands = (["Under Performance", "Acceptable", "High Performance"] as const).map((band) => ({
-    key: `band-${band.toLowerCase().replace(/\s+/g, "-")}`, label: band,
-    value: rows.filter((row) => row.scorecard && performanceBand(row.scorecard.overallScore, row.scorecard.definitionVersion) === band).length,
-  }));
-  const shown = bands.some((item) => item.value > 0) ? [...tiles, ...bands] : tiles;
   return <section aria-label="Summary" data-testid="dashboard-summary" className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-    {shown.map((tile) => <div key={tile.key} data-testid={`summary-${tile.key}`} className="rounded-2xl border border-line bg-surface p-5 shadow-card">
+    {tiles.map((tile) => <div key={tile.key} data-testid={`summary-${tile.key}`} className="rounded-2xl border border-line bg-surface p-5 shadow-card">
       <p className="text-xs font-semibold uppercase tracking-[0.04em] text-ink-3">{tile.label}</p>
       <p className="mt-2 font-display text-3xl font-semibold tabular-nums text-ink">{tile.value}</p>
-      <p className="mt-1 text-xs text-ink-3">dari daftar di bawah</p>
+      <p className="mt-1 text-xs text-ink-3">{tile.hint ?? "dari daftar di bawah"}</p>
     </div>)}
   </section>;
 }
 
-const PIE_COLORS: Record<string, string> = {
-  Terpenuhi: "var(--color-success)", Gap: "var(--color-danger)", "Bukti Belum Cukup": "var(--color-warning)",
-  "Belum Ada Persyaratan": "var(--color-info)", "Not Evaluated": "var(--color-neutral)",
+const BAND_COLORS: Record<string, string> = {
+  "under-performance": "var(--color-warning)", "average-performance": "var(--color-info)", "high-performance": "var(--color-success)",
+};
+const COMPETENCY_COLORS: Record<string, string> = {
+  met: "var(--color-success)", "insufficient-data": "var(--color-warning)", gap: "var(--color-danger)", "not-evaluated": "var(--color-neutral)",
 };
 
-/** Competency status of the employees in the current filter, as a pie (CSS conic-gradient, no chart library). */
-function CompetencyPie({ rows }: { rows: Row[] }) {
-  const counts = Object.keys(PIE_COLORS).map((status) => ({ status, count: rows.filter((row) => row.gap === status).length })).filter((item) => item.count);
-  let start = 0;
-  const stops = counts.map(({ status, count }) => {
-    const end = start + (count / rows.length) * 360;
-    const stop = `${PIE_COLORS[status]} ${start}deg ${end}deg`;
-    start = end;
-    return stop;
-  });
-  const summary = counts.map((item) => `${statusLabel(item.status)} ${item.count}`).join(", ");
-  return <Card title="Competency status" testId="competency-pie" className="mb-6">
-    <div className="flex flex-wrap items-center gap-6">
-      <div role="img" aria-label={`Competency status: ${summary}`} className="size-32 shrink-0 rounded-full" style={{ background: `conic-gradient(${stops.join(", ")})` }} />
-      <ul className="space-y-2 text-sm">
-        {counts.map(({ status, count }) => <li key={status} className="flex items-center gap-2">
-          <span aria-hidden="true" className="size-3 rounded-sm" style={{ background: PIE_COLORS[status] }} />
-          <span className="text-ink-2">{statusLabel(status)}</span>
-          <span className="font-semibold tabular-nums text-ink">{count}</span>
-          <span className="text-xs text-ink-3">({Math.round((count / rows.length) * 100)}%)</span>
-        </li>)}
-      </ul>
+const RING_R = 40;
+const RING = 2 * Math.PI * RING_R;
+/** Surface gap between slices in viewBox units (about 2px at the 144px size), so neighbours read apart without a stroke. */
+const SLICE_GAP = 1.5;
+
+/**
+ * Donut (a pie with the total in the middle) for part-to-whole at a glance. SVG arcs with a surface gap, a native
+ * tooltip per slice, and a legend with counts and shares that doubles as the table view.
+ */
+function Donut({ name, slices, colors, center, centerLabel }: { name: string; slices: readonly Slice[]; colors: Record<string, string>; center: number; centerLabel: string }) {
+  const drawn = slices.filter((slice) => slice.count > 0);
+  const sum = drawn.reduce((total, slice) => total + slice.count, 0);
+  const share = (count: number) => sum ? Math.round((count / sum) * 100) : 0;
+  const arcs = drawn.map((slice, index) => ({ slice, start: (drawn.slice(0, index).reduce((total, item) => total + item.count, 0) / sum) * RING, length: (slice.count / sum) * RING }));
+  const colorOf = (key: string) => colors[key] ?? "var(--color-neutral)";
+  return <div className="flex flex-wrap items-center gap-6">
+    <div className="relative size-36 shrink-0">
+      <svg viewBox="0 0 100 100" className="size-full -rotate-90" role="img" aria-label={`${name}: ${drawn.map((slice) => `${slice.label} ${slice.count}`).join(", ") || "belum ada data"}`}>
+        {!arcs.length && <circle cx="50" cy="50" r={RING_R} fill="none" stroke="var(--color-line)" strokeWidth="12" />}
+        {arcs.map(({ slice, start, length }) => {
+          const dash = arcs.length > 1 ? Math.max(length - SLICE_GAP, 0.5) : length;
+          return <circle key={slice.key} data-testid={`slice-${slice.key}`} cx="50" cy="50" r={RING_R} fill="none" stroke={colorOf(slice.key)} strokeWidth="12" strokeDasharray={`${dash} ${RING - dash}`} strokeDashoffset={-start}>
+            <title>{`${slice.label}: ${slice.count} (${share(slice.count)}%)`}</title>
+          </circle>;
+        })}
+      </svg>
+      <div aria-hidden="true" className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="font-display text-2xl font-semibold tabular-nums text-ink">{center}</span>
+        <span className="text-[11px] text-ink-3">{centerLabel}</span>
+      </div>
     </div>
+    <ul className="min-w-0 space-y-2 text-sm">
+      {slices.map((slice) => <li key={slice.key} data-testid={`legend-${slice.key}`} className="flex items-center gap-2">
+        <span aria-hidden="true" className="size-3 shrink-0 rounded-sm" style={{ background: colorOf(slice.key) }} />
+        <span className="text-ink-2">{slice.label}</span>
+        <span className="font-semibold tabular-nums text-ink">{slice.count}</span>
+        <span className="text-xs text-ink-3">({share(slice.count)}%)</span>
+      </li>)}
+    </ul>
+  </div>;
+}
+
+/** Under / Average / High from the total of the five Core KPI, for the period listed (Interview D4, 14 Oct 2026). */
+function PerformanceCard({ rows }: { rows: readonly Row[] }) {
+  const { slices, rated, total } = performanceSlices(rows);
+  return <Card title="Performance category" testId="performance-pie">
+    <Donut name="Performance category" slices={slices} colors={BAND_COLORS} center={rated} centerLabel={`dari ${total} pegawai`} />
+    <p className="mt-4 text-xs leading-5 text-ink-3">{rated
+      ? `Total 5 Core KPI: di bawah ${UNDER_BELOW} Under, ${UNDER_BELOW}–${HIGH_ABOVE} Average, di atas ${HIGH_ABOVE} High.${total > rated ? ` ${total - rated} pegawai belum punya kategori (belum ada scorecard 1–100).` : ""}`
+      : "Belum ada scorecard skala 1–100 pada periode ini. Kategori berlaku mulai scorecard V6 (periode Nov 2026); scorecard 1–5 (V3.1/V5.1) tidak punya kategori."}</p>
+  </Card>;
+}
+
+function CompetencyCard({ rows }: { rows: readonly Row[] }) {
+  return <Card title="Competency status" testId="competency-pie">
+    <Donut name="Competency status" slices={competencySlices(rows)} colors={COMPETENCY_COLORS} center={rows.length} centerLabel="pegawai" />
+  </Card>;
+}
+
+const GAP_BARS = 5;
+
+/** Ranked bars: which competencies have the most open gaps among the listed, assessed employees. */
+function GapRankingCard({ snapshot, rows }: { snapshot: D4LiveSnapshot; rows: readonly Row[] }) {
+  const ranking = gapRanking(snapshot, rows);
+  const top = ranking.slice(0, GAP_BARS);
+  const max = top[0]?.count ?? 0;
+  return <Card title="Top competency gaps" testId="competency-gap-ranking">
+    {top.length ? <ol className="space-y-3">
+      {top.map((item) => <li key={item.id} data-testid={`gap-bar-${slug(item.name)}`} title={`${item.name}: ${item.count} pegawai`}>
+        <p className="truncate text-sm text-ink-2">{item.name}</p>
+        <div className="mt-1 flex items-center gap-3">
+          <div className="h-2.5 flex-1"><div className="h-full rounded-r-[4px]" style={{ width: `${(item.count / max) * 100}%`, background: "var(--color-danger)" }} /></div>
+          <span className="w-8 text-right text-sm font-semibold tabular-nums text-ink">{item.count}</span>
+        </div>
+      </li>)}
+    </ol> : <p className="text-sm text-ink-3">Tidak ada gap kompetensi terbuka pada daftar ini.</p>}
+    <p className="mt-4 text-xs leading-5 text-ink-3">Jumlah pegawai dengan gap terbuka per kompetensi, dari pegawai yang sudah dinilai.{ranking.length > GAP_BARS ? ` ${ranking.length - GAP_BARS} kompetensi lain juga punya gap.` : ""}</p>
+  </Card>;
+}
+
+function AlertsCard({ snapshot, rows }: { snapshot: D4LiveSnapshot; rows: readonly Row[] }) {
+  const alerts = dashboardAlerts(snapshot, rows);
+  const [assignFor, setAssignFor] = useState<AssignTarget | null>(null);
+  return <Card title="Alerts" testId="dashboard-alerts">
+    {alerts.length ? <ul className="divide-y divide-line">
+      {alerts.map((alert) => <li key={alert.key} data-testid={`alert-${alert.key}`} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
+        <AlertTriangle aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-warning" />
+        <div className="min-w-0 flex-1">
+          <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-ink">{alert.title}{alert.label && <span data-testid={`alert-label-${alert.key}`} className="rounded-full bg-warning-bg px-2 py-0.5 text-[11px] font-semibold text-warning">{alert.label}</span>}</p>
+          <p className="mt-0.5 text-sm text-ink-2"><span className="font-semibold tabular-nums">{alert.count}</span> {alert.detail}</p>
+          {/* Q16: each Under Performance employee can be assigned training straight from here. */}
+          {alert.assign?.length && canWrite(snapshot) ? <ul className="mt-2 flex flex-wrap gap-2">{alert.assign.map((item) => <li key={item.employeeId} className="min-w-0 max-w-full">
+            <button type="button" data-testid={`btn-assign-training-${item.employeeId}`} onClick={() => setAssignFor(item)}
+              className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-line px-2.5 py-1 text-xs hover:border-primary-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/15">
+              <span className="truncate text-ink-2">{item.name}</span><span className="shrink-0 font-semibold text-primary-600">Assign training</span>
+            </button>
+          </li>)}</ul>
+            : <p className="mt-1 truncate text-xs text-ink-3">{alert.people.slice(0, 3).join(", ")}{alert.people.length > 3 ? ` dan ${alert.people.length - 3} lainnya` : ""}</p>}
+        </div>
+        <SourceLink href={alert.href}>Buka</SourceLink>
+      </li>)}
+    </ul> : <p className="text-sm text-ink-3">Tidak ada alert untuk daftar ini.</p>}
+    <p className="mt-4 text-xs leading-5 text-ink-3">Alert kekosongan field agent, cuti melahirkan, dan pemicu KPI harian 3 hari berturut-turut belum tersedia: datanya ada di squad lain.</p>
+    {assignFor && <DevelopmentFormModal employeeId={assignFor.employeeId} sourceType="performance_context" sourceRef={assignFor.scorecardId} onClose={() => setAssignFor(null)} />}
   </Card>;
 }
 
@@ -174,16 +270,16 @@ export function EmployeeProfilePage({ employeeId, initialPeriod = "" }: { employ
       {/* Full width on xl: five KPI rows with six columns do not fit half a 1440 px layout. */}
       <Card title="Performance Review" className="xl:col-span-2" actions={<SourceLink href={scorecard ? `/performance/scorecard/${scorecard.id}` : `/performance/history/${employee.id}`} />} padded={false}>
         {scorecard ? <div className="overflow-x-auto"><table data-testid="dashboard-kpi-table" className="w-full min-w-[480px] text-left text-sm">
-          <thead className="bg-app text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3"><tr><th className="py-2.5 pl-5 pr-2.5">Core KPI</th><th className="px-2.5 py-2.5">Weight</th><th className="px-2.5 py-2.5">Target</th><th className="px-2.5 py-2.5">Actual</th><th className="px-2.5 py-2.5">Score</th><th className="py-2.5 pl-2.5 pr-5 text-right">Weighted</th></tr></thead>
-          <tbody>{scorecard.lines.map((line) => <tr key={line.indicator_order} data-testid={`kpi-line-${line.indicator_order}`} className="border-t border-line"><td className="py-2.5 pl-5 pr-2.5 font-semibold">{line.kpi_name}</td><td className="px-2.5 py-2.5 tabular-nums">{line.weight_percent}%</td><td className="px-2.5 py-2.5">{line.target || "—"}</td><td className="px-2.5 py-2.5">{line.actual || "—"}</td><td className="px-2.5 py-2.5 tabular-nums">{line.raw_score ?? "—"}</td><td className="py-2.5 pl-2.5 pr-5 text-right tabular-nums">{weighted(line, scaleMaxOf(scorecard.definitionVersion))?.toFixed(2) ?? "—"}</td></tr>)}</tbody>
-          <tfoot className="border-t border-line bg-app"><tr><td colSpan={5} className="py-2.5 pl-5 pr-2.5 font-semibold">Total ({formatPeriod(scorecard.period)})</td><td className="whitespace-nowrap py-2.5 pl-2.5 pr-5 text-right font-display font-semibold tabular-nums">{formatScorecard(scorecard)}</td></tr></tfoot>
+          <thead className="bg-app text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3"><tr><th className="py-2.5 pl-5 pr-2.5">Core KPI</th><th className="px-2.5 py-2.5">Weight</th><th className="px-2.5 py-2.5">Target</th><th className="px-2.5 py-2.5">Actual</th><th className="px-2.5 py-2.5 text-right">Weighted</th><th className="py-2.5 pl-2.5 pr-5">Comment</th></tr></thead>
+          <tbody>{scorecard.lines.map((line) => <tr key={line.indicator_order} data-testid={`kpi-line-${line.indicator_order}`} className="border-t border-line"><td className="py-2.5 pl-5 pr-2.5 font-semibold">{line.kpi_name}</td><td className="px-2.5 py-2.5 tabular-nums">{line.weight_percent}%</td><td className="px-2.5 py-2.5">{line.target || "—"}</td><td className="px-2.5 py-2.5 tabular-nums">{line.raw_score ?? "—"}</td><td className="px-2.5 py-2.5 text-right tabular-nums">{weighted(line, scaleMaxOf(scorecard.definitionVersion))?.toFixed(2) ?? "—"}</td><td data-testid={`dashboard-kpi-comment-${line.indicator_order}`} className="py-2.5 pl-2.5 pr-5 text-ink-2"><LineComment line={line} /></td></tr>)}</tbody>
+          <tfoot className="border-t border-line bg-app"><tr><td colSpan={4} className="py-2.5 pl-5 pr-2.5 font-semibold">Total ({formatPeriod(scorecard.period)})</td><td className="whitespace-nowrap px-2.5 py-2.5 text-right font-display font-semibold tabular-nums">{formatScorecard(scorecard)}</td><td /></tr></tfoot>
         </table></div> : <p className="px-6 pb-6 text-sm text-ink-3">Belum ada Performance Review untuk periode ini.</p>}
       </Card>
       {/* FR-04.3: the evaluation card shows the notes of the Performance Review (older records: the separate evaluation). */}
       <Card title="Notes" testId="performance-evaluation" actions={<SourceLink href={scorecard ? `/performance/scorecard/${scorecard.id}` : evaluation ? `/performance/${evaluation.id}` : `/performance/history/${employee.id}`} />}>
         {scorecard?.generalNotes ? <><p className="text-sm text-ink-2">{formatPeriod(scorecard.period)} · {formatDate(scorecard.evaluationDate)} · Penilai {scorecard.evaluatorName || "—"}</p><p className="mt-3 line-clamp-6 whitespace-pre-wrap text-sm text-ink">{scorecard.generalNotes}</p></>
           : evaluation ? <><p className="text-sm text-ink-2">{formatPeriod(evaluation.period)} · {formatDate(evaluation.evaluationDate)} · Penilai {evaluation.evaluator || "—"}</p><p className="mt-3 line-clamp-6 whitespace-pre-wrap text-sm text-ink">{evaluation.generalNotes || "—"}</p></>
-          : <p className="text-sm text-ink-3">Belum ada catatan evaluasi untuk periode ini.</p>}
+          : <p className="text-sm text-ink-3">Belum ada notes untuk periode ini.</p>}
       </Card>
       <Card title="Competency Gap" testId="competency-gap" actions={<SourceLink href={`/competency/${employee.id}`} />}>
         {gap?.findings.length ? <ul className="space-y-2.5">{gap.findings.map((item) => <li key={item.requirementId} className="flex flex-wrap items-center justify-between gap-2 text-sm"><span>{item.competencyName} <span className="text-ink-3">· level {item.actualLevel ?? "—"} / min. {item.requiredLevel}</span></span><StatusBadge status={item.status} /></li>)}</ul>
@@ -197,6 +293,10 @@ export function EmployeeProfilePage({ employeeId, initialPeriod = "" }: { employ
             <p className="mt-1.5 text-xs text-ink-3">{linked.length ? linked.map((item) => `${item.activity} (${statusLabel(item.status)}, ${formatDate(item.date)})`).join(" · ") : "Belum ada training"}</p>
           </li>;
         })}</ul> : <p className="text-sm text-ink-3">Belum ada development requirement.</p>}
+      </Card>
+      <Card title="History" testId="employee-history" className="xl:col-span-2">
+        <Timeline empty="Belum ada riwayat penilaian, development, atau training untuk pegawai ini." entries={employeeHistory(snapshot, employee.id)} />
+        <p className="mt-4 text-xs leading-5 text-ink-3">Gabungan riwayat Competency Gap, Performance Review, Development Requirement, dan Training, terbaru di atas. Riwayat posisi hanya dari penilaian perubahan posisi; D4 tidak menyimpan riwayat jabatan.</p>
       </Card>
     </div>
   </>;

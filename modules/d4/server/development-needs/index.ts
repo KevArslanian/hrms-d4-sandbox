@@ -1,6 +1,6 @@
 import type { DevelopmentPriority, DevelopmentSourceType, DevelopmentStatus } from "../../development/types";
 import { latestDevelopment, latestTraining } from "../../supabase/types";
-import { assertDevelopmentChange, assertGapAssessed, assertNoOpenNeed, openTrainingCount, passedTrainingCount } from "../../shared/rules";
+import { assertGapAssessed, assertNoOpenNeed, nextDevelopmentRevision, REASSESSMENTS } from "../../shared/rules";
 import { ApiError, employeeFilter, enforce, field, readJson } from "../_lib/http";
 import { d4Session, requireWriter } from "../_lib/session";
 
@@ -40,18 +40,29 @@ export async function createDevelopment(request: Request) {
   return { id: await repository.createDevelopment(input, snapshot) };
 }
 
-/** POST /api/d4/development-needs/:id/versions — status change as a new revision; history is never overwritten. */
+/** Optional body field: left out (or null) means "keep the current value". */
+const optional = <T>(body: Record<string, unknown>, key: string, read: () => T): T | undefined => body[key] === undefined || body[key] === null ? undefined : read();
+
+/**
+ * POST /api/d4/development-needs/:id/versions — status change, priority/method/PIC edit or reassessment result as a
+ * new revision; history is never overwritten.
+ */
 export async function addDevelopmentVersion(request: Request, id: string) {
   const { repository } = await requireWriter();
   const body = await readJson(request);
-  const status = field.oneOf(body, "status", statuses);
-  const notes = field.text(body, "notes", { required: false, max: 2000 });
+  const change = {
+    status: field.oneOf(body, "status", statuses), notes: field.text(body, "notes", { required: false, max: 2000 }),
+    priority: optional(body, "priority", () => field.oneOf(body, "priority", priorities)),
+    method: optional(body, "method", () => field.text(body, "method", { required: false, max: 120 })),
+    pic: optional(body, "pic", () => field.text(body, "pic", { required: false, max: 120 })),
+    reassessment: optional(body, "reassessment", () => field.oneOf(body, "reassessment", REASSESSMENTS)),
+  };
   // Checked here so an unknown or malformed id is a 404, not a database error.
   const snapshot = await repository.loadSnapshot();
-  const current = latestDevelopment(snapshot).find((item) => item.needId === id);
+  const needs = latestDevelopment(snapshot);
+  const current = needs.find((item) => item.needId === id);
   if (!current) throw new ApiError("NOT_FOUND", "Development requirement tidak ditemukan.");
-  const trainings = latestTraining(snapshot);
-  enforce(() => assertDevelopmentChange(current.status, status, notes, openTrainingCount(trainings, id), passedTrainingCount(trainings, id)));
-  await repository.updateDevelopment(id, status, notes);
-  return { developmentNeedId: id, status };
+  const next = nextDevelopmentRevision(current, change, needs, latestTraining(snapshot), snapshot.developmentVersions.filter((item) => item.needId === id));
+  await repository.updateDevelopment(id, next, current);
+  return { developmentNeedId: id, status: next.status };
 }

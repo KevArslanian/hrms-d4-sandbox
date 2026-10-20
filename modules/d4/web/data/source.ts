@@ -1,6 +1,7 @@
 import type { KpiCatalogSet } from "../../kpi/catalog";
 import type { DevelopmentPriority, DevelopmentSourceType, DevelopmentStatus } from "../../development/types";
 import type { EvaluationInput } from "../../performance/types";
+import type { DevelopmentChange, TrainingFollowUpInput } from "../../shared/rules";
 import type { D4LiveSnapshot, KpiAssessmentLine } from "../../supabase/types";
 import type { TrainingStatus } from "../../training/types";
 
@@ -21,6 +22,8 @@ export type KpiAssessmentDraft = {
 export type EvaluationDraft = EvaluationInput & { revisionOf?: string | null };
 
 export type DevelopmentDraft = { employeeId: string; sourceType: DevelopmentSourceType; sourceRef: string; objective: string; priority: DevelopmentPriority; notes: string; method?: string; pic?: string };
+/** Priority, method, PIC or a reassessment saved with a revision; left out = unchanged. */
+export type DevelopmentEdit = Omit<DevelopmentChange, "status" | "notes">;
 export type TrainingDraft = { employeeId: string; developmentNeedId: string; activity: string; date: string; status: TrainingStatus; result: string; notes: string };
 
 /**
@@ -33,9 +36,11 @@ export interface D4DataSource {
   loadKpiCatalog(): Promise<KpiCatalogSet>;
   createEvaluation(input: EvaluationDraft): Promise<string>;
   createKpiAssessment(input: KpiAssessmentDraft): Promise<string>;
-  saveCompetency(input: { employeeId: string; positionId: string; effectiveDate: string }): Promise<string>;
+  saveCompetency(input: { employeeId: string; positionId: string; effectiveDate: string; assessedWith?: string }): Promise<string>;
   createDevelopment(input: DevelopmentDraft): Promise<string>;
-  updateDevelopment(needId: string, status: DevelopmentStatus, notes: string): Promise<void>;
+  updateDevelopment(needId: string, status: DevelopmentStatus, notes: string, edit?: DevelopmentEdit): Promise<void>;
   createTraining(input: TrainingDraft): Promise<string>;
   updateTraining(trainingId: string, status: TrainingStatus, result: string, notes: string): Promise<void>;
+  /** Q16: follow-up of a Not Passed training; returns the new training id for Retraining, else null. */
+  recordTrainingFollowUp(trainingId: string, input: TrainingFollowUpInput): Promise<string | null>;
 }

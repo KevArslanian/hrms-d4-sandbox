@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import type { TrainingStatus } from "../../../training/types";
+import type { TrainingFollowUp, TrainingStatus } from "../../../training/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { developmentNeeds, employeeById, today, trainingById, visibleEmployees } from "../../data/selectors";
+import { developmentById, developmentNeeds, employeeById, today, trainingById, visibleEmployees } from "../../data/selectors";
 import { isTrainingRollback, TRAINING_RESULTS } from "../../../shared/rules";
-import { FormError, FormModal, ModalActions, ReadOnlyField, SearchSelectField, SelectField, TextAreaField, TextField } from "../../ui/forms";
+import { FormError, FormModal, ModalActions, RadioField, ReadOnlyField, SearchSelectField, SelectField, TextAreaField, TextField } from "../../ui/forms";
 import { Notice, statusLabel } from "../../ui/primitives";
 
 const STATUSES: TrainingStatus[] = ["Planned", "In Progress", "Completed", "Cancelled"];
@@ -18,7 +18,7 @@ function ResultField({ value, onChange, error }: { value: string; onChange: (val
       <option value="">Select result</option>
       {TRAINING_RESULTS.map((item) => <option key={item} value={item}>{item}</option>)}
     </SelectField>
-    {value === "Not Passed" && <div className="sm:col-span-2"><Notice tone="warning">Requirement tetap terbuka. Buat training ulang dari development requirement yang sama.</Notice></div>}
+    {value === "Not Passed" && <div className="sm:col-span-2"><Notice tone="warning">Requirement tetap terbuka. Setelah disimpan, catat tindak lanjutnya di detail training: Retraining atau Other follow-up.</Notice></div>}
     {value === "Passed" && <div className="sm:col-span-2"><Notice>Lanjutkan dengan menilai ulang kompetensinya di Competency Gap sebelum requirement ditandai Completed.</Notice></div>}
   </>;
 }
@@ -109,6 +109,56 @@ export function TrainingProgressModal({ trainingId, onClose }: { trainingId: str
         error={touched && rollback && !notes.trim() ? "Alasan wajib diisi." : undefined}
         helper={rollback ? `Status mundur dari ${statusLabel(record?.status ?? "")}; alasannya disimpan di riwayat versi.` : undefined} />
       <Notice tone="warning">Menandai training Completed tidak otomatis menutup gap kompetensi; perlu penilaian ulang.</Notice>
+    </form>
+  </FormModal>;
+}
+
+const FOLLOW_UP_OPTIONS = [
+  { value: "Retraining", label: "Retraining", description: "Training baru untuk requirement yang sama; form terisi otomatis." },
+  { value: "Other follow-up", label: "Other follow-up", description: "Coaching, rotasi, atau eskalasi ke atasan. Catatan wajib." },
+];
+
+/** Q16: HR's follow-up of a Not Passed training, saved once as a new version of it (insert-only history). */
+export function TrainingFollowUpModal({ trainingId, onClose }: { trainingId: string; onClose: () => void }) {
+  const snapshot = useSnapshot();
+  const { run, busy } = useD4();
+  const record = trainingById(snapshot, trainingId);
+  const need = record && developmentById(snapshot, record.developmentNeedId);
+  const [followUp, setFollowUp] = useState<TrainingFollowUp | "">("");
+  const [activity, setActivity] = useState(record?.activity ?? "");
+  const [date, setDate] = useState(today());
+  const [notes, setNotes] = useState("");
+  const [error, setError] = useState("");
+  const [touched, setTouched] = useState(false);
+  const retraining = followUp === "Retraining", other = followUp === "Other follow-up";
+  const missing = [!followUp && "follow-up", retraining && !activity.trim() && "training/activity", retraining && !date && "date", other && !notes.trim() && "notes"].filter(Boolean);
+
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    setTouched(true);
+    if (!followUp || missing.length) { setError(`Lengkapi ${missing.join(", ")} sebelum menyimpan.`); return; }
+    setError("");
+    const saved = await run((source) => source.recordTrainingFollowUp(trainingId, { followUp, notes, ...(retraining ? { activity, date } : {}) }),
+      retraining ? "Retraining tercatat; training baru dibuat dengan status Planned." : "Tindak lanjut tercatat di riwayat training.");
+    if (saved.ok) onClose(); else setError(saved.error);
+  }
+
+  return <FormModal title="Record Follow-up" description={record ? `${record.activity} · Not Passed` : undefined} onClose={onClose}
+    footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Follow-up" />}>
+    <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
+      <FormError message={error} />
+      <RadioField label="Follow-up" testId="follow-up" required value={followUp} onChange={(value) => { setFollowUp(value as TrainingFollowUp); setError(""); }} options={FOLLOW_UP_OPTIONS}
+        error={touched && !followUp ? "Pilih tindak lanjut." : undefined} />
+      {retraining && <div className="grid gap-4 sm:grid-cols-2">
+        <ReadOnlyField label="Source requirement" testId="retraining-source" value={need ? need.objective : "—"} className="sm:col-span-2" />
+        <TextField label="Training / activity" testId="retraining-activity" required maxLength={200} value={activity} onChange={(event) => setActivity(event.target.value)} className="sm:col-span-2"
+          error={touched && !activity.trim() ? "Nama training wajib diisi." : undefined} />
+        <TextField label="Date" testId="retraining-date" required type="date" value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? "Tanggal wajib diisi." : undefined} />
+        <ReadOnlyField label="Status" testId="retraining-status" value={statusLabel("Planned")} />
+      </div>}
+      <TextAreaField label="Notes" testId="follow-up-notes" required={other} value={notes} onChange={(event) => setNotes(event.target.value)}
+        error={touched && other && !notes.trim() ? "Catatan wajib diisi untuk Other follow-up." : undefined}
+        helper={other ? "Tulis langkahnya (coaching, rotasi, atau eskalasi ke atasan), siapa, dan kapan." : retraining ? "Opsional; disalin ke catatan training baru." : undefined} />
     </form>
   </FormModal>;
 }

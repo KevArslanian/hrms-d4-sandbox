@@ -1,16 +1,16 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFixtureSource } from "@/modules/d4/web/data/fixture-source";
 import type { D4DataSource, EvaluationDraft, KpiAssessmentDraft } from "@/modules/d4/web/data/source";
 import { latestDevelopment, latestTraining } from "@/modules/d4/supabase/types";
 
-// Fixture people (fictional): Mercury is the HR actor, Alfa/Echo/Holly are Finance Staff.
+// Fixture people (rows of the org file): Mrs. Maya is the HR actor, Kak Ismi an Accounting Associate, Mba Ena the Manager of Accounting.
 const MERCURY = "d4000000-0000-4000-8000-000000000012";
 const ALFA = "d4000000-0000-4000-8000-000000000009";
 const HOLLY = "d4000000-0000-4000-8000-000000000016";
 const ALFA_GAP = "d4000000-0000-4000-8000-000000000028"; // Administrative Accuracy, level 2 of min. 4
 
 const evaluation = (patch: Partial<EvaluationDraft> = {}): EvaluationDraft => ({
-  employeeId: HOLLY, period: "2026-09", evaluationDate: "2026-09-30", evaluator: "Mercury", status: "completed",
+  employeeId: HOLLY, period: "2026-09", evaluationDate: "2026-09-30", evaluator: "Mrs. Maya", status: "completed",
   reviewStatus: "Needs Review", overallScore: 4, aspects: [], generalNotes: "Catatan uji.", evidenceReference: null, ...patch,
 });
 
@@ -28,7 +28,7 @@ describe("performance evaluation (fixture)", () => {
   it("saves a first evaluation and stores the signed-in actor as evaluator", async () => {
     const id = await source.createEvaluation(evaluation({ evaluator: "Nama Palsu" }));
     const saved = (await source.loadSnapshot()).performance.find((item) => item.id === id)!;
-    expect(saved.evaluator).toBe("Mercury");
+    expect(saved.evaluator).toBe("Mrs. Maya");
   });
 
   it("rejects a second record for the same period unless it names the current one", async () => {
@@ -42,7 +42,7 @@ describe("performance evaluation (fixture)", () => {
   });
 
   it("rejects revisionOf when nothing exists for the period", async () => {
-    await expect(source.createEvaluation(evaluation({ period: "2026-11", revisionOf: "FIX-D4-PERF-001" }))).rejects.toThrow(/tidak cocok/);
+    await expect(source.createEvaluation(evaluation({ period: "2026-08", revisionOf: "FIX-D4-PERF-001" }))).rejects.toThrow(/tidak cocok/);
   });
 
   it("rejects self-evaluation", async () => {
@@ -57,8 +57,16 @@ describe("performance evaluation (fixture)", () => {
     await expect(source.createEvaluation(evaluation(patch as Partial<EvaluationDraft>))).rejects.toThrow();
   });
 
+  it("rejects an evaluation for a period that has not started (D4-FN-01)", async () => {
+    await expect(source.createEvaluation(evaluation({ period: "2026-12", evaluationDate: "2026-10-01" }))).rejects.toThrow("Tanggal evaluasi tidak boleh sebelum awal periode.");
+    await expect(source.createKpiAssessment(await kpiDraft(ALFA, "2026-11", { evaluationDate: "2026-10-01" }))).rejects.toThrow(/awal periode/);
+    const snapshot = await source.loadSnapshot();
+    expect(snapshot.performance.some((item) => item.period === "2026-12")).toBe(false);
+    expect(snapshot.kpiAssessments!.some((item) => item.period === "2026-11")).toBe(false);
+  });
+
   it("saves an evaluation without a score (scores live in the KPI Scorecard)", async () => {
-    const id = await source.createEvaluation(evaluation({ period: "2026-12", overallScore: null }));
+    const id = await source.createEvaluation(evaluation({ period: "2026-08", overallScore: null }));
     expect((await source.loadSnapshot()).performance.find((item) => item.id === id)?.overallScore).toBeNull();
   });
 });
@@ -68,7 +76,7 @@ describe("KPI scorecard (fixture)", () => {
     const id = await source.createKpiAssessment(await kpiDraft(ALFA, "2026-10"));
     const saved = (await source.loadSnapshot()).kpiAssessments!.find((item) => item.id === id)!;
     expect(saved.overallScore).toBe(4);
-    expect(saved.evaluatorName).toBe("Mercury");
+    expect(saved.evaluatorName).toBe("Mrs. Maya");
   });
 
   it("requires an explicit revision for an existing period", async () => {
@@ -131,5 +139,41 @@ describe("development and training (fixture)", () => {
   it("rejects an unknown training or requirement", async () => {
     await expect(source.updateTraining("NOPE", "Planned", "", "")).rejects.toThrow(/tidak ditemukan/);
     await expect(source.updateDevelopment("NOPE", "Planned", "")).rejects.toThrow(/tidak ditemukan/);
+  });
+});
+
+describe("development edit and reassessment (fixture)", () => {
+  afterEach(() => { vi.unstubAllEnvs(); });
+  const latest = async (needId: string) => latestDevelopment(await source.loadSnapshot()).find((item) => item.needId === needId)!;
+
+  it("edits priority, method and PIC as a new revision and keeps them on later status changes", async () => {
+    await source.updateDevelopment("FIX-D4-DEV-002", "In Progress", "Kebijakan pajak berubah", { priority: "High", method: "Coaching", pic: "Bu Maya" });
+    expect(await latest("FIX-D4-DEV-002")).toMatchObject({ revision: 2, status: "In Progress", priority: "High", method: "Coaching", pic: "Bu Maya" });
+    await source.updateDevelopment("FIX-D4-DEV-002", "Completed", "Briefing selesai, dinilai ulang");
+    expect(await latest("FIX-D4-DEV-002")).toMatchObject({ revision: 3, status: "Completed", priority: "High", pic: "Bu Maya" });
+    await expect(source.updateDevelopment("FIX-D4-DEV-002", "Completed", "", { priority: "High" })).rejects.toThrow(/Tidak ada perubahan/);
+  });
+
+  it("Retraining reopens the requirement for a new training; the next completion asks for a new decision", async () => {
+    await source.updateDevelopment("FIX-D4-DEV-001", "Completed", "Workshop dibatalkan, diganti coaching");
+    await source.updateDevelopment("FIX-D4-DEV-001", "Planned", "", { reassessment: "Retraining" });
+    expect(await latest("FIX-D4-DEV-001")).toMatchObject({ status: "Planned", reassessment: "Retraining" });
+    await source.createTraining({ employeeId: ALFA, developmentNeedId: "FIX-D4-DEV-001", activity: "Workshop ulang", date: "2026-10-01", status: "Planned", result: "", notes: "" });
+    // The decision belongs to the revision that recorded it, not to the ones after it.
+    await source.updateDevelopment("FIX-D4-DEV-001", "In Progress", "");
+    expect((await latest("FIX-D4-DEV-001")).reassessment).toBeNull();
+    await expect(source.updateDevelopment("FIX-D4-DEV-001", "In Progress", "", { reassessment: "Meets requirement" })).rejects.toThrow(/setelah development requirement Completed/);
+  });
+
+  it("stores who the competency was assessed with", async () => {
+    const id = await source.saveCompetency({ employeeId: ALFA, positionId: "d4000000-0000-4000-8000-000000000008", effectiveDate: "2026-10-19", assessedWith: " Rina, Finance Manager " });
+    expect((await source.loadSnapshot()).competency.find((item) => item.id === id)?.assessedWith).toBe("Rina, Finance Manager");
+  });
+
+  it("refuses edits and reassessments for an employee (read-only)", async () => {
+    vi.stubEnv("NEXT_PUBLIC_D4_FIXTURE_ROLE", "EMPLOYEE");
+    vi.resetModules();
+    const { createFixtureSource: create } = await import("@/modules/d4/web/data/fixture-source");
+    await expect(create().updateDevelopment("FIX-D4-DEV-001", "Planned", "", { priority: "Low" })).rejects.toThrow(/HR atau manager/);
   });
 });

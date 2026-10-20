@@ -1,6 +1,7 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { KPI_V51_CATALOG, seedCatalogSet, type KpiCatalogVersion, type RoleKpiRow } from "@/modules/d4/kpi/catalog";
 import { createFixtureSource } from "@/modules/d4/web/data/fixture-source";
+import { ApiError } from "@/modules/d4/shared/errors";
 import type { D4LiveSnapshot } from "@/modules/d4/supabase/types";
 
 // The real route handlers and the real session guard (modules/d4/server/_lib/session.ts) run here.
@@ -42,6 +43,7 @@ const repository = {
   updateDevelopment: record("updateDevelopment", undefined),
   createTraining: record("createTraining"),
   updateTraining: record("updateTraining", undefined),
+  recordTrainingFollowUp: record("recordTrainingFollowUp", null),
 };
 
 /** Minimal PostgREST query builder: `.select().eq().maybeSingle()` and a directly awaited `.select()`. */
@@ -81,6 +83,7 @@ const dev = await import("@/app/api/d4/development-needs/route");
 const devVersions = await import("@/app/api/d4/development-needs/[id]/versions/route");
 const training = await import("@/app/api/d4/training-records/route");
 const trainingVersions = await import("@/app/api/d4/training-records/[id]/versions/route");
+const trainingFollowUp = await import("@/app/api/d4/training-records/[id]/follow-up/route");
 const competency = await import("@/app/api/d4/competency-assessments/route");
 const snapshotRoute = await import("@/app/api/d4/snapshot/route");
 
@@ -130,8 +133,11 @@ const writeRoutes: [string, () => Promise<Response>][] = [
   ["POST /competency-assessments", () => competency.POST(post({ employeeId: ALFA, positionId: FINANCE_STAFF, effectiveDate: "2026-10-01" }))],
   ["POST /development-needs", () => dev.POST(post({ employeeId: ALFA, sourceType: "performance_context", sourceRef: KPI_ALFA, objective: "Uji", priority: "High" }))],
   ["POST /development-needs/:id/versions", () => devVersions.POST(post({ status: "In Progress", notes: "Uji" }), params(NEED))],
+  ["POST /development-needs/:id/versions (edit)", () => devVersions.POST(post({ status: "Planned", notes: "", priority: "High", pic: "Bu Maya" }), params(NEED))],
   ["POST /training-records", () => training.POST(post({ employeeId: ALFA, developmentNeedId: NEED, activity: "Uji", date: "2026-10-01", status: "Planned" }))],
   ["POST /training-records/:id/versions", () => trainingVersions.POST(post({ status: "In Progress", notes: "Uji" }), params(TRAINING))],
+  // FIX-D4-TRN-003 (Mba Ena): Completed, Not Passed, no follow-up yet.
+  ["POST /training-records/:id/follow-up", () => trainingFollowUp.POST(post({ followUp: "Other follow-up", notes: "Coaching" }), params("FIX-D4-TRN-003"))],
 ];
 
 describe("session guard: real requireWriter over a mocked Supabase client", () => {
@@ -224,7 +230,7 @@ describe("POST /performance-evaluations", () => {
   it("creates with the account's name as evaluator, ignoring the body", async () => {
     const res = await call(perf.POST(post(evaluationBody({ evaluator: "Nama Palsu" }))));
     expect(res.status).toBe(201);
-    expect((writes[0].args[0] as { evaluator: string }).evaluator).toBe("Mercury");
+    expect((writes[0].args[0] as { evaluator: string }).evaluator).toBe("Mrs. Maya");
   });
 
   it.each([
@@ -243,6 +249,12 @@ describe("POST /performance-evaluations", () => {
     expect(writes).toHaveLength(0);
   });
 
+  it("rejects a period that has not started yet (D4-FN-01)", async () => {
+    const res = await call(perf.POST(post(evaluationBody({ period: "2026-12", evaluationDate: "2026-10-01" }))));
+    expect(res).toMatchObject({ status: 422, body: { error: { code: "VALIDATION_FAILED", message: "Tanggal evaluasi tidak boleh sebelum awal periode." } } });
+    expect(writes).toHaveLength(0);
+  });
+
   it("accepts a revision of the current record", async () => {
     const res = await call(perf.POST(post(evaluationBody({ employeeId: ALFA, revisionOf: PERF_ALFA }))));
     expect(res.status).toBe(201);
@@ -253,7 +265,7 @@ describe("POST /kpi-assessments", () => {
   it("creates a scorecard for a new period", async () => {
     const res = await call(kpi.POST(post(kpiBody())));
     expect(res.status).toBe(201);
-    expect((writes[0].args[0] as { evaluatorName: string }).evaluatorName).toBe("Mercury");
+    expect((writes[0].args[0] as { evaluatorName: string }).evaluatorName).toBe("Mrs. Maya");
   });
 
   it("saves KPI, evaluation notes and evidence as one Penilaian Kinerja", async () => {
@@ -266,10 +278,14 @@ describe("POST /kpi-assessments", () => {
     ["duplicate period", { period: "2026-09" }, /sudah ada/],
     ["wrong KPI role", { roleOrder: 99 }, /./],
     ["four lines", { lines: [] }, /./],
-    ["fractional score", { fractional: true }, /bilangan bulat/],
+    ["fractional score", { fractional: true }, /Actual untuk .*bilangan bulat/],
     ["unknown employee", { employeeId: uuid(500) }, /tidak ditemukan/],
     ["no evaluation notes", { generalNotes: "   " }, /Notes wajib/],
-    ["no evidence", { evidenceReference: " " }, /Bukti \/ referensi wajib/],
+    ["no evidence", { evidenceReference: " " }, /Reference wajib/],
+    // Q12: the server refuses an empty Reference however it is sent, not only the form.
+    ["empty evidence", { evidenceReference: "" }, /Reference wajib/],
+    ["null evidence", { evidenceReference: null }, /Reference wajib/],
+    ["missing evidence", { evidenceReference: undefined }, /Reference wajib/],
   ])("rejects %s", async (_name, patch: Record<string, unknown>, message) => {
     const { fractional, ...rest } = patch;
     const body = kpiBody(rest);
@@ -278,6 +294,12 @@ describe("POST /kpi-assessments", () => {
     expect(res.status).toBeGreaterThanOrEqual(400);
     expect(res.status).toBeLessThan(500);
     expect(res.body.error?.message).toMatch(message);
+    expect(writes).toHaveLength(0);
+  });
+
+  it("rejects a scorecard for a period that has not started yet (D4-FN-01)", async () => {
+    const res = await call(kpi.POST(post(kpiBody({ period: "2026-11", evaluationDate: "2026-10-01" }))));
+    expect(res).toMatchObject({ status: 422, body: { error: { code: "VALIDATION_FAILED", message: "Tanggal evaluasi tidak boleh sebelum awal periode." } } });
     expect(writes).toHaveLength(0);
   });
 
@@ -333,7 +355,10 @@ describe("POST /kpi-assessments", () => {
       catalogRows = [...KPI_V51_CATALOG, ...KPI_V51_CATALOG.map((row) => ({ ...row, source_version: "V6" }))];
       catalogVersions = [{ source_version: "V5.1", effective_from: "2000-01" }, { source_version: "V6", effective_from: "2026-11" }];
     };
-    const withScore = (period: string, rawScore: number) => { const body = kpiBody({ period }); body.lines = body.lines.map((line) => ({ ...line, raw_score: rawScore })); return body; };
+    const withScore = (period: string, rawScore: number) => { const body = kpiBody({ period, evaluationDate: "2026-11-15" }); body.lines = body.lines.map((line) => ({ ...line, raw_score: rawScore })); return body; };
+    // A V6 scorecard is dated in or after Nov 2026 (D4-FN-01), so these run on a clock in that month.
+    beforeEach(() => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-11-20T03:00:00Z")); });
+    afterEach(() => { vi.useRealTimers(); });
 
     it("accepts a score up to 100 for a V6 period", async () => {
       useV6();
@@ -424,6 +449,63 @@ describe("development needs and training", () => {
   });
 });
 
+// Q16 (20 Oct 2026): every completed training is Passed or Not Passed; Not Passed needs HR's follow-up.
+describe("training result and follow-up", () => {
+  const NOT_PASSED = "FIX-D4-TRN-003";
+  const followUp = (body: Record<string, unknown>, id = NOT_PASSED) => call(trainingFollowUp.POST(post(body), params(id)));
+
+  it.each([["no result", {}], ["a free-text result", { result: "Lulus" }]])("rejects creating a Completed training with %s (422)", async (_name, patch) => {
+    const res = await call(training.POST(post({ employeeId: ALFA, developmentNeedId: NEED, activity: "Uji", date: "2026-10-01", status: "Completed", ...patch })));
+    expect(res).toMatchObject({ status: 422, body: { error: { code: "VALIDATION_FAILED" } } });
+    expect(writes).toHaveLength(0);
+  });
+
+  it("records Other follow-up with its note; the status and result come from the record, not the body", async () => {
+    expect((await followUp({ followUp: "Other follow-up", notes: "  " })).status).toBe(422);
+    const res = await followUp({ followUp: "Other follow-up", notes: "Eskalasi ke atasan", status: "Planned", result: "Passed" });
+    expect(res).toMatchObject({ status: 201, body: { data: { trainingId: NOT_PASSED, followUp: "Other follow-up", retrainingId: null } } });
+    expect(writes).toEqual([{ method: "recordTrainingFollowUp", args: [NOT_PASSED, { followUp: "Other follow-up", notes: "Eskalasi ke atasan" }, snapshot] }]);
+  });
+
+  it("passes the new training of a Retraining to the repository, and requires its name and date", async () => {
+    expect((await followUp({ followUp: "Retraining", notes: "" })).status).toBe(422);
+    const res = await followUp({ followUp: "Retraining", notes: "", activity: "Records Retention Workshop (ulang)", date: "2026-10-27" });
+    expect(res.status).toBe(201);
+    expect(writes[0].args[1]).toEqual({ followUp: "Retraining", notes: "", activity: "Records Retention Workshop (ulang)", date: "2026-10-27" });
+  });
+
+  it.each([
+    ["an unknown follow-up", NOT_PASSED, { followUp: "Coaching", notes: "x" }, 422],
+    ["a training that is not Not Passed", TRAINING, { followUp: "Other follow-up", notes: "x" }, 422],
+    ["an unknown training", uuid(404), { followUp: "Other follow-up", notes: "x" }, 404],
+  ])("rejects %s", async (_name, id, body, status) => {
+    expect((await followUp(body, id)).status).toBe(status);
+    expect(writes).toHaveLength(0);
+  });
+
+  it("rejects a second follow-up for the same Not Passed result", async () => {
+    const current = snapshot.trainingVersions.find((item) => item.trainingId === NOT_PASSED)!;
+    snapshot = { ...snapshot, trainingVersions: [{ ...current, id: uuid(12), revision: current.revision + 1, followUp: "Other follow-up", notes: "Coaching" }, ...snapshot.trainingVersions] };
+    const res = await followUp({ followUp: "Retraining", notes: "", activity: "Ulang", date: "2026-10-27" });
+    expect(res.status).toBe(422);
+    expect(res.body.error?.message).toMatch(/sudah dicatat/);
+  });
+
+  it("answers 503 with the repository's message before migration 20261020130000, not a 500", async () => {
+    const { FOLLOW_UP_NOT_READY } = await vi.importActual<typeof import("@/modules/d4/supabase/repository")>("@/modules/d4/supabase/repository");
+    vi.spyOn(repository, "recordTrainingFollowUp").mockRejectedValueOnce(new ApiError("CONFIGURATION_ERROR", FOLLOW_UP_NOT_READY));
+    const res = await followUp({ followUp: "Other follow-up", notes: "Coaching" });
+    expect(res).toEqual({ status: 503, body: { error: { code: "CONFIGURATION_ERROR", message: FOLLOW_UP_NOT_READY } } });
+  });
+
+  it("rejects Retraining for a Completed requirement but still allows Other follow-up", async () => {
+    snapshot = { ...snapshot, developmentVersions: snapshot.developmentVersions.map((item) => item.needId === "FIX-D4-DEV-003" ? { ...item, status: "Completed" as const } : item) };
+    const res = await followUp({ followUp: "Retraining", notes: "", activity: "Ulang", date: "2026-10-27" });
+    expect(res.body.error?.message).toMatch(/sudah Completed/);
+    expect((await followUp({ followUp: "Other follow-up", notes: "Rotasi" })).status).toBe(201);
+  });
+});
+
 describe("unknown or malformed ids", () => {
   it.each([["unknown uuid", uuid(404)], ["non-uuid", "not-a-uuid"]])("returns 404 on version endpoints for %s", async (_name, id) => {
     const devRes = await call(devVersions.POST(post({ status: "Planned" }), params(id)));
@@ -441,6 +523,51 @@ describe("unknown or malformed ids", () => {
   it("returns 201 for a status update of an existing development need", async () => {
     const res = await call(devVersions.POST(post({ status: "In Progress", notes: "Dimulai" }), params(NEED)));
     expect(res.status).toBe(201);
-    expect(writes[0]).toMatchObject({ method: "updateDevelopment", args: [NEED, "In Progress", "Dimulai"] });
+    expect(writes[0]).toMatchObject({ method: "updateDevelopment", args: [NEED, { status: "In Progress", notes: "Dimulai", priority: "High", reassessment: null }, { status: "Planned" }] });
+  });
+
+  it("edits priority, method and PIC of a development need without a status change; null keeps the value", async () => {
+    const res = await call(devVersions.POST(post({ status: "Planned", notes: "Kebijakan pajak berubah", priority: "Low", method: "Coaching", pic: null }), params(NEED)));
+    expect(res.status).toBe(201);
+    expect(writes[0].args[1]).toMatchObject({ status: "Planned", priority: "Low", method: "Coaching", pic: "" });
+    // The repository gets the current revision to send only the changed columns.
+    expect(writes[0].args[2]).toMatchObject({ priority: "High", status: "Planned" });
+  });
+
+  it.each([
+    ["unknown priority", { status: "Planned", priority: "Urgent" }, /priority/],
+    ["unknown reassessment", { status: "Planned", reassessment: "Maybe" }, /reassessment/],
+    ["reassessment of an open need", { status: "Planned", reassessment: "Retraining" }, /setelah development requirement Completed/],
+    ["no change", { status: "Planned" }, /Tidak ada perubahan/],
+  ])("rejects a development revision with %s (422)", async (_name, body, message) => {
+    const res = await call(devVersions.POST(post(body), params(NEED)));
+    expect(res.status).toBe(422);
+    expect(res.body.error?.message).toMatch(message);
+    expect(writes).toHaveLength(0);
+  });
+
+  it("records Retraining on a Completed need as a reopened revision", async () => {
+    snapshot = { ...snapshot, developmentVersions: snapshot.developmentVersions.map((item) => item.needId === NEED ? { ...item, status: "Completed" as const } : item) };
+    const res = await call(devVersions.POST(post({ status: "Planned", notes: "", reassessment: "Retraining" }), params(NEED)));
+    expect(res.status).toBe(201);
+    expect(writes[0].args[1]).toMatchObject({ status: "Planned", reassessment: "Retraining" });
+  });
+
+  it("records Meets requirement on a Completed need once; the same decision again is no change", async () => {
+    snapshot = { ...snapshot, developmentVersions: snapshot.developmentVersions.map((item) => item.needId === NEED ? { ...item, status: "Completed" as const } : item) };
+    const res = await call(devVersions.POST(post({ status: "Completed", notes: "", reassessment: "Meets requirement" }), params(NEED)));
+    expect(res.status).toBe(201);
+    expect(writes[0].args[1]).toMatchObject({ status: "Completed", reassessment: "Meets requirement" });
+    snapshot = { ...snapshot, developmentVersions: snapshot.developmentVersions.map((item) => item.needId === NEED ? { ...item, reassessment: "Meets requirement" as const } : item) };
+    const again = await call(devVersions.POST(post({ status: "Completed", notes: "", reassessment: "Meets requirement" }), params(NEED)));
+    expect(again.status).toBe(422);
+    expect(again.body.error?.message).toMatch(/Tidak ada perubahan/);
+  });
+
+  it("passes the trimmed co-assessor of a competency assessment to the repository", async () => {
+    const res = await call(competency.POST(post({ employeeId: ALFA, positionId: FINANCE_STAFF, effectiveDate: "2026-10-01", assessedWith: "  Rina, Finance Manager " })));
+    expect(res.status).toBe(201);
+    expect(writes[0].args[0]).toMatchObject({ assessedWith: "Rina, Finance Manager" });
+    expect((await call(competency.POST(post({ employeeId: ALFA, positionId: FINANCE_STAFF, effectiveDate: "2026-10-01", assessedWith: "x".repeat(201) })))).status).toBe(422);
   });
 });

@@ -5,7 +5,7 @@ import { scaleMaxOf } from "../../kpi/scale";
 import { performanceFixtureRecords } from "../../performance/fixtures";
 import { validatePerformanceInput } from "../../performance/validation";
 import { d4ReferenceFixture } from "../../shared/fixtures";
-import { assertDevelopmentChange, assertGapAssessed, assertTrainingDate, assertNeedOpen, assertNoOpenNeed, openTrainingCount, passedTrainingCount, assertTrainingResult, assertNotFutureDate, assertNotSelf, assertPeriodRevision, assertTrainingChange } from "../../shared/rules";
+import { assertGapAssessed, assertTrainingDate, assertNeedOpen, assertNoOpenNeed, assertTrainingResult, assertNotFutureDate, assertEvaluationInPeriod, assertNotSelf, assertPeriodRevision, assertTrainingChange, assertTrainingFollowUp, nextDevelopmentRevision, retrainingNotes } from "../../shared/rules";
 import type { D4LiveSnapshot, KpiAssessment, KpiAssessmentLine } from "../../supabase/types";
 import { latestDevelopment, latestTraining } from "../../supabase/types";
 import { trainingFixtureVersions } from "../../training/fixtures";
@@ -16,7 +16,7 @@ import type { D4DataSource } from "./source";
 // mirror the server so the UI behaves the same as in live mode.
 const HR_ACTOR = "d4000000-0000-4000-8000-000000000012";
 const ALFA = "d4000000-0000-4000-8000-000000000009";
-// NEXT_PUBLIC_D4_FIXTURE_ROLE=EMPLOYEE previews the self-service view as Alfa (read-only).
+// NEXT_PUBLIC_D4_FIXTURE_ROLE=EMPLOYEE previews the self-service view as Kak Ismi (read-only).
 const FIXTURE_ROLE = process.env.NEXT_PUBLIC_D4_FIXTURE_ROLE === "EMPLOYEE" ? "EMPLOYEE" : process.env.NEXT_PUBLIC_D4_FIXTURE_ROLE === "MANAGER" ? "MANAGER" : "HR";
 const catalog = { version: "V5.1", rows: KPI_V51_CATALOG };
 
@@ -36,8 +36,8 @@ function assessment(id: string, employeeId: string, roleOrder: number, period: s
   const lines = kpiLines(roleOrder, scores, ["98% SLA", "100% accurate", "D+1", "Receivables 6%", "Zero penalties"]);
   return {
     id, definitionVersion: catalog.version, employeeId, roleOrder, roleName: indicatorsFor(catalog, roleOrder)[0].role_name,
-    period, evaluationDate: `${period}-25`, evaluatorName: "Mercury", status, lines, overallScore: total(lines),
-    generalNotes: status === "completed" ? "Sample fixture scorecard for local preview." : "", evidenceReference: null, createdAt: `${period}-25T08:00:00.000Z`, actor: "Mercury",
+    period, evaluationDate: `${period}-25`, evaluatorName: "Mrs. Maya", status, lines, overallScore: total(lines),
+    generalNotes: status === "completed" ? "Sample fixture scorecard for local preview." : "", evidenceReference: null, createdAt: `${period}-25T08:00:00.000Z`, actor: "Mrs. Maya",
   };
 }
 
@@ -78,9 +78,15 @@ function initialSnapshot(): D4LiveSnapshot {
   const alfa = ALFA;
   const finance = "d4000000-0000-4000-8000-000000000008";
   const comparison = compareCompetencies(alfa, finance, d4ReferenceFixture);
-  // Charlie's development need (FIX-D4-DEV-002) comes from a saved gap, so the assessment exists too.
-  const charlie = "d4000000-0000-4000-8000-000000000011", operations = "d4000000-0000-4000-8000-000000000018";
-  const charlieGap = compareCompetencies(charlie, operations, d4ReferenceFixture);
+  // Kak Dian's development need (FIX-D4-DEV-002) comes from a saved gap, so the assessment exists too.
+  const dian = "d4000000-0000-4000-8000-000000000011", taxManager = "d4000000-0000-4000-8000-000000000018";
+  const dianGap = compareCompetencies(dian, taxManager, d4ReferenceFixture);
+  // Demo scenarios: Mba Ena's gap feeds FIX-D4-DEV-003 (training Not Passed); Desty (Tax Associate 1) is assessed
+  // for Tax Manager, a position change in scope for POSITION_CHANGE_SCOPE_MONTHS.
+  const ena = "d4000000-0000-4000-8000-000000000016", accountingManager = "d4000000-0000-4000-8000-000000000049";
+  const desty = "d4000000-0000-4000-8000-000000000014";
+  const enaGap = compareCompetencies(ena, accountingManager, d4ReferenceFixture);
+  const destyMove = compareCompetencies(desty, taxManager, d4ReferenceFixture);
   return {
     reference: d4ReferenceFixture,
     role: FIXTURE_ROLE,
@@ -94,11 +100,19 @@ function initialSnapshot(): D4LiveSnapshot {
     competency: [{
       id: "FIX-D4-COMP-ASSESS-001", source: "local-demo", employeeId: alfa, positionId: finance, effectiveDate: "2026-09-21",
       context: "current-position", findings: comparison.findings, overallStatus: comparison.overallStatus,
-      createdAt: "2026-09-21T09:00:00.000Z", actor: "Mercury",
+      createdAt: "2026-09-21T09:00:00.000Z", actor: "Mrs. Maya",
     }, {
-      id: "FIX-D4-COMP-ASSESS-002", source: "local-demo", employeeId: charlie, positionId: operations, effectiveDate: "2026-09-22",
-      context: "current-position", findings: charlieGap.findings, overallStatus: charlieGap.overallStatus,
-      createdAt: "2026-09-22T09:00:00.000Z", actor: "Mercury",
+      id: "FIX-D4-COMP-ASSESS-002", source: "local-demo", employeeId: dian, positionId: taxManager, effectiveDate: "2026-09-22",
+      context: "current-position", findings: dianGap.findings, overallStatus: dianGap.overallStatus,
+      createdAt: "2026-09-22T09:00:00.000Z", actor: "Mrs. Maya",
+    }, {
+      id: "FIX-D4-COMP-ASSESS-003", source: "local-demo", employeeId: ena, positionId: accountingManager, effectiveDate: "2026-09-25",
+      context: "current-position", findings: enaGap.findings, overallStatus: enaGap.overallStatus,
+      createdAt: "2026-09-25T09:00:00.000Z", actor: "Mrs. Maya",
+    }, {
+      id: "FIX-D4-COMP-ASSESS-004", source: "local-demo", employeeId: desty, positionId: taxManager, effectiveDate: "2026-10-01",
+      context: "role-change", findings: destyMove.findings, overallStatus: destyMove.overallStatus,
+      createdAt: "2026-10-01T09:00:00.000Z", actor: "Mrs. Maya", assessedWith: "Kak Dian, Tax Manager",
     }],
     developmentVersions: developmentFixtureVersions,
     trainingVersions: trainingFixtureVersions,
@@ -134,6 +148,7 @@ export function createFixtureSource(): D4DataSource {
       validatePerformanceInput(input);
       assertNotSelf(state.actorEmployeeId, input.employeeId);
       assertNotFutureDate(input.evaluationDate);
+      assertEvaluationInPeriod(input.period, input.evaluationDate);
       assertPeriodRevision(state.performance, input.employeeId, input.period, revisionOf, "Evaluation");
       const id = newId("FIX-D4-PERF");
       update({ performance: [{ ...input, id, source: "local-demo", createdAt: now(), actor: actorName() }, ...state.performance] });
@@ -144,9 +159,10 @@ export function createFixtureSource(): D4DataSource {
       const input = { ...draft, evidenceReference: draft.evidenceReference?.trim() || null, evaluatorName: actorName() };
       assertNotSelf(state.actorEmployeeId, input.employeeId);
       assertNotFutureDate(input.evaluationDate);
+      assertEvaluationInPeriod(input.period, input.evaluationDate);
       assertPeriodRevision(state.kpiAssessments ?? [], input.employeeId, input.period, revisionOf, "Scorecard");
       if (!input.generalNotes.trim()) throw new Error("Notes wajib diisi.");
-      if (!input.evidenceReference) throw new Error("Bukti / referensi wajib diisi.");
+      if (!input.evidenceReference) throw new Error("Reference wajib diisi.");
       const periodCatalog = catalogFor(seedCatalogSet(state.reference.positions), input.period);
       if (!periodCatalog) throw new Error(`Belum ada katalog KPI yang berlaku untuk periode ${input.period}.`);
       const indicators = indicatorsFor(periodCatalog, input.roleOrder);
@@ -155,7 +171,7 @@ export function createFixtureSource(): D4DataSource {
       if (roleForPosition(periodCatalog, employee?.positionId) !== input.roleOrder) throw new Error("Set KPI yang dipilih bukan milik posisi pegawai ini.");
       if (input.status === "completed" && input.lines.some((line) => line.raw_score === null)) throw new Error("Kelima indikator KPI harus dinilai sebelum diselesaikan.");
       const maxScore = scaleMaxOf(periodCatalog.version);
-      if (input.lines.some((line) => line.raw_score !== null && (!Number.isInteger(line.raw_score) || line.raw_score < 1 || line.raw_score > maxScore))) throw new Error(`Skor indikator harus bilangan bulat 1 sampai ${maxScore}.`);
+      if (input.lines.some((line) => line.raw_score !== null && (!Number.isInteger(line.raw_score) || line.raw_score < 1 || line.raw_score > maxScore))) throw new Error(`Actual setiap indikator harus bilangan bulat 1 sampai ${maxScore}.`);
       const id = newId("FIX-D4-KPI");
       // The target comes from the catalog, never from the form (same rule as the server).
       input.lines = input.lines.map((line, index) => ({ ...line, target: targetOf(indicators[index]) }));
@@ -169,7 +185,7 @@ export function createFixtureSource(): D4DataSource {
       const comparison = compareCompetencies(input.employeeId, input.positionId, state.reference);
       if (!comparison.findings.length) throw new Error("Posisi ini belum memiliki persyaratan kompetensi.");
       const id = newId("FIX-D4-COMP");
-      update({ competency: [{ id, source: "local-demo", employeeId: input.employeeId, positionId: input.positionId, effectiveDate: input.effectiveDate, context: employee.positionId === input.positionId ? "current-position" : "role-change", findings: comparison.findings, overallStatus: comparison.overallStatus, createdAt: now(), actor: actorName() }, ...state.competency] });
+      update({ competency: [{ id, source: "local-demo", employeeId: input.employeeId, positionId: input.positionId, effectiveDate: input.effectiveDate, context: employee.positionId === input.positionId ? "current-position" : "role-change", findings: comparison.findings, overallStatus: comparison.overallStatus, createdAt: now(), actor: actorName(), assessedWith: input.assessedWith?.trim() || null }, ...state.competency] });
       return id;
     },
     async createDevelopment(input) {
@@ -182,13 +198,14 @@ export function createFixtureSource(): D4DataSource {
       update({ developmentVersions: [{ ...input, id: newId("FIX-D4-DEV-V"), needId, revision: 1, source: "local-demo", status: "Identified", createdAt: now(), actor: actorName() }, ...state.developmentVersions] });
       return needId;
     },
-    async updateDevelopment(needId, status, notes) {
+    async updateDevelopment(needId, status, notes, edit) {
       assertWriter();
-      const current = latestDevelopment(state).find((item) => item.needId === needId);
+      const needs = latestDevelopment(state);
+      const current = needs.find((item) => item.needId === needId);
       if (!current) throw new Error("Development requirement tidak ditemukan.");
-      const trainings = latestTraining(state);
-      assertDevelopmentChange(current.status, status, notes, openTrainingCount(trainings, needId), passedTrainingCount(trainings, needId));
-      update({ developmentVersions: [{ ...current, id: newId("FIX-D4-DEV-V"), revision: current.revision + 1, status, notes, createdAt: now(), actor: actorName() }, ...state.developmentVersions] });
+      // The spread carries priority/method/PIC forward; reassessment belongs to the revision that records it.
+      const next = nextDevelopmentRevision(current, { ...edit, status, notes }, needs, latestTraining(state), state.developmentVersions.filter((item) => item.needId === needId));
+      update({ developmentVersions: [{ ...current, ...next, id: newId("FIX-D4-DEV-V"), revision: current.revision + 1, createdAt: now(), actor: actorName() }, ...state.developmentVersions] });
     },
     async createTraining(input) {
       assertWriter();
@@ -207,7 +224,23 @@ export function createFixtureSource(): D4DataSource {
       if (!current) throw new Error("Training tidak ditemukan.");
       assertTrainingResult(status, result);
       assertTrainingChange(current.status, status, notes);
-      update({ trainingVersions: [{ ...current, id: newId("FIX-D4-TRN-V"), revision: current.revision + 1, status, result, notes, createdAt: now(), actor: actorName() }, ...state.trainingVersions] });
+      // A follow-up belongs to the version that records it (followUpOf reads the history), as in Supabase.
+      update({ trainingVersions: [{ ...current, id: newId("FIX-D4-TRN-V"), revision: current.revision + 1, status, result, notes, followUp: null, createdAt: now(), actor: actorName() }, ...state.trainingVersions] });
+    },
+    async recordTrainingFollowUp(trainingId, input) {
+      assertWriter();
+      const history = state.trainingVersions.filter((item) => item.trainingId === trainingId);
+      const current = latestTraining(state).find((item) => item.trainingId === trainingId);
+      if (!current) throw new Error("Training tidak ditemukan.");
+      assertTrainingFollowUp(history, input, latestDevelopment(state).find((item) => item.needId === current.developmentNeedId));
+      const at = now(), actor = actorName();
+      const followUp = { ...current, id: newId("FIX-D4-TRN-V"), revision: current.revision + 1, notes: input.notes.trim(), followUp: input.followUp, createdAt: at, actor };
+      if (input.followUp !== "Retraining") { update({ trainingVersions: [followUp, ...state.trainingVersions] }); return null; }
+      const retrainingId = newId("FIX-D4-TRN");
+      const retraining = { ...current, id: newId("FIX-D4-TRN-V"), trainingId: retrainingId, revision: 1, source: "local-demo" as const, activity: (input.activity ?? "").trim(), date: input.date ?? "",
+        status: "Planned" as const, result: "", notes: retrainingNotes(current, input.notes), followUp: null, createdAt: at, actor };
+      update({ trainingVersions: [retraining, followUp, ...state.trainingVersions] });
+      return retrainingId;
     },
   };
 }

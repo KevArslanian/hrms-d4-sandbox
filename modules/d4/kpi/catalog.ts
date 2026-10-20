@@ -142,8 +142,9 @@ export function roleForPositionTitle(catalog: Rows, title: string | undefined): 
   const exact = roles.find((role) => normalise(role.name) === target);
   if (exact) return exact.order;
   // Whole words only: a bare substring such as "edi" would also match "Credit" or "Media".
+  // Cash, tax and customer success follow the roles HR set for those org titles (supabase/seed/d4-simulasi-master.sql).
   const keywords: [RegExp, RegExp][] = [
-    [/\b(sales|marketing)\b/, /\bsales\b/], [/\b(finance|accounting|admin|administration|administrator)\b/, /\bfinance\b/],
+    [/\b(sales|marketing|customer success)\b/, /\bsales\b/], [/\b(finance|accounting|admin|administration|administrator|cash|tax)\b/, /\bfinance\b/],
     [/\b(customs|ppjk)\b/, /\bcustoms\b/], [/\b(warehouse|warehousing|logistic|logistics)\b/, /\bwarehous(e|ing)\b/],
     [/\b(air|sea)?freight\b/, /\b(air|sea)?freight\b/], [/\b(implant|edi|manifest)\b/, /\bimplant\b/],
     [/\bbranch\b/, /\bbranch\b/], [/\boperations director\b/, /\boperations director\b/], [/\b(ceo|vice president)\b/, /\bceo\b/], [/^director\b/, /^director\b/],
