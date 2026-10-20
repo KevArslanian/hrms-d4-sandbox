@@ -48,7 +48,7 @@ describe("revision numbering", () => {
 describe("current competency display status", () => {
   const currentPosition = "position-current";
   const otherPosition = "position-other";
-  const employee: EmployeeReference = { id: ALFA, employeeId: "EMP-001", fullName: "Alfa", positionId: currentPosition, departmentId: null };
+  const employee: EmployeeReference = { id: ALFA, employeeId: "EMP-001", fullName: "Kak Ismi", positionId: currentPosition, departmentId: null };
   const snapshotWithSkill = (level: number | null = 5, evidence: string | null = "Recorded evidence"): Snapshot => ({
     role: "HR", actorEmployeeId: MERCURY, kpi: [], performance: [], competency: [], developmentVersions: [], trainingVersions: [],
     reference: {
@@ -62,7 +62,7 @@ describe("current competency display status", () => {
   const assessment = (overrides: Partial<CompetencyAssessment> = {}): CompetencyAssessment => ({
     id: "assessment", source: "local-demo", employeeId: ALFA, positionId: currentPosition, effectiveDate: "2026-10-01", context: "current-position",
     findings: [{ requirementId: `requirement-${currentPosition}`, competencyId: "competency", competencyName: "Accuracy", requiredLevel: 4, actualLevel: 2, evidenceNotes: "Earlier evidence", sourceReference: "skill", status: "Gap" }],
-    overallStatus: "Gap", createdAt: "2026-10-01T08:00:00.000Z", actor: "Mercury", ...overrides,
+    overallStatus: "Gap", createdAt: "2026-10-01T08:00:00.000Z", actor: "Mrs. Maya", ...overrides,
   });
 
   it.each([
@@ -243,7 +243,7 @@ describe("development status change", () => {
 describe("development revision: edit, reassessment, objective", () => {
   const need = (patch: Partial<DevelopmentNeedVersion> = {}): DevelopmentNeedVersion => ({
     id: "V1", needId: "N1", revision: 1, source: "fixture", employeeId: ALFA, sourceType: "competency_gap", sourceRef: "REQ-1",
-    objective: "Uji", priority: "Medium", method: "Training", pic: "", status: "In Progress", notes: "", createdAt: "2026-10-01T08:00:00.000Z", actor: "Mercury", ...patch,
+    objective: "Uji", priority: "Medium", method: "Training", pic: "", status: "In Progress", notes: "", createdAt: "2026-10-01T08:00:00.000Z", actor: "Mrs. Maya", ...patch,
   });
   const passed = [{ developmentNeedId: "N1", status: "Completed" as const, result: "Passed", createdAt: "2026-10-02T08:00:00.000Z" }];
 

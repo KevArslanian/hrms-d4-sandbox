@@ -225,7 +225,7 @@ describe("POST /performance-evaluations", () => {
   it("creates with the account's name as evaluator, ignoring the body", async () => {
     const res = await call(perf.POST(post(evaluationBody({ evaluator: "Nama Palsu" }))));
     expect(res.status).toBe(201);
-    expect((writes[0].args[0] as { evaluator: string }).evaluator).toBe("Mercury");
+    expect((writes[0].args[0] as { evaluator: string }).evaluator).toBe("Mrs. Maya");
   });
 
   it.each([
@@ -260,7 +260,7 @@ describe("POST /kpi-assessments", () => {
   it("creates a scorecard for a new period", async () => {
     const res = await call(kpi.POST(post(kpiBody())));
     expect(res.status).toBe(201);
-    expect((writes[0].args[0] as { evaluatorName: string }).evaluatorName).toBe("Mercury");
+    expect((writes[0].args[0] as { evaluatorName: string }).evaluatorName).toBe("Mrs. Maya");
   });
 
   it("saves KPI, evaluation notes and evidence as one Penilaian Kinerja", async () => {
