@@ -2,11 +2,11 @@
 
 import { CheckCircle2, CircleAlert } from "lucide-react";
 import { useState, type FormEvent } from "react";
-import { catalogFor, indicatorsFor, KPI_TARGET, roleForPosition, targetOf, type KpiCatalog } from "../../../kpi/catalog";
+import { catalogFor, indicatorsFor, KPI_TARGET, roleForPosition, targetOf, type KpiCatalog, type KpiCatalogSet } from "../../../kpi/catalog";
 import { HIGH_ABOVE, performanceBand, scaleMaxOf, UNDER_BELOW } from "../../../kpi/scale";
 import type { KpiAssessmentLine } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { latestForPeriod } from "../../../shared/rules";
+import { latestForPeriod, periodDateError } from "../../../shared/rules";
 import { assessableEmployees, departmentOf, employeeById, formatDate, positionOf, SCORE_LABELS, thisMonth, today } from "../../data/selectors";
 import { FormError, FormModal, ModalActions, ReadOnlyField, RevisionConfirm, SearchSelectField, TextAreaField, TextField } from "../../ui/forms";
 import { cx, Notice, StatusBadge } from "../../ui/primitives";
@@ -22,6 +22,24 @@ export function weighted(line: Pick<KpiAssessmentLine, "weight_percent" | "raw_s
   return validScore(line.raw_score, max) ? line.weight_percent * (line.raw_score ?? 0) / 100 : null;
 }
 
+/** Blank lines of a KPI role in a catalog version; the evaluator fills actual, score and comment. */
+const blankLines = (at: KpiCatalog | null, roleOrder: number): KpiAssessmentLine[] => at ? indicatorsFor(at, roleOrder).map((row) => ({
+  indicator_order: row.indicator_order, kpi_name: row.kpi_name, weight_percent: row.weight_percent, target: targetOf(row), actual: "", raw_score: null, comment: "",
+})) : [];
+
+/**
+ * Form changes when the period changes. A period under another catalog version reloads the employee's KPI set, since
+ * its lines and scale may differ (1–5 or 1–100). A message from an earlier Save is cleared, as it may name the old
+ * scale (D4-UI-04), the same as when another employee is chosen.
+ */
+export function periodChange(catalogSet: KpiCatalogSet | null, from: string, to: string, employee?: { positionId?: string | null }) {
+  const versionOf = (value: string) => catalogSet && value ? catalogFor(catalogSet, value) : null;
+  const next = versionOf(to);
+  if (!employee || next?.version === versionOf(from)?.version) return { error: "" };
+  const roleOrder = next ? roleForPosition(next, employee.positionId) : 0;
+  return { error: "", roleOrder, lines: blankLines(next, roleOrder) };
+}
+
 /** Performance Review (FR-D4-001 v3.1): five Core KPI, notes and evidence in one form with one Save. */
 export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: string; onClose: () => void; onSaved?: (id: string) => void }) {
   const snapshot = useSnapshot();
@@ -29,13 +47,10 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
   const actor = employeeById(snapshot, snapshot.actorEmployeeId);
   const [period, setPeriod] = useState(thisMonth());
   // The KPI set follows the catalog version in force for the chosen period.
-  const versionFor = (value: string) => catalogSet && value ? catalogFor(catalogSet, value) : null;
-  const catalog = versionFor(period);
+  const catalog = catalogSet && period ? catalogFor(catalogSet, period) : null;
   const max = scaleMaxOf(catalog?.version);
-  const suggest = (id: string, at: KpiCatalog | null = catalog) => at ? roleForPosition(at, employeeById(snapshot, id)?.positionId) : 0;
-  const linesFor = (roleOrder: number, at: KpiCatalog | null = catalog): KpiAssessmentLine[] => at ? indicatorsFor(at, roleOrder).map((row) => ({
-    indicator_order: row.indicator_order, kpi_name: row.kpi_name, weight_percent: row.weight_percent, target: targetOf(row), actual: "", raw_score: null, comment: "",
-  })) : [];
+  const suggest = (id: string) => catalog ? roleForPosition(catalog, employeeById(snapshot, id)?.positionId) : 0;
+  const linesFor = (roleOrder: number) => blankLines(catalog, roleOrder);
 
   const [employee, setEmployee] = useState(employeeId ?? "");
   const [roleOrder, setRoleOrder] = useState(() => employeeId ? suggest(employeeId) : 0);
@@ -60,9 +75,9 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
 
   function chooseEmployee(id: string) { setEmployee(id); setError(""); const role = suggest(id); setRoleOrder(role); setLines(linesFor(role)); }
   function choosePeriod(value: string) {
-    setPeriod(value);
-    const next = versionFor(value);
-    if (employee && next?.version !== catalog?.version) { const role = suggest(employee, next); setRoleOrder(role); setLines(linesFor(role, next)); }
+    const change = periodChange(catalogSet, period, value, selected);
+    setPeriod(value); setError(change.error);
+    if (change.lines) { setRoleOrder(change.roleOrder); setLines(change.lines); }
   }
   function setLine(index: number, patch: Partial<KpiAssessmentLine>) { setLines((items) => items.map((line, at) => at === index ? { ...line, ...patch } : line)); }
 
@@ -77,6 +92,7 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
     if (!notes.trim()) { setError("Notes wajib diisi."); return; }
     if (!evidence.trim()) { setError("Reference wajib diisi."); return; }
     if (date > today()) { setError("Tanggal evaluasi tidak boleh lebih dari hari ini."); return; }
+    if (periodDateError(period, date)) { setError(periodDateError(period, date)); return; }
     if (existing && !revise) { setError("Performance Review untuk periode ini sudah ada. Centang “Save as revision” atau pilih periode lain."); return; }
     setError("");
     const result = await run((source) => source.createKpiAssessment({ employeeId: employee, roleOrder, period, evaluationDate: date, evaluatorName: evaluator, status: "completed", lines, generalNotes: notes, evidenceReference: evidence.trim() || null, revisionOf: existing?.id ?? null }),
@@ -95,7 +111,7 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
         <ReadOnlyField label="Position" testId="position" value={position?.title ?? "—"} />
         <ReadOnlyField label="Department" testId="department" value={departmentOf(snapshot, selected)?.name ?? "—"} />
         <ReadOnlyField label="Position KPI" testId="kpi-jabatan" value={!employee ? "—" : roleName ?? (catalog ? `Not in catalog ${catalog.version} yet` : "No KPI catalog for this period")} />
-        <TextField label="Evaluation date" testId="evaluation-date" required type="date" max={today()} value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? "Date wajib diisi." : touched && date > today() ? "Tidak boleh lebih dari hari ini." : undefined} />
+        <TextField label="Evaluation date" testId="evaluation-date" required type="date" min={period ? `${period}-01` : undefined} max={today()} value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? "Date wajib diisi." : touched && date > today() ? "Tidak boleh lebih dari hari ini." : touched && periodDateError(period, date) || undefined} />
         <ReadOnlyField label="Evaluator" testId="evaluator" value={evaluator || "—"} className="sm:col-span-2" />
       </div>
       {existing && <RevisionConfirm what="Performance Review" existing={`${existing.evaluatorName}, ${formatDate(existing.evaluationDate)}`} checked={revise} onChange={setRevise}

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import type { KpiCatalogSet } from "../../kpi/catalog";
 import { createD4BrowserClient } from "../../supabase/client";
@@ -34,6 +34,26 @@ type D4Data = {
 
 const VIEW_AS_KEY = "d4-view-as";
 
+// The previewed employee lives in sessionStorage (per tab), cached here so a blocked storage still works for the
+// current page. Writes in the same tab fire no "storage" event, so writeViewAs notifies the subscribers itself.
+let storedViewAs: string | null | undefined;
+const viewAsListeners = new Set<() => void>();
+function subscribeViewAs(listener: () => void) {
+  viewAsListeners.add(listener);
+  return () => { viewAsListeners.delete(listener); };
+}
+function readViewAs() {
+  if (storedViewAs === undefined) {
+    try { storedViewAs = sessionStorage.getItem(VIEW_AS_KEY); } catch { storedViewAs = null; /* storage blocked: start without simulation */ }
+  }
+  return storedViewAs;
+}
+function writeViewAs(employeeId: string | null) {
+  storedViewAs = employeeId;
+  try { if (employeeId) sessionStorage.setItem(VIEW_AS_KEY, employeeId); else sessionStorage.removeItem(VIEW_AS_KEY); } catch { /* per-tab convenience only */ }
+  viewAsListeners.forEach((listener) => listener());
+}
+
 const Context = createContext<D4Data | null>(null);
 
 export function useD4() {
@@ -62,7 +82,8 @@ export function D4DataProvider({ children, mode }: { children: ReactNode; mode: 
   const [busy, setBusy] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
-  const [viewAs, setViewAsState] = useState<string | null>(null);
+  // The server and the hydrating render see no simulation, so the first client render matches the server HTML.
+  const viewAs = useSyncExternalStore(subscribeViewAs, readViewAs, () => null);
   // Set synchronously, unlike `busy`, so a second click before the re-render cannot start another POST.
   const writing = useRef(false);
 
@@ -72,13 +93,10 @@ export function D4DataProvider({ children, mode }: { children: ReactNode; mode: 
     setTimeout(() => setToasts((items) => items.filter((item) => item.id !== id)), 4000);
   }, []);
 
-  useEffect(() => {
-    try { setViewAsState(sessionStorage.getItem(VIEW_AS_KEY)); } catch { /* storage blocked: start without simulation */ }
-  }, []);
-  const setViewAs = useCallback((employeeId: string | null) => {
-    setViewAsState(employeeId);
-    try { if (employeeId) sessionStorage.setItem(VIEW_AS_KEY, employeeId); else sessionStorage.removeItem(VIEW_AS_KEY); } catch { /* per-tab convenience only */ }
-  }, []);
+  const canSimulate = snapshot?.role === "HR" || snapshot?.role === "MANAGER";
+  // A stale id (employee gone, or role no longer HR/manager) previews nobody, so it never blocks saves.
+  const target = canSimulate && viewAs ? snapshot?.reference.employees.find((item) => item.id === viewAs) : undefined;
+  const simulating = target?.id ?? null;
 
   useEffect(() => {
     let active = true;
@@ -101,7 +119,7 @@ export function D4DataProvider({ children, mode }: { children: ReactNode; mode: 
 
   const run = useCallback(async <T,>(operation: (data: D4DataSource) => Promise<T>, success: string): Promise<Result<T>> => {
     if (writing.current) return { ok: false, error: "Penyimpanan sebelumnya masih diproses." };
-    if (viewAs) {
+    if (simulating) {
       const message = "Mode simulasi Employee: penyimpanan dinonaktifkan. Keluar dari simulasi untuk menyimpan.";
       pushToast("error", message);
       return { ok: false, error: message };
@@ -130,19 +148,15 @@ export function D4DataProvider({ children, mode }: { children: ReactNode; mode: 
     writing.current = false;
     setBusy(false);
     return { ok: true, value };
-  }, [source, pushToast, viewAs]);
+  }, [source, pushToast, simulating]);
 
-  const canSimulate = snapshot?.role === "HR" || snapshot?.role === "MANAGER";
-  const target = canSimulate && viewAs ? snapshot?.reference.employees.find((item) => item.id === viewAs) : undefined;
-  // A stale id (employee gone, or role no longer HR/manager) ends the simulation instead of silently blocking saves.
-  useEffect(() => { if (snapshot && viewAs && !target) setViewAs(null); }, [snapshot, viewAs, target, setViewAs]);
   const shown = useMemo(() => (snapshot && target ? asEmployee(snapshot, target.id) : snapshot), [snapshot, target]);
 
   const value = useMemo<D4Data>(() => ({
-    mode, status, error, snapshot: shown, catalog, busy, run, toasts, viewAs: target?.id ?? null, canSimulate, setViewAs,
+    mode, status, error, snapshot: shown, catalog, busy, run, toasts, viewAs: simulating, canSimulate, setViewAs: writeViewAs,
     reload: () => { setStatus("loading"); setAttempt((count) => count + 1); },
     dismissToast: (id) => setToasts((items) => items.filter((item) => item.id !== id)),
-  }), [mode, status, error, shown, catalog, busy, run, toasts, target, canSimulate, setViewAs]);
+  }), [mode, status, error, shown, catalog, busy, run, toasts, simulating, canSimulate]);
 
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }

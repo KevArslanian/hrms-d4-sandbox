@@ -1,7 +1,7 @@
 import { catalogFor, indicatorsFor, roleForPosition, targetOf } from "../../kpi/catalog";
 import { scaleMaxOf } from "../../kpi/scale";
 import type { KpiAssessmentLine } from "../../supabase/types";
-import { assertNotFutureDate, assertNotSelf, assertPeriodRevision } from "../../shared/rules";
+import { assertEvaluationInPeriod, assertNotFutureDate, assertNotSelf, assertPeriodRevision } from "../../shared/rules";
 import { ApiError, employeeFilter, enforce, field, optionalUuid, readJson } from "../_lib/http";
 import { loadCatalogSet } from "../kpi-catalog";
 import { d4Session, requireWriter } from "../_lib/session";
@@ -68,6 +68,7 @@ export async function createAssessment(request: Request) {
   if (!evidenceReference) throw new ApiError("VALIDATION_FAILED", "Reference wajib diisi.");
   const evaluationDate = field.date(body, "evaluationDate", { required: status === "completed" });
   enforce(() => assertNotFutureDate(evaluationDate));
+  enforce(() => assertEvaluationInPeriod(period, evaluationDate));
   const id = await repository.saveKpiAssessment({
     definitionVersion: catalog.version,
     employeeId, roleOrder, roleName: indicators[0].role_name,

@@ -5,7 +5,7 @@ import { scaleMaxOf } from "../../kpi/scale";
 import { performanceFixtureRecords } from "../../performance/fixtures";
 import { validatePerformanceInput } from "../../performance/validation";
 import { d4ReferenceFixture } from "../../shared/fixtures";
-import { assertGapAssessed, assertTrainingDate, assertNeedOpen, assertNoOpenNeed, assertTrainingResult, assertNotFutureDate, assertNotSelf, assertPeriodRevision, assertTrainingChange, nextDevelopmentRevision } from "../../shared/rules";
+import { assertGapAssessed, assertTrainingDate, assertNeedOpen, assertNoOpenNeed, assertTrainingResult, assertNotFutureDate, assertEvaluationInPeriod, assertNotSelf, assertPeriodRevision, assertTrainingChange, nextDevelopmentRevision } from "../../shared/rules";
 import type { D4LiveSnapshot, KpiAssessment, KpiAssessmentLine } from "../../supabase/types";
 import { latestDevelopment, latestTraining } from "../../supabase/types";
 import { trainingFixtureVersions } from "../../training/fixtures";
@@ -134,6 +134,7 @@ export function createFixtureSource(): D4DataSource {
       validatePerformanceInput(input);
       assertNotSelf(state.actorEmployeeId, input.employeeId);
       assertNotFutureDate(input.evaluationDate);
+      assertEvaluationInPeriod(input.period, input.evaluationDate);
       assertPeriodRevision(state.performance, input.employeeId, input.period, revisionOf, "Evaluation");
       const id = newId("FIX-D4-PERF");
       update({ performance: [{ ...input, id, source: "local-demo", createdAt: now(), actor: actorName() }, ...state.performance] });
@@ -144,6 +145,7 @@ export function createFixtureSource(): D4DataSource {
       const input = { ...draft, evidenceReference: draft.evidenceReference?.trim() || null, evaluatorName: actorName() };
       assertNotSelf(state.actorEmployeeId, input.employeeId);
       assertNotFutureDate(input.evaluationDate);
+      assertEvaluationInPeriod(input.period, input.evaluationDate);
       assertPeriodRevision(state.kpiAssessments ?? [], input.employeeId, input.period, revisionOf, "Scorecard");
       if (!input.generalNotes.trim()) throw new Error("Notes wajib diisi.");
       if (!input.evidenceReference) throw new Error("Reference wajib diisi.");

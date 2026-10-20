@@ -1,12 +1,12 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { catalogFor, indicatorsFor, KPI_TARGET, KPI_V51_CATALOG, roleForPosition, roleForPositionTitle, rolesOf, targetOf, type KpiCatalogSet } from "@/modules/d4/kpi/catalog";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { catalogFor, indicatorsFor, KPI_TARGET, KPI_V51_CATALOG, roleForPosition, roleForPositionTitle, rolesOf, seedCatalogSet, targetOf, type KpiCatalogSet } from "@/modules/d4/kpi/catalog";
 import { d4ReferenceFixture } from "@/modules/d4/shared/fixtures";
 import { createFixtureSource } from "@/modules/d4/web/data/fixture-source";
 import type { D4DataSource } from "@/modules/d4/web/data/source";
 import { HIGH_ABOVE, performanceBand, scaleMaxOf, UNDER_BELOW } from "@/modules/d4/kpi/scale";
-import { weighted } from "@/modules/d4/web/features/kpi/KpiFormModal";
+import { periodChange, weighted } from "@/modules/d4/web/features/kpi/KpiFormModal";
 
 const catalog = { rows: KPI_V51_CATALOG };
 const ALFA = "d4000000-0000-4000-8000-000000000009"; // Finance Staff → role 10 (weights 25/25/20/15/15)
@@ -80,6 +80,27 @@ describe("KPI score scale per catalog version", () => {
   });
 });
 
+// D4-UI-04: a Save error built for Oct (score 1–5) must not stay on screen after switching to Nov (score 1–100).
+describe("KPI form: changing the period", () => {
+  const set = seedCatalogSet(d4ReferenceFixture.positions);
+  const alfa = d4ReferenceFixture.employees.find((item) => item.id === ALFA)!;
+
+  it("clears an earlier Save error and reloads the KPI set when the catalog version changes", () => {
+    const change = periodChange(set, "2026-10", "2026-11", alfa);
+    expect(change.error).toBe("");
+    // Expected role comes from the catalog, so renamed fixture positions do not break the test.
+    expect(change.roleOrder).toBe(roleForPosition(catalogFor(set, "2026-11")!, alfa.positionId));
+    expect(change.roleOrder).toBeGreaterThan(0);
+    expect(change.lines).toHaveLength(5);
+    expect(change.lines!.every((line) => line.raw_score === null)).toBe(true);
+  });
+
+  it("clears the error but keeps the entered lines within the same catalog version", () => {
+    expect(periodChange(set, "2026-10", "2026-09", alfa)).toEqual({ error: "" });
+    expect(periodChange(set, "2026-10", "2026-11", undefined)).toEqual({ error: "" }); // no employee chosen yet
+  });
+});
+
 describe("fixed KPI target", () => {
   it("is 85 when the catalog carries no target, and the catalog target wins when it does", () => {
     expect(KPI_TARGET).toBe("85");
@@ -93,14 +114,18 @@ describe("saved scorecard total (fixture source, mirrors the DB trigger d4_calcu
   beforeEach(() => {
     // The fixture source waits 250 ms per read to imitate the network; run it immediately.
     vi.spyOn(globalThis, "setTimeout").mockImplementation(((run: () => void) => { run(); return 0; }) as unknown as typeof setTimeout);
+    // V6 periods start in Nov 2026; an evaluation is dated on or after its period starts (D4-FN-01) and never in the future.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-12-20T03:00:00Z"));
     source = createFixtureSource();
   });
+  afterEach(() => { vi.useRealTimers(); });
 
   async function save(scores: number[], period: string) {
     const lines = indicatorsFor(catalog, FINANCE_ROLE).map((row, index) => ({
       indicator_order: row.indicator_order, kpi_name: row.kpi_name, weight_percent: row.weight_percent, target: "", actual: "", raw_score: scores[index], comment: "",
     }));
-    const id = await source.createKpiAssessment({ employeeId: ALFA, roleOrder: FINANCE_ROLE, period, evaluationDate: "2026-10-01", evaluatorName: "x", status: "completed", lines, generalNotes: "Catatan uji.", evidenceReference: "DOC-1" });
+    const id = await source.createKpiAssessment({ employeeId: ALFA, roleOrder: FINANCE_ROLE, period, evaluationDate: "2026-12-15", evaluatorName: "x", status: "completed", lines, generalNotes: "Catatan uji.", evidenceReference: "DOC-1" });
     return (await source.loadSnapshot()).kpiAssessments!.find((item) => item.id === id)!.overallScore;
   }
 
@@ -109,7 +134,7 @@ describe("saved scorecard total (fixture source, mirrors the DB trigger d4_calcu
     const lines = indicatorsFor(catalog, FINANCE_ROLE).map((row, index) => ({
       indicator_order: row.indicator_order, kpi_name: row.kpi_name, weight_percent: row.weight_percent, target: "", actual: "", raw_score: scores[index], comment: "",
     }));
-    const base = { employeeId: ALFA, roleOrder: FINANCE_ROLE, period: "2026-11", evaluationDate: "2026-10-01", evaluatorName: "x", status: "completed" as const, generalNotes: "Catatan", evidenceReference: "DOC-1" };
+    const base = { employeeId: ALFA, roleOrder: FINANCE_ROLE, period: "2026-11", evaluationDate: "2026-12-15", evaluatorName: "x", status: "completed" as const, generalNotes: "Catatan", evidenceReference: "DOC-1" };
     const id = await source.createKpiAssessment({ ...base, lines });
     const saved = (await source.loadSnapshot()).kpiAssessments!.find((item) => item.id === id)!;
     expect(saved.definitionVersion).toBe("V6");
