@@ -3,14 +3,14 @@ import { createFixtureSource } from "@/modules/d4/web/data/fixture-source";
 import type { D4DataSource, EvaluationDraft, KpiAssessmentDraft } from "@/modules/d4/web/data/source";
 import { latestDevelopment, latestTraining } from "@/modules/d4/supabase/types";
 
-// Fixture people (fictional): Mercury is the HR actor, Alfa/Echo/Holly are Finance Staff.
+// Fixture people (rows of the org file): Mrs. Maya is the HR actor, Kak Ismi an Accounting Associate, Mba Ena the Manager of Accounting.
 const MERCURY = "d4000000-0000-4000-8000-000000000012";
 const ALFA = "d4000000-0000-4000-8000-000000000009";
 const HOLLY = "d4000000-0000-4000-8000-000000000016";
 const ALFA_GAP = "d4000000-0000-4000-8000-000000000028"; // Administrative Accuracy, level 2 of min. 4
 
 const evaluation = (patch: Partial<EvaluationDraft> = {}): EvaluationDraft => ({
-  employeeId: HOLLY, period: "2026-09", evaluationDate: "2026-09-30", evaluator: "Mercury", status: "completed",
+  employeeId: HOLLY, period: "2026-09", evaluationDate: "2026-09-30", evaluator: "Mrs. Maya", status: "completed",
   reviewStatus: "Needs Review", overallScore: 4, aspects: [], generalNotes: "Catatan uji.", evidenceReference: null, ...patch,
 });
 
@@ -28,7 +28,7 @@ describe("performance evaluation (fixture)", () => {
   it("saves a first evaluation and stores the signed-in actor as evaluator", async () => {
     const id = await source.createEvaluation(evaluation({ evaluator: "Nama Palsu" }));
     const saved = (await source.loadSnapshot()).performance.find((item) => item.id === id)!;
-    expect(saved.evaluator).toBe("Mercury");
+    expect(saved.evaluator).toBe("Mrs. Maya");
   });
 
   it("rejects a second record for the same period unless it names the current one", async () => {
@@ -76,7 +76,7 @@ describe("KPI scorecard (fixture)", () => {
     const id = await source.createKpiAssessment(await kpiDraft(ALFA, "2026-10"));
     const saved = (await source.loadSnapshot()).kpiAssessments!.find((item) => item.id === id)!;
     expect(saved.overallScore).toBe(4);
-    expect(saved.evaluatorName).toBe("Mercury");
+    expect(saved.evaluatorName).toBe("Mrs. Maya");
   });
 
   it("requires an explicit revision for an existing period", async () => {

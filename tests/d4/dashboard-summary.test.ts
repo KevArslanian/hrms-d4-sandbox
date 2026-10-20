@@ -81,7 +81,7 @@ describe("People Dashboard charts", () => {
 
 describe("employee history timeline", () => {
   const ALFA = "d4000000-0000-4000-8000-000000000009";
-  const OPERATIONS = "d4000000-0000-4000-8000-000000000018";
+  const TAX_MANAGER = "d4000000-0000-4000-8000-000000000018";
 
   it("merges every module newest first, by WIB day, and links each entry to its source", async () => {
     const base = await hrSnapshot();
@@ -92,7 +92,7 @@ describe("employee history timeline", () => {
       ...base,
       competency: [
         { ...assessment, id: "C-OLD", effectiveDate: "2026-10-03", createdAt: "2026-10-03T02:00:00.000Z" },
-        { ...assessment, id: "C-MOVE", positionId: OPERATIONS, context: "role-change", effectiveDate: "2026-10-05", createdAt: "2026-10-05T09:00:00.000Z", assessedWith: "Rina, Ops Manager" },
+        { ...assessment, id: "C-MOVE", positionId: TAX_MANAGER, context: "role-change", effectiveDate: "2026-10-05", createdAt: "2026-10-05T09:00:00.000Z", assessedWith: "Rina, Ops Manager" },
         { ...base.competency.find((item) => item.employeeId !== ALFA)!, id: "C-OTHER", effectiveDate: "2026-10-06" },
       ],
       kpiAssessments: [{ ...base.kpiAssessments!.find((item) => item.employeeId === ALFA)!, id: "K1", period: "2026-11", definitionVersion: "V6", overallScore: 82.5, evaluationDate: "2026-10-05", createdAt: "2026-10-05T01:00:00.000Z" }],
@@ -106,7 +106,7 @@ describe("employee history timeline", () => {
     const history = employeeHistory(snapshot, ALFA);
     expect(history.map((item) => item.id)).toEqual(["competency-C-MOVE", "development-D2", "performance-K1", "training-T1", "competency-C-OLD", "development-D1"]);
     const [move, revision, review, trained] = history;
-    expect(move).toMatchObject({ title: "Position change assessment · Operations Staff", date: "Efektif 5 Oct 2026", href: `/competency/${ALFA}/history` });
+    expect(move).toMatchObject({ title: "Position change assessment · Tax Manager", date: "Efektif 5 Oct 2026", href: `/competency/${ALFA}/history` });
     expect(move.body).toContain("Dinilai bersama Rina, Ops Manager");
     expect(revision).toMatchObject({ status: "Planned", href: `/development/${need.needId}` });
     expect(revision.body).toContain("PIC: — → Bu Maya");
