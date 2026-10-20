@@ -5,7 +5,7 @@ import { scaleMaxOf } from "../../kpi/scale";
 import { performanceFixtureRecords } from "../../performance/fixtures";
 import { validatePerformanceInput } from "../../performance/validation";
 import { d4ReferenceFixture } from "../../shared/fixtures";
-import { assertGapAssessed, assertTrainingDate, assertNeedOpen, assertNoOpenNeed, assertTrainingResult, assertNotFutureDate, assertEvaluationInPeriod, assertNotSelf, assertPeriodRevision, assertTrainingChange, nextDevelopmentRevision } from "../../shared/rules";
+import { assertGapAssessed, assertTrainingDate, assertNeedOpen, assertNoOpenNeed, assertTrainingResult, assertNotFutureDate, assertEvaluationInPeriod, assertNotSelf, assertPeriodRevision, assertTrainingChange, assertTrainingFollowUp, nextDevelopmentRevision, retrainingNotes } from "../../shared/rules";
 import type { D4LiveSnapshot, KpiAssessment, KpiAssessmentLine } from "../../supabase/types";
 import { latestDevelopment, latestTraining } from "../../supabase/types";
 import { trainingFixtureVersions } from "../../training/fixtures";
@@ -224,7 +224,23 @@ export function createFixtureSource(): D4DataSource {
       if (!current) throw new Error("Training tidak ditemukan.");
       assertTrainingResult(status, result);
       assertTrainingChange(current.status, status, notes);
-      update({ trainingVersions: [{ ...current, id: newId("FIX-D4-TRN-V"), revision: current.revision + 1, status, result, notes, createdAt: now(), actor: actorName() }, ...state.trainingVersions] });
+      // A follow-up belongs to the version that records it (followUpOf reads the history), as in Supabase.
+      update({ trainingVersions: [{ ...current, id: newId("FIX-D4-TRN-V"), revision: current.revision + 1, status, result, notes, followUp: null, createdAt: now(), actor: actorName() }, ...state.trainingVersions] });
+    },
+    async recordTrainingFollowUp(trainingId, input) {
+      assertWriter();
+      const history = state.trainingVersions.filter((item) => item.trainingId === trainingId);
+      const current = latestTraining(state).find((item) => item.trainingId === trainingId);
+      if (!current) throw new Error("Training tidak ditemukan.");
+      assertTrainingFollowUp(history, input, latestDevelopment(state).find((item) => item.needId === current.developmentNeedId));
+      const at = now(), actor = actorName();
+      const followUp = { ...current, id: newId("FIX-D4-TRN-V"), revision: current.revision + 1, notes: input.notes.trim(), followUp: input.followUp, createdAt: at, actor };
+      if (input.followUp !== "Retraining") { update({ trainingVersions: [followUp, ...state.trainingVersions] }); return null; }
+      const retrainingId = newId("FIX-D4-TRN");
+      const retraining = { ...current, id: newId("FIX-D4-TRN-V"), trainingId: retrainingId, revision: 1, source: "local-demo" as const, activity: (input.activity ?? "").trim(), date: input.date ?? "",
+        status: "Planned" as const, result: "", notes: retrainingNotes(current, input.notes), followUp: null, createdAt: at, actor };
+      update({ trainingVersions: [retraining, followUp, ...state.trainingVersions] });
+      return retrainingId;
     },
   };
 }

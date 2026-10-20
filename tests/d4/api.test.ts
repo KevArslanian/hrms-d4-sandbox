@@ -42,6 +42,7 @@ const repository = {
   updateDevelopment: record("updateDevelopment", undefined),
   createTraining: record("createTraining"),
   updateTraining: record("updateTraining", undefined),
+  recordTrainingFollowUp: record("recordTrainingFollowUp", null),
 };
 
 /** Minimal PostgREST query builder: `.select().eq().maybeSingle()` and a directly awaited `.select()`. */
@@ -81,6 +82,7 @@ const dev = await import("@/app/api/d4/development-needs/route");
 const devVersions = await import("@/app/api/d4/development-needs/[id]/versions/route");
 const training = await import("@/app/api/d4/training-records/route");
 const trainingVersions = await import("@/app/api/d4/training-records/[id]/versions/route");
+const trainingFollowUp = await import("@/app/api/d4/training-records/[id]/follow-up/route");
 const competency = await import("@/app/api/d4/competency-assessments/route");
 const snapshotRoute = await import("@/app/api/d4/snapshot/route");
 
@@ -133,6 +135,8 @@ const writeRoutes: [string, () => Promise<Response>][] = [
   ["POST /development-needs/:id/versions (edit)", () => devVersions.POST(post({ status: "Planned", notes: "", priority: "High", pic: "Bu Maya" }), params(NEED))],
   ["POST /training-records", () => training.POST(post({ employeeId: ALFA, developmentNeedId: NEED, activity: "Uji", date: "2026-10-01", status: "Planned" }))],
   ["POST /training-records/:id/versions", () => trainingVersions.POST(post({ status: "In Progress", notes: "Uji" }), params(TRAINING))],
+  // FIX-D4-TRN-003 (Mba Ena): Completed, Not Passed, no follow-up yet.
+  ["POST /training-records/:id/follow-up", () => trainingFollowUp.POST(post({ followUp: "Other follow-up", notes: "Coaching" }), params("FIX-D4-TRN-003"))],
 ];
 
 describe("session guard: real requireWriter over a mocked Supabase client", () => {
@@ -442,10 +446,51 @@ describe("development needs and training", () => {
 
 // Q16 (20 Oct 2026): every completed training is Passed or Not Passed; Not Passed needs HR's follow-up.
 describe("training result and follow-up", () => {
+  const NOT_PASSED = "FIX-D4-TRN-003";
+  const followUp = (body: Record<string, unknown>, id = NOT_PASSED) => call(trainingFollowUp.POST(post(body), params(id)));
+
   it.each([["no result", {}], ["a free-text result", { result: "Lulus" }]])("rejects creating a Completed training with %s (422)", async (_name, patch) => {
     const res = await call(training.POST(post({ employeeId: ALFA, developmentNeedId: NEED, activity: "Uji", date: "2026-10-01", status: "Completed", ...patch })));
     expect(res).toMatchObject({ status: 422, body: { error: { code: "VALIDATION_FAILED" } } });
     expect(writes).toHaveLength(0);
+  });
+
+  it("records Other follow-up with its note; the status and result come from the record, not the body", async () => {
+    expect((await followUp({ followUp: "Other follow-up", notes: "  " })).status).toBe(422);
+    const res = await followUp({ followUp: "Other follow-up", notes: "Eskalasi ke atasan", status: "Planned", result: "Passed" });
+    expect(res).toMatchObject({ status: 201, body: { data: { trainingId: NOT_PASSED, followUp: "Other follow-up", retrainingId: null } } });
+    expect(writes).toEqual([{ method: "recordTrainingFollowUp", args: [NOT_PASSED, { followUp: "Other follow-up", notes: "Eskalasi ke atasan" }, snapshot] }]);
+  });
+
+  it("passes the new training of a Retraining to the repository, and requires its name and date", async () => {
+    expect((await followUp({ followUp: "Retraining", notes: "" })).status).toBe(422);
+    const res = await followUp({ followUp: "Retraining", notes: "", activity: "Records Retention Workshop (ulang)", date: "2026-10-27" });
+    expect(res.status).toBe(201);
+    expect(writes[0].args[1]).toEqual({ followUp: "Retraining", notes: "", activity: "Records Retention Workshop (ulang)", date: "2026-10-27" });
+  });
+
+  it.each([
+    ["an unknown follow-up", NOT_PASSED, { followUp: "Coaching", notes: "x" }, 422],
+    ["a training that is not Not Passed", TRAINING, { followUp: "Other follow-up", notes: "x" }, 422],
+    ["an unknown training", uuid(404), { followUp: "Other follow-up", notes: "x" }, 404],
+  ])("rejects %s", async (_name, id, body, status) => {
+    expect((await followUp(body, id)).status).toBe(status);
+    expect(writes).toHaveLength(0);
+  });
+
+  it("rejects a second follow-up for the same Not Passed result", async () => {
+    const current = snapshot.trainingVersions.find((item) => item.trainingId === NOT_PASSED)!;
+    snapshot = { ...snapshot, trainingVersions: [{ ...current, id: uuid(12), revision: current.revision + 1, followUp: "Other follow-up", notes: "Coaching" }, ...snapshot.trainingVersions] };
+    const res = await followUp({ followUp: "Retraining", notes: "", activity: "Ulang", date: "2026-10-27" });
+    expect(res.status).toBe(422);
+    expect(res.body.error?.message).toMatch(/sudah dicatat/);
+  });
+
+  it("rejects Retraining for a Completed requirement but still allows Other follow-up", async () => {
+    snapshot = { ...snapshot, developmentVersions: snapshot.developmentVersions.map((item) => item.needId === "FIX-D4-DEV-003" ? { ...item, status: "Completed" as const } : item) };
+    const res = await followUp({ followUp: "Retraining", notes: "", activity: "Ulang", date: "2026-10-27" });
+    expect(res.body.error?.message).toMatch(/sudah Completed/);
+    expect((await followUp({ followUp: "Other follow-up", notes: "Rotasi" })).status).toBe(201);
   });
 });
 
