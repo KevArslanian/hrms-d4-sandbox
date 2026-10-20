@@ -5,9 +5,10 @@ import { useMemo, useState, type FormEvent } from "react";
 import type { DevelopmentPriority, DevelopmentReassessment, DevelopmentSourceType, DevelopmentStatus } from "../../../development/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
 import { isDevelopmentRollback, openNeedFor, passedTrainingCount, retrainedAt } from "../../../shared/rules";
-import { currentGap, developmentById, developmentHistory, developmentNeeds, employeeById, formatDate, formatPeriod, latestCurrentPositionAssessment, objectiveFromFinding, positionOf, reassessmentFor, scorecardsOf, sourceTypeLabel, today, trainings, visibleEmployees } from "../../data/selectors";
+import { currentGap, DEFAULT_SOURCE_TYPE, developmentById, developmentHistory, developmentNeeds, employeeById, formatDate, formatPeriod, latestCurrentPositionAssessment, objectiveFromFinding, positionOf, reassessmentFor, scorecardsOf, sourceTypeLabel, today, trainings, visibleEmployees } from "../../data/selectors";
 import { FormError, FormModal, ModalActions, RadioField, ReadOnlyField, SearchSelectField, SelectField, TextAreaField, TextField } from "../../ui/forms";
 import { Notice, statusLabel } from "../../ui/primitives";
+import { picOptions } from "./rows";
 
 /** `objective`: suggested text for a gap source (competency and target level), still editable. */
 type SourceOption = { ref: string; label: string; covered?: boolean; objective?: string };
@@ -43,6 +44,13 @@ function MethodField({ value, onChange, helper }: { value: string; onChange: (va
   </>;
 }
 
+/** Q13: the PIC (penanggung jawab) is picked from the employee list and stored by name; "No PIC" leaves it empty. */
+function PicField({ value, onChange, current }: { value: string; onChange: (value: string) => void; current?: string }) {
+  const snapshot = useSnapshot();
+  return <SearchSelectField label="PIC" testId="pic" value={value} onChange={onChange} placeholder="No PIC" options={picOptions(snapshot, current)}
+    helper="Penanggung jawab yang menindaklanjuti requirement ini, dipilih dari daftar pegawai." />;
+}
+
 function PrioritySelect({ value, onChange }: { value: DevelopmentPriority; onChange: (value: DevelopmentPriority) => void }) {
   return <SelectField label="Priority" testId="priority" value={value} onChange={(event) => onChange(event.target.value as DevelopmentPriority)}>
     {(["High", "Medium", "Low"] as const).map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}
@@ -53,10 +61,10 @@ export function DevelopmentFormModal({ employeeId, sourceType, sourceRef, onClos
   const snapshot = useSnapshot();
   const { run, busy } = useD4();
   const [employee, setEmployee] = useState(employeeId ?? "");
-  const [type, setType] = useState<DevelopmentSourceType>(sourceType ?? "competency_gap");
+  const [type, setType] = useState<DevelopmentSourceType>(sourceType ?? DEFAULT_SOURCE_TYPE);
   const [reference, setReference] = useState(sourceRef ?? "");
   // A gap source fills the objective in; the user's own text is never overwritten, only the last suggestion.
-  const [suggested, setSuggested] = useState(() => sourceRef && employeeId ? sourceOptions(snapshot, employeeId, sourceType ?? "competency_gap").find((item) => item.ref === sourceRef)?.objective ?? "" : "");
+  const [suggested, setSuggested] = useState(() => sourceRef && employeeId ? sourceOptions(snapshot, employeeId, sourceType ?? DEFAULT_SOURCE_TYPE).find((item) => item.ref === sourceRef)?.objective ?? "" : "");
   const [objective, setObjective] = useState(suggested);
   const [priority, setPriority] = useState<DevelopmentPriority>("Medium");
   const [notes, setNotes] = useState("");
@@ -112,7 +120,7 @@ export function DevelopmentFormModal({ employeeId, sourceType, sourceRef, onClos
         <PrioritySelect value={priority} onChange={setPriority} />
         <ReadOnlyField label="Created date" testId="created-date" value={formatDate(today())} />
         <MethodField value={method} onChange={setMethod} helper="Opsional. Boleh diisi nanti oleh HR." />
-        <TextField label="PIC" testId="pic" maxLength={120} value={pic} onChange={(event) => setPic(event.target.value)} helper="Orang yang menindaklanjuti requirement ini." />
+        <PicField value={pic} onChange={setPic} />
       </div>
       <TextAreaField label="Notes" testId="notes" value={notes} onChange={(event) => setNotes(event.target.value)} helper="HR yang menentukan metode training akhir; gap tidak menentukannya secara otomatis." />
     </form>
@@ -182,7 +190,7 @@ export function DevelopmentEditModal({ needId, onClose }: { needId: string; onCl
         <PrioritySelect value={priority} onChange={setPriority} />
         <ReadOnlyField label="Status" testId="status" value={statusLabel(current.status)} />
         <MethodField value={method} onChange={setMethod} />
-        <TextField label="PIC" testId="pic" maxLength={120} value={pic} onChange={(event) => setPic(event.target.value)} helper="Orang yang menindaklanjuti requirement ini." />
+        <PicField value={pic} onChange={setPic} current={current.pic} />
       </div>
       <TextAreaField label="Reason for change" testId="alasan-perubahan" value={notes} onChange={(event) => setNotes(event.target.value)}
         helper={unchanged ? "Belum ada perubahan. Ubah Priority, Method, atau PIC untuk menyimpan." : "Opsional. Contoh: kebijakan pajak berubah, sertifikasi pajak dinaikkan ke High."} />

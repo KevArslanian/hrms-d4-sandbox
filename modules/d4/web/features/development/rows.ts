@@ -1,5 +1,5 @@
 import type { DevelopmentNeedVersion } from "../../../development/types";
-import { developmentNeeds, employeeById, employeeSearchText, includesText, visibleEmployees, type Snapshot } from "../../data/selectors";
+import { developmentNeeds, employeeById, employeeSearchText, includesText, positionOf, visibleEmployees, type Snapshot } from "../../data/selectors";
 
 /** Empty string = no filter. `period` is the month the requirement was last recorded (YYYY-MM). */
 export type DevelopmentFilters = { search: string; department: string; sourceType: string; status: string; period: string; competency: string; priority: string };
@@ -31,4 +31,16 @@ export function developmentRows(snapshot: Snapshot, filters: DevelopmentFilters)
       && (!filters.sourceType || need.sourceType === filters.sourceType) && (!filters.status || need.status === filters.status) && (!filters.period || need.createdAt.startsWith(filters.period))
       && (!filters.priority || need.priority === filters.priority) && (!filters.competency || needCompetencyIds(snapshot, need).includes(filters.competency));
   });
+}
+
+/**
+ * PIC choices (Q13): employees by name, labelled with their position; the name is what is stored (pic, text <= 120).
+ * A PIC typed as free text before Q13 stays first in the list, so editing a requirement never blanks it.
+ */
+export function picOptions(snapshot: Snapshot, current = ""): { value: string; label: string }[] {
+  const byName = new Map(visibleEmployees(snapshot).map((item) => [item.fullName, item]));
+  const options = [...byName.values()].sort((a, b) => a.fullName.localeCompare(b.fullName))
+    .map((item) => ({ value: item.fullName, label: [item.fullName, positionOf(snapshot, item)?.title].filter(Boolean).join(" · ") }));
+  const kept = current.trim();
+  return kept && !byName.has(kept) ? [{ value: kept, label: `${kept} (not in employee list)` }, ...options] : options;
 }
