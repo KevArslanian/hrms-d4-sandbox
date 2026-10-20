@@ -2,7 +2,7 @@ export type DevelopmentSourceType = "competency_gap" | "role_change" | "performa
 export type DevelopmentPriority = "Low" | "Medium" | "High";
 export type DevelopmentStatus = "Identified" | "Planned" | "In Progress" | "Completed";
 /** HR decision after reassessing a Completed requirement: train again, or the competency now meets the requirement. */
-export type DevelopmentReassessment = "Retraining" | "Sudah memenuhi";
+export type DevelopmentReassessment = "Retraining" | "Meets requirement";
 
 export interface DevelopmentSourceOption {
   readonly type: DevelopmentSourceType;
