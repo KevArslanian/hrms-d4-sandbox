@@ -2,25 +2,24 @@ import { AuthApiError, AuthRetryableFetchError, createClient } from "@supabase/s
 import { describe, expect, it } from "vitest";
 import { loginErrorMessage } from "@/lib/loginErrorMessage";
 
-const UNREACHABLE = { message: "Tidak dapat menghubungi server login. Coba lagi.", countsAsAttempt: false };
+const UNREACHABLE = "Tidak dapat menghubungi server login. Coba lagi.";
 
-// D4-FN-02: only a real credential check costs an attempt; an unreachable server or the Supabase rate limit does not.
+// D4-FN-02: an unreachable server or the Supabase rate limit is not reported as a wrong email or password.
 describe("loginErrorMessage", () => {
-  it("reports an unreachable login server without costing an attempt", () => {
-    expect(loginErrorMessage(new AuthRetryableFetchError("Failed to fetch", 0))).toEqual(UNREACHABLE);
-    expect(loginErrorMessage(new AuthRetryableFetchError("Service Unavailable", 503))).toEqual(UNREACHABLE);
-    expect(loginErrorMessage(new TypeError("Failed to fetch"))).toEqual(UNREACHABLE); // thrown instead of returned
+  it("reports an unreachable login server", () => {
+    expect(loginErrorMessage(new AuthRetryableFetchError("Failed to fetch", 0))).toBe(UNREACHABLE);
+    expect(loginErrorMessage(new AuthRetryableFetchError("Service Unavailable", 503))).toBe(UNREACHABLE);
+    expect(loginErrorMessage(new TypeError("Failed to fetch"))).toBe(UNREACHABLE); // thrown instead of returned
   });
 
-  it("reports the Supabase rate limit without costing an attempt", () => {
+  it("reports the Supabase rate limit", () => {
     expect(loginErrorMessage(new AuthApiError("Request rate limit reached", 429, "over_request_rate_limit")))
-      .toEqual({ message: "Terlalu banyak percobaan. Coba lagi nanti.", countsAsAttempt: false });
+      .toBe("Terlalu banyak percobaan. Coba lagi nanti.");
   });
 
   it("keeps the credential messages", () => {
-    expect(loginErrorMessage(new AuthApiError("Invalid login credentials", 400, "invalid_credentials")))
-      .toEqual({ message: "Email atau password salah.", countsAsAttempt: true });
-    expect(loginErrorMessage(new AuthApiError("Email not confirmed", 400, "email_not_confirmed")).message)
+    expect(loginErrorMessage(new AuthApiError("Invalid login credentials", 400, "invalid_credentials"))).toBe("Email atau password salah.");
+    expect(loginErrorMessage(new AuthApiError("Email not confirmed", 400, "email_not_confirmed")))
       .toBe("Email belum dikonfirmasi. Selesaikan konfirmasi melalui email terlebih dahulu.");
   });
 
@@ -29,6 +28,6 @@ describe("loginErrorMessage", () => {
     const client = createClient("http://127.0.0.1:1", "test-anon-key", { auth: { persistSession: false, autoRefreshToken: false } });
     const { error } = await client.auth.signInWithPassword({ email: "uji@andima.co.id", password: "Rahasia-123!" });
     expect(error).not.toBeNull();
-    expect(loginErrorMessage(error)).toEqual(UNREACHABLE);
+    expect(loginErrorMessage(error)).toBe(UNREACHABLE);
   });
 });
