@@ -1,7 +1,7 @@
 import type { CompetencyAssessment } from "../../../competency/types";
 import type { DevelopmentNeedVersion } from "../../../development/types";
 import { performanceBand, type PerformanceBand } from "../../../kpi/scale";
-import { localToday, retrainedAt } from "../../../shared/rules";
+import { followUpOf, localToday, retrainedAt } from "../../../shared/rules";
 import type { EmployeeReference } from "../../../shared/types";
 import type { KpiAssessment } from "../../../supabase/types";
 import type { TrainingVersion } from "../../../training/types";
@@ -112,7 +112,8 @@ export function gapClosedAfter(assessments: readonly Pick<CompetencyAssessment, 
   return latest ? finding(latest)?.status === "Terpenuhi" : false;
 }
 
-export type DashboardAlert = { key: string; title: string; detail: string; href: string; count: number; people: string[] };
+/** `label`: state shown next to the title, e.g. a Not Passed training still awaiting HR's follow-up (Q16). */
+export type DashboardAlert = { key: string; title: string; detail: string; href: string; count: number; people: string[]; label?: string };
 
 /**
  * Follow-ups HR should act on, computed from D4 data only (interview D4, 14 Oct 2026). Alerts that need data D4
@@ -141,13 +142,14 @@ export function dashboardAlerts(snapshot: Snapshot, rows: readonly DashboardRow[
       if (!need.pic?.trim()) found.noPic.push(name);
       const last = trainings.filter((item) => item.developmentNeedId === need.needId && item.status !== "Cancelled")
         .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))[0];
-      if (last?.status === "Completed" && last.result === "Not Passed") found.notPassed.push(name);
+      // Q16: waits for HR's follow-up. Retraining adds a newer training; any recorded follow-up clears it.
+      if (last?.status === "Completed" && last.result === "Not Passed" && !followUpOf(trainingHistory(snapshot, last.trainingId))) found.notPassed.push(name);
     }
   }
   const alerts: (Omit<DashboardAlert, "count" | "people"> & { list: string[] })[] = [
     { key: "under-performance", list: found.under, title: "Under Performance", href: "/performance", detail: "pegawai di bawah 80 pada periode ini. KPI bisa menjadi pemicu pemanggilan HR." },
     { key: "completed-gap-open", list: found.completedGap, title: "Completed, gap masih terbuka", href: "/competency", detail: "development requirement Completed atau training Passed, tetapi belum ada penilaian kompetensi baru yang menunjukkan level terpenuhi. Nilai ulang di Competency Gap." },
-    { key: "training-not-passed", list: found.notPassed, title: "Training Not Passed", href: "/training", detail: "development requirement dengan training terakhir Not Passed. Jadwalkan training ulang." },
+    { key: "training-not-passed", list: found.notPassed, title: "Training Not Passed", label: "Awaiting follow-up", href: "/training", detail: "development requirement dengan training terakhir Not Passed dan belum ada tindak lanjut. Catat Retraining atau Other follow-up di detail training." },
     { key: "gap-no-requirement", list: found.noPlan, title: "Gap tanpa development requirement", href: "/competency", detail: "gap kompetensi belum dibuatkan development requirement." },
     { key: "requirement-no-pic", list: found.noPic, title: "Tanpa PIC", href: "/development", detail: "development requirement terbuka belum punya PIC." },
   ];
@@ -194,7 +196,7 @@ export function employeeHistory(snapshot: Snapshot, employeeId: string): History
       entries.push({ id: `training-${version.id}`, kind: "training", day: dayOf(version.createdAt), createdAt: version.createdAt, actor: version.actor,
         date: formatDate(version.createdAt), status: version.status, href: `/training/${training.trainingId}`,
         title: `Training v${version.revision}: ${version.activity}`,
-        body: [version.result && `Result: ${version.result}`, version.notes].filter(Boolean).join(" · ") || undefined });
+        body: [version.result && `Result: ${version.result}`, version.followUp && `Follow-up: ${version.followUp}`, version.notes].filter(Boolean).join(" · ") || undefined });
     }
   }
   return entries.sort((a, b) => b.day.localeCompare(a.day) || b.createdAt.localeCompare(a.createdAt));
