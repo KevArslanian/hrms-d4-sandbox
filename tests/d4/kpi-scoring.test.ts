@@ -88,7 +88,9 @@ describe("KPI form: changing the period", () => {
   it("clears an earlier Save error and reloads the KPI set when the catalog version changes", () => {
     const change = periodChange(set, "2026-10", "2026-11", alfa);
     expect(change.error).toBe("");
-    expect(change.roleOrder).toBe(FINANCE_ROLE);
+    // Expected role comes from the catalog, so renamed fixture positions do not break the test.
+    expect(change.roleOrder).toBe(roleForPosition(catalogFor(set, "2026-11")!, alfa.positionId));
+    expect(change.roleOrder).toBeGreaterThan(0);
     expect(change.lines).toHaveLength(5);
     expect(change.lines!.every((line) => line.raw_score === null)).toBe(true);
   });
