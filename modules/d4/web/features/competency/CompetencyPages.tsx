@@ -13,7 +13,7 @@ import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
 import { Button, ButtonLink, Card, InfoGrid, Notice, SourceChip, statusLabel, StatusBadge } from "../../ui/primitives";
 import { DevelopmentFormModal } from "../development/DevelopmentModals";
-import { competencyRows, type CompetencyRow as Row } from "./rows";
+import { competencyOptions, competencyRows, type CompetencyRow as Row } from "./rows";
 
 // Compared with statusLabel(row.status), so these are the English display labels.
 const STATUS_FILTER = ["Not Evaluated", "Met", "Gap", "Insufficient Data"];
@@ -34,21 +34,23 @@ export function CompetencyListPage() {
   const [position, setPosition] = useState("");
   const [department, setDepartment] = useState("");
   const [status, setStatus] = useState("");
+  const [competency, setCompetency] = useState("");
   const [devFor, setDevFor] = useState<string | null>(null);
   const [changing, setChanging] = useState(false);
-  const rows = useMemo(() => competencyRows(snapshot, { search, position, department, status }), [snapshot, search, position, department, status]);
-  const filtered = Boolean(search || position || department || status);
+  const rows = useMemo(() => competencyRows(snapshot, { search, position, department, status, competency }), [snapshot, search, position, department, status, competency]);
+  const filtered = Boolean(search || position || department || status || competency);
   // UAT-11: the list holds only employees in scope; anyone else starts with Assess Position Change.
   const outOfScope = writer ? "Untuk pegawai lain, klik Assess Position Change lalu pilih pegawai dan posisi barunya." : "Penilaian perubahan posisi untuk pegawai lain dimulai oleh HR.";
 
   return <>
     <PageHeader title="Competency Gap" subtitle="Bandingkan kemampuan dan bukti pegawai dengan persyaratan posisinya. Daftar berisi pegawai yang sedang training (status Probation/Intern), naik jabatan dalam 6 bulan terakhir, atau masih punya development requirement terbuka."
       actions={writer && <Button icon={<ArrowRightLeft className="size-4" />} onClick={() => setChanging(true)} data-testid="btn-assess-position-change">Assess Position Change</Button>} />
-    <FilterBar canReset={filtered} onReset={() => { setSearch(""); setPosition(""); setDepartment(""); setStatus(""); }}>
+    <FilterBar canReset={filtered} onReset={() => { setSearch(""); setPosition(""); setDepartment(""); setStatus(""); setCompetency(""); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Search name or position" />
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All positions" testId="all-positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />}
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All departments" testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />}
       <SelectFilter label="All status" testId="all-gap-status" value={status} onChange={setStatus} options={STATUS_FILTER.map((item) => ({ value: item, label: item }))} />
+      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All competencies" testId="all-competencies" value={competency} onChange={setCompetency} options={competencyOptions(snapshot)} />}
     </FilterBar>
     <DataTable<Row> rows={rows} noun="employees" rowKey={(row) => row.employee.id}
       emptyTitle="Tidak ada pegawai yang cocok" emptyText={snapshot.role === "EMPLOYEE" ? "Ubah kata kunci atau reset filter." : filtered ? `Ubah kata kunci atau reset filter. ${outOfScope}` : `Belum ada pegawai yang sedang training atau naik jabatan. ${outOfScope}`}
