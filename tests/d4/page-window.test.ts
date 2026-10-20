@@ -12,4 +12,11 @@ describe("pageWindow", () => {
     expect(pageWindow(2, 3)).toEqual([1, 2, 3]);
     expect(pageWindow(1, 1)).toEqual([1]);
   });
+  // D4-UI-01: a gap that would hide exactly one page shows that page instead of "…".
+  it("never hides a single page behind a gap", () => {
+    expect(pageWindow(1, 4)).toEqual([1, 2, 3, 4]);
+    expect(pageWindow(4, 7)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(pageWindow(4, 4)).toEqual([1, 2, 3, 4]);
+    expect(pageWindow(1, 5)).toEqual([1, 2, "gap", 5]);
+  });
 });

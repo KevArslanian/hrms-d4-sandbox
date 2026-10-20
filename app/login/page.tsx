@@ -1,9 +1,14 @@
 'use client';
 
-import React, { useState, useEffect, FormEvent, ChangeEvent } from 'react';
+import React, { useState, FormEvent, ChangeEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
+import { loginErrorMessage } from '@/lib/loginErrorMessage';
+
+// B2 (PISD-B) tidak memuat webfont, jadi var font jatuh ke system stack. Samakan.
+const B2_FONT_STACK = "-apple-system, system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', 'Noto Sans', Arial, sans-serif";
+const B2_FONT_VARS = { '--font-montserrat': B2_FONT_STACK, '--font-syne': B2_FONT_STACK } as React.CSSProperties;
 
 export default function LoginPage() {
   const router = useRouter();
@@ -13,24 +18,8 @@ export default function LoginPage() {
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState<string>('');
   const [isSigningIn, setIsSigningIn] = useState<boolean>(false);
-  const [loginAttempts, setLoginAttempts] = useState<number>(0);
-  const [isLocked, setIsLocked] = useState<boolean>(false);
-  const [isPermanentlyBlocked, setIsPermanentlyBlocked] = useState<boolean>(false);
-  const [countdown, setCountdown] = useState<number>(0);
   const hour = new Date().getHours();
   const greeting = hour >= 3 && hour < 12 ? 'Good Morning' : hour >= 12 && hour < 17 ? 'Good Afternoon' : 'Good Evening';
-
-  useEffect(() => {
-    if (!isLocked || isPermanentlyBlocked || countdown <= 0) return;
-    const timer = setTimeout(() => {
-      if (countdown === 1) {
-        setIsLocked(false);
-        setErrorMessage('');
-      }
-      setCountdown(countdown - 1);
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, [isLocked, countdown, isPermanentlyBlocked]);
 
   const validateEmailFormat = (emailVal: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -44,49 +33,24 @@ export default function LoginPage() {
     return passVal.length >= 10 && hasLetter && hasDigit && hasSpecial;
   };
 
-  const handleFailedAttempt = (customMessage: string) => {
-    const newAttempts = loginAttempts + 1;
-    setLoginAttempts(newAttempts);
-
-    if (newAttempts >= 5) {
-      setIsLocked(true);
-      setIsPermanentlyBlocked(true);
-      setErrorMessage('Your account has been blocked. Please contact the IT administrator.');
-    } else if (newAttempts === 4) {
-      setErrorMessage(
-        `${customMessage} Warning: 1 more failed attempt will block your account!`
-      );
-    } else if (newAttempts === 3) {
-      setIsLocked(true);
-      setCountdown(30);
-      setErrorMessage(
-        'Too many failed login attempts (3/5). Please wait 30 seconds before trying again.'
-      );
-    } else {
-      setErrorMessage(`${customMessage} (Remaining attempts: ${5 - newAttempts})`);
-    }
-  };
-
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setErrorMessage('');
     setSuccessMessage('');
 
-    if (isLocked || isPermanentlyBlocked) return;
-
     if (!email.trim() || !password.trim()) {
-      setErrorMessage('Email and Password are required.');
+      setErrorMessage('Email dan password wajib diisi.');
       return;
     }
 
     if (!validateEmailFormat(email)) {
-      setErrorMessage('Invalid email format (example: name@andima.co.id).');
+      setErrorMessage('Format email tidak valid (contoh: nama@andima.co.id).');
       return;
     }
 
     if (!validatePasswordStrength(password)) {
       setErrorMessage(
-        'Password must be at least 10 characters long and contain a mix of letters, numbers, and special characters.'
+        'Password minimal 10 karakter dan harus berisi huruf, angka, dan karakter khusus.'
       );
       return;
     }
@@ -94,24 +58,22 @@ export default function LoginPage() {
     setIsSigningIn(true);
     void supabase.auth.signInWithPassword({ email: email.toLowerCase().trim(), password })
       .then(({ error }) => {
+        // supabase-js returns network errors here instead of throwing them (D4-FN-02). The attempt limit is the
+        // Supabase rate limit (429); a counter kept in this page reset on refresh (D4-SEC-01).
         if (error) {
-          const message = error.message.toLowerCase().includes('email not confirmed')
-            ? 'Email belum dikonfirmasi. Selesaikan konfirmasi melalui email terlebih dahulu.'
-            : 'Email atau password salah.';
-          handleFailedAttempt(message);
+          setErrorMessage(loginErrorMessage(error));
           return;
         }
 
-        setLoginAttempts(0);
         setSuccessMessage('Login berhasil! Mengalihkan ke dashboard...');
         window.setTimeout(() => { router.push('/dashboard'); }, 1200);
       })
-      .catch(() => setErrorMessage('Tidak dapat menghubungi server login. Silakan coba lagi.'))
+      .catch((cause: unknown) => setErrorMessage(loginErrorMessage(cause)))
       .finally(() => setIsSigningIn(false));
   };
 
   return (
-    <main className="relative min-h-screen w-full overflow-x-hidden bg-[#07111F] text-[#0D1B2A] selection:bg-[#3B6FF5] selection:text-white font-[family-name:var(--font-montserrat)]">
+    <main className="relative min-h-screen w-full overflow-x-hidden bg-[#07111F] text-[#0D1B2A] selection:bg-[#3B6FF5] selection:text-white font-[family-name:var(--font-montserrat)]" style={B2_FONT_VARS}>
       {/* 1. BACKGROUND GAMBAR LOGISTIK FULL SCREEN */}
       <div className="absolute inset-0 z-0">
         <img
@@ -130,10 +92,10 @@ export default function LoginPage() {
 
       {/* 2. BRAND TEXT (TITLE) MENGGUNAKAN FONT SYNE */}
       <div className="hidden md:flex absolute top-1/2 -translate-y-1/2 right-8 lg:right-16 xl:right-24 z-20 pointer-events-none flex-col items-end text-right max-w-lg">
-        <span className="mb-4 rounded-2xl bg-white p-2 shadow-xl"><img src="/andima-logo.png" alt="Logo Andima" width={77} height={52} data-testid="login-logo" /></span>
-        <h1 className="font-[family-name:var(--font-syne)] text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-wider text-white drop-shadow-[0_4px_20px_rgba(0,0,0,0.9)] leading-tight">
+        <div className="w-32 sm:w-40 lg:w-48 mb-4"><img src="/andima-logo.png" alt="Logo Andima" width={400} height={246} className="w-full h-auto object-contain drop-shadow-lg" data-testid="login-logo" /></div>
+        <h1 className="font-[family-name:var(--font-syne)] text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-wider text-white drop-shadow-md leading-tight">
           PT. ANDIMA<br />
-          <span className="font-[family-name:var(--font-syne)] text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-wider text-white drop-shadow-[0_4px_20px_rgba(0,0,0,0.9)] leading-tight">TRANSPORTINDO</span>
+          <span className="font-[family-name:var(--font-syne)] text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-wider text-white drop-shadow-md leading-tight">TRANSPORTINDO</span>
         </h1>
       </div>
 
@@ -161,17 +123,16 @@ export default function LoginPage() {
             <form id="login-form" data-testid="login-form" onSubmit={handleSubmit} className="space-y-6 font-[family-name:var(--font-montserrat)] relative z-10" noValidate>
               <div>
                 <label htmlFor="email" className="block text-xs font-bold uppercase tracking-wider text-[#0F172A] mb-2.5">
-                  Username
+                  Email
                 </label>
                 <input
                   id="email"
                   name="email"
                   data-testid="input-email"
                   type="email"
-                  placeholder="manajemen@andima.co.id"
+                  placeholder="name@andima.co.id"
                   value={email}
                   onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
-                  disabled={isLocked || isPermanentlyBlocked}
                   className="w-full px-4.5 py-3.5 rounded-xl bg-white/70 backdrop-blur-md text-[#0D1B2A] placeholder-[#64748B] text-sm focus:outline-none transition-all disabled:opacity-50 border border-white/90 shadow-[inset_0_2px_4px_rgba(0,0,0,0.04)] focus:bg-white focus:border-[#3B6FF5] focus:ring-2 focus:ring-[#3B6FF5]/30 font-medium"
                 />
               </div>
@@ -189,7 +150,6 @@ export default function LoginPage() {
                     placeholder="••••••••••••"
                     value={password}
                     onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
-                    disabled={isLocked || isPermanentlyBlocked}
                     className="w-full pl-4.5 pr-12 py-3.5 rounded-xl bg-white/70 backdrop-blur-md text-[#0D1B2A] placeholder-[#64748B] text-sm focus:outline-none transition-all disabled:opacity-50 border border-white/90 shadow-[inset_0_2px_4px_rgba(0,0,0,0.04)] focus:bg-white focus:border-[#3B6FF5] focus:ring-2 focus:ring-[#3B6FF5]/30 font-medium"
                   />
 
@@ -203,7 +163,6 @@ export default function LoginPage() {
                     onMouseLeave={() => setShowPassword(false)}
                     onTouchStart={() => setShowPassword(true)}
                     onTouchEnd={() => setShowPassword(false)}
-                    disabled={isLocked || isPermanentlyBlocked}
                     tabIndex={-1}
                     className="absolute right-4 top-1/2 -translate-y-1/2 text-[#64748B] hover:text-[#3B6FF5] p-1 transition-colors disabled:opacity-50"
                   >
@@ -245,19 +204,15 @@ export default function LoginPage() {
                 name="btn-login"
                 data-testid="btn-login"
                 type="submit"
-                disabled={isLocked || isPermanentlyBlocked || isSigningIn}
+                disabled={isSigningIn}
                 className="w-full py-4 px-5 text-white font-extrabold rounded-xl text-sm tracking-wider uppercase transition-all mt-2 disabled:opacity-50 bg-[#3B6FF5] hover:bg-[#2B5CE5] shadow-[0_8px_25px_rgba(59,111,245,0.4)] active:scale-[0.99] cursor-pointer disabled:cursor-not-allowed font-[family-name:var(--font-montserrat)]"
               >
-                {isPermanentlyBlocked
-                  ? 'ACCOUNT BLOCKED'
-                  : isLocked
-                  ? `Please wait ${countdown}s`
-                  : isSigningIn ? 'SIGNING IN…' : 'LOGIN'}
+                {isSigningIn ? 'SIGNING IN…' : 'LOGIN'}
               </button>
             </form>
 
             <p className="relative z-10 mt-4 text-center text-sm text-[#334155]">
-              Not login ?{' '}
+              Not registered?{' '}
               <Link id="link-register" data-testid="link-register" href="/register" className="font-bold text-[#3B6FF5] hover:underline">Register</Link>
             </p>
 

@@ -24,4 +24,6 @@ export interface CompetencyAssessment {
   readonly overallStatus: CompetencyOverallStatus;
   readonly createdAt: string;
   readonly actor: string;
+  /** Optional: the supervisor or requesting department HR assessed together with ("Dinilai bersama"). */
+  readonly assessedWith?: string | null;
 }

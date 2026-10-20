@@ -11,7 +11,7 @@
 
 ## 1. Tujuan dan cakupan
 
-Dokumen ini memetakan setiap requirement D4 ke test case yang dapat dijalankan QA. ID test case diturunkan langsung dari checklist kartu QA di board Planka *Squad D4*, jadi satu baris checklist = satu TC ID. Test case baru (TC-D4-001) ditambahkan karena FR-D4-001 belum punya skenario di checklist mana pun.
+Dokumen ini memetakan setiap requirement D4 ke test case yang dapat dijalankan QA. ID test case diturunkan langsung dari checklist kartu QA di board Planka *Squad D4*, jadi satu baris checklist = satu TC ID. Test case baru (TC-D4-001) ditambahkan karena FR-D4-001 belum punya skenario di checklist mana pun. TC-D4-002-16 s.d. 19 (skala 1–100 katalog V6 dan kategori performa) ditambahkan 20 Okt 2026 dan belum ada di checklist Planka. TC-D4-002-20 dan 21 (scorecard lama setelah Actual digabung dengan Score, dan kunci Reference) ditambahkan 20 Okt 2026 untuk Q4 dan Q12, juga belum ada di Planka.
 
 Di luar cakupan: sertifikasi/renewal, trigger performance-gap formal, dan reassessment wajib (Academic/Project Extension sampai ada sumber resmi — lihat TS-D4-002/003).
 
@@ -20,7 +20,7 @@ Di luar cakupan: sertifikasi/renewal, trigger performance-gap formal, dan reasse
 | Requirement | Prefix TC | Jumlah TC | Kartu QA |
 |---|---|---|---|
 | US-D4-001 / FR-D4-001 Performance Evaluation | TC-D4-001 | 6 (baru) | [QA] Pengujian Phase 1 |
-| US-D4-002 / FR-D4-002 KPI Scorecard | TC-D4-002 | 15 | [QA] Pengujian Phase 1 |
+| US-D4-002 / FR-D4-002 KPI Scorecard | TC-D4-002 | 21 (6 baru) | [QA] Pengujian Phase 1 |
 | US-D4-003 / FR-D4-003 Competency Gap | TC-D4-003 | 12 | [QA] Pengujian Phase 2 |
 | US-D4-004 / FR-D4-004 Development Requirement | TC-D4-004 | 12 | [QA] Pengujian Phase 2 |
 | US-D4-005 / FR-D4-005 Training Tracking | TC-D4-005 | 15 | [QA] Pengujian Phase 3 |
@@ -29,7 +29,7 @@ Di luar cakupan: sertifikasi/renewal, trigger performance-gap formal, dan reasse
 | TR-D4-002 Security & audit | TC-D4-SEC | 9 | idem |
 | TR-D4-002 Validation & UI quality | TC-D4-UIQ | 13 | idem |
 | Skenario lintas fitur | TS-D4-001 s.d. 003 | 3 | [QA] TS-D4-00x (list To Do List QA) |
-| **Total** | | **117** | |
+| **Total** | | **121** | |
 
 Semua FR dan TR yang dapat diuji punya minimal satu TC positif dan satu TC negatif.
 
@@ -60,6 +60,8 @@ Satu baris hasil: `TC ID | Tanggal | Tester | Role login | Build/commit | Status
 | O2 | Migrasi katalog KPI V5.1 belum diterapkan ke Supabase bersama | TC-D4-002-03, TC-D4-006-06, TC-D4-007-08 | PO + Back End |
 | O3 | Sales Admin memakai KPI Sales & Marketing (sementara) | TC-D4-002-01/02 untuk position Sales Admin | PO |
 | O4 | HR Associate belum punya KPI V5.1 | TC-D4-002-01/02 untuk HR Associate (expected: form menolak simpan) | PO |
+| O5 | Migrasi katalog KPI V6 skala 1–100 (`20261017130000_d4_kpi_scale_100_v6.sql`) belum diterapkan ke Supabase bersama (cek 20 Okt 2026) | TC-D4-002-16 s.d. 19 di staging; mode fixture sudah memakai V6 untuk periode mulai 2026-11 | PO + Back End |
+| O6 | Migrasi kunci Reference (`20261020120000_d4_kpi_reference_required.sql`, CHECK NOT VALID) belum diterapkan ke Supabase bersama. Form dan API sudah menolak Reference kosong | Bagian DB dari TC-D4-002-21 | PO + Back End |
 | MGT | Role Management read-only belum dikonfigurasi | TC-D4-SEC-05 | PO |
 | ~~NET~~ | Selesai 30 Sep 2026: klien menangani network failure, timeout, dan integration failure (API-D4-001 §3) | TC-D4-UIQ-06, TC-D4-UIQ-07 siap diuji di staging | WebDev |
 
@@ -89,16 +91,22 @@ Kartu Planka: **[QA] Pengujian Phase 1**
 | TC-D4-002-03 | Test bobot KPI sesuai baseline | Positif | Not Run | O2 (migrasi KPI V5.1 belum diterapkan) |
 | TC-D4-002-04 | Test total bobot = 100% | Positif | Not Run | Staging |
 | TC-D4-002-05 | Test total bobot selain 100% ditolak | Negatif | Not Run | Staging |
-| TC-D4-002-06 | Test input skor mentah 1 sampai 5 | Positif | Not Run | Staging |
-| TC-D4-002-07 | Test skor mentah di bawah 1 ditolak | Negatif | Not Run | Staging |
-| TC-D4-002-08 | Test skor mentah di atas 5 ditolak | Negatif | Not Run | Staging |
-| TC-D4-002-09 | Test weighted score = Bobot × Skor Mentah | Positif | Not Run | Staging |
+| TC-D4-002-06 | Test input Actual 1 sampai 5 untuk katalog V3.1/V5.1 (periode sampai 2026-10); angka Actual menjadi skor | Positif | Not Run | Staging |
+| TC-D4-002-07 | Test Actual di bawah 1 ditolak (semua katalog) | Negatif | Not Run | Staging |
+| TC-D4-002-08 | Test Actual di atas 5 ditolak untuk katalog V3.1/V5.1 | Negatif | Not Run | Staging |
+| TC-D4-002-09 | Test skor terbobot = bobot × Actual (contoh: bobot 20% × Actual 90 = 18; bobot 35% × Actual 4 = 1.40) | Positif | Not Run | Staging |
 | TC-D4-002-10 | Test total score = jumlah seluruh skor terbobot | Positif | Not Run | Staging |
-| TC-D4-002-11 | Test target dan realisasi dapat disimpan | Positif | Not Run | Staging |
-| TC-D4-002-12 | Test sistem tidak otomatis membuat skor mentah dari realisasi | Negatif | Not Run | Staging |
+| TC-D4-002-11 | Test target tampil 85 dan read-only (dari katalog, `readonly-target-1..5`); catatan realisasi ditulis dan tersimpan di Comment (`input-komentar-1..5`) | Positif | Not Run | Staging |
+| TC-D4-002-12 | Test form hanya punya satu input nilai per Core KPI: Actual (`input-realisasi-1..5`, angka) adalah skor; tidak ada kolom Score terpisah (`input-skor-*` sudah dihapus, Q4 20 Okt 2026) dan tidak ada konversi lain dari realisasi ke skor | Negatif | Not Run | Staging |
 | TC-D4-002-13 | Test KPI milik position lain tidak muncul | Negatif | Not Run | Staging |
 | TC-D4-002-14 | Test history scorecard per periode | Positif | Not Run | Staging |
 | TC-D4-002-15 | Test pencarian/filter bila sudah tersedia | Positif | Not Run | Staging |
+| TC-D4-002-16 | Test input Actual 1 sampai 100 untuk katalog V6 (periode mulai 2026-11); kolom berlabel `Actual 1–100` | Positif | Not Run | O5 |
+| TC-D4-002-17 | Test Actual di atas 100 atau bukan bilangan bulat ditolak untuk katalog V6 | Negatif | Not Run | O5 |
+| TC-D4-002-18 | Test kategori dari total skor V6: di bawah 80 Under Performance, 80 sampai 85 Average Performance, di atas 85 High Performance (uji batas 79, 80, 85, 86) | Positif | Not Run | O5 |
+| TC-D4-002-19 | Test scorecard V3.1/V5.1 (skala 1–5) tidak diberi kategori performa | Negatif | Not Run | Staging |
+| TC-D4-002-20 | Test scorecard yang disimpan sebelum Q4 tetap tampil benar di detail dan profil Dashboard: Actual = skor tersimpan, total tidak berubah, teks realisasi lama tampil di Comment dengan awalan `Realisation:` (`kpi-realisation-1..5`) | Positif | Not Run | Staging |
+| TC-D4-002-21 | Test Reference kosong ditolak: form (pesan inline), API (422 `Reference wajib diisi.` untuk kosong, spasi, `null`, atau tidak dikirim), dan DB (constraint `d4_kpi_assessments_evidence_reference_required`) | Negatif | Not Run | Form dan API: Staging. DB: O6 |
 
 ### TC-D4-003 · FR-D4-003 Competency Gap
 
@@ -172,8 +180,8 @@ Kartu Planka: **[QA] Pengujian Phase 3**
 | TC-D4-006-04 | Test total score sama dengan KPI Scorecard | Positif | Not Run | Staging |
 | TC-D4-006-05 | Test detail 5 Core KPI | Positif | Not Run | Staging |
 | TC-D4-006-06 | Test bobot KPI | Positif | Not Run | O2 |
-| TC-D4-006-07 | Test target dan realisasi | Positif | Not Run | Staging |
-| TC-D4-006-08 | Test skor mentah | Positif | Not Run | Staging |
+| TC-D4-006-07 | Test target, Actual (skor), dan Comment per Core KPI; scorecard lama menampilkan teks realisasi lama di Comment | Positif | Not Run | Staging |
+| TC-D4-006-08 | Test Actual per KPI sesuai skala katalognya (1–5 untuk V3.1/V5.1, 1–100 untuk V6) | Positif | Not Run | Staging |
 | TC-D4-006-09 | Test skor terbobot | Positif | Not Run | Staging |
 | TC-D4-006-10 | Test ringkasan performance evaluation | Positif | Not Run | Staging |
 | TC-D4-006-11 | Test competency gap | Positif | Not Run | Staging |
@@ -279,4 +287,5 @@ Rekomendasi: QA memakai ID RTM ini saat mencatat hasil agar tidak ada dua nomor 
 ## 8. Yang masih harus dilakukan QA
 
 - Review coverage bersama PO sebelum eksekusi (item checklist tetap terbuka sampai review dilakukan).
+- Tambahkan TC-D4-002-16 s.d. 19 ke checklist kartu **[QA] Pengujian Phase 1**.
 - Isi expected result detail per TC dari Acceptance Criteria FR masing-masing.

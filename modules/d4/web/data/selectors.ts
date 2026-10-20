@@ -4,7 +4,7 @@ import type { CompetencyAssessment, CompetencyFinding, CompetencyOverallStatus }
 import type { DevelopmentNeedVersion, DevelopmentSourceType } from "../../development/types";
 import type { PerformanceEvaluation } from "../../performance/types";
 import type { EmployeeReference } from "../../shared/types";
-import { localMonth, localToday, revisionNumber } from "../../shared/rules";
+import { localMonth, localToday, reassessmentOf, revisionNumber } from "../../shared/rules";
 import { latestDevelopment, latestTraining, type D4LiveSnapshot, type KpiAssessment } from "../../supabase/types";
 import type { TrainingVersion } from "../../training/types";
 
@@ -60,6 +60,7 @@ type SnapshotIndex = {
   needs: DevelopmentNeedVersion[];
   trainings: TrainingVersion[];
   needsByEmployee: Map<string, DevelopmentNeedVersion[]>;
+  needHistory: Map<string, DevelopmentNeedVersion[]>;
   trainingsByEmployee: Map<string, TrainingVersion[]>;
   gaps: Map<string, ReturnType<typeof compareCompetencies> | null>;
 };
@@ -78,6 +79,7 @@ function indexOf(snapshot: Snapshot): SnapshotIndex {
       needs: latestDevelopment(snapshot),
       trainings: latestTraining(snapshot),
       needsByEmployee: new Map(),
+      needHistory: groupBy(snapshot.developmentVersions, (item) => item.needId, (list) => list.sort((a, b) => b.revision - a.revision)),
       trainingsByEmployee: new Map(),
       gaps: new Map(),
     };
@@ -169,7 +171,28 @@ export const inTrainingOrPositionChange = (snapshot: Snapshot, employeeId: strin
 export const trainingsOf = (snapshot: Snapshot, employeeId: string): readonly TrainingVersion[] => indexOf(snapshot).trainingsByEmployee.get(employeeId) ?? [];
 export const developmentById = (snapshot: Snapshot, needId: string) => developmentNeeds(snapshot).find((item) => item.needId === needId);
 export const trainingById = (snapshot: Snapshot, trainingId: string) => trainings(snapshot).find((item) => item.trainingId === trainingId);
-export const developmentHistory = (snapshot: Snapshot, needId: string) => snapshot.developmentVersions.filter((item) => item.needId === needId).sort((a, b) => b.revision - a.revision);
+/** Every revision of a need, newest first. */
+export const developmentHistory = (snapshot: Snapshot, needId: string): DevelopmentNeedVersion[] => [...(indexOf(snapshot).needHistory.get(needId) ?? [])];
+/** Reassessment result shown for a need: Retraining, Meets requirement, "pending" (Completed, not yet decided) or null. */
+export const reassessmentFor = (snapshot: Snapshot, needId: string) => reassessmentOf(indexOf(snapshot).needHistory.get(needId) ?? []);
+export const REASSESSMENT_PENDING = "Needs reassessment";
+
+/** What a revision changed besides its status, for history lines: priority, method, PIC, reassessment. */
+export function revisionChanges(version: DevelopmentNeedVersion, previous?: DevelopmentNeedVersion): string[] {
+  const changes: string[] = [];
+  if (previous && version.priority !== previous.priority) changes.push(`Priority ${previous.priority} → ${version.priority}`);
+  if (previous && (version.method ?? "") !== (previous.method ?? "")) changes.push(`Method: ${previous.method || "—"} → ${version.method || "—"}`);
+  if (previous && (version.pic ?? "") !== (previous.pic ?? "")) changes.push(`PIC: ${previous.pic || "—"} → ${version.pic || "—"}`);
+  if (version.reassessment) changes.push(`Reassessment: ${version.reassessment}`);
+  return changes;
+}
+
+/** Objective suggested from a gap finding (interview D4): the competency that falls short and its target level. */
+export function objectiveFromFinding(finding: Pick<CompetencyFinding, "competencyName" | "actualLevel" | "requiredLevel">): string {
+  return finding.actualLevel === null
+    ? `Naikkan ${finding.competencyName} ke level ${finding.requiredLevel}`
+    : `Naikkan ${finding.competencyName} dari level ${finding.actualLevel} ke ${finding.requiredLevel}`;
+}
 export const trainingHistory = (snapshot: Snapshot, trainingId: string) => snapshot.trainingVersions.filter((item) => item.trainingId === trainingId).sort((a, b) => b.revision - a.revision);
 
 export const sourceTypeLabel: Record<DevelopmentSourceType, string> = {
@@ -177,6 +200,8 @@ export const sourceTypeLabel: Record<DevelopmentSourceType, string> = {
   role_change: "Position Change",
   performance_context: "Performance Review",
 };
+/** Q9: a new requirement starts from a competency gap; Position Change and Performance Review stay as other sources. */
+export const DEFAULT_SOURCE_TYPE: DevelopmentSourceType = "competency_gap";
 
 /** Resolves a development need's source reference to a readable label and a link to the source record (FR-D4-005). */
 export function describeSource(snapshot: Snapshot, need: Pick<DevelopmentNeedVersion, "sourceType" | "sourceRef" | "employeeId">): { label: string; href: string | null } {
@@ -235,3 +260,7 @@ export const thisMonth = () => localMonth();
 export function includesText(haystack: string, needle: string) {
   return !needle.trim() || haystack.toLocaleLowerCase().includes(needle.trim().toLocaleLowerCase());
 }
+
+/** What list search matches for an employee: name, Employee ID and position title (interview D4: find a user by name or position). */
+export const employeeSearchText = (snapshot: Snapshot, employee?: EmployeeReference) =>
+  `${employee?.fullName ?? ""} ${employee?.employeeId ?? ""} ${positionOf(snapshot, employee)?.title ?? ""}`;

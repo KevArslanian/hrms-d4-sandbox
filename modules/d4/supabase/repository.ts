@@ -1,13 +1,14 @@
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { compareCompetencies } from "../competency/service";
 import type { CompetencyAssessment, CompetencyFinding, CompetencyOverallStatus } from "../competency/types";
-import type { DevelopmentNeedVersion, DevelopmentPriority, DevelopmentSourceType, DevelopmentStatus } from "../development/types";
+import type { DevelopmentNeedVersion, DevelopmentPriority, DevelopmentReassessment, DevelopmentSourceType } from "../development/types";
 import type { EvaluationAspect, EvaluationInput, PerformanceEvaluation } from "../performance/types";
 import { validatePerformanceInput } from "../performance/validation";
 import { ApiError, databaseError, enforce } from "../shared/errors";
+import { retrainingNotes, type DevelopmentRevision, type TrainingFollowUpInput } from "../shared/rules";
 import type { ReferenceDataRepository } from "../shared/services";
 import type { ReferenceDataSnapshot } from "../shared/types";
-import type { TrainingStatus, TrainingVersion } from "../training/types";
+import type { TrainingFollowUp, TrainingStatus, TrainingVersion } from "../training/types";
 import type { D3KpiRecord, D4LiveSnapshot, KpiAssessment, KpiAssessmentInput, KpiAssessmentLine } from "./types";
 
 type QueryResult<T> = { data: T | null; error: { message: string; code?: string } | null };
@@ -44,11 +45,16 @@ interface RawSkill { id: string; employee_id: string; competency_id: string; pro
 interface RawKpi { id: string; employee_id: string; period: string; kpi_score: number; notes: string | null; created_at: string }
 interface RawKpiAssessment { id: string; definition_version?: string; employee_id: string; role_order: number; role_name: string; period: string; evaluation_date: string | null; evaluator_name: string; status: "draft" | "completed"; lines: unknown; overall_score: number | null; general_notes: string; evidence_reference?: string | null; actor_employee_id: string; created_at: string }
 interface RawPerformance { id: string; employee_id: string; period: string; evaluation_date: string | null; evaluator_name_snapshot: string; status: "draft" | "completed"; review_status: PerformanceEvaluation["reviewStatus"]; overall_score: number | null; aspects: unknown; general_notes: string; evidence_reference: string | null; actor_employee_id: string; created_at: string }
-interface RawAssessment { id: string; employee_id: string; position_id: string; effective_date: string; context: CompetencyAssessment["context"]; overall_status: CompetencyOverallStatus; findings: unknown; actor_employee_id: string; created_at: string }
+interface RawAssessment { id: string; employee_id: string; position_id: string; effective_date: string; context: CompetencyAssessment["context"]; overall_status: CompetencyOverallStatus; findings: unknown; assessed_with?: string | null; actor_employee_id: string; created_at: string }
 interface RawDevelopment { id: string; employee_id: string; source_type: DevelopmentSourceType; position_requirement_id: string | null; competency_assessment_id: string | null; kpi_assessment_id?: string | null; performance_evaluation_id: string | null; objective: string; priority: DevelopmentPriority; method?: string | null; pic?: string | null }
-interface RawDevelopmentVersion { id: string; development_need_id: string; revision: number; status: DevelopmentStatus; notes: string; actor_employee_id: string; created_at: string }
+// priority/method/pic: null = unchanged in this revision, "" = cleared. Absent before migration 20261019120000.
+interface RawDevelopmentVersion { id: string; development_need_id: string; revision: number; status: DevelopmentNeedVersion["status"]; notes: string; priority?: DevelopmentPriority | null; method?: string | null; pic?: string | null; reassessment?: DevelopmentReassessment | null; actor_employee_id: string; created_at: string }
 interface RawTraining { id: string; employee_id: string; development_need_id: string; activity: string; activity_date: string }
-interface RawTrainingVersion { id: string; training_id: string; revision: number; status: TrainingStatus; result: string; notes: string; actor_employee_id: string; created_at: string }
+// follow_up is absent before migration 20261020130000.
+interface RawTrainingVersion { id: string; training_id: string; revision: number; status: TrainingStatus; result: string; notes: string; follow_up?: TrainingFollowUp | null; actor_employee_id: string; created_at: string }
+
+/** Shown when a follow-up is saved before migration 20261020130000 adds d4_training_versions.follow_up. */
+export const FOLLOW_UP_NOT_READY = "Tindak lanjut training belum bisa disimpan karena database belum diperbarui (migrasi 20261020130000). Hubungi admin HRMS; data lain tetap bisa disimpan.";
 
 function actorName(reference: ReferenceDataSnapshot, employeeId: string): string {
   return reference.employees.find((item) => item.id === employeeId)?.fullName ?? `Employee ${employeeId.slice(0, 8)}`;
@@ -112,11 +118,13 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
       // "*" keeps this working before and after the V5.1 migration adds definition_version.
       allRows(() => this.client.from("d4_kpi_assessments").select("*").order("created_at", { ascending: false }).order("id")),
       allRows(() => this.client.from("d4_performance_evaluations").select("id,employee_id,period,evaluation_date,evaluator_name_snapshot,status,review_status,overall_score,aspects,general_notes,evidence_reference,actor_employee_id,created_at").order("created_at", { ascending: false }).order("id")),
-      allRows(() => this.client.from("d4_competency_assessments").select("id,employee_id,position_id,effective_date,context,overall_status,findings,actor_employee_id,created_at").order("created_at", { ascending: false }).order("id")),
+      // "*" for the competency and development history tables: works before and after migration 20261019120000.
+      allRows(() => this.client.from("d4_competency_assessments").select("*").order("created_at", { ascending: false }).order("id")),
       allRows(() => this.client.from("d4_development_needs").select("*").order("id")),
-      allRows(() => this.client.from("d4_development_need_versions").select("id,development_need_id,revision,status,notes,actor_employee_id,created_at").order("created_at", { ascending: false }).order("id")),
+      allRows(() => this.client.from("d4_development_need_versions").select("*").order("created_at", { ascending: false }).order("id")),
       allRows(() => this.client.from("d4_training_records").select("id,employee_id,development_need_id,activity,activity_date").order("id")),
-      allRows(() => this.client.from("d4_training_versions").select("id,training_id,revision,status,result,notes,actor_employee_id,created_at").order("created_at", { ascending: false }).order("id")),
+      // "*": naming follow_up would fail the whole snapshot before migration 20261020130000.
+      allRows(() => this.client.from("d4_training_versions").select("*").order("created_at", { ascending: false }).order("id")),
     ])]);
     if (accessError) throw databaseError(accessError, "Hak akses");
     if (!access) throw new ApiError("FORBIDDEN", "Anda sudah login, tetapi akun ini belum punya akses ke data HRMS. Hubungi admin HRMS untuk mengaktifkan role Anda.");
@@ -156,18 +164,23 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
       id: row.id, source: "supabase", employeeId: row.employee_id, positionId: row.position_id,
       effectiveDate: row.effective_date, context: row.context, overallStatus: row.overall_status,
       findings: Array.isArray(row.findings) ? row.findings as CompetencyFinding[] : [],
-      createdAt: row.created_at, actor: actorName(reference, row.actor_employee_id),
+      createdAt: row.created_at, actor: actorName(reference, row.actor_employee_id), assessedWith: row.assessed_with ?? null,
     }));
     const developmentById = new Map(developmentRows.map((row) => [row.id, row]));
-    const developmentVersions: DevelopmentNeedVersion[] = developmentVersionRows.flatMap((version) => {
+    // A revision stores only the priority/method/PIC it changed, so each value is carried forward in revision order.
+    const resolvedBy = new Map<string, Pick<DevelopmentNeedVersion, "priority" | "method" | "pic">>();
+    const developmentVersions: DevelopmentNeedVersion[] = [...developmentVersionRows].sort((a, b) => a.revision - b.revision).flatMap((version) => {
       const need = developmentById.get(version.development_need_id);
       if (!need) return [];
+      const previous = resolvedBy.get(need.id) ?? { priority: need.priority, method: need.method ?? "", pic: need.pic ?? "" };
+      const resolved = { priority: version.priority ?? previous.priority, method: version.method ?? previous.method, pic: version.pic ?? previous.pic };
+      resolvedBy.set(need.id, resolved);
       return [{ id: version.id, needId: need.id, revision: version.revision, source: "supabase" as const,
         employeeId: need.employee_id, sourceType: need.source_type,
         sourceRef: need.position_requirement_id ?? need.competency_assessment_id ?? need.kpi_assessment_id ?? need.performance_evaluation_id ?? "",
-        objective: need.objective, priority: need.priority, method: need.method ?? "", pic: need.pic ?? "", status: version.status, notes: version.notes,
+        objective: need.objective, ...resolved, status: version.status, reassessment: version.reassessment ?? null, notes: version.notes,
         createdAt: version.created_at, actor: actorName(reference, version.actor_employee_id) }];
-    });
+    }).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     const trainingById = new Map(trainingRows.map((row) => [row.id, row]));
     const trainingVersions: TrainingVersion[] = trainingVersionRows.flatMap((version) => {
       const trainingRecord = trainingById.get(version.training_id);
@@ -175,7 +188,7 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
       return [{ id: version.id, trainingId: trainingRecord.id, revision: version.revision, source: "supabase" as const,
         employeeId: trainingRecord.employee_id, developmentNeedId: trainingRecord.development_need_id,
         activity: trainingRecord.activity, date: trainingRecord.activity_date, status: version.status,
-        result: version.result, notes: version.notes, createdAt: version.created_at,
+        result: version.result, notes: version.notes, followUp: version.follow_up ?? null, createdAt: version.created_at,
         actor: actorName(reference, version.actor_employee_id) }];
     });
     return { reference, role: access.app_role, actorEmployeeId: access.employee_id,
@@ -215,7 +228,7 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
     return take(result, "Save evaluation").id;
   }
 
-  async saveCompetency(input: { employeeId: string; positionId: string; effectiveDate: string }, reference: ReferenceDataSnapshot): Promise<string> {
+  async saveCompetency(input: { employeeId: string; positionId: string; effectiveDate: string; assessedWith?: string }, reference: ReferenceDataSnapshot): Promise<string> {
     await this.requireUser();
     const employee = reference.employees.find((item) => item.id === input.employeeId);
     const position = reference.positions.find((item) => item.id === input.positionId);
@@ -227,15 +240,20 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
     // d4_competency_assessments has no unique key yet. A double click re-sends an identical snapshot: answer
     // with the stored one instead of a second row. A changed snapshot (new evidence the same day) is still saved.
     // Narrows, not closes, the race until the database index is approved.
-    const sameDay = take(await this.client.from("d4_competency_assessments").select("id, overall_status, findings")
-      .eq("employee_id", employee.id).eq("position_id", position.id).eq("effective_date", input.effectiveDate), "Cek assessment") as { id: string; overall_status: string; findings: unknown }[];
-    const identical = sameDay.find((row) => row.overall_status === comparison.overallStatus && JSON.stringify(row.findings) === JSON.stringify(comparison.findings));
+    const assessedWith = input.assessedWith?.trim() ?? "";
+    // "*": assessed_with exists only after migration 20261019120000. A different co-assessor is a new snapshot;
+    // an empty one changes nothing, as on the competency page.
+    const sameDay = take(await this.client.from("d4_competency_assessments").select("*")
+      .eq("employee_id", employee.id).eq("position_id", position.id).eq("effective_date", input.effectiveDate), "Cek assessment") as { id: string; overall_status: string; findings: unknown; assessed_with?: string | null }[];
+    const identical = sameDay.find((row) => row.overall_status === comparison.overallStatus && JSON.stringify(row.findings) === JSON.stringify(comparison.findings) && (!assessedWith || (row.assessed_with ?? "") === assessedWith));
     if (identical) return identical.id;
     const result = await this.client.from("d4_competency_assessments").insert({
       employee_id: employee.id, position_id: position.id, position_title_snapshot: position.title,
       effective_date: input.effectiveDate,
       context: employee.positionId === position.id ? "current-position" : "role-change",
       overall_status: comparison.overallStatus, findings: comparison.findings,
+      // Sent only when filled, so a save without it keeps working before the migration is applied.
+      ...(assessedWith ? { assessed_with: assessedWith } : {}),
     }).select("id").single();
     return take(result, "Save assessment").id;
   }
@@ -260,12 +278,20 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
     return take(result, "Save development need") as string;
   }
 
-  async updateDevelopment(needId: string, status: DevelopmentStatus, notes: string): Promise<void> {
+  /**
+   * `next` is the checked revision, `current` the latest one it follows. Only changed priority/method/PIC and a
+   * recorded reassessment are sent: a status-only update writes the same columns as before migration 20261019120000.
+   */
+  async updateDevelopment(needId: string, next: DevelopmentRevision, current: Pick<DevelopmentNeedVersion, "priority" | "method" | "pic">): Promise<void> {
     await this.requireUser();
-    const current = take(await this.client.from("d4_development_need_versions").select("revision")
+    const latest = take(await this.client.from("d4_development_need_versions").select("revision")
       .eq("development_need_id", needId).order("revision", { ascending: false }).limit(1).single(), "Development history") as { revision: number };
     take(await this.client.from("d4_development_need_versions").insert({
-      development_need_id: needId, revision: current.revision + 1, status, notes: notes.trim(),
+      development_need_id: needId, revision: latest.revision + 1, status: next.status, notes: next.notes.trim(),
+      ...(next.priority !== current.priority ? { priority: next.priority } : {}),
+      ...(next.method !== (current.method ?? "") ? { method: next.method } : {}),
+      ...(next.pic !== (current.pic ?? "") ? { pic: next.pic } : {}),
+      ...(next.reassessment ? { reassessment: next.reassessment } : {}),
     }).select("id").single(), "Save development revision");
   }
 
@@ -292,5 +318,28 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
       training_id: trainingId, revision: current.revision + 1,
       status, result: result.trim(), notes: notes.trim(),
     }).select("id").single(), "Save training revision");
+  }
+
+  /**
+   * Q16: the follow-up is a new version of the Not Passed training, inserted first so that nothing is written before
+   * migration 20261020130000 (the column is missing: PGRST204 / 42703). Retraining then creates the next training for
+   * the same requirement through the existing RPC; returns its id.
+   */
+  async recordTrainingFollowUp(trainingId: string, input: TrainingFollowUpInput, snapshot: D4LiveSnapshot): Promise<string | null> {
+    await this.requireUser();
+    const current = take(await this.client.from("d4_training_versions").select("revision")
+      .eq("training_id", trainingId).order("revision", { ascending: false }).limit(1).single(), "Training history") as { revision: number };
+    const saved = await this.client.from("d4_training_versions").insert({
+      training_id: trainingId, revision: current.revision + 1, status: "Completed", result: "Not Passed", notes: input.notes.trim(), follow_up: input.followUp,
+    }).select("id").single();
+    if (saved.error?.code === "PGRST204" || saved.error?.code === "42703") throw new ApiError("CONFIGURATION_ERROR", FOLLOW_UP_NOT_READY);
+    take(saved, "Save training follow-up");
+    if (input.followUp !== "Retraining") return null;
+    const previous = snapshot.trainingVersions.find((item) => item.trainingId === trainingId);
+    if (!previous) throw new ApiError("NOT_FOUND", "Training tidak ditemukan.");
+    // ponytail: two writes, not one transaction. If this one fails the follow-up stays recorded and HR adds the
+    // training from the requirement (Add Training); an RPC doing both is the upgrade if that ever happens.
+    return this.createTraining({ employeeId: previous.employeeId, developmentNeedId: previous.developmentNeedId, activity: input.activity ?? "",
+      date: input.date ?? "", status: "Planned", result: "", notes: retrainingNotes(previous, input.notes) }, snapshot);
   }
 }

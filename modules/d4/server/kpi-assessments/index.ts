@@ -1,7 +1,7 @@
 import { catalogFor, indicatorsFor, roleForPosition, targetOf } from "../../kpi/catalog";
 import { scaleMaxOf } from "../../kpi/scale";
 import type { KpiAssessmentLine } from "../../supabase/types";
-import { assertNotFutureDate, assertNotSelf, assertPeriodRevision } from "../../shared/rules";
+import { assertEvaluationInPeriod, assertNotFutureDate, assertNotSelf, assertPeriodRevision } from "../../shared/rules";
 import { ApiError, employeeFilter, enforce, field, optionalUuid, readJson } from "../_lib/http";
 import { loadCatalogSet } from "../kpi-catalog";
 import { d4Session, requireWriter } from "../_lib/session";
@@ -24,7 +24,8 @@ export async function getAssessment(id: string) {
 /**
  * POST /api/d4/kpi-assessments — the catalog version is the one in force for the period, and the KPI role must be
  * the one HR mapped to the employee's position in that version (FR-02.1/FR-02.11) and the five lines must match it exactly (name, order, weight = 100 %). Weighted and total scores are calculated by the
- * database trigger; realisation is never converted into a raw score automatically.
+ * database trigger. Since Q4 the form's Actual is the raw score (`raw_score`); `actual` is stored as sent, and text in it
+ * from an older client is shown as realisation in Comment.
  */
 export async function createAssessment(request: Request) {
   const { client, repository, access } = await requireWriter();
@@ -54,7 +55,7 @@ export async function createAssessment(request: Request) {
     // The Core KPI name is editable per scorecard; order and weight stay locked to the catalog (Excel formula).
     const kpiName = field.text(raw, "kpi_name", { required: true, max: 200 }).trim();
     if (!kpiName) throw new ApiError("VALIDATION_FAILED", `Core KPI ${index + 1} wajib diisi.`);
-    const score = field.score(raw.raw_score, `Skor untuk ${indicator.kpi_name}`, { required: status === "completed", max: scaleMaxOf(catalog.version) });
+    const score = field.score(raw.raw_score, `Actual untuk ${indicator.kpi_name}`, { required: status === "completed", max: scaleMaxOf(catalog.version) });
     return {
       indicator_order: indicator.indicator_order, kpi_name: kpiName, weight_percent: indicator.weight_percent,
       target: targetOf(indicator), actual: field.text(raw, "actual", { required: false, max: 200 }),
@@ -65,9 +66,10 @@ export async function createAssessment(request: Request) {
   if (!generalNotes) throw new ApiError("VALIDATION_FAILED", "Notes wajib diisi.");
   // Interview D4 (14 Oct 2026): evidence is required.
   const evidenceReference = field.text(body, "evidenceReference", { required: false, max: 500 }).trim();
-  if (!evidenceReference) throw new ApiError("VALIDATION_FAILED", "Bukti / referensi wajib diisi.");
+  if (!evidenceReference) throw new ApiError("VALIDATION_FAILED", "Reference wajib diisi.");
   const evaluationDate = field.date(body, "evaluationDate", { required: status === "completed" });
   enforce(() => assertNotFutureDate(evaluationDate));
+  enforce(() => assertEvaluationInPeriod(period, evaluationDate));
   const id = await repository.saveKpiAssessment({
     definitionVersion: catalog.version,
     employeeId, roleOrder, roleName: indicators[0].role_name,
