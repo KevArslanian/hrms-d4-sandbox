@@ -53,9 +53,10 @@ Fitur ini mengikuti **UI-D4-001 Interaction & Component Guideline**. Ringkasnya:
 | 12 | KPI Scorecard History | `/kpi/history/[employeeId]` | [20:5670](https://www.figma.com/design/blDVBM6m8VC02A7PvouX4F?node-id=20-5670) |
 
 - Form mengambil **5 KPI sesuai position employee** dari katalog aktif. Field **KPI jabatan** read-only (diturunkan dari position), sehingga KPI role lain tidak bisa dipilih; server juga menolak bila tidak cocok. Satu tombol `Save Scorecard`.
-- Kolom: KPI, Bobot (read-only), Target, Realisasi (teks bebas), Skor mentah 1–5 (dipilih evaluator), Skor terbobot (otomatis = bobot × skor), Komentar. Baris total menampilkan Σ bobot = 100% dan total skor.
+- Kolom: KPI, Bobot (read-only), Target (read-only, tetap 85), Realisasi (teks bebas), Skor (dipilih evaluator; 1–5 untuk katalog V3.1/V5.1, 1–100 untuk V6 mulai periode 2026-11), Skor terbobot (otomatis = bobot × skor), Komentar. Baris total menampilkan Σ bobot = 100% dan total skor.
 - Contoh uji: bobot 35/25/15/15/10 dengan skor 4/3/5/4/4 → total **3.90**.
-- **Tidak ada** label tercapai/tidak tercapai, ambang batas, atau konversi realisasi → skor.
+- Total skor V6 diberi kategori: di bawah 80 Under Performance, 80–85 Average Performance, di atas 85 High Performance. Scorecard 1–5 tidak diberi kategori.
+- **Tidak ada** label tercapai/tidak tercapai atau konversi realisasi → skor.
 - Menu ⋮: View Detail · View History · Open Evaluation · New Scorecard*.
 
 ## FR-D4-003 · Competency Gap

@@ -20,7 +20,7 @@ Di luar cakupan: sertifikasi/renewal, trigger performance-gap formal, dan reasse
 | Requirement | Prefix TC | Jumlah TC | Kartu QA |
 |---|---|---|---|
 | US-D4-001 / FR-D4-001 Performance Evaluation | TC-D4-001 | 6 (baru) | [QA] Pengujian Phase 1 |
-| US-D4-002 / FR-D4-002 KPI Scorecard | TC-D4-002 | 15 | [QA] Pengujian Phase 1 |
+| US-D4-002 / FR-D4-002 KPI Scorecard | TC-D4-002 | 19 | [QA] Pengujian Phase 1 |
 | US-D4-003 / FR-D4-003 Competency Gap | TC-D4-003 | 12 | [QA] Pengujian Phase 2 |
 | US-D4-004 / FR-D4-004 Development Requirement | TC-D4-004 | 12 | [QA] Pengujian Phase 2 |
 | US-D4-005 / FR-D4-005 Training Tracking | TC-D4-005 | 15 | [QA] Pengujian Phase 3 |
@@ -29,7 +29,7 @@ Di luar cakupan: sertifikasi/renewal, trigger performance-gap formal, dan reasse
 | TR-D4-002 Security & audit | TC-D4-SEC | 9 | idem |
 | TR-D4-002 Validation & UI quality | TC-D4-UIQ | 13 | idem |
 | Skenario lintas fitur | TS-D4-001 s.d. 003 | 3 | [QA] TS-D4-00x (list To Do List QA) |
-| **Total** | | **117** | |
+| **Total** | | **121** | |
 
 Semua FR dan TR yang dapat diuji punya minimal satu TC positif dan satu TC negatif.
 
@@ -60,6 +60,7 @@ Satu baris hasil: `TC ID | Tanggal | Tester | Role login | Build/commit | Status
 | O2 | Migrasi katalog KPI V5.1 belum diterapkan ke Supabase bersama | TC-D4-002-03, TC-D4-006-06, TC-D4-007-08 | PO + Back End |
 | O3 | Sales Admin memakai KPI Sales & Marketing (sementara) | TC-D4-002-01/02 untuk position Sales Admin | PO |
 | O4 | HR Associate belum punya KPI V5.1 | TC-D4-002-01/02 untuk HR Associate (expected: form menolak simpan) | PO |
+| O5 | Migrasi katalog KPI V6 skala 1–100 (`20261017130000_d4_kpi_scale_100_v6.sql`) belum diterapkan ke Supabase bersama (cek 20 Okt 2026) | TC-D4-002-16 s.d. 19 di staging; mode fixture sudah memakai V6 untuk periode mulai 2026-11 | PO + Back End |
 | MGT | Role Management read-only belum dikonfigurasi | TC-D4-SEC-05 | PO |
 | ~~NET~~ | Selesai 30 Sep 2026: klien menangani network failure, timeout, dan integration failure (API-D4-001 §3) | TC-D4-UIQ-06, TC-D4-UIQ-07 siap diuji di staging | WebDev |
 
@@ -89,16 +90,20 @@ Kartu Planka: **[QA] Pengujian Phase 1**
 | TC-D4-002-03 | Test bobot KPI sesuai baseline | Positif | Not Run | O2 (migrasi KPI V5.1 belum diterapkan) |
 | TC-D4-002-04 | Test total bobot = 100% | Positif | Not Run | Staging |
 | TC-D4-002-05 | Test total bobot selain 100% ditolak | Negatif | Not Run | Staging |
-| TC-D4-002-06 | Test input skor mentah 1 sampai 5 | Positif | Not Run | Staging |
-| TC-D4-002-07 | Test skor mentah di bawah 1 ditolak | Negatif | Not Run | Staging |
-| TC-D4-002-08 | Test skor mentah di atas 5 ditolak | Negatif | Not Run | Staging |
-| TC-D4-002-09 | Test weighted score = Bobot × Skor Mentah | Positif | Not Run | Staging |
+| TC-D4-002-06 | Test input skor 1 sampai 5 untuk katalog V3.1/V5.1 (periode sampai 2026-10) | Positif | Not Run | Staging |
+| TC-D4-002-07 | Test skor di bawah 1 ditolak (semua katalog) | Negatif | Not Run | Staging |
+| TC-D4-002-08 | Test skor di atas 5 ditolak untuk katalog V3.1/V5.1 | Negatif | Not Run | Staging |
+| TC-D4-002-09 | Test skor terbobot = bobot × skor (contoh: bobot 20% × skor 90 = 18; bobot 35% × skor 4 = 1.40) | Positif | Not Run | Staging |
 | TC-D4-002-10 | Test total score = jumlah seluruh skor terbobot | Positif | Not Run | Staging |
-| TC-D4-002-11 | Test target dan realisasi dapat disimpan | Positif | Not Run | Staging |
-| TC-D4-002-12 | Test sistem tidak otomatis membuat skor mentah dari realisasi | Negatif | Not Run | Staging |
+| TC-D4-002-11 | Test target tampil 85 dan read-only (dari katalog), realisasi dapat disimpan | Positif | Not Run | Staging |
+| TC-D4-002-12 | Test sistem tidak otomatis membuat skor dari realisasi | Negatif | Not Run | Staging |
 | TC-D4-002-13 | Test KPI milik position lain tidak muncul | Negatif | Not Run | Staging |
 | TC-D4-002-14 | Test history scorecard per periode | Positif | Not Run | Staging |
 | TC-D4-002-15 | Test pencarian/filter bila sudah tersedia | Positif | Not Run | Staging |
+| TC-D4-002-16 | Test input skor 1 sampai 100 untuk katalog V6 (periode mulai 2026-11); kolom skor berlabel `Score 1–100` | Positif | Not Run | O5 |
+| TC-D4-002-17 | Test skor di atas 100 atau bukan bilangan bulat ditolak untuk katalog V6 | Negatif | Not Run | O5 |
+| TC-D4-002-18 | Test kategori dari total skor V6: di bawah 80 Under Performance, 80 sampai 85 Average Performance, di atas 85 High Performance (uji batas 79, 80, 85, 86) | Positif | Not Run | O5 |
+| TC-D4-002-19 | Test scorecard V3.1/V5.1 (skala 1–5) tidak diberi kategori performa | Negatif | Not Run | Staging |
 
 ### TC-D4-003 · FR-D4-003 Competency Gap
 
@@ -173,7 +178,7 @@ Kartu Planka: **[QA] Pengujian Phase 3**
 | TC-D4-006-05 | Test detail 5 Core KPI | Positif | Not Run | Staging |
 | TC-D4-006-06 | Test bobot KPI | Positif | Not Run | O2 |
 | TC-D4-006-07 | Test target dan realisasi | Positif | Not Run | Staging |
-| TC-D4-006-08 | Test skor mentah | Positif | Not Run | Staging |
+| TC-D4-006-08 | Test skor per KPI sesuai skala katalognya (1–5 untuk V3.1/V5.1, 1–100 untuk V6) | Positif | Not Run | Staging |
 | TC-D4-006-09 | Test skor terbobot | Positif | Not Run | Staging |
 | TC-D4-006-10 | Test ringkasan performance evaluation | Positif | Not Run | Staging |
 | TC-D4-006-11 | Test competency gap | Positif | Not Run | Staging |
