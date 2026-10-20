@@ -16,7 +16,7 @@ import type { D4DataSource } from "./source";
 // mirror the server so the UI behaves the same as in live mode.
 const HR_ACTOR = "d4000000-0000-4000-8000-000000000012";
 const ALFA = "d4000000-0000-4000-8000-000000000009";
-// NEXT_PUBLIC_D4_FIXTURE_ROLE=EMPLOYEE previews the self-service view as Alfa (read-only).
+// NEXT_PUBLIC_D4_FIXTURE_ROLE=EMPLOYEE previews the self-service view as Kak Ismi (read-only).
 const FIXTURE_ROLE = process.env.NEXT_PUBLIC_D4_FIXTURE_ROLE === "EMPLOYEE" ? "EMPLOYEE" : process.env.NEXT_PUBLIC_D4_FIXTURE_ROLE === "MANAGER" ? "MANAGER" : "HR";
 const catalog = { version: "V5.1", rows: KPI_V51_CATALOG };
 
@@ -36,8 +36,8 @@ function assessment(id: string, employeeId: string, roleOrder: number, period: s
   const lines = kpiLines(roleOrder, scores, ["98% SLA", "100% accurate", "D+1", "Receivables 6%", "Zero penalties"]);
   return {
     id, definitionVersion: catalog.version, employeeId, roleOrder, roleName: indicatorsFor(catalog, roleOrder)[0].role_name,
-    period, evaluationDate: `${period}-25`, evaluatorName: "Mercury", status, lines, overallScore: total(lines),
-    generalNotes: status === "completed" ? "Sample fixture scorecard for local preview." : "", evidenceReference: null, createdAt: `${period}-25T08:00:00.000Z`, actor: "Mercury",
+    period, evaluationDate: `${period}-25`, evaluatorName: "Mrs. Maya", status, lines, overallScore: total(lines),
+    generalNotes: status === "completed" ? "Sample fixture scorecard for local preview." : "", evidenceReference: null, createdAt: `${period}-25T08:00:00.000Z`, actor: "Mrs. Maya",
   };
 }
 
@@ -78,9 +78,15 @@ function initialSnapshot(): D4LiveSnapshot {
   const alfa = ALFA;
   const finance = "d4000000-0000-4000-8000-000000000008";
   const comparison = compareCompetencies(alfa, finance, d4ReferenceFixture);
-  // Charlie's development need (FIX-D4-DEV-002) comes from a saved gap, so the assessment exists too.
-  const charlie = "d4000000-0000-4000-8000-000000000011", operations = "d4000000-0000-4000-8000-000000000018";
-  const charlieGap = compareCompetencies(charlie, operations, d4ReferenceFixture);
+  // Kak Dian's development need (FIX-D4-DEV-002) comes from a saved gap, so the assessment exists too.
+  const dian = "d4000000-0000-4000-8000-000000000011", taxManager = "d4000000-0000-4000-8000-000000000018";
+  const dianGap = compareCompetencies(dian, taxManager, d4ReferenceFixture);
+  // Demo scenarios: Mba Ena's gap feeds FIX-D4-DEV-003 (training Not Passed); Desty (Tax Associate 1) is assessed
+  // for Tax Manager, a position change in scope for POSITION_CHANGE_SCOPE_MONTHS.
+  const ena = "d4000000-0000-4000-8000-000000000016", accountingManager = "d4000000-0000-4000-8000-000000000049";
+  const desty = "d4000000-0000-4000-8000-000000000014";
+  const enaGap = compareCompetencies(ena, accountingManager, d4ReferenceFixture);
+  const destyMove = compareCompetencies(desty, taxManager, d4ReferenceFixture);
   return {
     reference: d4ReferenceFixture,
     role: FIXTURE_ROLE,
@@ -94,11 +100,19 @@ function initialSnapshot(): D4LiveSnapshot {
     competency: [{
       id: "FIX-D4-COMP-ASSESS-001", source: "local-demo", employeeId: alfa, positionId: finance, effectiveDate: "2026-09-21",
       context: "current-position", findings: comparison.findings, overallStatus: comparison.overallStatus,
-      createdAt: "2026-09-21T09:00:00.000Z", actor: "Mercury",
+      createdAt: "2026-09-21T09:00:00.000Z", actor: "Mrs. Maya",
     }, {
-      id: "FIX-D4-COMP-ASSESS-002", source: "local-demo", employeeId: charlie, positionId: operations, effectiveDate: "2026-09-22",
-      context: "current-position", findings: charlieGap.findings, overallStatus: charlieGap.overallStatus,
-      createdAt: "2026-09-22T09:00:00.000Z", actor: "Mercury",
+      id: "FIX-D4-COMP-ASSESS-002", source: "local-demo", employeeId: dian, positionId: taxManager, effectiveDate: "2026-09-22",
+      context: "current-position", findings: dianGap.findings, overallStatus: dianGap.overallStatus,
+      createdAt: "2026-09-22T09:00:00.000Z", actor: "Mrs. Maya",
+    }, {
+      id: "FIX-D4-COMP-ASSESS-003", source: "local-demo", employeeId: ena, positionId: accountingManager, effectiveDate: "2026-09-25",
+      context: "current-position", findings: enaGap.findings, overallStatus: enaGap.overallStatus,
+      createdAt: "2026-09-25T09:00:00.000Z", actor: "Mrs. Maya",
+    }, {
+      id: "FIX-D4-COMP-ASSESS-004", source: "local-demo", employeeId: desty, positionId: taxManager, effectiveDate: "2026-10-01",
+      context: "role-change", findings: destyMove.findings, overallStatus: destyMove.overallStatus,
+      createdAt: "2026-10-01T09:00:00.000Z", actor: "Mrs. Maya", assessedWith: "Kak Dian, Tax Manager",
     }],
     developmentVersions: developmentFixtureVersions,
     trainingVersions: trainingFixtureVersions,

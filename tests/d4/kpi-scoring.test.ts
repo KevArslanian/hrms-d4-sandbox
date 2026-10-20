@@ -152,13 +152,16 @@ describe("roleForPositionTitle (FR-02.11)", () => {
     ["Warehouse Staff", 7], ["Logistics Staff", 7], ["EDI Officer", 8], ["Manifest Input Staff", 8], ["Implant Staff", 8],
     ["Sales Staff", 9], ["Marketing Staff", 9], ["Sales Administration Associate", 9], ["Finance Staff", 10], ["Finance Administrator", 10],
     ["Accounting Staff", 10], ["Admin Staff", 10],
+    // Org file titles mapped by supabase/seed/d4-simulasi-master.sql.
+    ["Cash Manager", 10], ["Cash Manager Associate", 10], ["Tax Manager", 10], ["Tax Associate 1", 10], ["Manager of Customer Success", 9],
+    ["Director of Human Capital & Culture", 2], ["Accounting Associate 1 (Billing)", 10], ["Sales Executive 1", 9],
   ])("%s → role %i", (title, role) => {
     expect(roleForPositionTitle(catalog, title)).toBe(role);
   });
 
   it("maps every fixture position; only the positions without a V5.1 KPI return 0", () => {
     const withoutKpi = d4ReferenceFixture.positions.filter((position) => roleForPositionTitle(catalog, position.title) === 0).map((position) => position.title);
-    expect(withoutKpi.sort()).toEqual(["D4 Demo Staff", "HR Associate Officer", "Operations Staff"]);
+    expect(withoutKpi.sort()).toEqual(["Commissioner", "HR Manager"]);
   });
 
   // BUG-D4-005 regression: keywords match whole words, so "edi" inside "Credit"/"Media" no longer maps to Implant Staff.

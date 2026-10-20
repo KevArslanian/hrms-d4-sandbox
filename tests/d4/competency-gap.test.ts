@@ -15,7 +15,7 @@ const ALFA = "d4000000-0000-4000-8000-000000000009";
 const FINANCE_STAFF = "d4000000-0000-4000-8000-000000000008";
 const ALFA_GAP = "d4000000-0000-4000-8000-000000000028"; // Administrative Accuracy: level 2, min. 4
 const ADMIN_ACCURACY = "d4000000-0000-4000-8000-000000000022";
-const THIRD_REQUIREMENT_COMPETENCY = "d4000000-0000-4000-8000-000000000023"; // Alfa has no skill record yet
+const THIRD_REQUIREMENT_COMPETENCY = "d4000000-0000-4000-8000-000000000023"; // Kak Ismi has no skill record yet
 
 const gapFinding = (findings: readonly { requirementId: string; status: string }[]) => findings.find((item) => item.requirementId === ALFA_GAP)?.status;
 
@@ -26,14 +26,14 @@ beforeEach(() => {
   source = createFixtureSource();
 });
 
-async function latestAlfaAssessment() {
+async function latestIsmiAssessment() {
   return [...(await source.loadSnapshot()).competency].filter((item) => item.employeeId === ALFA).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
 }
 
 describe("competency gap is not resolved automatically", () => {
-  it("starts as an open Gap for Alfa (level 2 of min. 4) with an open requirement and planned training", async () => {
+  it("starts as an open Gap for Kak Ismi (level 2 of min. 4) with an open requirement and planned training", async () => {
     const snapshot = await source.loadSnapshot();
-    expect(gapFinding((await latestAlfaAssessment()).findings)).toBe("Gap");
+    expect(gapFinding((await latestIsmiAssessment()).findings)).toBe("Gap");
     expect(latestDevelopment(snapshot).find((item) => item.needId === "FIX-D4-DEV-001")).toMatchObject({ sourceType: "competency_gap", sourceRef: ALFA_GAP });
   });
 
@@ -47,7 +47,7 @@ describe("competency gap is not resolved automatically", () => {
     const snapshot = await source.loadSnapshot();
     expect(latestTraining(snapshot).find((item) => item.trainingId === "FIX-D4-TRN-001")?.status).toBe("Completed");
     expect(latestDevelopment(snapshot).find((item) => item.needId === "FIX-D4-DEV-001")?.status).toBe("Completed");
-    const before = await latestAlfaAssessment();
+    const before = await latestIsmiAssessment();
     expect(gapFinding(before.findings)).toBe("Gap");
     expect(before.overallStatus).toBe("Gap");
 
