@@ -89,6 +89,8 @@ async function main() {
         target: row.target ?? "Sesuai target periode", actual: String(sample.kpi[i]), raw_score: sample.kpi[i], comment: "Lihat laporan periode",
       })),
       general_notes: `Scorecard contoh untuk demo D4. ${MARKER}`,
+      // Q12: Reference is required (migration 20261020120000).
+      evidence_reference: `Laporan KPI contoh ${PERIOD}`,
     }).select("id").single(), "KPI assessment");
 
     const needId = take(await supabase.rpc("d4_create_development_need", {

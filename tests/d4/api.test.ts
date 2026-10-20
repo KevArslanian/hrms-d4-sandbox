@@ -277,6 +277,10 @@ describe("POST /kpi-assessments", () => {
     ["unknown employee", { employeeId: uuid(500) }, /tidak ditemukan/],
     ["no evaluation notes", { generalNotes: "   " }, /Notes wajib/],
     ["no evidence", { evidenceReference: " " }, /Reference wajib/],
+    // Q12: the server refuses an empty Reference however it is sent, not only the form.
+    ["empty evidence", { evidenceReference: "" }, /Reference wajib/],
+    ["null evidence", { evidenceReference: null }, /Reference wajib/],
+    ["missing evidence", { evidenceReference: undefined }, /Reference wajib/],
   ])("rejects %s", async (_name, patch: Record<string, unknown>, message) => {
     const { fractional, ...rest } = patch;
     const body = kpiBody(rest);
