@@ -273,7 +273,7 @@ describe("POST /kpi-assessments", () => {
     ["duplicate period", { period: "2026-09" }, /sudah ada/],
     ["wrong KPI role", { roleOrder: 99 }, /./],
     ["four lines", { lines: [] }, /./],
-    ["fractional score", { fractional: true }, /bilangan bulat/],
+    ["fractional score", { fractional: true }, /Actual untuk .*bilangan bulat/],
     ["unknown employee", { employeeId: uuid(500) }, /tidak ditemukan/],
     ["no evaluation notes", { generalNotes: "   " }, /Notes wajib/],
     ["no evidence", { evidenceReference: " " }, /Reference wajib/],
