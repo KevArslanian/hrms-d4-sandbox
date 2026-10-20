@@ -6,20 +6,17 @@ import type { CompetencyFinding } from "../../../competency/types";
 import type { EmployeeReference } from "../../../shared/types";
 import { openNeedFor } from "../../../shared/rules";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { canWrite, currentCompetencyStatus, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, employeeSearchText, formatDate, inTrainingOrPositionChange, includesText, latestCurrentPositionAssessment, positionById, positionOf, today, visibleEmployees, type CurrentCompetencyStatus } from "../../data/selectors";
+import { canWrite, currentCompetencyStatus, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, formatDate, latestCurrentPositionAssessment, positionById, today, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, FormError, FormModal, ModalActions, SearchInput, SearchSelectField, SelectFilter, TextField } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
 import { Button, ButtonLink, Card, InfoGrid, Notice, SourceChip, statusLabel, StatusBadge } from "../../ui/primitives";
 import { DevelopmentFormModal } from "../development/DevelopmentModals";
-
-type Row = { employee: EmployeeReference; position: string; status: CurrentCompetencyStatus; findings: CompetencyFinding[]; lastAssessed?: string };
+import { competencyOptions, competencyRows, type CompetencyRow as Row } from "./rows";
 
 // Compared with statusLabel(row.status), so these are the English display labels.
 const STATUS_FILTER = ["Not Evaluated", "Met", "Gap", "Insufficient Data"];
-const SCOPE_ACTIVE = "In training / position change";
-const SCOPE_ALL = "All employees";
 
 /** Optional "Dinilai bersama" (interview D4: after training HR evaluates with the department that raised the need). */
 function AssessedWithField({ value, onChange, className }: { value: string; onChange: (value: string) => void; className?: string }) {
@@ -37,29 +34,26 @@ export function CompetencyListPage() {
   const [position, setPosition] = useState("");
   const [department, setDepartment] = useState("");
   const [status, setStatus] = useState("");
-  // Employees see only themselves, so the scope applies to HR and managers.
-  const scoped = snapshot.role !== "EMPLOYEE";
-  const [scope, setScope] = useState(SCOPE_ACTIVE);
+  const [competency, setCompetency] = useState("");
   const [devFor, setDevFor] = useState<string | null>(null);
-  const rows = useMemo<Row[]>(() => visibleEmployees(snapshot).filter((employee) => !scoped || scope === SCOPE_ALL || inTrainingOrPositionChange(snapshot, employee.id)).map((employee) => {
-    const gap = currentGap(snapshot, employee);
-    const saved = latestCurrentPositionAssessment(snapshot, employee);
-    return { employee, position: positionOf(snapshot, employee)?.title ?? "—", status: currentCompetencyStatus(snapshot, employee), findings: gap?.findings ?? [], lastAssessed: saved?.effectiveDate };
-  }).filter((row) => includesText(employeeSearchText(snapshot, row.employee), search)
-    && (!position || row.employee.positionId === position) && (!department || row.employee.departmentId === department) && (!status || statusLabel(row.status) === status))
-    .sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName)), [snapshot, scoped, scope, search, position, department, status]);
+  const [changing, setChanging] = useState(false);
+  const rows = useMemo(() => competencyRows(snapshot, { search, position, department, status, competency }), [snapshot, search, position, department, status, competency]);
+  const filtered = Boolean(search || position || department || status || competency);
+  // UAT-11: the list holds only employees in scope; anyone else starts with Assess Position Change.
+  const outOfScope = writer ? "Untuk pegawai lain, klik Assess Position Change lalu pilih pegawai dan posisi barunya." : "Penilaian perubahan posisi untuk pegawai lain dimulai oleh HR.";
 
   return <>
-    <PageHeader title="Competency Gap" subtitle="Bandingkan kemampuan dan bukti pegawai dengan persyaratan posisinya. Kompetensi dinilai saat pegawai sedang training atau naik jabatan." />
-    <FilterBar canReset={Boolean(search || position || department || status || scope !== SCOPE_ACTIVE)} onReset={() => { setSearch(""); setPosition(""); setDepartment(""); setStatus(""); setScope(SCOPE_ACTIVE); }}>
+    <PageHeader title="Competency Gap" subtitle="Bandingkan kemampuan dan bukti pegawai dengan persyaratan posisinya. Daftar berisi pegawai yang sedang training (status Probation/Intern), naik jabatan dalam 6 bulan terakhir, atau masih punya development requirement terbuka."
+      actions={writer && <Button icon={<ArrowRightLeft className="size-4" />} onClick={() => setChanging(true)} data-testid="btn-assess-position-change">Assess Position Change</Button>} />
+    <FilterBar canReset={filtered} onReset={() => { setSearch(""); setPosition(""); setDepartment(""); setStatus(""); setCompetency(""); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Search name or position" />
-      {scoped && <SelectFilter label="Scope" testId="competency-scope" value={scope} onChange={setScope} emptyOption={false} options={[SCOPE_ACTIVE, SCOPE_ALL].map((item) => ({ value: item, label: item }))} />}
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All positions" testId="all-positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />}
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All departments" testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />}
       <SelectFilter label="All status" testId="all-gap-status" value={status} onChange={setStatus} options={STATUS_FILTER.map((item) => ({ value: item, label: item }))} />
+      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All competencies" testId="all-competencies" value={competency} onChange={setCompetency} options={competencyOptions(snapshot)} />}
     </FilterBar>
     <DataTable<Row> rows={rows} noun="employees" rowKey={(row) => row.employee.id}
-      emptyTitle="Tidak ada pegawai yang cocok" emptyText={scoped && scope === SCOPE_ACTIVE ? "Belum ada pegawai yang sedang training atau naik jabatan. Pilih All employees untuk memulai penilaian." : "Ubah kata kunci atau reset filter."}
+      emptyTitle="Tidak ada pegawai yang cocok" emptyText={snapshot.role === "EMPLOYEE" ? "Ubah kata kunci atau reset filter." : filtered ? `Ubah kata kunci atau reset filter. ${outOfScope}` : `Belum ada pegawai yang sedang training atau naik jabatan. ${outOfScope}`}
       columns={[
         { key: "employee", header: "Employee", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
         { key: "position", header: "Position", wrap: true, cell: (row) => row.position },
@@ -76,18 +70,23 @@ export function CompetencyListPage() {
           hidden: !writer || row.status === "Not Evaluated" || row.findings.filter((item) => item.status === "Gap").every((item) => openNeedFor(allNeeds, row.employee.id, "competency_gap", item.requirementId)) },
       ]} />} />
     {devFor && <DevelopmentFormModal employeeId={devFor} sourceType="competency_gap" onClose={() => setDevFor(null)} />}
+    {changing && <PositionChangeModal onClose={() => setChanging(false)} />}
   </>;
 }
 
-function PositionChangeModal({ employee, onClose }: { employee: EmployeeReference; onClose: () => void }) {
+/** Without `employee` (opened from the list) HR picks any visible employee first, so nobody needs to be in scope already. */
+function PositionChangeModal({ employee: fixed, onClose }: { employee?: EmployeeReference; onClose: () => void }) {
   const snapshot = useSnapshot();
   const { run, busy } = useD4();
+  const [employeeId, setEmployeeId] = useState(fixed?.id ?? "");
+  const employee = fixed ?? employeeById(snapshot, employeeId);
   const [position, setPosition] = useState("");
   const [date, setDate] = useState(today());
   const [assessedWith, setAssessedWith] = useState("");
   const [error, setError] = useState("");
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (!employee) { setError("Pilih pegawai."); return; }
     if (!position) { setError("Pilih posisi baru."); return; }
     const result = await run((source) => source.saveCompetency({ employeeId: employee.id, positionId: position, effectiveDate: date, assessedWith }), "Penilaian perubahan posisi tersimpan.");
     if (result.ok) onClose(); else setError(result.error);
@@ -96,8 +95,10 @@ function PositionChangeModal({ employee, onClose }: { employee: EmployeeReferenc
     footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Assessment" />}>
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />
+      {!fixed && <SearchSelectField label="Employee" testId="employee" required value={employeeId} onChange={(value) => { setEmployeeId(value); setPosition(""); setError(""); }} placeholder="Select employee"
+        options={visibleEmployees(snapshot).map((item) => ({ value: item.id, label: `${item.fullName} · ${item.employeeId}` }))} />}
       <SearchSelectField label="New position" testId="new-position" required value={position} onChange={(value) => setPosition(value)} placeholder="Select position"
-        options={snapshot.reference.positions.filter((item) => item.id !== employee.positionId).map((item) => ({ value: item.id, label: `${item.title}` }))} />
+        options={snapshot.reference.positions.filter((item) => item.id !== employee?.positionId).map((item) => ({ value: item.id, label: `${item.title}` }))} />
       <TextField label="Effective date" testId="effective-date" required type="date" value={date} onChange={(event) => setDate(event.target.value)} />
       <AssessedWithField value={assessedWith} onChange={setAssessedWith} />
       <Notice>Penilaian ini tidak mengubah data master posisi pegawai dan tidak memindahkan siapa pun secara otomatis.</Notice>
