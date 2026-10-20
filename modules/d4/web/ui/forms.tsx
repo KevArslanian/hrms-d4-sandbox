@@ -33,6 +33,22 @@ const FILTER_VISIBLE = 10;
 
 type Option = { value: string; label: string };
 
+// Height of the open list: search box plus at most max-h-64 of options.
+const PANEL_MAX = 320;
+
+/**
+ * Viewport position of the open list (D4-UI-02). The list is `fixed`, so a scrolling modal body cannot clip it. It
+ * opens below the trigger, or above when there is more room there, and its height fits the room left.
+ */
+export function dropdownPlacement(anchor: { top: number; bottom: number; left: number; width: number }, viewportHeight: number) {
+  const below = viewportHeight - anchor.bottom - 12, above = anchor.top - 12; // 4 px from the trigger, 8 px from the edge
+  const up = below < PANEL_MAX && above > below;
+  return {
+    top: up ? "" : `${anchor.bottom + 4}px`, bottom: up ? `${viewportHeight - anchor.top + 4}px` : "",
+    left: `${anchor.left}px`, width: `${anchor.width}px`, maxHeight: `${Math.min(PANEL_MAX, up ? above : below)}px`,
+  };
+}
+
 /**
  * Dropdown with a search box on top (reviewer feedback), shared by list filters and form fields: opening it
  * lists the options, typing narrows them. Only FILTER_VISIBLE options are rendered at once (load test:
@@ -43,6 +59,8 @@ function SearchableSelect({ label, value, onChange, options, emptyLabel, testId,
   triggerId?: string; invalid?: boolean; describedBy?: string; className?: string; wrapperClassName?: string; highlightActive?: boolean;
 }) {
   const listId = useId();
+  const wrapper = useRef<HTMLDivElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const all = emptyLabel === undefined ? options : [{ value: "", label: emptyLabel }, ...options];
@@ -63,7 +81,17 @@ function SearchableSelect({ label, value, onChange, options, emptyLabel, testId,
     const next = items[Math.min(items.length - 1, Math.max(0, at + (event.key === "ArrowDown" ? 1 : -1)))];
     if (next) { event.preventDefault(); next.focus(); }
   };
-  return <div className={cx("relative", wrapperClassName)} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) close(); }}
+  // The list stays inside the wrapper (blur, arrow keys and the modal focus trap rely on it) but is positioned on the
+  // viewport, so it follows the trigger while the page or the modal body scrolls.
+  useLayoutEffect(() => {
+    if (!open) return;
+    const place = () => { if (wrapper.current && panel.current) Object.assign(panel.current.style, dropdownPlacement(wrapper.current.getBoundingClientRect(), window.innerHeight)); };
+    place();
+    window.addEventListener("scroll", place, true);
+    window.addEventListener("resize", place);
+    return () => { window.removeEventListener("scroll", place, true); window.removeEventListener("resize", place); };
+  }, [open]);
+  return <div ref={wrapper} className={cx("relative", wrapperClassName)} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) close(); }}
     onKeyDown={(event) => { if (event.key === "Escape" && open) { event.stopPropagation(); close(); } else if (open) moveFocus(event); else if (event.key === "ArrowDown") { event.preventDefault(); setOpen(true); } }}>
     <button type="button" id={triggerId} data-testid={testId} aria-label={triggerId ? undefined : label} aria-haspopup="listbox" aria-expanded={open} aria-describedby={describedBy}
       data-active={active || undefined} title={selected ? `${label}: ${selected.label}` : undefined}
@@ -72,7 +100,7 @@ function SearchableSelect({ label, value, onChange, options, emptyLabel, testId,
       <span className="truncate">{selected?.label ?? emptyLabel ?? label}</span>
       <ChevronDown aria-hidden="true" className={cx("size-4 shrink-0 transition-transform", active ? "text-primary-600" : "text-ink-3", open && "rotate-180")} />
     </button>
-    {open && <div className="absolute inset-x-0 top-full z-30 mt-1 rounded-[10px] border border-line bg-surface p-1.5 shadow-card">
+    {open && <div ref={panel} className="fixed z-30 flex flex-col rounded-[10px] border border-line bg-surface p-1.5 shadow-card">
       <label className="relative block">
         <span className="sr-only">Search {label}</span>
         <Search aria-hidden="true" className="pointer-events-none absolute left-2.5 top-2.5 size-4 text-ink-3" />
@@ -80,7 +108,7 @@ function SearchableSelect({ label, value, onChange, options, emptyLabel, testId,
           onKeyDown={(event) => { if (event.key === "Enter" && matches[0]) { event.preventDefault(); pick(matches[0].value); } }}
           placeholder="Search…" className="h-9 w-full rounded-lg border border-line-strong bg-app pl-8 pr-2 text-sm text-ink outline-none placeholder:text-ink-3 focus:border-primary-500" />
       </label>
-      <ul id={listId} role="listbox" data-testid={testId.replace(/^(filter|input)-/, "options-")} aria-label={label} className="mt-1.5 max-h-64 overflow-y-auto text-sm">
+      <ul id={listId} role="listbox" data-testid={testId.replace(/^(filter|input)-/, "options-")} aria-label={label} className="mt-1.5 max-h-64 min-h-0 overflow-y-auto text-sm">
         {matches.length ? matches.map((option) => <li key={option.value || "empty"} role="option" aria-selected={option.value === value}>
           {/* Safari does not focus a clicked button, so without this the input's blur closes the list before the click lands. */}
           <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => pick(option.value)} className={cx("flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-ink hover:bg-primary-50 focus:bg-primary-50 focus:outline-none", option.value === value && "font-semibold text-primary-600")}>

@@ -42,7 +42,7 @@ describe("performance evaluation (fixture)", () => {
   });
 
   it("rejects revisionOf when nothing exists for the period", async () => {
-    await expect(source.createEvaluation(evaluation({ period: "2026-11", revisionOf: "FIX-D4-PERF-001" }))).rejects.toThrow(/tidak cocok/);
+    await expect(source.createEvaluation(evaluation({ period: "2026-08", revisionOf: "FIX-D4-PERF-001" }))).rejects.toThrow(/tidak cocok/);
   });
 
   it("rejects self-evaluation", async () => {
@@ -57,8 +57,16 @@ describe("performance evaluation (fixture)", () => {
     await expect(source.createEvaluation(evaluation(patch as Partial<EvaluationDraft>))).rejects.toThrow();
   });
 
+  it("rejects an evaluation for a period that has not started (D4-FN-01)", async () => {
+    await expect(source.createEvaluation(evaluation({ period: "2026-12", evaluationDate: "2026-10-01" }))).rejects.toThrow("Tanggal evaluasi tidak boleh sebelum awal periode.");
+    await expect(source.createKpiAssessment(await kpiDraft(ALFA, "2026-11", { evaluationDate: "2026-10-01" }))).rejects.toThrow(/awal periode/);
+    const snapshot = await source.loadSnapshot();
+    expect(snapshot.performance.some((item) => item.period === "2026-12")).toBe(false);
+    expect(snapshot.kpiAssessments!.some((item) => item.period === "2026-11")).toBe(false);
+  });
+
   it("saves an evaluation without a score (scores live in the KPI Scorecard)", async () => {
-    const id = await source.createEvaluation(evaluation({ period: "2026-12", overallScore: null }));
+    const id = await source.createEvaluation(evaluation({ period: "2026-08", overallScore: null }));
     expect((await source.loadSnapshot()).performance.find((item) => item.id === id)?.overallScore).toBeNull();
   });
 });

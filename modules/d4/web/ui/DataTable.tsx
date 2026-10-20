@@ -24,10 +24,16 @@ const PAGE_SIZES = [10, 20, 50, 100] as const;
 // Its edge shadow shows only while columns are actually scrolled underneath it.
 const stickyAction = "sticky right-0 z-[1] transition-shadow group-data-[covered=true]:shadow-[-8px_0_8px_-8px_rgba(15,35,66,0.18)]";
 
-/** Page buttons to show: first, last, and the current page ±1, with gaps (load test: 1000 rows = 100 pages). */
+/**
+ * Page buttons to show: first, last, and the current page ±1, with gaps (load test: 1000 rows = 100 pages).
+ * A gap stands for two or more pages; a single missing page is shown as its number instead.
+ */
 export function pageWindow(current: number, count: number): (number | "gap")[] {
   const pages = [...new Set([1, current - 1, current, current + 1, count])].filter((page) => page >= 1 && page <= count).sort((a, b) => a - b);
-  return pages.flatMap((page, index) => index && page - pages[index - 1] > 1 ? ["gap" as const, page] : [page]);
+  return pages.flatMap((page, index) => {
+    const step = index ? page - pages[index - 1] : 1;
+    return step === 2 ? [page - 1, page] : step > 2 ? ["gap" as const, page] : [page];
+  });
 }
 
 /**
