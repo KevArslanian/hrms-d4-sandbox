@@ -23,6 +23,10 @@ export const validScorecard = (item: KpiAssessment) => item.lines.length === 5 &
  */
 export const defaultPeriod = (periods: readonly string[], today = localMonth()) => periods.find((period) => period <= today) ?? periods[0] ?? "";
 
+/** Profile period when none is chosen: the latest started scorecard period, else the latest started evaluation period (FR-06.1). */
+export const profilePeriod = (scorecardPeriods: readonly string[], evaluationPeriods: readonly string[], today = localMonth()) =>
+  defaultPeriod(scorecardPeriods, today) || defaultPeriod(evaluationPeriods, today) || undefined;
+
 /**
  * Average Total KPI of the valid scorecards listed, one entry per scale (1–5 or 1–100), most scorecards first. A period
  * can hold both scales when a scorecard was saved under the older catalog, and the two must not be averaged together.
@@ -38,7 +42,23 @@ export function averageScores(rows: readonly DashboardRow[]) {
     .sort((a, b) => b.count - a.count);
 }
 
-const bandOf = (row: DashboardRow) => row.scorecard ? performanceBand(row.scorecard.overallScore, row.scorecard.definitionVersion) : null;
+/** Rows without a scorecard, and scorecards left out of the average because they are invalid (FR-06.9) or have no score. */
+export function reviewCounts(rows: readonly DashboardRow[]) {
+  const reviewed = rows.filter((row) => row.scorecard).length;
+  const scored = averageScores(rows).reduce((sum, item) => sum + item.count, 0);
+  return { missing: rows.length - reviewed, scored, unscored: reviewed - scored };
+}
+
+/**
+ * Employees without a scorecard whose position has no KPI role in the period's catalog: they cannot get a Performance
+ * Review (FR-02.11). Some positions have no KPI by design (Commissioner, HR Manager) and only a catalog migration adds a
+ * role, so the dashboard shows this as information, not as an alert HR could act on.
+ */
+export const withoutKpiRole = (snapshot: Snapshot, rows: readonly DashboardRow[], catalog: KpiCatalog | null) =>
+  catalog ? rows.filter((row) => !row.scorecard && positionById(snapshot, row.employee.positionId) && !roleForPosition(catalog, row.employee.positionId)) : [];
+
+// An invalid scorecard (FR-06.9) has no category, so it never reaches the donut, the filter or the Under Performance alert.
+const bandOf = (row: DashboardRow) => row.scorecard && validScorecard(row.scorecard) ? performanceBand(row.scorecard.overallScore, row.scorecard.definitionVersion) : null;
 
 export const BANDS: readonly PerformanceBand[] = ["Under Performance", "Average Performance", "High Performance"];
 
@@ -149,13 +169,11 @@ export type DashboardAlert = { key: string; title: string; detail: string; href:
  * Follow-ups HR should act on, computed from D4 data only (interview D4, 14 Oct 2026). Alerts that need data D4
  * does not hold (field agent vacancy, maternity leave, the 3-day daily KPI trigger) are not computed here.
  */
-export function dashboardAlerts(snapshot: Snapshot, rows: readonly DashboardRow[], catalog?: KpiCatalog | null): DashboardAlert[] {
-  const found = { under: [] as string[], completedGap: [] as string[], notPassed: [] as string[], noPlan: [] as string[], noPic: [] as string[], noKpi: [] as string[] };
+export function dashboardAlerts(snapshot: Snapshot, rows: readonly DashboardRow[]): DashboardAlert[] {
+  const found = { under: [] as string[], completedGap: [] as string[], notPassed: [] as string[], noPlan: [] as string[], noPic: [] as string[] };
   const assign: AssignTarget[] = [];
   for (const row of rows) {
     const name = row.employee.fullName;
-    // A position with no KPI role in the period's catalog cannot get a Performance Review at all (FR-02.11).
-    if (catalog && !row.scorecard && positionById(snapshot, row.employee.positionId) && !roleForPosition(catalog, row.employee.positionId)) found.noKpi.push(name);
     if (row.scorecard && bandOf(row) === "Under Performance") {
       found.under.push(name);
       assign.push({ employeeId: row.employee.id, name, scorecardId: row.scorecard.id });
@@ -188,7 +206,6 @@ export function dashboardAlerts(snapshot: Snapshot, rows: readonly DashboardRow[
     { key: "training-not-passed", list: found.notPassed, title: "Training Not Passed", label: "Awaiting follow-up", href: "/training", detail: "development requirement dengan training terakhir Not Passed dan belum ada tindak lanjut. Catat Retraining atau Other follow-up di detail training." },
     { key: "gap-no-requirement", list: found.noPlan, title: "Gap tanpa development requirement", href: "/competency", detail: "gap kompetensi belum dibuatkan development requirement." },
     { key: "requirement-no-pic", list: found.noPic, title: "Tanpa PIC", href: "/development", detail: "development requirement terbuka belum punya PIC." },
-    { key: "kpi-not-in-catalog", list: found.noKpi, title: "Posisi belum ada di katalog KPI", href: "/performance", detail: `pegawai belum bisa diberi Performance Review karena posisinya belum ada di katalog ${catalog?.version ?? ""}. Tambahkan posisi ke katalog KPI.` },
   ];
   return alerts.filter((item) => item.list.length).map(({ list, ...item }) => ({ ...item, count: list.length, people: [...new Set(list)] }));
 }

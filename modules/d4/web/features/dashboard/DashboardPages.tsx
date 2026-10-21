@@ -14,16 +14,16 @@ import { RowActionMenu } from "../../ui/RowActionMenu";
 import { Card, Notice, slug, statusLabel, StatusBadge } from "../../ui/primitives";
 import { LineComment, weighted } from "../kpi/KpiFormModal";
 import { HIGH_ABOVE, performanceBand, scaleMaxOf, UNDER_BELOW } from "../../../kpi/scale";
-import { averageScores, BANDS, COMPETENCY_ORDER, competencySlices, dashboardAlerts, defaultPeriod, employeeHistory, gapRanking, matchesDashboardFilters, openNeedCount, performanceSlices, validScorecard, type AssignTarget, type DashboardRow, type Slice } from "./summary";
+import { averageScores, BANDS, COMPETENCY_ORDER, competencySlices, dashboardAlerts, defaultPeriod, employeeHistory, gapRanking, matchesDashboardFilters, openNeedCount, performanceSlices, profilePeriod, reviewCounts, validScorecard, withoutKpiRole, type AssignTarget, type DashboardRow, type Slice } from "./summary";
 import { DevelopmentFormModal } from "../development/DevelopmentModals";
 
 type Row = DashboardRow & { position: string; period?: string; openNeeds: number; training?: string };
 
-/** One period per employee: the selected period, else the latest completed scorecard, else the latest evaluation (FR-06.1). */
+/** One period per employee: the selected period, else the latest started scorecard, else the latest started evaluation (FR-06.1). */
 function periodData(snapshot: D4LiveSnapshot, employeeId: string, period: string) {
   const scorecards = scorecardsOf(snapshot, employeeId).filter((item) => item.status === "completed");
   const evaluations = evaluationsOf(snapshot, employeeId).filter((item) => item.status === "completed");
-  const selected = period || scorecards[0]?.period || evaluations[0]?.period;
+  const selected = period || profilePeriod(scorecards.map((item) => item.period), evaluations.map((item) => item.period));
   return { period: selected, scorecard: scorecards.find((item) => item.period === selected), evaluation: evaluations.find((item) => item.period === selected) };
 }
 
@@ -80,11 +80,11 @@ export function DashboardPage() {
     <SummaryStrip rows={rows} period={shown} />
     {snapshot.role !== "EMPLOYEE" && rows.length > 0 && <>
       <div className="grid gap-6 xl:grid-cols-3">
-        <PerformanceCard rows={rows} />
+        <PerformanceCard snapshot={snapshot} rows={rows} catalog={catalog} />
         <CompetencyCard rows={rows} />
         <GapRankingCard snapshot={snapshot} rows={rows} />
       </div>
-      <AlertsCard snapshot={snapshot} rows={rows} catalog={catalog} />
+      <AlertsCard snapshot={snapshot} rows={rows} />
     </>}
     <DataTable<Row> rows={rows} noun="employees" rowKey={(row) => row.employee.id}
       emptyTitle="Tidak ada pegawai yang cocok" emptyText={snapshot.role === "EMPLOYEE" ? "Ubah kata kunci atau periode, lalu coba lagi." : "Ubah kata kunci, filter, atau periode, lalu coba lagi."}
@@ -176,23 +176,28 @@ function Donut({ name, slices, colors, center, centerLabel }: { name: string; sl
 }
 
 /** Under / Average / High from the total of the five Core KPI, for the period listed (Interview D4, 14 Oct 2026). */
-function PerformanceCard({ rows }: { rows: readonly Row[] }) {
+function PerformanceCard({ snapshot, rows, catalog }: { snapshot: D4LiveSnapshot; rows: readonly Row[]; catalog: KpiCatalog | null }) {
   const { slices, rated, total } = performanceSlices(rows);
   const averages = averageScores(rows);
-  const scored = averages.reduce((sum, item) => sum + item.count, 0);
+  const { missing, unscored } = reviewCounts(rows);
+  const noKpi = withoutKpiRole(snapshot, rows, catalog).length;
+  // Information, not an alert: some positions have no KPI by design and only a catalog migration adds one.
+  const noKpiNote = noKpi > 0 && <p data-testid="kpi-no-role" className="mt-2 text-sm text-ink-2">{noKpi} pegawai tidak bisa diberi Performance Review karena posisinya tidak punya KPI di katalog {catalog?.version}.</p>;
   if (rated) return <Card title="Performance category" testId="performance-pie">
     <Donut name="Performance category" slices={slices} colors={BAND_COLORS} center={rated} centerLabel={`dari ${total} pegawai`} />
+    {noKpiNote}
     <p className="mt-4 text-xs leading-5 text-ink-3">{`Total 5 Core KPI: di bawah ${UNDER_BELOW} Under, ${UNDER_BELOW}–${HIGH_ABOVE} Average, di atas ${HIGH_ABOVE} High.${total > rated ? ` ${total - rated} pegawai belum punya kategori.` : ""}`}</p>
   </Card>;
   // No 1–100 scorecard yet: an empty donut says nothing, so show the period's average Total KPI instead.
   return <Card title="Performance" testId="performance-pie">
-    {scored ? <div data-testid="kpi-average">
+    {missing < total ? <div data-testid="kpi-average">
       {averages.map((item) => <p key={item.scaleMax} className="flex items-baseline gap-2">
         <span className="font-display text-3xl font-semibold tabular-nums text-ink">{item.average.toFixed(2)}</span>
         <span className="text-sm text-ink-2">/ {item.scaleMax} rata-rata Total KPI · {item.count} scorecard</span>
       </p>)}
-      <p className="mt-2 text-sm text-ink-2">{total - scored} dari {total} pegawai belum punya Performance Review pada periode ini.</p>
+      <p className="mt-2 text-sm text-ink-2">{missing} dari {total} pegawai belum punya Performance Review pada periode ini.{unscored ? ` ${unscored} scorecard tidak dihitung dalam rata-rata karena datanya tidak valid.` : ""}</p>
     </div> : <p className="text-sm text-ink-3">Belum ada Performance Review pada periode ini. <Link href="/performance" className="font-semibold text-primary-600 hover:underline">Buka Performance Review</Link></p>}
+    {noKpiNote}
     <p className="mt-4 text-xs leading-5 text-ink-3">Kategori Under / Average / High berlaku mulai scorecard skala 1–100 (V6, Nov 2026).</p>
   </Card>;
 }
@@ -224,8 +229,8 @@ function GapRankingCard({ snapshot, rows }: { snapshot: D4LiveSnapshot; rows: re
   </Card>;
 }
 
-function AlertsCard({ snapshot, rows, catalog }: { snapshot: D4LiveSnapshot; rows: readonly Row[]; catalog: KpiCatalog | null }) {
-  const alerts = dashboardAlerts(snapshot, rows, catalog);
+function AlertsCard({ snapshot, rows }: { snapshot: D4LiveSnapshot; rows: readonly Row[] }) {
+  const alerts = dashboardAlerts(snapshot, rows);
   const [assignFor, setAssignFor] = useState<AssignTarget | null>(null);
   return <Card title="Alerts" testId="dashboard-alerts">
     {alerts.length ? <ul className="divide-y divide-line">
@@ -267,7 +272,7 @@ export function EmployeeProfilePage({ employeeId, initialPeriod = "" }: { employ
   const employee = employeeById(snapshot, employeeId);
   if (!employee || !visibleEmployees(snapshot).some((item) => item.id === employeeId)) return <NotFound what="Employee" backHref="/dashboard" backLabel="Back to People Dashboard" />;
   const periods = [...new Set([...scorecardsOf(snapshot, employee.id), ...evaluationsOf(snapshot, employee.id)].filter((item) => item.status === "completed").map((item) => item.period))].sort().reverse();
-  const { period: shown, scorecard, evaluation } = periodData(snapshot, employee.id, period || defaultPeriod(periods));
+  const { period: shown, scorecard, evaluation } = periodData(snapshot, employee.id, period);
   const gap = currentGap(snapshot, employee);
   const competencyStatus = currentCompetencyStatus(snapshot, employee);
   const needs = developmentNeeds(snapshot).filter((item) => item.employeeId === employee.id);
