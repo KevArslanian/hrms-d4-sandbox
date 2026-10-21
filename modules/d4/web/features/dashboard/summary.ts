@@ -1,7 +1,8 @@
 import type { CompetencyAssessment } from "../../../competency/types";
 import type { DevelopmentNeedVersion } from "../../../development/types";
-import { performanceBand, type PerformanceBand } from "../../../kpi/scale";
-import { followUpOf, localToday, retrainedAt } from "../../../shared/rules";
+import { roleForPosition, type KpiCatalog } from "../../../kpi/catalog";
+import { performanceBand, scaleMaxOf, type PerformanceBand } from "../../../kpi/scale";
+import { followUpOf, localMonth, localToday, retrainedAt } from "../../../shared/rules";
 import type { EmployeeReference } from "../../../shared/types";
 import type { KpiAssessment } from "../../../supabase/types";
 import type { TrainingVersion } from "../../../training/types";
@@ -12,6 +13,30 @@ import { slug, statusLabel } from "../../ui/primitives";
 /** What the People Dashboard charts need from one listed row: the employee, the period's scorecard, the competency status. */
 export type DashboardRow = { employee: EmployeeReference; scorecard?: KpiAssessment; gap: string };
 export type Slice = { key: string; label: string; count: number };
+
+/** FR-06.9 validation state: a scorecard is only summarised when it has five KPIs whose weights total 100%. */
+export const validScorecard = (item: KpiAssessment) => item.lines.length === 5 && item.lines.reduce((sum, line) => sum + line.weight_percent, 0) === 100;
+
+/**
+ * Period the dashboard opens on: the latest one that has started (WIB), so a record saved for a future month does not
+ * become the default and leave every other row empty. Falls back to the latest period when all of them are ahead.
+ */
+export const defaultPeriod = (periods: readonly string[], today = localMonth()) => periods.find((period) => period <= today) ?? periods[0] ?? "";
+
+/**
+ * Average Total KPI of the valid scorecards listed, one entry per scale (1–5 or 1–100), most scorecards first. A period
+ * can hold both scales when a scorecard was saved under the older catalog, and the two must not be averaged together.
+ */
+export function averageScores(rows: readonly DashboardRow[]) {
+  const groups = new Map<number, number[]>();
+  for (const row of rows) {
+    if (!row.scorecard || !validScorecard(row.scorecard) || row.scorecard.overallScore === null || row.scorecard.overallScore === undefined) continue;
+    const max = scaleMaxOf(row.scorecard.definitionVersion);
+    groups.set(max, [...(groups.get(max) ?? []), Number(row.scorecard.overallScore)]);
+  }
+  return [...groups].map(([scaleMax, scores]) => ({ scaleMax, count: scores.length, average: scores.reduce((sum, score) => sum + score, 0) / scores.length }))
+    .sort((a, b) => b.count - a.count);
+}
 
 const bandOf = (row: DashboardRow) => row.scorecard ? performanceBand(row.scorecard.overallScore, row.scorecard.definitionVersion) : null;
 
@@ -124,11 +149,13 @@ export type DashboardAlert = { key: string; title: string; detail: string; href:
  * Follow-ups HR should act on, computed from D4 data only (interview D4, 14 Oct 2026). Alerts that need data D4
  * does not hold (field agent vacancy, maternity leave, the 3-day daily KPI trigger) are not computed here.
  */
-export function dashboardAlerts(snapshot: Snapshot, rows: readonly DashboardRow[]): DashboardAlert[] {
-  const found = { under: [] as string[], completedGap: [] as string[], notPassed: [] as string[], noPlan: [] as string[], noPic: [] as string[] };
+export function dashboardAlerts(snapshot: Snapshot, rows: readonly DashboardRow[], catalog?: KpiCatalog | null): DashboardAlert[] {
+  const found = { under: [] as string[], completedGap: [] as string[], notPassed: [] as string[], noPlan: [] as string[], noPic: [] as string[], noKpi: [] as string[] };
   const assign: AssignTarget[] = [];
   for (const row of rows) {
     const name = row.employee.fullName;
+    // A position with no KPI role in the period's catalog cannot get a Performance Review at all (FR-02.11).
+    if (catalog && !row.scorecard && positionById(snapshot, row.employee.positionId) && !roleForPosition(catalog, row.employee.positionId)) found.noKpi.push(name);
     if (row.scorecard && bandOf(row) === "Under Performance") {
       found.under.push(name);
       assign.push({ employeeId: row.employee.id, name, scorecardId: row.scorecard.id });
@@ -161,6 +188,7 @@ export function dashboardAlerts(snapshot: Snapshot, rows: readonly DashboardRow[
     { key: "training-not-passed", list: found.notPassed, title: "Training Not Passed", label: "Awaiting follow-up", href: "/training", detail: "development requirement dengan training terakhir Not Passed dan belum ada tindak lanjut. Catat Retraining atau Other follow-up di detail training." },
     { key: "gap-no-requirement", list: found.noPlan, title: "Gap tanpa development requirement", href: "/competency", detail: "gap kompetensi belum dibuatkan development requirement." },
     { key: "requirement-no-pic", list: found.noPic, title: "Tanpa PIC", href: "/development", detail: "development requirement terbuka belum punya PIC." },
+    { key: "kpi-not-in-catalog", list: found.noKpi, title: "Posisi belum ada di katalog KPI", href: "/performance", detail: `pegawai belum bisa diberi Performance Review karena posisinya belum ada di katalog ${catalog?.version ?? ""}. Tambahkan posisi ke katalog KPI.` },
   ];
   return alerts.filter((item) => item.list.length).map(({ list, ...item }) => ({ ...item, count: list.length, people: [...new Set(list)] }));
 }
@@ -180,7 +208,8 @@ export function employeeHistory(snapshot: Snapshot, employeeId: string): History
   const entries: HistoryEntry[] = [];
   for (const item of snapshot.competency) {
     if (item.employeeId !== employeeId) continue;
-    const position = positionById(snapshot, item.positionId)?.title ?? "Position";
+    // An assessment can belong to a position that has since left the position master.
+    const position = positionById(snapshot, item.positionId)?.title ?? "posisi tidak ada di master";
     const roleChange = item.context === "role-change";
     entries.push({ id: `competency-${item.id}`, kind: "competency", day: item.effectiveDate, createdAt: item.createdAt, actor: item.actor,
       date: `${roleChange ? "Efektif " : ""}${formatDate(item.effectiveDate)}`, status: item.overallStatus, href: `/competency/${employeeId}/history`,

@@ -3,7 +3,7 @@ import type { DevelopmentNeedVersion } from "@/modules/d4/development/types";
 import type { KpiAssessment } from "@/modules/d4/supabase/types";
 import type { TrainingVersion } from "@/modules/d4/training/types";
 import { currentCompetencyStatus, currentGap, employeeSearchText, includesText, positionOf, type Snapshot } from "@/modules/d4/web/data/selectors";
-import { competencySlices, dashboardAlerts, employeeHistory, gapRanking, performanceSlices, type DashboardRow } from "@/modules/d4/web/features/dashboard/summary";
+import { averageScores, competencySlices, dashboardAlerts, defaultPeriod, employeeHistory, gapRanking, performanceSlices, type DashboardRow } from "@/modules/d4/web/features/dashboard/summary";
 
 async function hrSnapshot(): Promise<Snapshot> {
   vi.stubEnv("NEXT_PUBLIC_D4_FIXTURE_ROLE", "HR");
@@ -16,6 +16,38 @@ afterEach(() => { vi.unstubAllEnvs(); });
 const employee = (id: string) => ({ id, employeeId: id, fullName: `Pegawai ${id}`, positionId: null, departmentId: null });
 const scorecard = (overallScore: number, definitionVersion: string) => ({ overallScore, definitionVersion }) as KpiAssessment;
 const rowsOf = (snapshot: Snapshot): DashboardRow[] => snapshot.reference.employees.map((item) => ({ employee: item, gap: currentCompetencyStatus(snapshot, item) }));
+
+const lines = (count = 5) => Array.from({ length: count }, (_, index) => ({ indicator_order: index + 1, weight_percent: 20 }));
+const valid = (overallScore: number, definitionVersion: string, count = 5) => ({ overallScore, definitionVersion, lines: lines(count) }) as unknown as KpiAssessment;
+
+describe("People Dashboard audit (21 Oct 2026)", () => {
+  it("opens on the latest period that has started, not on a future one", () => {
+    expect(defaultPeriod(["2026-12", "2026-10", "2026-09"], "2026-10")).toBe("2026-10");
+    expect(defaultPeriod(["2026-12", "2026-10", "2026-09"], "2026-11")).toBe("2026-10");
+    expect(defaultPeriod(["2027-01", "2026-12"], "2026-10")).toBe("2027-01");
+    expect(defaultPeriod([], "2026-10")).toBe("");
+  });
+
+  it("averages valid scorecards per scale and never mixes 1–5 with 1–100", () => {
+    const rows: DashboardRow[] = [
+      { employee: employee("a"), gap: "Gap", scorecard: valid(3, "V5.1") },
+      { employee: employee("b"), gap: "Gap", scorecard: valid(2, "V5.1") },
+      { employee: employee("c"), gap: "Gap", scorecard: valid(90, "V6") },
+      { employee: employee("d"), gap: "Gap", scorecard: valid(5, "V5.1", 4) },
+      { employee: employee("e"), gap: "Gap" },
+    ];
+    expect(averageScores(rows)).toEqual([{ scaleMax: 5, count: 2, average: 2.5 }, { scaleMax: 100, count: 1, average: 90 }]);
+  });
+
+  it("alerts employees whose position has no KPI role in the period's catalog, and only when a catalog is known", async () => {
+    const base = await hrSnapshot();
+    const rows = rowsOf(base);
+    const withPosition = rows.filter((row) => positionOf(base, row.employee)).map((row) => row.employee.fullName);
+    const noRoles = dashboardAlerts(base, rows, { version: "V5.1", rows: [], positionRoles: [] }).find((alert) => alert.key === "kpi-not-in-catalog");
+    expect(noRoles?.people.sort()).toEqual([...new Set(withPosition)].sort());
+    expect(dashboardAlerts(base, rows).some((alert) => alert.key === "kpi-not-in-catalog")).toBe(false);
+  });
+});
 
 describe("People Dashboard charts", () => {
   it("counts Under / Average / High only for 1–100 scorecards and leaves 1–5 scorecards unrated", () => {
