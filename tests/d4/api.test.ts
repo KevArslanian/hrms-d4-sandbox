@@ -18,7 +18,7 @@ const uuid = (n: number) => `e4000000-0000-4000-8000-${String(n).padStart(12, "0
 const NEED = uuid(1), TRAINING = uuid(2), PERF_ALFA = uuid(3), KPI_ALFA = uuid(4);
 const AUTH_USER = "a4000000-0000-4000-8000-000000000001";
 
-type AccessRow = { app_role: "HR" | "MANAGER" | "EMPLOYEE"; employee_id: string | null };
+type AccessRow = { app_role: "HR" | "MANAGER" | "MANAGEMENT" | "EMPLOYEE"; employee_id: string | null };
 // What Supabase answers for the signed-in user. `user: null` = no session cookie.
 let user: { id: string } | null;
 let accessRow: AccessRow | null;
@@ -155,8 +155,9 @@ describe("session guard: real requireWriter over a mocked Supabase client", () =
     expect(writes).toHaveLength(0);
   });
 
-  it.each(writeRoutes)("%s as EMPLOYEE → 403, nothing written", async (_name, send) => {
-    signIn("EMPLOYEE", ALFA);
+  it.each(writeRoutes.flatMap(([name, send]) => [["EMPLOYEE", name, send], ["MANAGEMENT", name, send]] as const))(
+    "as %s, %s → 403, nothing written", async (role, _name, send) => {
+    signIn(role, ALFA);
     const res = await call(send());
     expect(res).toMatchObject({ status: 403, body: { error: { code: "FORBIDDEN" } } });
     expect(res.body.error?.message).toMatch(/Hanya HR atau manager/);
@@ -165,8 +166,8 @@ describe("session guard: real requireWriter over a mocked Supabase client", () =
     expect(accessLookups).toEqual([{ table: "d4_user_access", filters: [["auth_user_id", AUTH_USER]] }]);
   });
 
-  it("EMPLOYEE can still read (reads only need a session; RLS limits the rows)", async () => {
-    signIn("EMPLOYEE", ALFA);
+  it.each(["EMPLOYEE", "MANAGEMENT"] as const)("%s can still read (reads only need a session; RLS limits the rows)", async (role) => {
+    signIn(role, ALFA);
     expect((await call(snapshotRoute.GET())).status).toBe(200);
   });
 
