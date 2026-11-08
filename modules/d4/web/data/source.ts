@@ -19,6 +19,9 @@ export type KpiAssessmentDraft = {
   revisionOf?: string | null;
 };
 
+/** The employee's own scores for one day; employee, KPI role and indicators follow the session and the catalog. */
+export type DailyKpiDraft = { entryDate: string; lines: { raw_score: number | null; comment: string }[] };
+
 export type EvaluationDraft = EvaluationInput & { revisionOf?: string | null };
 
 export type DevelopmentDraft = { employeeId: string; sourceType: DevelopmentSourceType; sourceRef: string; objective: string; priority: DevelopmentPriority; notes: string; method?: string; pic?: string };
@@ -36,6 +39,7 @@ export interface D4DataSource {
   loadKpiCatalog(): Promise<KpiCatalogSet>;
   createEvaluation(input: EvaluationDraft): Promise<string>;
   createKpiAssessment(input: KpiAssessmentDraft): Promise<string>;
+  createDailyKpi(input: DailyKpiDraft): Promise<string>;
   saveCompetency(input: { employeeId: string; positionId: string; effectiveDate: string; assessedWith?: string }): Promise<string>;
   createDevelopment(input: DevelopmentDraft): Promise<string>;
   updateDevelopment(needId: string, status: DevelopmentStatus, notes: string, edit?: DevelopmentEdit): Promise<void>;

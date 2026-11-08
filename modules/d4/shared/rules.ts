@@ -15,6 +15,18 @@ export function localToday(now = new Date()): string {
 }
 export const localMonth = (now = new Date()) => localToday(now).slice(0, 7);
 
+/**
+ * Daily KPI is self-service: any account linked to an employee scores its own day, except MANAGEMENT (directors are
+ * read-only, B17). The position must also have a KPI role, which needs the catalog and is checked separately.
+ */
+export const canFillDaily = (role: string, employeeId: string | null | undefined) => role !== "MANAGEMENT" && Boolean(employeeId);
+
+/** A daily entry is for today or an earlier day of the running WIB period; the database enforces the same. */
+export function assertDailyDate(date: string, now = new Date()) {
+  if (date > localToday(now)) throw new ApiError("VALIDATION_FAILED", "Tanggal Daily KPI tidak boleh lebih dari hari ini.");
+  if (date.slice(0, 7) !== localMonth(now)) throw new ApiError("VALIDATION_FAILED", `Daily KPI hanya bisa diisi untuk hari di periode berjalan (${localMonth(now)}).`);
+}
+
 type PeriodRecord = { readonly id: string; readonly employeeId: string; readonly period: string; readonly createdAt: string };
 
 /** Latest record of an employee for a period; an older one in the same period is an earlier revision. */

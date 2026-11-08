@@ -38,6 +38,7 @@ const repository = {
   loadReferenceData: async () => snapshot.reference,
   savePerformance: record("savePerformance"),
   saveKpiAssessment: record("saveKpiAssessment"),
+  saveKpiDailyEntry: record("saveKpiDailyEntry"),
   saveCompetency: record("saveCompetency"),
   createDevelopment: record("createDevelopment"),
   updateDevelopment: record("updateDevelopment", undefined),
@@ -86,6 +87,8 @@ const trainingVersions = await import("@/app/api/d4/training-records/[id]/versio
 const trainingFollowUp = await import("@/app/api/d4/training-records/[id]/follow-up/route");
 const competency = await import("@/app/api/d4/competency-assessments/route");
 const snapshotRoute = await import("@/app/api/d4/snapshot/route");
+const daily = await import("@/app/api/d4/kpi-daily/route");
+const { localToday } = await import("@/modules/d4/shared/rules");
 
 const post = (body: unknown) => new Request("http://test/api", { method: "POST", body: typeof body === "string" ? body : JSON.stringify(body) });
 const params = (id: string) => ({ params: Promise.resolve({ id }) });
@@ -571,5 +574,45 @@ describe("unknown or malformed ids", () => {
     expect(res.status).toBe(201);
     expect(writes[0].args[0]).toMatchObject({ assessedWith: "Rina, Finance Manager" });
     expect((await call(competency.POST(post({ employeeId: ALFA, positionId: FINANCE_STAFF, effectiveDate: "2026-10-01", assessedWith: "x".repeat(201) })))).status).toBe(422);
+  });
+});
+
+describe("POST /kpi-daily (self-service, not HR-only)", () => {
+  const dailyBody = (patch: Record<string, unknown> = {}) => ({ entryDate: localToday(), lines: Array.from({ length: 5 }, () => ({ raw_score: 4, comment: "" })), ...patch });
+
+  it("lets an EMPLOYEE score their own day; the employee comes from the session, never the body", async () => {
+    signIn("EMPLOYEE", ALFA);
+    const res = await call(daily.POST(post(dailyBody({ employeeId: MERCURY, roleOrder: 1 }))));
+    expect(res.status).toBe(201);
+    const saved = writes[0].args[0] as { employeeId: string; roleOrder: number; lines: { kpi_name: string; raw_score: number }[] };
+    expect(saved.employeeId).toBe(ALFA);
+    expect(saved.roleOrder).not.toBe(1);
+    expect(saved.lines.map((line) => line.raw_score)).toEqual([4, 4, 4, 4, 4]);
+  });
+
+  it("refuses MANAGEMENT (directors are read-only) with 403", async () => {
+    signIn("MANAGEMENT", ALFA);
+    const res = await call(daily.POST(post(dailyBody())));
+    expect(res).toMatchObject({ status: 403, body: { error: { code: "FORBIDDEN", message: "Akun Management hanya dapat melihat data." } } });
+    expect(writes).toHaveLength(0);
+  });
+
+  it("refuses an account without an employee record with 403", async () => {
+    signIn("EMPLOYEE", null);
+    expect((await call(daily.POST(post(dailyBody())))).status).toBe(403);
+    expect(writes).toHaveLength(0);
+  });
+
+  it.each([
+    ["a future day", { entryDate: "2999-01-01" }, /lebih dari hari ini/],
+    ["a day of an earlier period", { entryDate: "2026-01-15" }, /periode berjalan/],
+    ["a score above the 1–5 scale of V5.1", { lines: Array.from({ length: 5 }, () => ({ raw_score: 6, comment: "" })) }, /1 sampai 5/],
+    ["four lines", { lines: Array.from({ length: 4 }, () => ({ raw_score: 4, comment: "" })) }, /lima indikator/],
+  ])("rejects %s with 422", async (_name, patch, message) => {
+    signIn("EMPLOYEE", ALFA);
+    const res = await call(daily.POST(post(dailyBody(patch))));
+    expect(res.status).toBe(422);
+    expect(res.body.error?.message).toMatch(message);
+    expect(writes).toHaveLength(0);
   });
 });

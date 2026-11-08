@@ -348,3 +348,19 @@ describe("evaluation date within period", () => {
     expect(() => assertEvaluationInPeriod("2026-09", "")).not.toThrow(); // a missing date is reported by its own check
   });
 });
+
+describe("Daily KPI in the fixture source (mirrors POST /api/d4/kpi-daily)", () => {
+  const draft = () => ({ entryDate: localToday(), lines: Array.from({ length: 5 }, () => ({ raw_score: 90, comment: "" })) });
+
+  it("lets an EMPLOYEE save their own day and keeps only their own entries", async () => {
+    const source = await fixtureAs("EMPLOYEE");
+    await source.createDailyKpi(draft());
+    const snapshot = await source.loadSnapshot();
+    expect(snapshot.kpiDaily?.every((item) => item.employeeId === ALFA)).toBe(true);
+    expect(snapshot.kpiDaily?.[0]).toMatchObject({ employeeId: ALFA, entryDate: localToday(), overallScore: 90 });
+  });
+
+  it("refuses MANAGEMENT", async () => {
+    await expect((await fixtureAs("MANAGEMENT")).createDailyKpi(draft())).rejects.toThrow(/Management/);
+  });
+});
