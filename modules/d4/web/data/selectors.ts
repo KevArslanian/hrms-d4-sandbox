@@ -25,7 +25,7 @@ export function asEmployee(snapshot: Snapshot, employeeId: string): Snapshot {
   const own = <T extends { employeeId: string }>(items: readonly T[]) => items.filter((item) => item.employeeId === employeeId);
   return {
     ...snapshot, role: "EMPLOYEE", actorEmployeeId: employeeId,
-    kpi: own(snapshot.kpi), kpiAssessments: snapshot.kpiAssessments && own(snapshot.kpiAssessments), performance: own(snapshot.performance),
+    kpi: own(snapshot.kpi), kpiAssessments: snapshot.kpiAssessments && own(snapshot.kpiAssessments), kpiDaily: snapshot.kpiDaily && own(snapshot.kpiDaily), performance: own(snapshot.performance),
     competency: own(snapshot.competency), developmentVersions: own(snapshot.developmentVersions), trainingVersions: own(snapshot.trainingVersions),
   };
 }

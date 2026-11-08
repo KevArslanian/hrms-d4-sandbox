@@ -170,7 +170,7 @@ describe("role views (fixture)", () => {
     const snapshot = asEmployee(await (await fixtureAs("HR")).loadSnapshot(), ALFA);
     expect(canWrite(snapshot)).toBe(false);
     expect(visibleEmployees(snapshot).map((item) => item.id)).toEqual([ALFA]);
-    const records = [...snapshot.performance, ...(snapshot.kpiAssessments ?? []), ...snapshot.competency, ...snapshot.developmentVersions, ...snapshot.trainingVersions];
+    const records = [...snapshot.performance, ...(snapshot.kpiAssessments ?? []), ...(snapshot.kpiDaily ?? []), ...snapshot.competency, ...snapshot.developmentVersions, ...snapshot.trainingVersions];
     expect(records.length).toBeGreaterThan(0);
     expect(records.every((item) => item.employeeId === ALFA)).toBe(true);
   });
