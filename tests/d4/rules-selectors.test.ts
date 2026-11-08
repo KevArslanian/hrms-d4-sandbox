@@ -9,7 +9,7 @@ import type { TrainingStatus } from "@/modules/d4/training/types";
 const ALFA = "d4000000-0000-4000-8000-000000000009";
 const MERCURY = "d4000000-0000-4000-8000-000000000012";
 
-async function fixtureAs(role: "HR" | "MANAGER" | "EMPLOYEE") {
+async function fixtureAs(role: "HR" | "MANAGER" | "MANAGEMENT" | "EMPLOYEE") {
   vi.stubEnv("NEXT_PUBLIC_D4_FIXTURE_ROLE", role);
   vi.resetModules();
   const { createFixtureSource } = await import("@/modules/d4/web/data/fixture-source");
@@ -144,6 +144,14 @@ describe("role views (fixture)", () => {
 
   it("MANAGER writes", async () => {
     expect(canWrite(await (await fixtureAs("MANAGER")).loadSnapshot())).toBe(true);
+  });
+
+  it("MANAGEMENT sees every employee but cannot save (B17)", async () => {
+    const source = await fixtureAs("MANAGEMENT");
+    const snapshot = await source.loadSnapshot();
+    expect(canWrite(snapshot)).toBe(false);
+    expect(visibleEmployees(snapshot).length).toBe(snapshot.reference.employees.length);
+    await expect(source.createTraining({ employeeId: ALFA, developmentNeedId: null, activity: "Uji", date: "2026-10-01", status: "Planned", notes: "" } as never)).rejects.toThrow(/Hanya HR atau manager/);
   });
 
   it("EMPLOYEE is read-only and receives only their own records", async () => {

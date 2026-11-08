@@ -16,8 +16,10 @@ import type { D4DataSource } from "./source";
 // mirror the server so the UI behaves the same as in live mode.
 const HR_ACTOR = "d4000000-0000-4000-8000-000000000012";
 const ALFA = "d4000000-0000-4000-8000-000000000009";
-// NEXT_PUBLIC_D4_FIXTURE_ROLE=EMPLOYEE previews the self-service view as Kak Ismi (read-only).
-const FIXTURE_ROLE = process.env.NEXT_PUBLIC_D4_FIXTURE_ROLE === "EMPLOYEE" ? "EMPLOYEE" : process.env.NEXT_PUBLIC_D4_FIXTURE_ROLE === "MANAGER" ? "MANAGER" : "HR";
+// NEXT_PUBLIC_D4_FIXTURE_ROLE=EMPLOYEE previews the self-service view as Kak Ismi (read-only);
+// MANAGEMENT previews a director (reads everything, writes nothing).
+const FIXTURE_ROLES = ["EMPLOYEE", "MANAGER", "MANAGEMENT"] as const;
+const FIXTURE_ROLE = FIXTURE_ROLES.find((role) => role === process.env.NEXT_PUBLIC_D4_FIXTURE_ROLE) ?? "HR";
 const catalog = { version: "V5.1", rows: KPI_V51_CATALOG };
 
 function kpiLines(roleOrder: number, scores: (number | null)[], actual: string[]): KpiAssessmentLine[] {
@@ -135,7 +137,7 @@ const delay = () => new Promise((resolve) => setTimeout(resolve, 250));
 export function createFixtureSource(): D4DataSource {
   let state = BULK_ROWS ? withBulk(initialSnapshot(), BULK_ROWS) : initialSnapshot();
   const update = (patch: Partial<D4LiveSnapshot>) => { state = { ...state, ...patch }; };
-  const assertWriter = () => { if (state.role === "EMPLOYEE") throw new Error("Hanya HR atau manager yang dapat menyimpan perubahan."); };
+  const assertWriter = () => { if (state.role !== "HR" && state.role !== "MANAGER") throw new Error("Hanya HR atau manager yang dapat menyimpan perubahan."); };
   // The evaluator is always the signed-in actor, never a free-text value from the form.
   const actorName = () => state.reference.employees.find((item) => item.id === state.actorEmployeeId)?.fullName ?? "HR";
   return {

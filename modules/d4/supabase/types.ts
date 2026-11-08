@@ -4,7 +4,8 @@ import type { PerformanceEvaluation } from "../performance/types";
 import type { ReferenceDataSnapshot } from "../shared/types";
 import type { TrainingVersion } from "../training/types";
 
-export type D4AppRole = "EMPLOYEE" | "HR" | "MANAGER";
+// MANAGEMENT (directors, B17) reads everything an HR account reads and writes nothing.
+export type D4AppRole = "EMPLOYEE" | "HR" | "MANAGER" | "MANAGEMENT";
 
 export interface D3KpiRecord {
   readonly id: string;

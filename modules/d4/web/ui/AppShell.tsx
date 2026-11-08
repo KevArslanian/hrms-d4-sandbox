@@ -17,7 +17,7 @@ export const D4_MENU = [
   { href: "/dashboard", label: "People Dashboard" },
 ] as const;
 
-const roleLabel: Record<string, string> = { HR: "HR", MANAGER: "Manager", EMPLOYEE: "Employee" };
+const roleLabel: Record<string, string> = { HR: "HR", MANAGER: "Manager", MANAGEMENT: "Management", EMPLOYEE: "Employee" };
 
 const LOGO_URL = "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-ANDIMA-wzx4gpZx20EFE5IYcH3jqabixELIo3.png";
 
