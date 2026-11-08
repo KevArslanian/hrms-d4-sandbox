@@ -118,7 +118,7 @@ beforeEach(() => {
 afterEach(() => { vi.unstubAllEnvs(); });
 
 const evaluationBody = (patch: Record<string, unknown> = {}) => ({
-  employeeId: HOLLY, period: "2026-09", evaluationDate: "2026-09-30", status: "completed", overallScore: 4, generalNotes: "Uji", ...patch,
+  employeeId: HOLLY, period: "2026-09", evaluationDate: "2026-09-30", status: "completed", overallScore: 4, generalNotes: "Uji", evidenceReference: "DOC-1", ...patch,
 });
 const kpiBody = (patch: Record<string, unknown> = {}) => {
   const current = snapshot.kpiAssessments!.find((item) => item.id === KPI_ALFA)!;
@@ -241,6 +241,7 @@ describe("POST /performance-evaluations", () => {
     ["status draft", { status: "draft" }, /status/],
     ["employeeId not UUID", { employeeId: "x" }, /UUID/],
     ["notes over 4000 chars", { generalNotes: "a".repeat(4001) }, /4000/],
+    ["blank Reference", { evidenceReference: "  " }, /Reference wajib/],
   ])("rejects %s with 422", async (_name, patch, message) => {
     const res = await call(perf.POST(post(evaluationBody(patch))));
     expect(res.status).toBe(422);
