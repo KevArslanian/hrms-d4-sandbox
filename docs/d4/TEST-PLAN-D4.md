@@ -20,16 +20,17 @@ Di luar cakupan: sertifikasi/renewal, trigger performance-gap formal, dan reasse
 | Requirement | Prefix TC | Jumlah TC | Kartu QA |
 |---|---|---|---|
 | US-D4-001 / FR-D4-001 Performance Evaluation | TC-D4-001 | 6 (baru) | [QA] Pengujian Phase 1 |
-| US-D4-002 / FR-D4-002 KPI Scorecard | TC-D4-002 | 21 (6 baru) | [QA] Pengujian Phase 1 |
+| US-D4-002 / FR-D4-002 KPI Scorecard | TC-D4-002 | 24 (3 baru: KPI gap) | [QA] Pengujian Phase 1 |
 | US-D4-003 / FR-D4-003 Competency Gap | TC-D4-003 | 12 | [QA] Pengujian Phase 2 |
 | US-D4-004 / FR-D4-004 Development Requirement | TC-D4-004 | 12 | [QA] Pengujian Phase 2 |
 | US-D4-005 / FR-D4-005 Training Tracking | TC-D4-005 | 15 | [QA] Pengujian Phase 3 |
 | US-D4-006 / FR-D4-006 Dashboard KPI Orang | TC-D4-006 | 23 | [QA] Pengujian Phase 3 |
 | FR-D4-007 / TR-D4-001 Keterhubungan data | TC-D4-007 | 9 | [QA] Pengujian Integration, Security, Validation & UI Quality |
+| Daily KPI (wawancara D4, 14 Okt 2026) | TC-D4-008 | 8 (baru) | [QA] Pengujian Phase 1 |
 | TR-D4-002 Security & audit | TC-D4-SEC | 9 | idem |
 | TR-D4-002 Validation & UI quality | TC-D4-UIQ | 13 | idem |
 | Skenario lintas fitur | TS-D4-001 s.d. 003 | 3 | [QA] TS-D4-00x (list To Do List QA) |
-| **Total** | | **121** | |
+| **Total** | | **132** | |
 
 Semua FR dan TR yang dapat diuji punya minimal satu TC positif dan satu TC negatif.
 
@@ -62,7 +63,8 @@ Satu baris hasil: `TC ID | Tanggal | Tester | Role login | Build/commit | Status
 | O4 | HR Associate belum punya KPI V5.1 | TC-D4-002-01/02 untuk HR Associate (expected: form menolak simpan) | PO |
 | O5 | Migrasi katalog KPI V6 skala 1–100 (`20261017130000_d4_kpi_scale_100_v6.sql`) belum diterapkan ke Supabase bersama (cek 20 Okt 2026) | TC-D4-002-16 s.d. 19 di staging; mode fixture sudah memakai V6 untuk periode mulai 2026-11 | PO + Back End |
 | O6 | Migrasi kunci Reference (`20261020120000_d4_kpi_reference_required.sql`, CHECK NOT VALID) belum diterapkan ke Supabase bersama. Form dan API sudah menolak Reference kosong | Bagian DB dari TC-D4-002-21 | PO + Back End |
-| MGT | Role Management read-only belum dikonfigurasi | TC-D4-SEC-05 | PO |
+| O7 | Migrasi Daily KPI (`20261108130000_d4_kpi_daily_entries.sql`) belum diterapkan; butuh O5 dan O8 lebih dulu ([runbook](MIGRATION-RUNBOOK-D4.md)) | TC-D4-008 di staging; mode fixture sudah bisa | PO + Back End |
+| O8 | Migrasi Management read-only (`20261108120000_d4_management_read_only.sql`, DIR-* → MANAGEMENT) belum diterapkan | TC-D4-SEC-05, TC-D4-008-06 di staging | PO + Back End |
 | ~~NET~~ | Selesai 30 Sep 2026: klien menangani network failure, timeout, dan integration failure (API-D4-001 §3) | TC-D4-UIQ-06, TC-D4-UIQ-07 siap diuji di staging | WebDev |
 
 ## 6. Requirement Traceability Matrix
@@ -107,6 +109,9 @@ Kartu Planka: **[QA] Pengujian Phase 1**
 | TC-D4-002-19 | Test scorecard V3.1/V5.1 (skala 1–5) tidak diberi kategori performa | Negatif | Not Run | Staging |
 | TC-D4-002-20 | Test scorecard yang disimpan sebelum Q4 tetap tampil benar di detail dan profil Dashboard: Actual = skor tersimpan, total tidak berubah, teks realisasi lama tampil di Comment dengan awalan `Realisation:` (`kpi-realisation-1..5`) | Positif | Not Run | Staging |
 | TC-D4-002-21 | Test Reference kosong ditolak: form (pesan inline), API (422 `Reference wajib diisi.` untuk kosong, spasi, `null`, atau tidak dikirim), dan DB (constraint `d4_kpi_assessments_evidence_reference_required`) | Negatif | Not Run | Form dan API: Staging. DB: O6 |
+| TC-D4-002-22 | Test kolom Gap per Core KPI = Actual − 85 di form dan detail scorecard V6 (contoh Actual 90 → +5, 80 → −5) | Positif | Not Run | Staging: O5 |
+| TC-D4-002-23 | Test KPI gap total = Total KPI − 85 di list Performance Review, detail (Ringkasan) dan profil People Dashboard | Positif | Not Run | Staging: O5 |
+| TC-D4-002-24 | Test scorecard 1–5 (V3.1/V5.1) tidak dikonversi: gap tampil `n/a (skala 1–5)`, kolom Gap per baris tidak muncul | Negatif | Not Run | Staging |
 
 ### TC-D4-003 · FR-D4-003 Competency Gap
 
@@ -214,6 +219,21 @@ Kartu Planka: **[QA] Pengujian Integration, Security, Validation & UI Quality**
 | TC-D4-007-08 | Test perubahan KPI tidak merusak scorecard historis | Negatif | Not Run | O2 |
 | TC-D4-007-09 | Test dashboard menggunakan data sumber yang sama | Positif | Not Run | Staging |
 
+### TC-D4-008 · Daily KPI (baru, 8 Nov 2026)
+
+Asumsi kerja (belum dikonfirmasi klien): pegawai mengisi skornya sendiri per hari; rata-rata periode mengisi otomatis Actual di Performance Review, lalu HR tetap meninjau dan menyimpan.
+
+| TC ID | Skenario | Jenis | Status | Dependency / BLOCKED bila |
+|---|---|---|---|---|
+| TC-D4-008-01 | Test Employee menyimpan skor 5 Core KPI hari ini di `/daily-kpi`; total dan gap terhitung, entri muncul di "This period" | Positif | Not Run | Staging: O7 |
+| TC-D4-008-02 | Test koreksi: menyimpan lagi tanggal yang sama menambah entri baru dan hanya entri terbaru yang dihitung | Positif | Not Run | Staging: O7 |
+| TC-D4-008-03 | Test tanggal besok dan tanggal periode sebelumnya ditolak (form, API 422, RLS) | Negatif | Not Run | Staging: O7 |
+| TC-D4-008-04 | Test skor kosong, 0, 101 atau desimal ditolak (form, API 422, trigger) | Negatif | Not Run | Staging: O7 |
+| TC-D4-008-05 | Test POST `/api/d4/kpi-daily` dengan `employeeId`/`roleOrder` orang lain tetap tersimpan atas nama dan KPI akun yang login | Negatif | Not Run | Staging: O7 |
+| TC-D4-008-06 | Test akun Management dan akun tanpa data pegawai ditolak 403; posisi tanpa KPI melihat pesan "hubungi HR" | Negatif | Not Run | Staging: O7, O8 |
+| TC-D4-008-07 | Test Add Performance Review mengisi Actual dari rata-rata harian (dibulatkan) dengan pesan "Actual diisi dari rata-rata N entri", dan HR tetap bisa mengubahnya | Positif | Not Run | Staging: O5, O7 |
+| TC-D4-008-08 | Test alert People Dashboard: "Daily KPI di bawah target" setelah 3 entri berturut-turut di bawah 85, dan "Belum mengisi Daily KPI" untuk pegawai dengan KPI tanpa entri | Positif | Not Run | Staging: O7 |
+
 ### TC-D4-SEC · TR-D4-002 Security & audit
 
 Kartu Planka: **[QA] Pengujian Integration, Security, Validation & UI Quality**
@@ -224,7 +244,7 @@ Kartu Planka: **[QA] Pengujian Integration, Security, Validation & UI Quality**
 | TC-D4-SEC-02 | Test authorization create | Positif | Not Run | Staging |
 | TC-D4-SEC-03 | Test authorization update | Positif | Not Run | Staging |
 | TC-D4-SEC-04 | Test user tanpa permission tidak dapat mengubah data | Negatif | Not Run | Staging |
-| TC-D4-SEC-05 | Test Management read-only bila konfigurasi tersebut digunakan | Positif | Not Run | Konfigurasi role Management belum ditetapkan PO |
+| TC-D4-SEC-05 | Test Management read-only: akun DIR-* berlabel Management, semua menu terbaca, tidak ada tombol simpan, POST ke semua endpoint 403, INSERT langsung ke tabel D4 ditolak RLS | Positif | Not Run | O8 |
 | TC-D4-SEC-06 | Test data sensitive tidak terlihat oleh role yang tidak berhak | Negatif | Not Run | Staging |
 | TC-D4-SEC-07 | Test error tidak mengekspos token atau credential | Negatif | Not Run | Staging |
 | TC-D4-SEC-08 | Test audit actor | Positif | Not Run | Staging |

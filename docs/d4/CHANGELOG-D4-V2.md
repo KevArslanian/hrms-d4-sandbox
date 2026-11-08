@@ -138,6 +138,48 @@ Keputusan pemilik produk: Performance Evaluation hanya berisi catatan; skor hany
 - People Dashboard: kolom Performance (skor) menjadi **Evaluation** (Completed / Not Evaluated); kartu profil menampilkan catatan evaluasi.
 - Database: migrasi `20261006120000_d4_evaluation_score_optional.sql` melonggarkan check `d4_performance_evaluations_check` (skor tidak wajib untuk status completed). Kolom `overall_score` tetap ada untuk evaluasi lama. **Belum diterapkan**; sampai diterapkan, simpan evaluasi di mode live ditolak database.
 
+## Perbaikan total D4 · 8 Nov 2026
+
+Cabang `feat/D4-perbaikan-total`, dibangun di atas PR #37. Dua migrasi baru disiapkan tetapi **belum diterapkan**. Urutan, cek, dan rollback ada di [MIGRATION-RUNBOOK-D4.md](MIGRATION-RUNBOOK-D4.md).
+
+**Bug**
+- **UI-005:** logo Andima di `/login` dan `/register` baru tampil mulai lebar 1024 px, jadi tidak menimpa form di 768–1023 px.
+- **UI-006:** sapaan memakai jam browser setelah hydrasi, bukan jam server (UTC).
+- **UI-008:** riwayat Competency Gap memakai fallback "posisi tidak ada di master", sama dengan People Dashboard.
+- `POST /api/d4/performance-evaluations` kini mewajibkan Reference, sama dengan endpoint KPI (Q12).
+
+**Director read-only (B17)**
+- Migrasi `20261108120000`: `DIR-*` dipetakan ke `MANAGEMENT`.
+- Semua policy baca dan view D4 menerima `MANAGEMENT`. Policy insert tetap HR/MANAGER.
+- Aplikasi menampilkan peran "Management" tanpa tombol simpan.
+
+**Daily KPI** (asumsi kerja, menunggu konfirmasi klien)
+- Menu baru `/daily-kpi`. Pegawai mengisi skor lima Core KPI miliknya per hari. Koreksi berarti entri baru di tanggal yang sama, dan entri terbaru yang dipakai.
+- HR, Manager, dan Management melihat tabel tim: jumlah hari terisi, skor kompilasi, dan gap terhadap 85.
+- Migrasi `20261108130000` membuat tabel `d4_kpi_daily_entries`. Database menegakkan:
+  - pemilik entri adalah akun yang login;
+  - peran KPI sesuai posisi sendiri;
+  - tanggal di periode WIB berjalan dan tidak lewat hari ini;
+  - Management ditolak.
+- Diuji di Postgres lokal.
+- Add Performance Review mengisi Actual dari rata-rata harian (dibulatkan, karena trigger menyimpan skor bulat). HR tetap meninjau dan menyimpan.
+- Alert People Dashboard baru:
+  - "Daily KPI di bawah target": tiga entri terakhir berturut-turut di bawah 85;
+  - "Belum mengisi Daily KPI".
+
+**KPI gap**
+- Gap = skor − 85, ditampilkan per Core KPI (form dan detail) dan untuk Total KPI (list Performance Review, Ringkasan detail, profil Dashboard).
+- Skala 1–5 tidak dikonversi; tampil `n/a (skala 1–5)`.
+
+**Verifikasi**
+- `typecheck` dan `eslint` (0 error).
+- 439 tes Vitest.
+- Render di mode fixture untuk HR, Employee, dan Management:
+  - Daily KPI di 1440 px dan 375 px;
+  - prefill Performance Review;
+  - alert dashboard;
+  - login/register di 900 px dan 1440 px.
+
 ## Belum selesai
 
 | Item | Alasan | Langkah berikut |
@@ -148,5 +190,8 @@ Keputusan pemilik produk: Performance Evaluation hanya berisi catatan; skor hany
 | Docmost dan Planka tim | Keputusan: draft dulu | Terapkan isi `drafts/` setelah disetujui PO |
 | Sales Admin memakai KPI Sales & Marketing | V5.1 tidak punya role Sales Admin; pemetaan sementara | Keputusan PO (lihat `drafts/docmost/03-…`) |
 | Cakupan Manager (O7) | Manager masih melihat semua employee; butuh data atasan dari D3 | Keputusan PO + `supervisor_id` dari D3 |
+| Migrasi V6, edit development, Reference, follow-up training, Management, Daily KPI | Memengaruhi project bersama, perlu izin PO (cek 8 Nov 2026: keenamnya belum diterapkan) | Ikuti [MIGRATION-RUNBOOK-D4.md](MIGRATION-RUNBOOK-D4.md) |
+| Konfirmasi alur Daily KPI | Dibangun dengan asumsi: pegawai isi sendiri, HR memvalidasi rata-rata periode | Konfirmasi klien; bila skor periode harus otomatis tanpa HR, ubah Performance Review |
+| Alert ke MID, input level kompetensi, Employee ID di `/register` | Milik squad lain (MID, D3, B2) atau kontraknya belum ada | Koordinasi lintas squad |
 | Kolom `review_status` (O8) dan unique index per periode/gap (O9) | Butuh migrasi Supabase bersama | Persetujuan PO/Back End |
 | HR Associate tanpa KPI | V5.1 tidak mendefinisikan KPI untuk HR Associate | Form menampilkan "Belum tersedia untuk position ini" dan menolak simpan; tunggu KPI dari PO |
