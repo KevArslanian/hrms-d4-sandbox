@@ -71,3 +71,42 @@ describe("daily rules", () => {
     expect(() => assertDailyDate("2026-10-31", now)).toThrow(/periode berjalan \(2026-11\)/);
   });
 });
+
+describe("Daily KPI on the People Dashboard and in the Performance Review form", async () => {
+  const { d4ReferenceFixture } = await import("@/modules/d4/shared/fixtures");
+  const { catalogFor, seedCatalogSet } = await import("@/modules/d4/kpi/catalog");
+  const { localMonth } = await import("@/modules/d4/shared/rules");
+  const { dashboardAlerts } = await import("@/modules/d4/web/features/dashboard/summary");
+  const { withDaily } = await import("@/modules/d4/web/features/kpi/KpiFormModal");
+  type Snapshot = Parameters<typeof dashboardAlerts>[0];
+
+  const [low, none] = d4ReferenceFixture.employees.filter((item) => item.positionId);
+  const period = localMonth();
+  const day = (n: number, total: number, employeeId = low.id) => entry(String(n).padStart(2, "0"), [total, total, total, total, total], { employeeId, period, entryDate: `${period}-${String(n).padStart(2, "0")}` });
+  const alerts = (kpiDaily: KpiDailyEntry[] | undefined) => {
+    const snapshot = { reference: d4ReferenceFixture, role: "HR", actorEmployeeId: "", kpi: [], performance: [], competency: [], developmentVersions: [], trainingVersions: [], kpiDaily } as unknown as Snapshot;
+    const rows = [low, none].map((employee) => ({ employee, gap: "" }));
+    const catalog = catalogFor(seedCatalogSet(d4ReferenceFixture.positions), period);
+    return Object.fromEntries(dashboardAlerts(snapshot, rows, catalog).map((alert) => [alert.key, alert.people]));
+  };
+
+  it("raises 'below target' after three entries in a row under 85 and 'missing' for an employee without entries", () => {
+    const result = alerts([day(1, 90), day(2, 84), day(3, 80), day(4, 79)]);
+    expect(result["daily-below-target"]).toEqual([low.fullName]);
+    expect(result["daily-missing"]).toEqual([none.fullName]);
+    expect(alerts([day(1, 84), day(2, 80), day(3, 90)])["daily-below-target"]).toBeUndefined();
+  });
+
+  it("raises nothing before the daily table exists", () => {
+    const result = alerts(undefined);
+    expect(result["daily-below-target"]).toBeUndefined();
+    expect(result["daily-missing"]).toBeUndefined();
+  });
+
+  it("pre-fills Actual with the rounded averages", () => {
+    const lines = Array.from({ length: 5 }, (_, index) => ({ indicator_order: index + 1, kpi_name: "K", weight_percent: 20, target: "85", actual: "", raw_score: null, comment: "" }));
+    const compiled = compileDaily([entry("02", [87, 80, 90, 85, 70]), entry("03", [88, 81, 90, 85, 71])], "e1", "2026-11");
+    expect(withDaily(lines, compiled).map((line) => [line.actual, line.raw_score])).toEqual([["88", 88], ["81", 81], ["90", 90], ["85", 85], ["71", 71]]);
+    expect(withDaily(lines, null)).toBe(lines);
+  });
+});

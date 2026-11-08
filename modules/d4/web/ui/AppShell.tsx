@@ -11,6 +11,7 @@ import { Button, cx, slug } from "./primitives";
 
 export const D4_MENU = [
   { href: "/performance", label: "Performance Review" },
+  { href: "/daily-kpi", label: "Daily KPI" },
   { href: "/competency", label: "Competency Gap" },
   { href: "/development", label: "Development Requirement" },
   { href: "/training", label: "Training Tracking" },

@@ -7,7 +7,7 @@ import type { PerformanceEvaluation } from "../../../performance/types";
 import type { EmployeeReference } from "../../../shared/types";
 import type { KpiAssessment } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { canAssess, canWrite, departmentOf, describeSource, developmentNeeds, employeeById, employeeMeta, employeeSearchText, evaluationsOf, formatDate, formatPeriod, formatScorecard, includesText, latestScorecard, positionOf, revisionTag, scorecardsOf, thisMonth, visibleEmployees } from "../../data/selectors";
+import { canAssess, canWrite, departmentOf, describeSource, developmentNeeds, employeeById, employeeMeta, employeeSearchText, evaluationsOf, formatDate, formatGap, formatPeriod, formatScorecard, includesText, latestScorecard, positionOf, revisionTag, scorecardsOf, thisMonth, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
@@ -73,6 +73,7 @@ export function PerformanceListPage() {
         { key: "period", header: "Period", cell: (row) => formatPeriod(row.scorecard?.period) },
         { key: "total", header: "Total KPI", className: "tabular-nums", cell: (row) => row.scorecard ? <span className="font-semibold">{formatScorecard(row.scorecard)}</span>
           : row.hasKpi ? "—" : <span className="text-xs text-ink-3">Not in catalog {catalog?.version} yet</span> },
+        { key: "gap", header: "Gap vs 85", className: "tabular-nums", cell: (row) => row.scorecard ? formatGap(row.scorecard.overallScore, row.scorecard.definitionVersion) : "—" },
         { key: "notes", header: "Notes", wrap: true, secondary: true, className: "max-w-[280px]", cell: (row) => {
           const notes = row.scorecard?.generalNotes || row.evaluation?.generalNotes;
           return notes ? <span className="line-clamp-2">{notes}</span> : "—";

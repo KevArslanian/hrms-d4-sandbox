@@ -1,6 +1,7 @@
 import type { CompetencyAssessment } from "../../../competency/types";
 import type { DevelopmentNeedVersion } from "../../../development/types";
-import { roleForPosition, type KpiCatalog } from "../../../kpi/catalog";
+import { KPI_TARGET, roleForPosition, type KpiCatalog } from "../../../kpi/catalog";
+import { dailyEntriesOf, daysBelowTarget } from "../../../kpi/daily";
 import { performanceBand, scaleMaxOf, type PerformanceBand } from "../../../kpi/scale";
 import { followUpOf, localMonth, localToday, retrainedAt } from "../../../shared/rules";
 import type { EmployeeReference } from "../../../shared/types";
@@ -167,10 +168,12 @@ export type DashboardAlert = { key: string; title: string; detail: string; href:
 
 /**
  * Follow-ups HR should act on, computed from D4 data only (interview D4, 14 Oct 2026). Alerts that need data D4
- * does not hold (field agent vacancy, maternity leave, the 3-day daily KPI trigger) are not computed here.
+ * does not hold (field agent vacancy, maternity leave) are not computed here.
+ * The Daily KPI alerts look at the running WIB period whatever period the dashboard shows, since they ask for action
+ * now. `dailyCatalog` is the catalog of that period: only employees with a KPI role are expected to fill Daily KPI.
  */
-export function dashboardAlerts(snapshot: Snapshot, rows: readonly DashboardRow[]): DashboardAlert[] {
-  const found = { under: [] as string[], completedGap: [] as string[], notPassed: [] as string[], noPlan: [] as string[], noPic: [] as string[] };
+export function dashboardAlerts(snapshot: Snapshot, rows: readonly DashboardRow[], dailyCatalog: KpiCatalog | null = null): DashboardAlert[] {
+  const found = { under: [] as string[], completedGap: [] as string[], notPassed: [] as string[], noPlan: [] as string[], noPic: [] as string[], dailyBelow: [] as string[], noDaily: [] as string[] };
   const assign: AssignTarget[] = [];
   for (const row of rows) {
     const name = row.employee.fullName;
@@ -190,6 +193,12 @@ export function dashboardAlerts(snapshot: Snapshot, rows: readonly DashboardRow[
       if (!finished || !snapshot.reference.positionRequirements.some((item) => item.id === need.sourceRef && item.positionId === row.employee.positionId)) continue;
       if (!gapClosedAfter(snapshot.competency.filter((item) => item.employeeId === row.employee.id), need.sourceRef, finished)) found.completedGap.push(name);
     }
+    if (snapshot.kpiDaily) {
+      const days = dailyEntriesOf(snapshot.kpiDaily, row.employee.id, localMonth());
+      // Interview D4 (14 Oct 2026): three daily scores in a row under the target is the trigger HR follows up.
+      if (daysBelowTarget(days, Number(KPI_TARGET)) >= 3) found.dailyBelow.push(name);
+      if (!days.length && dailyCatalog && roleForPosition(dailyCatalog, row.employee.positionId)) found.noDaily.push(name);
+    }
     const trainings = trainingsOf(snapshot, row.employee.id);
     for (const need of needs) {
       if (need.status === "Completed") continue;
@@ -205,6 +214,8 @@ export function dashboardAlerts(snapshot: Snapshot, rows: readonly DashboardRow[
     { key: "completed-gap-open", list: found.completedGap, title: "Completed, gap masih terbuka", href: "/competency", detail: "development requirement Completed atau training Passed, tetapi belum ada penilaian kompetensi baru yang menunjukkan level terpenuhi. Nilai ulang di Competency Gap." },
     { key: "training-not-passed", list: found.notPassed, title: "Training Not Passed", label: "Awaiting follow-up", href: "/training", detail: "development requirement dengan training terakhir Not Passed dan belum ada tindak lanjut. Catat Retraining atau Other follow-up di detail training." },
     { key: "gap-no-requirement", list: found.noPlan, title: "Gap tanpa development requirement", href: "/competency", detail: "gap kompetensi belum dibuatkan development requirement." },
+    { key: "daily-below-target", list: found.dailyBelow, title: "Daily KPI di bawah target", href: "/daily-kpi", detail: `pegawai dengan total Daily KPI di bawah ${KPI_TARGET} pada tiga entri terakhir berturut-turut periode ini.` },
+    { key: "daily-missing", list: found.noDaily, title: "Belum mengisi Daily KPI", href: "/daily-kpi", detail: "pegawai dengan KPI di katalog belum punya entri Daily KPI periode ini." },
     { key: "requirement-no-pic", list: found.noPic, title: "Tanpa PIC", href: "/development", detail: "development requirement terbuka belum punya PIC." },
   ];
   return alerts.filter((item) => item.list.length).map(({ list, ...item }) => ({ ...item, count: list.length, people: [...new Set(list)] }));
