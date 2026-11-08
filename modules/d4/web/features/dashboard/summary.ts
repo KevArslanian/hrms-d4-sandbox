@@ -6,7 +6,7 @@ import { followUpOf, localMonth, localToday, retrainedAt } from "../../../shared
 import type { EmployeeReference } from "../../../shared/types";
 import type { KpiAssessment } from "../../../supabase/types";
 import type { TrainingVersion } from "../../../training/types";
-import { currentGap, developmentHistory, formatDate, formatPeriod, formatScorecard, needsOf, positionById, revisionChanges, scorecardsOf, trainingHistory, trainingsOf, type Snapshot } from "../../data/selectors";
+import { currentGap, developmentHistory, formatDate, formatPeriod, formatScorecard, needsOf, positionById, positionTitle, revisionChanges, scorecardsOf, trainingHistory, trainingsOf, type Snapshot } from "../../data/selectors";
 import type { TimelineEntry } from "../../ui/layout";
 import { slug, statusLabel } from "../../ui/primitives";
 
@@ -225,8 +225,7 @@ export function employeeHistory(snapshot: Snapshot, employeeId: string): History
   const entries: HistoryEntry[] = [];
   for (const item of snapshot.competency) {
     if (item.employeeId !== employeeId) continue;
-    // An assessment can belong to a position that has since left the position master.
-    const position = positionById(snapshot, item.positionId)?.title ?? "posisi tidak ada di master";
+    const position = positionTitle(snapshot, item.positionId);
     const roleChange = item.context === "role-change";
     entries.push({ id: `competency-${item.id}`, kind: "competency", day: item.effectiveDate, createdAt: item.createdAt, actor: item.actor,
       date: `${roleChange ? "Efektif " : ""}${formatDate(item.effectiveDate)}`, status: item.overallStatus, href: `/competency/${employeeId}/history`,

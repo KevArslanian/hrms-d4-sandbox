@@ -4,6 +4,7 @@ import React, { useState, useRef, FormEvent, ChangeEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
+import { useGreeting } from '@/lib/useGreeting';
 
 interface FieldErrors {
   fullName?: string;
@@ -21,8 +22,7 @@ const B2_FONT_VARS = { '--font-montserrat': B2_FONT_STACK, '--font-syne': B2_FON
 
 export default function RegisterPage() {
   const router = useRouter();
-  const hour = new Date().getHours();
-  const greeting = hour >= 3 && hour < 12 ? 'Good Morning' : hour >= 12 && hour < 17 ? 'Good Afternoon' : 'Good Evening';
+  const greeting = useGreeting();
   const [fullName, setFullName] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
@@ -210,7 +210,7 @@ export default function RegisterPage() {
           
           {/* Header */}
           <div className="mb-7 text-left relative z-10">
-            <h2 suppressHydrationWarning className="font-[family-name:var(--font-syne)] text-xl sm:text-2xl font-bold text-[#0D1B2A] tracking-tight">
+            <h2 className="font-[family-name:var(--font-syne)] text-xl sm:text-2xl font-bold text-[#0D1B2A] tracking-tight">
               {greeting},
             </h2>
             <p className="font-[family-name:var(--font-montserrat)] text-sm text-[#334155] mt-1.5 font-medium">
@@ -481,7 +481,7 @@ export default function RegisterPage() {
         <div className="absolute inset-0 bg-gradient-to-r from-[#0D1B2A] via-[#0D1B2A]/85 via-40% to-transparent pointer-events-none" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#07111F] via-transparent to-transparent pointer-events-none" />
       </div>
-      <div className="hidden md:flex absolute top-1/2 -translate-y-1/2 right-8 lg:right-16 xl:right-24 z-20 pointer-events-none flex-col items-end text-right max-w-lg">
+      <div className="hidden lg:flex absolute top-1/2 -translate-y-1/2 right-16 xl:right-24 z-20 pointer-events-none flex-col items-end text-right max-w-lg">
         <div className="w-32 sm:w-40 lg:w-48 mb-4"><img src="/andima-logo.png" alt="Logo Andima" width={400} height={246} className="w-full h-auto object-contain drop-shadow-lg" data-testid="register-logo" /></div>
         <h1 className="font-[family-name:var(--font-syne)] text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-wider text-white drop-shadow-md leading-tight">
           PT. ANDIMA<br />
