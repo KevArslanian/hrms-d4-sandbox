@@ -9,7 +9,7 @@ import { retrainingNotes, type DevelopmentRevision, type TrainingFollowUpInput }
 import type { ReferenceDataRepository } from "../shared/services";
 import type { ReferenceDataSnapshot } from "../shared/types";
 import type { TrainingFollowUp, TrainingStatus, TrainingVersion } from "../training/types";
-import type { D3KpiRecord, D4LiveSnapshot, KpiAssessment, KpiAssessmentInput, KpiAssessmentLine } from "./types";
+import type { D3KpiRecord, D4LiveSnapshot, KpiAssessment, KpiAssessmentInput, KpiAssessmentLine, KpiDailyEntry, KpiDailyEntryInput } from "./types";
 
 type QueryResult<T> = { data: T | null; error: { message: string; code?: string } | null };
 function take<T>(result: QueryResult<T>, label: string): T {
@@ -44,6 +44,7 @@ interface RawRequirement { id: string; position_id: string; competency_id: strin
 interface RawSkill { id: string; employee_id: string; competency_id: string; proficiency_level: number; evidence_notes: string | null }
 interface RawKpi { id: string; employee_id: string; period: string; kpi_score: number; notes: string | null; created_at: string }
 interface RawKpiAssessment { id: string; definition_version?: string; employee_id: string; role_order: number; role_name: string; period: string; evaluation_date: string | null; evaluator_name: string; status: "draft" | "completed"; lines: unknown; overall_score: number | null; general_notes: string; evidence_reference?: string | null; actor_employee_id: string; created_at: string }
+interface RawKpiDaily { id: string; employee_id: string; entry_date: string; period: string; definition_version: string; role_order: number; role_name: string; lines: unknown; overall_score: number | null; created_at: string }
 interface RawPerformance { id: string; employee_id: string; period: string; evaluation_date: string | null; evaluator_name_snapshot: string; status: "draft" | "completed"; review_status: PerformanceEvaluation["reviewStatus"]; overall_score: number | null; aspects: unknown; general_notes: string; evidence_reference: string | null; actor_employee_id: string; created_at: string }
 interface RawAssessment { id: string; employee_id: string; position_id: string; effective_date: string; context: CompetencyAssessment["context"]; overall_status: CompetencyOverallStatus; findings: unknown; assessed_with?: string | null; actor_employee_id: string; created_at: string }
 interface RawDevelopment { id: string; employee_id: string; source_type: DevelopmentSourceType; position_requirement_id: string | null; competency_assessment_id: string | null; kpi_assessment_id?: string | null; performance_evaluation_id: string | null; objective: string; priority: DevelopmentPriority; method?: string | null; pic?: string | null }
@@ -54,6 +55,11 @@ interface RawTraining { id: string; employee_id: string; development_need_id: st
 interface RawTrainingVersion { id: string; training_id: string; revision: number; status: TrainingStatus; result: string; notes: string; follow_up?: TrainingFollowUp | null; actor_employee_id: string; created_at: string }
 
 /** Shown when a follow-up is saved before migration 20261020130000 adds d4_training_versions.follow_up. */
+/** Shown when a daily entry is saved before migration 20261108130000 creates d4_kpi_daily_entries. */
+export const DAILY_NOT_READY = "Daily KPI belum bisa disimpan karena database belum diperbarui (migrasi 20261108130000). Hubungi admin HRMS.";
+// PostgREST answers PGRST205 for a table it does not know; Postgres itself answers 42P01.
+const missingTable = (error: { code?: string } | null) => error?.code === "PGRST205" || error?.code === "42P01";
+
 export const FOLLOW_UP_NOT_READY = "Tindak lanjut training belum bisa disimpan karena database belum diperbarui (migrasi 20261020130000). Hubungi admin HRMS; data lain tetap bisa disimpan.";
 
 function actorName(reference: ReferenceDataSnapshot, employeeId: string): string {
@@ -110,7 +116,7 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
     // Access, reference data and records load in one parallel round instead of three sequential ones
     // (each round trip to the database counts). RLS already limits what the queries return, and access
     // is still checked before anything is returned.
-    const [{ data: access, error: accessError }, reference, [kpiResult, kpiAssessmentResult, performanceResult, assessmentResult, developmentResult, developmentVersionResult, trainingResult, trainingVersionResult]] = await Promise.all([
+    const [{ data: access, error: accessError }, reference, [kpiResult, kpiAssessmentResult, performanceResult, assessmentResult, developmentResult, developmentVersionResult, trainingResult, trainingVersionResult, kpiDailyResult]] = await Promise.all([
       this.client.from("d4_user_access").select("app_role,employee_id").eq("auth_user_id", user.id).maybeSingle(),
       this.loadReferenceData(),
       Promise.all([
@@ -125,6 +131,7 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
       allRows(() => this.client.from("d4_training_records").select("id,employee_id,development_need_id,activity,activity_date").order("id")),
       // "*": naming follow_up would fail the whole snapshot before migration 20261020130000.
       allRows(() => this.client.from("d4_training_versions").select("*").order("created_at", { ascending: false }).order("id")),
+      allRows(() => this.client.from("d4_kpi_daily_entries").select("id,employee_id,entry_date,period,definition_version,role_order,role_name,lines,overall_score,created_at").order("created_at", { ascending: false }).order("id")),
     ])]);
     if (accessError) throw databaseError(accessError, "Hak akses");
     if (!access) throw new ApiError("FORBIDDEN", "Anda sudah login, tetapi akun ini belum punya akses ke data HRMS. Hubungi admin HRMS untuk mengaktifkan role Anda.");
@@ -136,6 +143,12 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
     const developmentVersionRows = take(developmentVersionResult, "Development history") as RawDevelopmentVersion[];
     const trainingRows = take(trainingResult, "Training") as RawTraining[];
     const trainingVersionRows = take(trainingVersionResult, "Training history") as RawTrainingVersion[];
+    // Before migration 20261108130000 the table is missing: Daily KPI is unavailable, the rest of D4 still loads.
+    const kpiDaily: KpiDailyEntry[] | undefined = missingTable(kpiDailyResult.error) ? undefined : (take(kpiDailyResult, "Daily KPI") as RawKpiDaily[]).map((row) => ({
+      id: row.id, employeeId: row.employee_id, entryDate: row.entry_date, period: row.period, definitionVersion: row.definition_version,
+      roleOrder: row.role_order, roleName: row.role_name, lines: Array.isArray(row.lines) ? row.lines as KpiAssessmentLine[] : [],
+      overallScore: row.overall_score === null ? null : Number(row.overall_score), createdAt: row.created_at,
+    }));
 
     const kpiAssessments: KpiAssessment[] = kpiAssessmentRows.map((row) => ({
       id: row.id, definitionVersion: row.definition_version ?? "V3.1", employeeId: row.employee_id, roleOrder: row.role_order, roleName: row.role_name,
@@ -192,7 +205,17 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
         actor: actorName(reference, version.actor_employee_id) }];
     });
     return { reference, role: access.app_role, actorEmployeeId: access.employee_id,
-      kpi, kpiAssessments, performance, competency, developmentVersions, trainingVersions };
+      kpi, kpiAssessments, kpiDaily, performance, competency, developmentVersions, trainingVersions };
+  }
+
+  async saveKpiDailyEntry(input: KpiDailyEntryInput): Promise<string> {
+    await this.requireUser();
+    const result = await this.client.from("d4_kpi_daily_entries").insert({
+      employee_id: input.employeeId, entry_date: input.entryDate, period: input.period, definition_version: input.definitionVersion,
+      role_order: input.roleOrder, role_name: input.roleName, lines: input.lines,
+    }).select("id").single();
+    if (missingTable(result.error)) throw new ApiError("CONFIGURATION_ERROR", DAILY_NOT_READY);
+    return take(result, "Save daily KPI").id;
   }
 
   async saveKpiAssessment(input: KpiAssessmentInput): Promise<string> {
