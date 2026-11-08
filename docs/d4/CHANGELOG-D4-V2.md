@@ -173,7 +173,7 @@ Cabang `feat/D4-perbaikan-total`, dibangun di atas PR #37. Dua migrasi baru disi
 
 **Verifikasi**
 - `typecheck` dan `eslint` (0 error).
-- 439 tes Vitest.
+- 444 tes Vitest.
 - Render di mode fixture untuk HR, Employee, dan Management:
   - Daily KPI di 1440 px dan 375 px;
   - prefill Performance Review;
@@ -192,6 +192,7 @@ Cabang `feat/D4-perbaikan-total`, dibangun di atas PR #37. Dua migrasi baru disi
 | Cakupan Manager (O7) | Manager masih melihat semua employee; butuh data atasan dari D3 | Keputusan PO + `supervisor_id` dari D3 |
 | Migrasi V6, edit development, Reference, follow-up training, Management, Daily KPI | Memengaruhi project bersama, perlu izin PO (cek 8 Nov 2026: keenamnya belum diterapkan) | Ikuti [MIGRATION-RUNBOOK-D4.md](MIGRATION-RUNBOOK-D4.md) |
 | Konfirmasi alur Daily KPI | Dibangun dengan asumsi: pegawai isi sendiri, HR memvalidasi rata-rata periode | Konfirmasi klien; bila skor periode harus otomatis tanpa HR, ubah Performance Review |
+| Volume Daily KPI di snapshot | Snapshot memuat semua entri harian (sekitar 20 per pegawai per bulan) di setiap halaman; cukup untuk sandbox, tetapi tumbuh tanpa batas | Batasi ke periode berjalan + filter periode di API sebelum produksi |
 | Alert ke MID, input level kompetensi, Employee ID di `/register` | Milik squad lain (MID, D3, B2) atau kontraknya belum ada | Koordinasi lintas squad |
 | Kolom `review_status` (O8) dan unique index per periode/gap (O9) | Butuh migrasi Supabase bersama | Persetujuan PO/Back End |
 | HR Associate tanpa KPI | V5.1 tidak mendefinisikan KPI untuk HR Associate | Form menampilkan "Belum tersedia untuk position ini" dan menolak simpan; tunggu KPI dari PO |
