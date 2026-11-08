@@ -6,18 +6,19 @@ import { useMemo, useState, type ReactNode } from "react";
 import type { D4LiveSnapshot, KpiAssessment } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
 import { catalogFor, type KpiCatalog } from "../../../kpi/catalog";
-import { canWrite, currentCompetencyStatus, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, employeeSearchText, evaluationsOf, formatDate, formatGap, formatPeriod, formatScorecard, includesText, positionOf, scorecardsOf, thisMonth, trainings, trainingsOf, visibleEmployees } from "../../data/selectors";
+import { canWrite, currentCompetencyStatus, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, employeeSearchText, evaluationsOf, formatDate, formatGap, formatPeriod, formatScore, formatScorecard, includesText, pendingCompilation, positionOf, scorecardsOf, thisMonth, trainings, trainingsOf, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
 import { Card, Notice, slug, statusLabel, StatusBadge } from "../../ui/primitives";
 import { LineComment, weighted } from "../kpi/KpiFormModal";
+import type { DailyCompilation } from "../../../kpi/daily";
 import { HIGH_ABOVE, performanceBand, scaleMaxOf, UNDER_BELOW } from "../../../kpi/scale";
 import { averageScores, BANDS, COMPETENCY_ORDER, competencySlices, dashboardAlerts, defaultPeriod, employeeHistory, gapRanking, matchesDashboardFilters, openNeedCount, performanceSlices, profilePeriod, reviewCounts, validScorecard, withoutKpiRole, type AssignTarget, type DashboardRow, type Slice } from "./summary";
 import { DevelopmentFormModal } from "../development/DevelopmentModals";
 
-type Row = DashboardRow & { position: string; period?: string; openNeeds: number; training?: string };
+type Row = DashboardRow & { position: string; period?: string; openNeeds: number; training?: string; compiled: DailyCompilation | null };
 
 /** One period per employee: the selected period, else the latest started scorecard, else the latest started evaluation (FR-06.1). */
 function periodData(snapshot: D4LiveSnapshot, employeeId: string, period: string) {
@@ -43,7 +44,7 @@ export function DashboardPage() {
   const [band, setBand] = useState("");
   const [competency, setCompetency] = useState("");
   const [training, setTraining] = useState("");
-  const periods = useMemo(() => [...new Set([...(snapshot.kpiAssessments ?? []), ...snapshot.performance].map((item) => item.period))].sort().reverse(), [snapshot]);
+  const periods = useMemo(() => [...new Set([...(snapshot.kpiAssessments ?? []), ...snapshot.performance, ...(snapshot.kpiDaily ?? [])].map((item) => item.period))].sort().reverse(), [snapshot]);
   const shown = period || defaultPeriod(periods);
   const catalog = useMemo(() => catalogSet && shown ? catalogFor(catalogSet, shown) : null, [catalogSet, shown]);
 
@@ -52,6 +53,8 @@ export function DashboardPage() {
     const data = periodData(snapshot, employee.id, shown);
     return {
       employee, position: positionOf(snapshot, employee)?.title ?? "—", period: data.period, scorecard: data.scorecard,
+      // Shown in the table until HR finalizes it; the charts and counts use finalized scorecards only.
+      compiled: data.period ? pendingCompilation(snapshot, employee.id, data.period) : null,
       gap: currentCompetencyStatus(snapshot, employee),
       openNeeds: openNeedCount(snapshot, employee.id),
       training: trainingsOf(snapshot, employee.id)[0]?.status,
@@ -94,7 +97,7 @@ export function DashboardPage() {
         { key: "position", header: "Position / Department", wrap: true, secondary: true, cell: (row) => <><span className="block">{row.position}</span><span className="block text-xs text-ink-3">{departmentOf(snapshot, row.employee)?.name ?? "—"}</span></> },
         // Every row shows the period chosen in the filter, so the column only earns its space on wide screens.
         { key: "period", header: "Period", secondary: true, cell: (row) => formatPeriod(row.period) },
-        { key: "kpi", header: "Total KPI", className: "tabular-nums", cell: (row) => <ScoreCell scorecard={row.scorecard} /> },
+        { key: "kpi", header: "Total KPI", className: "tabular-nums", cell: (row) => <ScoreCell scorecard={row.scorecard} compiled={row.compiled} /> },
         { key: "gap", header: "Competency", cell: (row) => <StatusBadge status={row.gap} /> },
         { key: "needs", header: "Open dev.", className: "tabular-nums", secondary: true, cell: (row) => row.openNeeds || "—" },
         { key: "training", header: "Training", cell: (row) => row.training ? <StatusBadge status={row.training} /> : "—" },
@@ -256,7 +259,8 @@ function AlertsCard({ snapshot, rows }: { snapshot: D4LiveSnapshot; rows: readon
   </Card>;
 }
 
-function ScoreCell({ scorecard }: { scorecard?: KpiAssessment }) {
+function ScoreCell({ scorecard, compiled }: { scorecard?: KpiAssessment; compiled?: DailyCompilation | null }) {
+  if (!scorecard && compiled) return <span className="text-ink">{formatScore(compiled.total, scaleMaxOf(compiled.definitionVersion))}<span className="mt-1 block"><StatusBadge status="Compiled" /></span></span>;
   if (!scorecard) return <>—</>;
   if (!validScorecard(scorecard)) return <span className="text-xs font-semibold text-danger">Invalid data</span>;
   const band = performanceBand(scorecard.overallScore, scorecard.definitionVersion);

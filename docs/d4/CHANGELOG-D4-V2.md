@@ -173,12 +173,41 @@ Cabang `feat/D4-perbaikan-total`, dibangun di atas PR #37. Dua migrasi baru disi
 
 **Verifikasi**
 - `typecheck` dan `eslint` (0 error).
-- 444 tes Vitest.
+- 448 tes Vitest.
 - Render di mode fixture untuk HR, Employee, dan Management:
   - Daily KPI di 1440 px dan 375 px;
   - prefill Performance Review;
   - alert dashboard;
   - login/register di 900 px dan 1440 px.
+
+## Skor periode otomatis dari Daily KPI · 8 Nov 2026
+
+Keputusan: skor periode dikompilasi otomatis, dan HR melakukan finalisasi. Daily KPI diisi pegawai saja. Integrasi definisi KPI D1 ditunda. Ini menjawab B6: klien menyebut input manual per periode sebagai langkah mundur.
+
+- **Performance Review:**
+  - Pegawai yang punya entri Daily KPI tetapi belum punya scorecard untuk periode itu tampil dengan status **Compiled**, total kompilasi, jumlah entri, dan gap terhadap 85.
+  - Tanpa filter periode, kompilasi periode berjalan menggantikan scorecard yang lebih lama.
+  - Filter status mendapat pilihan Compiled.
+- **Aksi baru "Finalize from Daily KPI"** (HR/Manager, bukan untuk diri sendiri):
+  - Skor kompilasi tampil read-only. HR menambahkan Notes dan Reference (Q12), lalu menyimpannya sebagai scorecard periode lewat `POST /api/d4/kpi-assessments` yang sudah ada.
+  - Tanggal evaluasi adalah hari ini untuk periode berjalan, atau hari terakhir periode untuk periode lalu.
+  - Mengubah skor tetap bisa lewat Add Performance Review.
+- **People Dashboard:**
+  - Pilihan periode ikut memuat periode Daily KPI.
+  - Kolom Total KPI menampilkan skor kompilasi dengan badge Compiled sampai difinalisasi.
+  - Grafik, ringkasan, dan alert Under Performance tetap hanya memakai scorecard yang sudah final.
+  - Efek samping: begitu ada entri Daily KPI, periode default dashboard bergeser ke bulan berjalan, karena itu periode terbaru yang sudah mulai.
+- **Server dan database:** tidak ada perubahan.
+
+**Syarat integrasi definisi KPI dari D1 (ditunda).** Dicek read-only di live, 8 Nov 2026:
+- `d1_kpi_definitions` merujuk ke `d1_job_positions`, bukan ke `d3_positions` yang dipakai pegawai (B2) dan D4. 0 dari 25 KPI D1 terhubung ke posisi pegawai.
+- Dari 6 posisi D1 yang total bobotnya 100%, 5 berstatus `Deleted`. Satu-satunya yang Active (HR Associate Officer 3) hanya punya 2 KPI.
+- Syarat sebelum D4 membaca KPI dari D1:
+  1. Posisi D1 merujuk ke `d3_positions.id`, atau ada tabel pemetaan resmi.
+  2. Hanya posisi `Active`.
+  3. Tepat 5 KPI per posisi dengan bobot 100%, karena FR-D4-002, constraint DB, dan trigger scorecard mensyaratkan 5 Core KPI. Kalau tidak, aturan itu harus diubah dulu.
+  4. Skala skor 1–100 dengan target 85, atau target per KPI disepakati bersama untuk perhitungan gap.
+  5. Ada versi atau tanggal berlaku, supaya scorecard lama tetap memakai definisi saat ia disimpan.
 
 ## Belum selesai
 
@@ -192,6 +221,7 @@ Cabang `feat/D4-perbaikan-total`, dibangun di atas PR #37. Dua migrasi baru disi
 | Cakupan Manager (O7) | Manager masih melihat semua employee; butuh data atasan dari D3 | Keputusan PO + `supervisor_id` dari D3 |
 | Migrasi V6, edit development, Reference, follow-up training, Management, Daily KPI | Memengaruhi project bersama, perlu izin PO (cek 8 Nov 2026: keenamnya belum diterapkan) | Ikuti [MIGRATION-RUNBOOK-D4.md](MIGRATION-RUNBOOK-D4.md) |
 | Konfirmasi alur Daily KPI | Dibangun dengan asumsi: pegawai isi sendiri, HR memvalidasi rata-rata periode | Konfirmasi klien; bila skor periode harus otomatis tanpa HR, ubah Performance Review |
+| Definisi KPI dari D1 | D1 belum memenuhi syarat integrasi (lihat "Skor periode otomatis dari Daily KPI") | Koordinasi D1: posisi ke `d3_positions`, 5 KPI Active per posisi, bobot 100% |
 | Volume Daily KPI di snapshot | Snapshot memuat semua entri harian (sekitar 20 per pegawai per bulan) di setiap halaman; cukup untuk sandbox, tetapi tumbuh tanpa batas | Batasi ke periode berjalan + filter periode di API sebelum produksi |
 | Alert ke MID, input level kompetensi, Employee ID di `/register` | Milik squad lain (MID, D3, B2) atau kontraknya belum ada | Koordinasi lintas squad |
 | Kolom `review_status` (O8) dan unique index per periode/gap (O9) | Butuh migrasi Supabase bersama | Persetujuan PO/Back End |

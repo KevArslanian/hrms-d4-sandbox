@@ -1,27 +1,33 @@
 "use client";
 
-import { Eye, History, Plus, Target } from "lucide-react";
+import { CheckCircle2, Eye, History, Plus, Target } from "lucide-react";
 import { useMemo, useState } from "react";
 import { catalogFor, roleForPosition } from "../../../kpi/catalog";
+import type { DailyCompilation } from "../../../kpi/daily";
+import { scaleMaxOf } from "../../../kpi/scale";
 import type { PerformanceEvaluation } from "../../../performance/types";
 import type { EmployeeReference } from "../../../shared/types";
 import type { KpiAssessment } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { canAssess, canWrite, departmentOf, describeSource, developmentNeeds, employeeById, employeeMeta, employeeSearchText, evaluationsOf, formatDate, formatGap, formatPeriod, formatScorecard, includesText, latestScorecard, positionOf, revisionTag, scorecardsOf, thisMonth, visibleEmployees } from "../../data/selectors";
+import { canAssess, canWrite, departmentOf, describeSource, developmentNeeds, employeeById, employeeMeta, employeeSearchText, evaluationsOf, formatDate, formatGap, formatPeriod, formatScore, formatScorecard, includesText, latestScorecard, pendingCompilation, positionOf, revisionTag, scorecardsOf, thisMonth, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
 import { Button, ButtonLink, Card, InfoGrid, Notice, SourceChip, StatusBadge } from "../../ui/primitives";
+import { FinalizeDailyModal } from "../kpi/FinalizeDailyModal";
 import { noKpiText, KpiFormModal } from "../kpi/KpiFormModal";
 import { CatalogNotice, scorecardStatus } from "../kpi/KpiPages";
 
 const evaluationStatus = (evaluation?: PerformanceEvaluation) => !evaluation ? "Not Evaluated" : evaluation.status === "completed" ? "Completed" : "Draft";
 
 // Same words as the Status badge in the table, so a filter choice matches what the rows show.
-const STATUS_FILTER = ["Completed", "Not Evaluated"]; // FR-D4-002 has no draft scorecard.
+const STATUS_FILTER = ["Completed", "Compiled", "Not Evaluated"]; // FR-D4-002 has no draft scorecard.
 
-type Row = { employee: EmployeeReference; position: string; hasKpi: boolean; scorecard?: KpiAssessment; evaluation?: PerformanceEvaluation };
+type Row = { employee: EmployeeReference; position: string; hasKpi: boolean; scorecard?: KpiAssessment; evaluation?: PerformanceEvaluation; compiled: DailyCompilation | null; period?: string };
+
+/** "Compiled": Daily KPI gave the period a score that HR has not finalized yet (B6). */
+const rowStatus = (row: Row) => row.compiled ? "Compiled" : scorecardStatus(row.scorecard);
 
 /**
  * Performance Review (FR-D4-001 v3.1): one row per employee with the Total KPI, evaluation notes and evaluator of one
@@ -37,21 +43,27 @@ export function PerformanceListPage() {
   const [period, setPeriod] = useState("");
   const [progress, setProgress] = useState("");
   const [adding, setAdding] = useState<{ employeeId?: string } | null>(null);
+  const [finalizing, setFinalizing] = useState<Row | null>(null);
 
-  const periods = useMemo(() => [...new Set((snapshot.kpiAssessments ?? []).map((item) => item.period))].sort().reverse(), [snapshot]);
+  const periods = useMemo(() => [...new Set([...(snapshot.kpiAssessments ?? []), ...(snapshot.kpiDaily ?? [])].map((item) => item.period))].sort().reverse(), [snapshot]);
   // KPI role per the catalog in force for the filtered period, or this month when no period is chosen.
   const catalog = useMemo(() => catalogSet && catalogFor(catalogSet, period || thisMonth()), [catalogSet, period]);
   const rows = useMemo<Row[]>(() => visibleEmployees(snapshot).map((employee) => {
     const title = positionOf(snapshot, employee)?.title;
     const scorecard = period ? scorecardsOf(snapshot, employee.id).find((item) => item.period === period) : latestScorecard(snapshot, employee.id);
+    // Without a period filter the running period's compilation wins over an older scorecard: it is the newer state.
+    const at = period || thisMonth();
+    const pending = pendingCompilation(snapshot, employee.id, at);
+    const compiled = pending && (!scorecard || scorecard.period < at) ? pending : null;
     return {
-      employee, position: title ?? "—", hasKpi: !catalogSet || !title || Boolean(catalog && roleForPosition(catalog, employee.positionId)), scorecard,
+      employee, position: title ?? "—", hasKpi: !catalogSet || !title || Boolean(catalog && roleForPosition(catalog, employee.positionId)),
+      scorecard: compiled ? undefined : scorecard, compiled, period: compiled ? at : scorecard?.period,
       // Older records kept the notes in a separate evaluation; show them until the period is assessed again.
-      evaluation: scorecard && evaluationsOf(snapshot, employee.id).find((item) => item.period === scorecard.period),
+      evaluation: scorecard && !compiled ? evaluationsOf(snapshot, employee.id).find((item) => item.period === scorecard.period) : undefined,
     };
   }).filter((row) => includesText(employeeSearchText(snapshot, row.employee), search)
     && (!position || row.employee.positionId === position) && (!department || row.employee.departmentId === department)
-    && (!progress || scorecardStatus(row.scorecard) === progress))
+    && (!progress || rowStatus(row) === progress))
     .sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName)), [snapshot, catalog, catalogSet, search, position, department, period, progress]);
 
   return <>
@@ -70,23 +82,27 @@ export function PerformanceListPage() {
       columns={[
         { key: "employee", header: "Employee", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
         { key: "position", header: "Position / Department", wrap: true, cell: (row) => <><span className="block">{row.position}</span><span className="block text-xs text-ink-3">{departmentOf(snapshot, row.employee)?.name ?? "—"}</span></> },
-        { key: "period", header: "Period", cell: (row) => formatPeriod(row.scorecard?.period) },
+        { key: "period", header: "Period", cell: (row) => formatPeriod(row.period) },
         { key: "total", header: "Total KPI", className: "tabular-nums", cell: (row) => row.scorecard ? <span className="font-semibold">{formatScorecard(row.scorecard)}</span>
+          : row.compiled ? <><span className="block font-semibold">{formatScore(row.compiled.total, scaleMaxOf(row.compiled.definitionVersion))}</span><span data-testid="compiled-days" className="block text-xs text-ink-3">from {row.compiled.days.length} daily {row.compiled.days.length === 1 ? "entry" : "entries"}</span></>
           : row.hasKpi ? "—" : <span className="text-xs text-ink-3">Not in catalog {catalog?.version} yet</span> },
-        { key: "gap", header: "Gap vs 85", className: "tabular-nums", cell: (row) => row.scorecard ? formatGap(row.scorecard.overallScore, row.scorecard.definitionVersion) : "—" },
+        { key: "gap", header: "Gap vs 85", className: "tabular-nums", cell: (row) => row.scorecard ? formatGap(row.scorecard.overallScore, row.scorecard.definitionVersion)
+          : row.compiled ? formatGap(row.compiled.total, row.compiled.definitionVersion) : "—" },
         { key: "notes", header: "Notes", wrap: true, secondary: true, className: "max-w-[280px]", cell: (row) => {
           const notes = row.scorecard?.generalNotes || row.evaluation?.generalNotes;
           return notes ? <span className="line-clamp-2">{notes}</span> : "—";
         } },
         { key: "evaluator", header: "Penilai", secondary: true, cell: (row) => row.scorecard?.evaluatorName || "—" },
-        { key: "status", header: "Status", cell: (row) => <StatusBadge status={scorecardStatus(row.scorecard)} /> },
+        { key: "status", header: "Status", cell: (row) => <StatusBadge status={rowStatus(row)} /> },
       ]}
       actions={(row) => <RowActionMenu label={`Actions for ${row.employee.fullName}`} actions={[
         { label: "View Detail", testId: "view-detail", icon: <Eye />, href: row.scorecard && `/performance/scorecard/${row.scorecard.id}`, hidden: !row.scorecard },
         { label: "View History", testId: "view-history", icon: <History />, href: `/performance/history/${row.employee.id}` },
+        { label: "Finalize from Daily KPI", testId: "finalize-daily", icon: <CheckCircle2 />, onSelect: () => setFinalizing(row), hidden: !row.compiled || !canAssess(snapshot, row.employee.id) },
         { label: "Add Performance Review", testId: "add-penilaian", icon: <Plus />, onSelect: () => setAdding({ employeeId: row.employee.id }), hidden: !canAssess(snapshot, row.employee.id) },
       ]} />} />
     {adding && <KpiFormModal employeeId={adding.employeeId} onClose={() => setAdding(null)} />}
+    {finalizing?.compiled && finalizing.period && <FinalizeDailyModal employeeId={finalizing.employee.id} period={finalizing.period} compiled={finalizing.compiled} onClose={() => setFinalizing(null)} />}
   </>;
 }
 

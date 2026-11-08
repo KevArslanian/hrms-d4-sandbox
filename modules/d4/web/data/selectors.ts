@@ -1,3 +1,4 @@
+import { compileDaily } from "../../kpi/daily";
 import { kpiGap, scaleMaxOf } from "../../kpi/scale";
 import { compareCompetencies } from "../../competency/service";
 import type { CompetencyAssessment, CompetencyFinding, CompetencyOverallStatus } from "../../competency/types";
@@ -115,6 +116,14 @@ export function revisionTag<T extends { id: string; employeeId: string; period: 
 }
 
 export const latestScorecard = (snapshot: Snapshot, employeeId: string) => scorecardsOf(snapshot, employeeId)[0];
+/**
+ * B6: the period score compiled from Daily KPI, shown without manual input until HR finalizes it into a scorecard.
+ * Null once the period has a scorecard, which then takes over everywhere.
+ */
+export function pendingCompilation(snapshot: Snapshot, employeeId: string, period: string) {
+  if (!period || scorecardsOf(snapshot, employeeId).some((item) => item.period === period)) return null;
+  return compileDaily(snapshot.kpiDaily ?? [], employeeId, period);
+}
 
 /** Live comparison of the employee's current position requirements against recorded evidence. */
 export function currentGap(snapshot: Snapshot, employee: EmployeeReference): { findings: CompetencyFinding[]; overallStatus: CompetencyOverallStatus } | null {
