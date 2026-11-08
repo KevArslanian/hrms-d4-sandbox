@@ -6,7 +6,7 @@ import { useState } from "react";
 import { catalogFor } from "../../../kpi/catalog";
 import type { KpiAssessment } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { canAssess, developmentNeeds, employeeById, employeeMeta, evaluationsOf, formatDate, formatPeriod, formatScorecard, thisMonth } from "../../data/selectors";
+import { canAssess, developmentNeeds, employeeById, employeeMeta, evaluationsOf, formatDate, formatGap, formatPeriod, formatScorecard, thisMonth } from "../../data/selectors";
 import { DetailHeader, NotFound } from "../../ui/layout";
 import { Button, ButtonLink, Card, InfoGrid, Notice, SourceChip, StatusBadge } from "../../ui/primitives";
 import { KpiFormModal, LineComment, weighted } from "./KpiFormModal";
@@ -28,6 +28,8 @@ export function KpiDetailPage({ id }: { id: string }) {
   const evaluation = evaluationsOf(snapshot, employee.id).find((item) => item.period === scorecard.period);
   const needs = developmentNeeds(snapshot).filter((item) => item.sourceType === "performance_context" && item.sourceRef === scorecard.id);
   const totalWeight = scorecard.lines.reduce((sum, line) => sum + line.weight_percent, 0);
+  // The Gap column is only for 1–100 scorecards; a 1–5 one says n/a once, in the summary.
+  const gapColumn = scaleMaxOf(scorecard.definitionVersion) === 100;
   return <>
     <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Performance Review", href: "/performance" }, { label: "Detail" }]} backHref={`/performance/history/${employee.id}`}
       name={employee.fullName} meta={[...employeeMeta(snapshot, employee), `Period ${formatPeriod(scorecard.period)}`]} status={scorecardStatus(scorecard)}
@@ -37,9 +39,9 @@ export function KpiDetailPage({ id }: { id: string }) {
       <Card title="Core KPI" padded={false}>
         <div className="overflow-x-auto">
           <table data-testid="kpi-detail-table" className="w-full min-w-[680px] text-left text-sm">
-            <thead className="bg-app text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3"><tr><th className="px-5 py-2.5">No</th><th className="px-5 py-2.5">Core KPI</th><th className="px-5 py-2.5">Weight</th><th className="px-5 py-2.5">Target</th><th className="px-5 py-2.5">Actual</th><th className="px-5 py-2.5 text-right">Weighted</th><th className="px-5 py-2.5">Comment</th></tr></thead>
-            <tbody>{scorecard.lines.map((line) => <tr key={line.indicator_order} data-testid={`kpi-line-${line.indicator_order}`} className="border-t border-line"><td className="px-5 py-3 text-ink-3">{line.indicator_order}</td><td className="px-5 py-3 font-semibold">{line.kpi_name}</td><td className="px-5 py-3 tabular-nums">{line.weight_percent}%</td><td className="px-5 py-3">{line.target || "—"}</td><td className="px-5 py-3 tabular-nums">{line.raw_score ?? "—"}</td><td className="px-5 py-3 text-right font-semibold tabular-nums">{weighted(line, scaleMaxOf(scorecard.definitionVersion))?.toFixed(2) ?? "—"}</td><td data-testid={`kpi-comment-${line.indicator_order}`} className="px-5 py-3 text-ink-2"><LineComment line={line} /></td></tr>)}</tbody>
-            <tfoot className="border-t border-line bg-app"><tr><td colSpan={2} className="px-5 py-3 font-semibold">Total</td><td className="px-5 py-3 font-semibold tabular-nums">{totalWeight}%</td><td colSpan={2} /><td className="px-5 py-3 text-right font-display font-semibold text-base tabular-nums">{formatScorecard(scorecard)}</td><td /></tr></tfoot>
+            <thead className="bg-app text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3"><tr><th className="px-5 py-2.5">No</th><th className="px-5 py-2.5">Core KPI</th><th className="px-5 py-2.5">Weight</th><th className="px-5 py-2.5">Target</th><th className="px-5 py-2.5">Actual</th>{gapColumn && <th className="px-5 py-2.5">Gap</th>}<th className="px-5 py-2.5 text-right">Weighted</th><th className="px-5 py-2.5">Comment</th></tr></thead>
+            <tbody>{scorecard.lines.map((line) => <tr key={line.indicator_order} data-testid={`kpi-line-${line.indicator_order}`} className="border-t border-line"><td className="px-5 py-3 text-ink-3">{line.indicator_order}</td><td className="px-5 py-3 font-semibold">{line.kpi_name}</td><td className="px-5 py-3 tabular-nums">{line.weight_percent}%</td><td className="px-5 py-3">{line.target || "—"}</td><td className="px-5 py-3 tabular-nums">{line.raw_score ?? "—"}</td>{gapColumn && <td data-testid={`kpi-gap-${line.indicator_order}`} className="px-5 py-3 tabular-nums text-ink-2">{formatGap(line.raw_score, scorecard.definitionVersion)}</td>}<td className="px-5 py-3 text-right font-semibold tabular-nums">{weighted(line, scaleMaxOf(scorecard.definitionVersion))?.toFixed(2) ?? "—"}</td><td data-testid={`kpi-comment-${line.indicator_order}`} className="px-5 py-3 text-ink-2"><LineComment line={line} /></td></tr>)}</tbody>
+            <tfoot className="border-t border-line bg-app"><tr><td colSpan={2} className="px-5 py-3 font-semibold">Total</td><td className="px-5 py-3 font-semibold tabular-nums">{totalWeight}%</td><td colSpan={gapColumn ? 3 : 2} /><td className="px-5 py-3 text-right font-display font-semibold text-base tabular-nums">{formatScorecard(scorecard)}</td><td /></tr></tfoot>
           </table>
         </div>
       </Card>
@@ -51,6 +53,7 @@ export function KpiDetailPage({ id }: { id: string }) {
             { label: "Evaluation date", testId: "evaluation-date", value: formatDate(scorecard.evaluationDate) },
             { label: "Evaluator", testId: "evaluator", value: scorecard.evaluatorName || "—" },
             { label: "Total KPI", testId: "total-score", value: <><strong className="font-display font-semibold text-lg">{formatScorecard(scorecard)}</strong>{performanceBand(scorecard.overallScore, scorecard.definitionVersion) && <span data-testid="performance-band" className="mt-1 block"><StatusBadge status={performanceBand(scorecard.overallScore, scorecard.definitionVersion)!} /></span>}</> },
+            { label: "KPI gap (vs 85)", testId: "kpi-gap", value: formatGap(scorecard.overallScore, scorecard.definitionVersion) },
             { label: "Recorded", testId: "recorded", value: `${scorecard.actor} · ${formatDate(scorecard.createdAt)}` },
           ]} />
           <p className="mt-5 text-xs text-ink-3">Total = Σ (bobot × skor). {scaleMaxOf(scorecard.definitionVersion) === 100 ? `Di bawah ${UNDER_BELOW} Under Performance, ${UNDER_BELOW}–${HIGH_ABOVE} Average Performance, di atas ${HIGH_ABOVE} High Performance.` : "Skala 1–5 (V3.1/V5.1) tidak punya kategori performa; kategori berlaku untuk scorecard 1–100 mulai V6."}</p>
