@@ -1,4 +1,6 @@
-import type { KpiDailyEntry } from "../supabase/types";
+import { localToday } from "../shared/rules";
+import type { KpiAssessmentLine, KpiDailyEntry } from "../supabase/types";
+import { indicatorsFor, targetOf, type KpiCatalog } from "./catalog";
 import { scaleMaxOf } from "./scale";
 
 /** Newest entry of each day for one employee and period, oldest day first. A correction is a new row for the same day. */
@@ -42,4 +44,19 @@ export function daysBelowTarget(days: readonly KpiDailyEntry[], target: number):
     run += 1;
   }
   return run;
+}
+
+/** Scorecard lines from a compilation: the catalog's indicators with the compiled scores as Actual (Q4). */
+export function scorecardLinesFromDaily(catalog: KpiCatalog, compiled: DailyCompilation): KpiAssessmentLine[] {
+  return indicatorsFor(catalog, compiled.roleOrder).map((row, index) => ({
+    indicator_order: row.indicator_order, kpi_name: row.kpi_name, weight_percent: row.weight_percent, target: targetOf(row),
+    actual: String(compiled.scores[index]), raw_score: compiled.scores[index], comment: "",
+  }));
+}
+
+/** Evaluation date of a finalized period: today in the running period, else its last day (never in the future). */
+export function finalizeDate(period: string, today = localToday()): string {
+  if (period === today.slice(0, 7)) return today;
+  const [year, month] = period.split("-").map(Number);
+  return `${period}-${String(new Date(Date.UTC(year, month, 0)).getUTCDate()).padStart(2, "0")}`;
 }

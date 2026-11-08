@@ -26,11 +26,11 @@ Di luar cakupan: sertifikasi/renewal, trigger performance-gap formal, dan reasse
 | US-D4-005 / FR-D4-005 Training Tracking | TC-D4-005 | 15 | [QA] Pengujian Phase 3 |
 | US-D4-006 / FR-D4-006 Dashboard KPI Orang | TC-D4-006 | 23 | [QA] Pengujian Phase 3 |
 | FR-D4-007 / TR-D4-001 Keterhubungan data | TC-D4-007 | 9 | [QA] Pengujian Integration, Security, Validation & UI Quality |
-| Daily KPI (wawancara D4, 14 Okt 2026) | TC-D4-008 | 8 (baru) | [QA] Pengujian Phase 1 |
+| Daily KPI (wawancara D4, 14 Okt 2026) | TC-D4-008 | 11 (baru) | [QA] Pengujian Phase 1 |
 | TR-D4-002 Security & audit | TC-D4-SEC | 9 | idem |
 | TR-D4-002 Validation & UI quality | TC-D4-UIQ | 13 | idem |
 | Skenario lintas fitur | TS-D4-001 s.d. 003 | 3 | [QA] TS-D4-00x (list To Do List QA) |
-| **Total** | | **132** | |
+| **Total** | | **135** | |
 
 Semua FR dan TR yang dapat diuji punya minimal satu TC positif dan satu TC negatif.
 
@@ -221,7 +221,7 @@ Kartu Planka: **[QA] Pengujian Integration, Security, Validation & UI Quality**
 
 ### TC-D4-008 · Daily KPI (baru, 8 Nov 2026)
 
-Asumsi kerja (belum dikonfirmasi klien): pegawai mengisi skornya sendiri per hari; rata-rata periode mengisi otomatis Actual di Performance Review, lalu HR tetap meninjau dan menyimpan.
+Keputusan 8 Nov 2026: pegawai mengisi skornya sendiri per hari; skor periode dikompilasi otomatis (status Compiled) dan HR memfinalisasinya dengan Notes dan Reference (B6).
 
 | TC ID | Skenario | Jenis | Status | Dependency / BLOCKED bila |
 |---|---|---|---|---|
@@ -233,6 +233,9 @@ Asumsi kerja (belum dikonfirmasi klien): pegawai mengisi skornya sendiri per har
 | TC-D4-008-06 | Test akun Management dan akun tanpa data pegawai ditolak 403; posisi tanpa KPI melihat pesan "hubungi HR" | Negatif | Not Run | Staging: O7, O8 |
 | TC-D4-008-07 | Test Add Performance Review mengisi Actual dari rata-rata harian (dibulatkan) dengan pesan "Actual diisi dari rata-rata N entri", dan HR tetap bisa mengubahnya | Positif | Not Run | Staging: O5, O7 |
 | TC-D4-008-08 | Test alert People Dashboard: "Daily KPI di bawah target" setelah 3 entri berturut-turut di bawah 85, dan "Belum mengisi Daily KPI" untuk pegawai dengan KPI tanpa entri | Positif | Not Run | Staging: O7 |
+| TC-D4-008-09 | Test pegawai dengan Daily KPI tanpa scorecard periode itu tampil Compiled (total, jumlah entri, gap) di Performance Review dan People Dashboard, tanpa input manual | Positif | Not Run | Staging: O7 |
+| TC-D4-008-10 | Test Finalize from Daily KPI: skor read-only, Notes dan Reference wajib, simpan membuat scorecard periode dengan total = skor kompilasi, lalu status menjadi Completed | Positif | Not Run | Staging: O5, O7 |
+| TC-D4-008-11 | Test Finalize tidak tersedia untuk diri sendiri, Employee, dan Management; grafik dan ringkasan dashboard tidak menghitung skor Compiled | Negatif | Not Run | Staging: O7, O8 |
 
 ### TC-D4-SEC · TR-D4-002 Security & audit
 

@@ -40,7 +40,7 @@ const toneStyles: Record<Tone, string> = {
 // The label is always written out, so meaning never depends on colour alone.
 const statusTone: Record<string, Tone> = {
   Completed: "success", Terpenuhi: "success", "On Track": "success",
-  "In Progress": "info", Active: "info",
+  "In Progress": "info", Active: "info", Compiled: "info",
   Planned: "warning", "Needs Review": "warning", Identified: "warning", Draft: "neutral",
   Gap: "danger", Cancelled: "danger", "Needs Attention": "danger",
   // KPI score bands (1–100 scorecards): below 80 yellow, 80–85 average, above 85 high.

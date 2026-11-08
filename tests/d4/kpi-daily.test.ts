@@ -110,3 +110,53 @@ describe("Daily KPI on the People Dashboard and in the Performance Review form",
     expect(withDaily(lines, null)).toBe(lines);
   });
 });
+
+describe("Finalize from Daily KPI (B6: automatic compilation, HR finalizes)", async () => {
+  const { finalizeDate, scorecardLinesFromDaily } = await import("@/modules/d4/kpi/daily");
+  const { catalogFor, seedCatalogSet } = await import("@/modules/d4/kpi/catalog");
+  const { d4ReferenceFixture } = await import("@/modules/d4/shared/fixtures");
+  const { pendingCompilation } = await import("@/modules/d4/web/data/selectors");
+  const { localMonth } = await import("@/modules/d4/shared/rules");
+
+  it("dates the scorecard today in the running period, else on the period's last day", () => {
+    expect(finalizeDate("2026-11", "2026-11-08")).toBe("2026-11-08");
+    expect(finalizeDate("2026-10", "2026-11-08")).toBe("2026-10-31");
+    expect(finalizeDate("2028-02", "2028-03-01")).toBe("2028-02-29");
+  });
+
+  it("builds catalog lines carrying the compiled scores as Actual", () => {
+    const catalog = catalogFor(seedCatalogSet(d4ReferenceFixture.positions), "2026-11")!;
+    const compiled = { definitionVersion: "V6", roleOrder: 10, days: [], scores: [88, 81, 90, 85, 71], total: 0 };
+    const lines = scorecardLinesFromDaily(catalog, compiled);
+    expect(lines.map((line) => [line.indicator_order, line.raw_score, line.actual, line.target])).toEqual([[1, 88, "88", "85"], [2, 81, "81", "85"], [3, 90, "90", "85"], [4, 85, "85", "85"], [5, 71, "71", "85"]]);
+    expect(lines.reduce((sum, line) => sum + line.weight_percent, 0)).toBe(100);
+  });
+
+  it("shows the compilation until HR finalizes it, then the scorecard takes over", async () => {
+    vi.stubEnv("NEXT_PUBLIC_D4_FIXTURE_ROLE", "HR");
+    vi.resetModules();
+    const { createFixtureSource } = await import("@/modules/d4/web/data/fixture-source");
+    const { pendingCompilation: pending } = await import("@/modules/d4/web/data/selectors");
+    const { finalizeDate: dateOf, scorecardLinesFromDaily: linesOf } = await import("@/modules/d4/kpi/daily");
+    const source = createFixtureSource();
+    const before = await source.loadSnapshot();
+    const employee = before.kpiDaily?.[0]?.employeeId;
+    if (!employee) return; // 1st of the month: the fixture has no earlier day yet.
+    const period = localMonth();
+    const compiled = pending(before, employee, period)!;
+    expect(compiled.days.length).toBeGreaterThan(0);
+    const catalog = catalogFor(seedCatalogSet(before.reference.positions), period)!;
+    await source.createKpiAssessment({ employeeId: employee, roleOrder: compiled.roleOrder, period, evaluationDate: dateOf(period), evaluatorName: "", status: "completed",
+      lines: linesOf(catalog, compiled), generalNotes: "Final", evidenceReference: "DOC-1", revisionOf: null });
+    const after = await source.loadSnapshot();
+    expect(pending(after, employee, period)).toBeNull();
+    expect(after.kpiAssessments?.find((item) => item.employeeId === employee && item.period === period)?.overallScore).toBe(compiled.total);
+    vi.unstubAllEnvs();
+  });
+
+  it("is null for a period that already has a scorecard", () => {
+    const base = { reference: d4ReferenceFixture, role: "HR", actorEmployeeId: "", kpi: [], performance: [], competency: [], developmentVersions: [], trainingVersions: [], kpiDaily: [entry("02", [90, 90, 90, 90, 90])] };
+    expect(pendingCompilation({ ...base, kpiAssessments: [] } as never, "e1", "2026-11")?.total).toBe(90);
+    expect(pendingCompilation({ ...base, kpiAssessments: [{ id: "s", employeeId: "e1", period: "2026-11", createdAt: "x" }] } as never, "e1", "2026-11")).toBeNull();
+  });
+});
