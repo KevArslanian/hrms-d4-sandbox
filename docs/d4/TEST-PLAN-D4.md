@@ -24,13 +24,13 @@ Di luar cakupan: sertifikasi/renewal, trigger performance-gap formal, dan reasse
 | US-D4-003 / FR-D4-003 Competency Gap | TC-D4-003 | 12 | [QA] Pengujian Phase 2 |
 | US-D4-004 / FR-D4-004 Development Requirement | TC-D4-004 | 15 (3 baru) | [QA] Pengujian Phase 2 |
 | US-D4-005 / FR-D4-005 Training Tracking | TC-D4-005 | 15 | [QA] Pengujian Phase 3 |
-| US-D4-006 / FR-D4-006 Dashboard KPI Orang | TC-D4-006 | 23 | [QA] Pengujian Phase 3 |
+| US-D4-006 / FR-D4-006 Dashboard KPI Orang | TC-D4-006 | 24 (1 baru: filter level B20) | [QA] Pengujian Phase 3 |
 | FR-D4-007 / TR-D4-001 Keterhubungan data | TC-D4-007 | 9 | [QA] Pengujian Integration, Security, Validation & UI Quality |
-| Daily KPI (wawancara D4, 14 Okt 2026) | TC-D4-008 | 14 (baru) | [QA] Pengujian Phase 1 |
+| Daily KPI (wawancara D4, 14 Okt 2026) | TC-D4-008 | 18 (baru) | [QA] Pengujian Phase 1 |
 | TR-D4-002 Security & audit | TC-D4-SEC | 9 | idem |
 | TR-D4-002 Validation & UI quality | TC-D4-UIQ | 13 | idem |
 | Skenario lintas fitur | TS-D4-001 s.d. 003 | 3 | [QA] TS-D4-00x (list To Do List QA) |
-| **Total** | | **141** | |
+| **Total** | | **146** | |
 
 Semua FR dan TR yang dapat diuji punya minimal satu TC positif dan satu TC negatif.
 
@@ -205,6 +205,7 @@ Kartu Planka: **[QA] Pengujian Phase 3**
 | TC-D4-006-21 | Test empty state | Positif | Not Run | Staging |
 | TC-D4-006-22 | Test validation state | Positif | Not Run | Staging |
 | TC-D4-006-23 | Test error state | Positif | Not Run | Staging |
+| TC-D4-006-24 | Test filter "All levels" (B20, asumsi): Staff, Manager, atau Director menyaring tabel, ringkasan, dan grafik; level dari kode posisi (`DIR-*` Director, `*-MGR` Manager, sisanya Staff); tidak tampil untuk Employee | Positif | Not Run | Staging |
 
 ### TC-D4-007 · FR-D4-007 / TR-D4-001 Keterhubungan data
 
@@ -242,6 +243,10 @@ Keputusan 8 Nov 2026: pegawai mengisi skornya sendiri per hari; skor periode dik
 | TC-D4-008-12 | Test pengingat B5: pegawai yang belum mengisi hari ini melihat "Daily KPI hari ini belum diisi. Isi sebelum pulang."; setelah menyimpan, pengingat hilang | Positif | Not Run | Staging: O7 |
 | TC-D4-008-13 | Test lonceng notifikasi: badge "1" dan panel terbuka sendiri sekali per hari selama Daily KPI hari ini belum diisi; "Isi sekarang" membuka `/daily-kpi`; setelah diisi, badge hilang; Simulasi Employee langsung membuka `/daily-kpi` | Positif | Not Run | Staging: O7 |
 | TC-D4-008-14 | Test kolom Category di tabel entri harian: Under/Average/High Performance per hari untuk skala 1–100, "—" untuk 1–5 | Positif | Not Run | Staging: O5, O7 |
+| TC-D4-008-15 | Test mengisi hari sebelumnya di periode berjalan (bukan tanggal 1): entri kemarin tersimpan, Days filled bertambah, skor kompilasi memakai rata-rata semua hari | Positif | Not Run | Staging: O7 |
+| TC-D4-008-16 | Test pemantauan tim oleh HR dan Management: pegawai tanpa entri di baris teratas ("No entries"), View entries membuka Daily entries, Management tanpa aksi simpan untuk pegawai lain | Positif | Not Run | Staging: O7, O8 |
+| TC-D4-008-17 | Test gagal simpan saat offline: toast "Tidak dapat terhubung ke server. Periksa koneksi internet lalu coba lagi." dan entri tidak tersimpan | Negatif | Not Run | Staging: O7 |
+| TC-D4-008-18 | Test sebelum migrasi Daily KPI: pesan "Daily KPI belum tersedia karena database belum diperbarui (migrasi 20261108130000). Menu lain tetap bisa dipakai." dan menu lain tetap berjalan | Negatif | Pass (10 Nov 2026, produksi, Simulasi Employee) | Hanya sebelum migrasi langkah 6 |
 
 ### TC-D4-SEC · TR-D4-002 Security & audit
 

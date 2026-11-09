@@ -15,7 +15,7 @@ import { Card, Notice, slug, statusLabel, StatusBadge } from "../../ui/primitive
 import { LineComment, weighted } from "../kpi/KpiFormModal";
 import type { DailyCompilation } from "../../../kpi/daily";
 import { HIGH_ABOVE, performanceBand, scaleMaxOf, UNDER_BELOW } from "../../../kpi/scale";
-import { averageScores, BANDS, COMPETENCY_ORDER, competencySlices, dashboardAlerts, defaultPeriod, employeeHistory, gapRanking, matchesDashboardFilters, openNeedCount, performanceSlices, profilePeriod, reviewCounts, validScorecard, withoutKpiRole, type AssignTarget, type DashboardRow, type Slice } from "./summary";
+import { averageScores, BANDS, COMPETENCY_ORDER, competencySlices, dashboardAlerts, defaultPeriod, employeeHistory, gapRanking, JOB_LEVELS, jobLevel, matchesDashboardFilters, openNeedCount, performanceSlices, profilePeriod, reviewCounts, validScorecard, withoutKpiRole, type AssignTarget, type DashboardRow, type Slice } from "./summary";
 import { DevelopmentFormModal } from "../development/DevelopmentModals";
 
 type Row = DashboardRow & { position: string; period?: string; openNeeds: number; training?: string; compiled: DailyCompilation | null };
@@ -40,6 +40,7 @@ export function DashboardPage() {
   const [search, setSearch] = useState("");
   const [position, setPosition] = useState("");
   const [department, setDepartment] = useState("");
+  const [level, setLevel] = useState("");
   const [period, setPeriod] = useState("");
   const [band, setBand] = useState("");
   const [competency, setCompetency] = useState("");
@@ -60,18 +61,19 @@ export function DashboardPage() {
       training: trainingsOf(snapshot, employee.id)[0]?.status,
     };
   }).filter((row) => includesText(employeeSearchText(snapshot, row.employee), search) && (!position || row.employee.positionId === position) && (!department || row.employee.departmentId === department)
-    && matchesDashboardFilters(row, { band, competency, training }))
+    && (!level || jobLevel(positionOf(snapshot, row.employee)) === level) && matchesDashboardFilters(row, { band, competency, training }))
     // Compiled (waiting for HR) first, then without a Performance Review for the period, then reviewed.
-    .sort(byProgress((row) => row.compiled ? 0 : row.scorecard ? 2 : 1, (row) => row.employee.fullName)), [snapshot, search, position, department, shown, band, competency, training]);
+    .sort(byProgress((row) => row.compiled ? 0 : row.scorecard ? 2 : 1, (row) => row.employee.fullName)), [snapshot, search, position, department, level, shown, band, competency, training]);
 
   const profileHref = (row: Row) => `/dashboard/employee/${row.employee.id}${row.period ? `?period=${row.period}` : ""}`;
 
   return <>
     <PageHeader title="People Dashboard" subtitle="KPI, performance, gap kompetensi, development, dan training per pegawai untuk periode yang sama." />
-    <FilterBar canReset={Boolean(search || position || department || period || band || competency || training)} onReset={() => { setSearch(""); setPosition(""); setDepartment(""); setPeriod(""); setBand(""); setCompetency(""); setTraining(""); }}>
+    <FilterBar canReset={Boolean(search || position || department || level || period || band || competency || training)} onReset={() => { setSearch(""); setPosition(""); setDepartment(""); setLevel(""); setPeriod(""); setBand(""); setCompetency(""); setTraining(""); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Search name or position" />
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All positions" testId="all-positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />}
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All departments" testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />}
+      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All levels" testId="all-levels" value={level} onChange={setLevel} options={JOB_LEVELS.map((item) => ({ value: item, label: item }))} />}
       {/* The dashboard always shows one period, so there is no "All periods" choice; it starts on the latest one that has started. */}
       <SelectFilter label="Period" testId="latest-period" emptyOption={false} value={shown} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
       {/* FR-D4-004 B: performance category (1–100 scorecards only), competency status and latest training status. */}
