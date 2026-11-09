@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import type { TrainingVersion } from "../../../training/types";
 import { followUpOf } from "../../../shared/rules";
 import { useSnapshot } from "../../data/D4DataProvider";
-import { canWrite, employeeById, employeeMeta, employeeSearchText, formatDate, formatPeriod, includesText, trainingById, trainingHistory, trainings, trainingSource, visibleEmployees } from "../../data/selectors";
+import { byProgress, canWrite, employeeById, employeeMeta, employeeSearchText, formatDate, formatPeriod, includesText, trainingById, trainingHistory, trainings, trainingSource, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
@@ -14,6 +14,9 @@ import { Button, ButtonLink, Card, InfoGrid, Notice, SourceChip, statusLabel, St
 import { ReassessmentModal } from "../development/DevelopmentModals";
 import { ReassessmentBadge } from "../development/DevelopmentPages";
 import { TrainingFollowUpModal, TrainingProgressModal } from "./TrainingModals";
+
+// Not Passed still waiting for a follow-up first (Q16), then planned and running trainings; finished and cancelled last.
+const TRAINING_RANK: Record<string, number> = { Planned: 1, "In Progress": 2, Completed: 3, Cancelled: 4 };
 
 export function TrainingListPage() {
   const snapshot = useSnapshot();
@@ -33,7 +36,8 @@ export function TrainingListPage() {
     return includesText(`${employeeSearchText(snapshot, employee)} ${item.activity}`, search)
       && (!department || employee?.departmentId === department)
       && (!period || item.date.startsWith(period)) && (!status || item.status === status);
-  });
+  }).sort(byProgress((item) => item.status === "Completed" && item.result === "Not Passed" && !followUpOf(trainingHistory(snapshot, item.trainingId)) ? 0 : TRAINING_RANK[item.status] ?? 3,
+    (item) => employeeById(snapshot, item.employeeId)?.fullName ?? ""));
 
   return <>
     <PageHeader title="Training Tracking" subtitle="Pantau training dan development dari requirement sumber sampai hasilnya." />

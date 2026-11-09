@@ -9,7 +9,7 @@ import { canFillDaily } from "../../../shared/rules";
 import type { EmployeeReference } from "../../../shared/types";
 import type { KpiDailyEntry } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { departmentOf, employeeById, employeeMeta, employeeSearchText, formatDate, formatGap, formatPeriod, formatScore, includesText, positionOf, thisMonth, today, visibleEmployees } from "../../data/selectors";
+import { byProgress, departmentOf, employeeById, employeeMeta, employeeSearchText, formatDate, formatGap, formatPeriod, formatScore, includesText, positionOf, thisMonth, today, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, FormError, ReadOnlyField, SearchInput, SelectFilter, TextField } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader } from "../../ui/layout";
@@ -157,7 +157,8 @@ function TeamDailyKpi() {
     .map((employee) => {
       const compiled = compileDaily(snapshot.kpiDaily ?? [], employee.id, period);
       return { employee, position: positionOf(snapshot, employee)?.title ?? "—", compiled, last: compiled?.days.at(-1)?.entryDate };
-    }).sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName)), [snapshot, catalog, period, search]);
+    // Running period: not filled today first. An earlier period: no entries first.
+    }).sort(byProgress((row) => period === thisMonth() ? (row.last === today() ? 1 : 0) : (row.compiled ? 1 : 0), (row) => row.employee.fullName)), [snapshot, catalog, period, search]);
 
   return <section aria-label="Team daily KPI" className="space-y-4">
     <h2 className="font-display text-lg font-semibold text-ink">Team · {formatPeriod(period)}</h2>

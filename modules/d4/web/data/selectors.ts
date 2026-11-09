@@ -117,6 +117,11 @@ export function revisionTag<T extends { id: string; employeeId: string; period: 
 
 export const latestScorecard = (snapshot: Snapshot, employeeId: string) => scorecardsOf(snapshot, employeeId)[0];
 /**
+ * List order (9 Nov 2026): rows that still need action come first and finished ones last, so what is left to do is on
+ * the first page. `rank` is 0 for the most urgent; rows of the same rank stay in name order.
+ */
+export const byProgress = <T,>(rank: (row: T) => number, name: (row: T) => string) => (a: T, b: T) => rank(a) - rank(b) || name(a).localeCompare(name(b));
+/**
  * B6: the period score compiled from Daily KPI, shown without manual input until HR finalizes it into a scorecard.
  * Null once the period has a scorecard, which then takes over everywhere.
  */

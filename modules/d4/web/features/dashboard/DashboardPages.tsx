@@ -6,7 +6,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import type { D4LiveSnapshot, KpiAssessment } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
 import { catalogFor, type KpiCatalog } from "../../../kpi/catalog";
-import { canWrite, currentCompetencyStatus, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, employeeSearchText, evaluationsOf, formatDate, formatGap, formatPeriod, formatScore, formatScorecard, includesText, pendingCompilation, positionOf, scorecardsOf, thisMonth, trainings, trainingsOf, visibleEmployees } from "../../data/selectors";
+import { byProgress, canWrite, currentCompetencyStatus, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, employeeSearchText, evaluationsOf, formatDate, formatGap, formatPeriod, formatScore, formatScorecard, includesText, pendingCompilation, positionOf, scorecardsOf, thisMonth, trainings, trainingsOf, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
@@ -61,7 +61,8 @@ export function DashboardPage() {
     };
   }).filter((row) => includesText(employeeSearchText(snapshot, row.employee), search) && (!position || row.employee.positionId === position) && (!department || row.employee.departmentId === department)
     && matchesDashboardFilters(row, { band, competency, training }))
-    .sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName)), [snapshot, search, position, department, shown, band, competency, training]);
+    // Compiled (waiting for HR) first, then without a Performance Review for the period, then reviewed.
+    .sort(byProgress((row) => row.compiled ? 0 : row.scorecard ? 2 : 1, (row) => row.employee.fullName)), [snapshot, search, position, department, shown, band, competency, training]);
 
   const profileHref = (row: Row) => `/dashboard/employee/${row.employee.id}${row.period ? `?period=${row.period}` : ""}`;
 

@@ -371,3 +371,11 @@ describe("Daily KPI in the fixture source (mirrors POST /api/d4/kpi-daily)", () 
     await expect(source.createTraining({ employeeId: ALFA, developmentNeedId: "x", activity: "Uji", date: "2026-10-01", status: "Planned", result: "", notes: "" })).rejects.toThrow(/Hanya HR atau manager/);
   });
 });
+
+describe("list order: still to do first, done last (9 Nov 2026)", async () => {
+  const { byProgress } = await import("@/modules/d4/web/data/selectors");
+  it("sorts by rank, then by name within the same rank", () => {
+    const rows = [{ name: "Budi", done: true }, { name: "Zaki", done: false }, { name: "Ani", done: true }, { name: "Citra", done: false }];
+    expect(rows.sort(byProgress((row) => row.done ? 1 : 0, (row) => row.name)).map((row) => row.name)).toEqual(["Citra", "Zaki", "Ani", "Budi"]);
+  });
+});

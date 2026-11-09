@@ -232,6 +232,17 @@ Hanya permintaan yang jelas di transkrip Show & Tell (Mas Bram) dan sepenuhnya m
   - **Kategori performa per hari (00:58:05, "nilainya ternyata high performance"):** tabel entri harian mendapat kolom Category untuk skala 1–100.
   - **Masih terbuka:** notulen 14 Okt menulis "KPI harian ada di tim Raka (D1)" dan "pembagian KPI harian antara D4 dan D1 perlu didiskusikan lagi". Keputusan PO bersama D1 tetap dibutuhkan.
 
+- **Urutan daftar dinamis (permintaan 9 Nov):** di setiap halaman daftar, baris yang masih perlu ditindaklanjuti tampil di atas dan yang sudah selesai di bawah. Dalam kelompok yang sama, urutan tetap per nama.
+
+| Halaman | Urutan (atas ke bawah) |
+|---|---|
+| Performance Review | Compiled (siap Finalize), belum dinilai, sudah dinilai, posisi tanpa KPI |
+| Daily KPI (tim) | Periode berjalan: belum mengisi hari ini, lalu sudah. Periode lalu: tanpa entri, lalu ada entri. |
+| Competency Gap | Belum dinilai, Gap, Insufficient Data, Met, tanpa persyaratan |
+| Development Requirement | Identified, Planned, In Progress, Completed yang menunggu reassessment, Completed |
+| Training Tracking | Not Passed tanpa tindak lanjut, Planned, In Progress, Completed, Cancelled |
+| People Dashboard | Compiled, tanpa Performance Review, sudah dinilai |
+
 Tidak dikerjakan karena belum pasti atau bukan milik D4:
 - **B2:** UI target dan standar KPI. Menunggu kesepakatan definisi KPI dengan D1.
 - **B20:** dashboard per level HR. Isi tiap level tidak dijelaskan klien.
