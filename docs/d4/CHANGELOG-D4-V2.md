@@ -199,36 +199,18 @@ Keputusan: skor periode dikompilasi otomatis, dan HR melakukan finalisasi. Daily
   - Efek samping: begitu ada entri Daily KPI, periode default dashboard bergeser ke bulan berjalan, karena itu periode terbaru yang sudah mulai.
 - **Server dan database:** tidak ada perubahan.
 
-**Syarat integrasi definisi KPI dari D1 (ditunda).** Dicek read-only di live, 8 Nov 2026:
-- `d1_kpi_definitions` merujuk ke `d1_job_positions`, bukan ke `d3_positions` yang dipakai pegawai (B2) dan D4. 0 dari 25 KPI D1 terhubung ke posisi pegawai.
-- Dari 6 posisi D1 yang total bobotnya 100%, 5 berstatus `Deleted`. Satu-satunya yang Active (HR Associate Officer 3) hanya punya 2 KPI.
-- Syarat sebelum D4 membaca KPI dari D1:
-  1. Posisi D1 merujuk ke `d3_positions.id`, atau ada tabel pemetaan resmi.
+**Syarat integrasi definisi KPI dari D1 (ditunda).** Kondisi live per 9 Nov 2026 (read-only). D1 memperbarui KPI-nya pada 8 Nov: kini 21 posisi D1 punya bobot 100% dengan target 85, dan sebagian besar berisi 4 KPI.
+- **Masih memblokir:**
+  - `d1_kpi_definitions` merujuk ke `d1_job_positions`, bukan ke `d3_positions` yang dipakai pegawai (B2) dan D4.
+  - Tabel pemetaan `d3_d1_position_mappings` masih 0 baris.
+  - 0 dari 14 posisi yang dipegang pegawai punya pasangan D1 Active dengan 5 KPI.
+- **Syarat sebelum D4 membaca KPI dari D1:**
+  1. Pemetaan posisi D3 ke D1 terisi untuk setiap posisi yang dipegang pegawai.
   2. Hanya posisi `Active`.
-  3. Tepat 5 KPI per posisi dengan bobot 100%, karena FR-D4-002, constraint DB, dan trigger scorecard mensyaratkan 5 Core KPI. Kalau tidak, aturan itu harus diubah dulu.
-  4. Skala skor 1–100 dengan target 85, atau target per KPI disepakati bersama untuk perhitungan gap.
-  5. Ada versi atau tanggal berlaku, supaya scorecard lama tetap memakai definisi saat ia disimpan.
-
-## Permintaan wawancara 14 Okt yang bisa dipastikan · 9 Nov 2026
-
-Hanya permintaan yang jelas di transkrip Show & Tell (Mas Bram) dan sepenuhnya milik D4:
-
-- **B13 (01:48:13–01:49:03):** PIC "harus ada" agar bisa ditelusuri.
-  - PIC wajib di form Add Requirement, `POST /api/d4/development-needs`, dan fixture.
-  - Edit Requirement tidak bisa mengosongkan PIC. Requirement lama tanpa PIC tetap bisa diubah statusnya, dan alert "Tanpa PIC" tetap menandainya.
-  - Kolom `pic` sudah ada di live, jadi tidak perlu migrasi.
-- **B14 (01:46:09–01:47:34):** objective menyebut kompetensi yang kurang, level tujuan, dan cara menutup gap. Saran objective dari gap kini menambahkan "melalui <Method>" saat Method dipilih. Teks yang sudah diubah user tidak ditimpa.
-- **B12 (01:47:48–01:48:08):** saran Method mengikuti contoh klien: Internal training, External training, Certification, Coaching. Method tetap opsional dan boleh teks lain.
-- **B5 (00:32:52–00:33:46):** pegawai menilai KPI-nya setiap hari sebelum pulang. Halaman Daily KPI menampilkan pengingat selama hari ini belum diisi.
-
-Tidak dikerjakan karena belum pasti atau bukan milik D4:
-- **B2:** UI target dan standar KPI. Menunggu kesepakatan definisi KPI dengan D1.
-- **B20:** dashboard per level HR. Isi tiap level tidak dijelaskan klien.
-- **B9 / A1:** durasi trainee 3 atau 6 bulan. Tidak ada tanggal mulai kerja di data D4, dan statusnya milik B2.
-- **A2:** wajibnya "dinilai bersama". Kolom `assessed_with` butuh migrasi `20261019120000`.
-- **A4:** promosi otomatis. Butuh riwayat posisi dari D3.
-- **B19:** alert ke MID beserta contoh dari klien. Butuh kontrak MID dan data D3.
-- **B21, B22, B23, B24:** milik B2, D3, atau proses persetujuan.
+  3. Tepat 5 KPI per posisi dengan bobot 100%. FR-D4-002, constraint DB, dan trigger scorecard mensyaratkan 5 Core KPI.
+  4. Skala skor 1–100 dengan target 85. Sudah terpenuhi di data D1.
+  5. Ada versi atau tanggal berlaku, supaya scorecard lama tetap memakai definisi saat disimpan.
+- **Permintaan data ke D1** (pemetaan, KPI ke-5, requirement kompetensi, dan data D3/B2 terkait): `docs/d4/drafts/PROMPT-VALENT-DATA-D1-UNTUK-D4.md`.
 
 ## Belum selesai
 
