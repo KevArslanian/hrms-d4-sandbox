@@ -265,6 +265,7 @@ Tidak dikerjakan karena belum pasti atau bukan milik D4:
   - Menampilkan masa trainee 3 atau 6 bulan butuh migrasi view dan keputusan HR per pegawai.
   - Per 10 Nov hanya 1 pegawai berstatus probation di data B2.
 - **TC-D4-008-18 lulus di produksi** (sebelum migrasi, Simulasi Employee): Daily KPI menampilkan pesan "belum tersedia", menu lain tetap berjalan.
+- **Tujuh migrasi D4 diterapkan** dengan izin PO, setelah dicocokkan dengan permintaan Mas Bram. Akibatnya Daily KPI, skala 1–100 (V6), Gap vs 85, kategori, Management read-only, edit requirement, reassessment, dan tindak lanjut training kini aktif di production. Detail, backup, dan hasil cek ada di MIGRATION-RUNBOOK-D4, bagian "Status".
 
 ## Belum selesai
 
