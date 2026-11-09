@@ -18,7 +18,7 @@ import { Button, Card, InfoGrid, Notice, StatusBadge } from "../../ui/primitives
 import { noKpiText, scorecardTotal } from "../kpi/KpiFormModal";
 
 const NOT_READY = "Daily KPI belum tersedia karena database belum diperbarui (migrasi 20261108130000). Menu lain tetap bisa dipakai.";
-const input = "h-9 w-full rounded-lg border border-line-strong px-2 text-sm aria-[invalid=true]:border-danger";
+const input = "h-9 w-full rounded-2xl border border-ink-3 px-3 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/15 text-sm aria-[invalid=true]:border-danger";
 
 /** Daily KPI: employees score their own five Core KPI per day; HR, managers and management follow who filled them. */
 export function DailyKpiPage() {
