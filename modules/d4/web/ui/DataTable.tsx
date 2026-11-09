@@ -14,9 +14,12 @@ export type Column<T> = {
   wrap?: boolean;
   /** Secondary column: hidden below 1400 px so the primary columns keep their room (matches Figma frame 28). */
   secondary?: boolean;
+  /** Hidden below 1280 px, where the table shares a small laptop screen with the sidebar; the cell stays in the DOM. */
+  optional?: boolean;
 };
 
-const secondaryCell = (column: { secondary?: boolean }) => column.secondary && "hidden min-[1400px]:table-cell";
+const secondaryCell = (column: { secondary?: boolean; optional?: boolean }) =>
+  column.secondary ? "hidden min-[1400px]:table-cell" : column.optional && "hidden min-[1280px]:table-cell";
 
 const PAGE_SIZES = [10, 20, 50, 100] as const;
 

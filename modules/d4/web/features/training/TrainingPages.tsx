@@ -52,7 +52,7 @@ export function TrainingListPage() {
       columns={[
         { key: "employee", header: "Employee", cell: (row) => { const employee = employeeById(snapshot, row.employeeId); return <PersonCell name={employee?.fullName ?? "—"} code={employee?.employeeId ?? ""} />; } },
         { key: "activity", header: "Training", wrap: true, cell: (row) => <span className="font-semibold">{row.activity}</span> },
-        { key: "source", header: "Source requirement", wrap: true, className: "max-w-[260px]", cell: (row) => <span className="line-clamp-2 text-ink-2">{trainingSource(snapshot, row)?.objective ?? "—"}</span> },
+        { key: "source", header: "Source requirement", wrap: true, optional: true, className: "max-w-[260px]", cell: (row) => <span className="line-clamp-2 text-ink-2">{trainingSource(snapshot, row)?.objective ?? "—"}</span> },
         { key: "date", header: "Date", cell: (row) => formatDate(row.date) },
         { key: "status", header: "Status", cell: (row) => <StatusBadge status={row.status} /> },
       ]}

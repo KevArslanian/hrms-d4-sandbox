@@ -83,7 +83,7 @@ export function DevelopmentListPage() {
         </> },
         { key: "priority", header: "Priority", cell: (row) => statusLabel(row.priority) },
         // One column, as Position / Department on the People Dashboard, so the table fits a laptop screen.
-        { key: "method-pic", header: "Method / PIC", wrap: true, className: "max-w-[160px]", cell: (row) => <>
+        { key: "method-pic", header: "Method / PIC", wrap: true, optional: true, className: "max-w-[160px]", cell: (row) => <>
           <span data-testid="cell-method" className="block">{row.method || "—"}</span>
           <span data-testid="cell-pic" className="block text-xs text-ink-3">{row.pic || "—"}</span>
         </> },
