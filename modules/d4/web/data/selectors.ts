@@ -204,6 +204,8 @@ export function objectiveFromFinding(finding: Pick<CompetencyFinding, "competenc
     ? `Naikkan ${finding.competencyName} ke level ${finding.requiredLevel}`
     : `Naikkan ${finding.competencyName} dari level ${finding.actualLevel} ke ${finding.requiredLevel}`;
 }
+/** B14 (interview D4, 14 Oct 2026): the objective also says how the gap is closed, taken from the chosen Method. */
+export const objectiveWithMethod = (objective: string, method: string) => objective && method.trim() ? `${objective} melalui ${method.trim()}` : objective;
 export const trainingHistory = (snapshot: Snapshot, trainingId: string) => snapshot.trainingVersions.filter((item) => item.trainingId === trainingId).sort((a, b) => b.revision - a.revision);
 
 export const sourceTypeLabel: Record<DevelopmentSourceType, string> = {

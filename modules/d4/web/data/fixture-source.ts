@@ -5,7 +5,7 @@ import { scaleMaxOf } from "../../kpi/scale";
 import { performanceFixtureRecords } from "../../performance/fixtures";
 import { validatePerformanceInput } from "../../performance/validation";
 import { d4ReferenceFixture } from "../../shared/fixtures";
-import { assertDailyDate, assertGapAssessed, canFillDaily, localMonth, localToday, assertTrainingDate, assertNeedOpen, assertNoOpenNeed, assertTrainingResult, assertNotFutureDate, assertEvaluationInPeriod, assertNotSelf, assertPeriodRevision, assertTrainingChange, assertTrainingFollowUp, nextDevelopmentRevision, retrainingNotes } from "../../shared/rules";
+import { assertDailyDate, assertGapAssessed, assertPicFilled, canFillDaily, localMonth, localToday, assertTrainingDate, assertNeedOpen, assertNoOpenNeed, assertTrainingResult, assertNotFutureDate, assertEvaluationInPeriod, assertNotSelf, assertPeriodRevision, assertTrainingChange, assertTrainingFollowUp, nextDevelopmentRevision, retrainingNotes } from "../../shared/rules";
 import type { D4LiveSnapshot, KpiAssessment, KpiAssessmentLine, KpiDailyEntry } from "../../supabase/types";
 import { latestDevelopment, latestTraining } from "../../supabase/types";
 import { trainingFixtureVersions } from "../../training/fixtures";
@@ -237,6 +237,7 @@ export function createFixtureSource(): D4DataSource {
       assertWriter();
       if (!input.objective.trim()) throw new Error("Development objective wajib diisi.");
       if (!input.sourceRef) throw new Error("Source reference wajib diisi.");
+      assertPicFilled(input.pic ?? "");
       assertNoOpenNeed(latestDevelopment(state), input.employeeId, input.sourceType, input.sourceRef);
       assertGapAssessed(state.competency, state.reference.employees.find((item) => item.id === input.employeeId), input.sourceType);
       const needId = newId("FIX-D4-DEV");
@@ -248,6 +249,7 @@ export function createFixtureSource(): D4DataSource {
       const needs = latestDevelopment(state);
       const current = needs.find((item) => item.needId === needId);
       if (!current) throw new Error("Development requirement tidak ditemukan.");
+      assertPicFilled(edit?.pic);
       // The spread carries priority/method/PIC forward; reassessment belongs to the revision that records it.
       const next = nextDevelopmentRevision(current, { ...edit, status, notes }, needs, latestTraining(state), state.developmentVersions.filter((item) => item.needId === needId));
       update({ developmentVersions: [{ ...current, ...next, id: newId("FIX-D4-DEV-V"), revision: current.revision + 1, createdAt: now(), actor: actorName() }, ...state.developmentVersions] });
