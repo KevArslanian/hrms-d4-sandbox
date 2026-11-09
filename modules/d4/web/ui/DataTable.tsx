@@ -72,7 +72,7 @@ export function DataTable<T>({ rows, columns, rowKey, actions, emptyTitle, empty
 
   return <section className="min-w-0 overflow-hidden rounded-2xl border border-line bg-surface shadow-card">
     <div ref={scroller} onScroll={measure} data-covered={covered} className="group overflow-x-auto">
-      <table data-testid="data-table" className="w-full min-w-[760px] text-left text-sm">
+      <table data-testid="data-table" className="w-full min-w-[640px] text-left text-sm">
         <thead className="bg-app">
           <tr>{columns.map((column) => <th key={column.key} scope="col" className={cx("px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3", secondaryCell(column), column.className)}>{column.header}</th>)}
             {actions && <th scope="col" className={cx(stickyAction, "w-16 bg-app px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3")}>Actions</th>}</tr>

@@ -157,8 +157,8 @@ function TeamDailyKpi() {
     .map((employee) => {
       const compiled = compileDaily(snapshot.kpiDaily ?? [], employee.id, period);
       return { employee, position: positionOf(snapshot, employee)?.title ?? "—", compiled, last: compiled?.days.at(-1)?.entryDate };
-    // Running period: not filled today first. An earlier period: no entries first.
-    }).sort(byProgress((row) => period === thisMonth() ? (row.last === today() ? 1 : 0) : (row.compiled ? 1 : 0), (row) => row.employee.fullName)), [snapshot, catalog, period, search]);
+    // No entry in the period first, then entries but none today, then filled today (only the running period has a "today").
+    }).sort(byProgress((row) => !row.compiled ? 0 : period === thisMonth() && row.last === today() ? 2 : 1, (row) => row.employee.fullName)), [snapshot, catalog, period, search]);
 
   return <section aria-label="Team daily KPI" className="space-y-4">
     <h2 className="font-display text-lg font-semibold text-ink">Team · {formatPeriod(period)}</h2>
@@ -170,11 +170,12 @@ function TeamDailyKpi() {
       emptyTitle="Tidak ada pegawai yang cocok" emptyText="Ubah kata kunci atau periode. Hanya pegawai dengan KPI di katalog yang tampil."
       columns={[
         { key: "employee", header: "Employee", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
-        { key: "position", header: "Position / Department", wrap: true, cell: (row) => <><span className="block">{row.position}</span><span className="block text-xs text-ink-3">{departmentOf(snapshot, row.employee)?.name ?? "—"}</span></> },
+        { key: "position", header: "Position / Department", wrap: true, secondary: true, cell: (row) => <><span className="block">{row.position}</span><span className="block text-xs text-ink-3">{departmentOf(snapshot, row.employee)?.name ?? "—"}</span></> },
         { key: "days", header: "Days filled", className: "tabular-nums", cell: (row) => row.compiled?.days.length ?? 0 },
         { key: "last", header: "Last entry", secondary: true, cell: (row) => formatDate(row.last) },
-        { key: "score", header: "Compiled score", className: "tabular-nums", cell: (row) => row.compiled ? <span className="font-semibold">{formatScore(row.compiled.total, scaleMaxOf(row.compiled.definitionVersion))}</span> : "—" },
-        { key: "gap", header: `Gap vs ${KPI_TARGET}`, className: "tabular-nums", cell: (row) => row.compiled ? formatGap(row.compiled.total, row.compiled.definitionVersion) : "—" },
+        // The gap sits under the score, so the table keeps room for the status badge on laptop widths.
+        { key: "score", header: "Compiled score", className: "tabular-nums", cell: (row) => row.compiled ? <><span className="block font-semibold">{formatScore(row.compiled.total, scaleMaxOf(row.compiled.definitionVersion))}</span>
+          <span data-testid="compiled-gap" className="block text-xs text-ink-3">Gap {formatGap(row.compiled.total, row.compiled.definitionVersion)} vs {KPI_TARGET}</span></> : "—" },
         { key: "status", header: "Status", cell: (row) => <StatusBadge status={!row.compiled ? "No entries" : performanceBand(row.compiled.total, row.compiled.definitionVersion) ?? "Filled"} /> },
       ]}
       actions={(row) => <RowActionMenu label={`Actions for ${row.employee.fullName}`} actions={[
