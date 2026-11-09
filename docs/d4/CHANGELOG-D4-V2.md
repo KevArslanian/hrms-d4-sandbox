@@ -228,6 +228,7 @@ Hanya permintaan yang jelas di transkrip Show & Tell (Mas Bram) dan sepenuhnya m
 
 - **Pencocokan ulang Daily KPI dengan transkrip 14 Okt:**
   - **Director juga mengisi Daily KPI miliknya sendiri.** Contoh Mas Bram di 00:33:23 adalah seorang direktur yang menilai KPI direkturnya ("pencapaian target pendapatan operasional"). Penolakan untuk MANAGEMENT dihapus dari API, fixture, dan policy insert migrasi `20261108130000` (belum diterapkan, jadi diubah di tempat). Untuk data orang lain, Director tetap read-only (B17). Diuji ulang di Postgres lokal: entri sendiri diterima, entri untuk pegawai lain ditolak.
+  - **Peran KPI untuk posisi direktur.** Di live, DIR-FAT dan DIR-GEN belum punya peran KPI, jadi Director tetap tidak bisa mengisi Daily KPI. Migrasi `20261109120000` memetakan keduanya ke peran 2 "Director" di V5.1 dan V6, sama dengan KPI pada contoh Mas Bram. Ini sementara, sampai KPI direktur dari D1 bisa dipetakan. Diuji di Postgres lokal: bisa dijalankan ulang tanpa duplikat, dan Director menyimpan entri dengan KPI Director (total 84.50, sesuai rumus).
   - **Kategori performa per hari (00:58:05, "nilainya ternyata high performance"):** tabel entri harian mendapat kolom Category untuk skala 1–100.
   - **Masih terbuka:** notulen 14 Okt menulis "KPI harian ada di tim Raka (D1)" dan "pembagian KPI harian antara D4 dan D1 perlu didiskusikan lagi". Keputusan PO bersama D1 tetap dibutuhkan.
 
@@ -250,7 +251,7 @@ Tidak dikerjakan karena belum pasti atau bukan milik D4:
 | Docmost dan Planka tim | Keputusan: draft dulu | Terapkan isi `drafts/` setelah disetujui PO |
 | Sales Admin memakai KPI Sales & Marketing | V5.1 tidak punya role Sales Admin; pemetaan sementara | Keputusan PO (lihat `drafts/docmost/03-…`) |
 | Cakupan Manager (O7) | Manager masih melihat semua employee; butuh data atasan dari D3 | Keputusan PO + `supervisor_id` dari D3 |
-| Migrasi V6, edit development, Reference, follow-up training, Management, Daily KPI | Memengaruhi project bersama, perlu izin PO (cek 8 Nov 2026: keenamnya belum diterapkan) | Ikuti [MIGRATION-RUNBOOK-D4.md](MIGRATION-RUNBOOK-D4.md) |
+| Migrasi V6, edit development, Reference, follow-up training, Management, Daily KPI, peran KPI Director | Memengaruhi project bersama, perlu izin PO (cek 9 Nov 2026: ketujuhnya belum diterapkan) | Ikuti [MIGRATION-RUNBOOK-D4.md](MIGRATION-RUNBOOK-D4.md) |
 | Konfirmasi alur Daily KPI | Dibangun dengan asumsi: pegawai isi sendiri, HR memvalidasi rata-rata periode | Konfirmasi klien; bila skor periode harus otomatis tanpa HR, ubah Performance Review |
 | Definisi KPI dari D1 | D1 belum memenuhi syarat integrasi (lihat "Skor periode otomatis dari Daily KPI") | Koordinasi D1: posisi ke `d3_positions`, 5 KPI Active per posisi, bobot 100% |
 | Volume Daily KPI di snapshot | Snapshot memuat semua entri harian (sekitar 20 per pegawai per bulan) di setiap halaman; cukup untuk sandbox, tetapi tumbuh tanpa batas | Batasi ke periode berjalan + filter periode di API sebelum produksi |

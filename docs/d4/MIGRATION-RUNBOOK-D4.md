@@ -16,6 +16,7 @@ Database D4 adalah project Supabase bersama (`ufjbbwqaztgkqmpdmcyv`), dipakai ju
 | `20261020130000_d4_training_follow_up` | **Belum** | Kolom `follow_up` belum ada. |
 | `20261108120000_d4_management_read_only` | **Belum** (baru) | Director menjadi MANAGEMENT, read-only. |
 | `20261108130000_d4_kpi_daily_entries` | **Belum** (baru) | Tabel Daily KPI. |
+| `20261109120000_d4_director_kpi_role` | **Belum** (baru) | DIR-FAT dan DIR-GEN dipetakan ke peran KPI 2 "Director" (V5.1 dan V6). Cek live 9 Nov: keduanya belum punya peran KPI. |
 
 **Jangan pakai `supabase db push`.** Dua migrasi yang tidak tercatat akan dicoba diterapkan ulang dan gagal (katalog dan kolom sudah ada). Terapkan file satu per satu, sesuai urutan di bawah, lewat SQL editor atau `apply_migration` dengan nama file yang sama.
 
@@ -38,6 +39,9 @@ Database D4 adalah project Supabase bersama (`ufjbbwqaztgkqmpdmcyv`), dipakai ju
 | 4 | `20261020130000_d4_training_follow_up.sql` | Kolom `follow_up` belum ada | Kolom ada; follow-up training bisa disimpan |
 | 5 | `20261108120000_d4_management_read_only.sql` | `select d4_current_role()` sebagai akun DIR-* → `MANAGER` | Sebagai DIR-* → `MANAGEMENT`; snapshot tetap terbaca; POST apa pun → 403, kecuali Daily KPI miliknya sendiri setelah langkah 6 |
 | 6 | `20261108130000_d4_kpi_daily_entries.sql` | Tabel belum ada; langkah 1 dan 5 sudah selesai | Tabel ada; RLS aktif; grant `authenticated` hanya SELECT dan INSERT; menu Daily KPI bisa dipakai |
+| 7 | `20261109120000_d4_director_kpi_role.sql` | `select p.code, k.source_version, k.role_order from d4_position_kpi_roles k join d3_positions p on p.id = k.position_id where p.code like 'DIR-%'` → kosong | 4 baris: DIR-FAT dan DIR-GEN × V5.1/V6, `role_order = 2`. Director melihat "My KPI today" dengan KPI Director. |
+
+Langkah 7 butuh langkah 1 untuk baris V6. Bila dijalankan lebih dulu, baris V6 dilewati, jadi jalankan ulang setelah langkah 1; isinya tidak akan dobel.
 
 Langkah 6 bergantung pada langkah 1, karena trigger skor harus mengenal skala 1–100, dan pada langkah 5, karena policy insert merujuk ke `MANAGEMENT`.
 
@@ -63,6 +67,7 @@ Perilaku RLS langkah 5 dan 6 sudah diuji di Postgres 16 lokal dengan stub auth, 
 
 | # | Langkah |
 |---|---|
+| 7 | `delete from public.d4_position_kpi_roles where position_id in (select id from public.d3_positions where code in ('DIR-FAT', 'DIR-GEN')) and role_order = 2;` Lakukan sebelum ada scorecard atau entri harian Director. |
 | 6 | `drop table public.d4_kpi_daily_entries; drop function public.d4_current_kpi_role(text);` Entri harian ikut hilang; backup dulu bila sudah dipakai. |
 | 5 | Jalankan ulang definisi lama: `d4_current_role()` dari `20261013120000`, view `d4_employee` dari `20261017120000`, view `d4_employee_skills` dari `20261014120000`, dan lima policy baca dengan `array['HR','MANAGER']`. |
 | 4, 2 | Kolom baru bisa dibiarkan; aplikasi tetap jalan tanpa memakainya. Hapus hanya bila belum ada data di dalamnya. |
