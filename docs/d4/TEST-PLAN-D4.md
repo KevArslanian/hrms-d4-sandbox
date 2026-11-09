@@ -26,11 +26,11 @@ Di luar cakupan: sertifikasi/renewal, trigger performance-gap formal, dan reasse
 | US-D4-005 / FR-D4-005 Training Tracking | TC-D4-005 | 15 | [QA] Pengujian Phase 3 |
 | US-D4-006 / FR-D4-006 Dashboard KPI Orang | TC-D4-006 | 23 | [QA] Pengujian Phase 3 |
 | FR-D4-007 / TR-D4-001 Keterhubungan data | TC-D4-007 | 9 | [QA] Pengujian Integration, Security, Validation & UI Quality |
-| Daily KPI (wawancara D4, 14 Okt 2026) | TC-D4-008 | 12 (baru) | [QA] Pengujian Phase 1 |
+| Daily KPI (wawancara D4, 14 Okt 2026) | TC-D4-008 | 13 (baru) | [QA] Pengujian Phase 1 |
 | TR-D4-002 Security & audit | TC-D4-SEC | 9 | idem |
 | TR-D4-002 Validation & UI quality | TC-D4-UIQ | 13 | idem |
 | Skenario lintas fitur | TS-D4-001 s.d. 003 | 3 | [QA] TS-D4-00x (list To Do List QA) |
-| **Total** | | **139** | |
+| **Total** | | **140** | |
 
 Semua FR dan TR yang dapat diuji punya minimal satu TC positif dan satu TC negatif.
 
@@ -240,6 +240,7 @@ Keputusan 8 Nov 2026: pegawai mengisi skornya sendiri per hari; skor periode dik
 | TC-D4-008-10 | Test Finalize from Daily KPI: skor read-only, Notes dan Reference wajib, simpan membuat scorecard periode dengan total = skor kompilasi, lalu status menjadi Completed | Positif | Not Run | Staging: O5, O7 |
 | TC-D4-008-11 | Test Finalize tidak tersedia untuk diri sendiri, Employee, dan Management; grafik dan ringkasan dashboard tidak menghitung skor Compiled | Negatif | Not Run | Staging: O7, O8 |
 | TC-D4-008-12 | Test pengingat B5: pegawai yang belum mengisi hari ini melihat "Daily KPI hari ini belum diisi. Isi sebelum pulang."; setelah menyimpan, pengingat hilang | Positif | Not Run | Staging: O7 |
+| TC-D4-008-13 | Test lonceng notifikasi: badge "1" dan panel terbuka sendiri sekali per hari selama Daily KPI hari ini belum diisi; "Isi sekarang" membuka `/daily-kpi`; setelah diisi, badge hilang; Simulasi Employee langsung membuka `/daily-kpi` | Positif | Not Run | Staging: O7 |
 
 ### TC-D4-SEC · TR-D4-002 Security & audit
 
