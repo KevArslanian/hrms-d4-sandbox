@@ -1,6 +1,24 @@
 # Runbook migrasi D4 (8 Nov 2026)
 
-Database D4 adalah project Supabase bersama (`ufjbbwqaztgkqmpdmcyv`), dipakai juga oleh squad lain. Semua langkah di bawah **hanya dijalankan setelah PO D4 memberi izin**. Dokumen ini hanya menyiapkan; belum ada migrasi yang diterapkan dari cabang ini.
+Database D4 adalah project Supabase bersama (`ufjbbwqaztgkqmpdmcyv`), dipakai juga oleh squad lain. Semua langkah di bawah **hanya dijalankan setelah PO D4 memberi izin**.
+
+## Status: diterapkan 10 Nov 2026
+
+- **Izin:** PO D4 (Gabriella), disampaikan lewat WebDev. Syaratnya: hanya yang sesuai permintaan Mas Bram. Ketujuh langkah cocok dengan sumbernya, yaitu wawancara 14 Okt (B5, B6, B17, target 85 dan skala 1–100) dan jawaban mitra (Q10–Q16).
+- **Cara:** Supabase SQL Editor. Setiap file dibungkus `begin`/`commit` sehingga gagal di tengah berarti batal semua. Sebelum Run, isi editor dicocokkan dengan file lewat hash, dengan spasi awal baris diabaikan.
+- **Backup:** `d4_backup.*_20261110` untuk `d4_kpi_assessments` (71 baris), `d4_development_need_versions` (67), `d4_training_versions` (32), `d4_kpi_catalog_versions` (1), `d4_kpi_role_catalog` (100), dan `d4_position_kpi_roles` (13). RLS aktif, jadi tidak terbaca lewat API.
+- **Cek sesudah (read-only), semuanya sesuai tabel di bawah:**
+  - Langkah 1: V6 berlaku dari 2026-11, 50 baris katalog V6 dengan target 85, 8 posisi V6, `overall_score` menjadi `numeric(5,2)`, dan 0 dari 71 skor lama berubah.
+  - Langkah 2–4: kolom baru ada; constraint Reference berstatus NOT VALID.
+  - Langkah 5–7: 5 policy baca menerima MANAGEMENT; `d4_kpi_daily_entries` punya RLS, 2 policy, dan 2 trigger, dengan hak `authenticated` hanya SELECT dan INSERT dan tanpa akses `anon`; DIR-FAT dan DIR-GEN mendapat peran 2 untuk V5.1 dan V6.
+- **Riwayat:** 9 baris di `supabase_migrations.schema_migrations` (`created_by = 'd4-runbook'`), yaitu tujuh langkah ini ditambah `d4_kpi_catalog_v51` dan `d4_development_method_pic`.
+- **Di aplikasi:** akun Manager membuka Daily KPI dengan katalog V6 skala 1–100, tabel tim tampil, dan pengingat serta lonceng aktif.
+- **Belum dicek dengan akun-nya sendiri:**
+  - akun Director: tidak ada tombol simpan, POST ditolak 403 kecuali Daily KPI miliknya;
+  - akun Employee: Daily KPI menolak tanggal besok.
+- **Belum diputuskan:** scorecard periode 2026-12 di V5.1 (lihat "Temuan") tidak diubah.
+
+Tabel "Kondisi live" di bawah adalah kondisi sebelum penerapan.
 
 ## Kondisi live (dicek read-only, 8 Nov 2026)
 
