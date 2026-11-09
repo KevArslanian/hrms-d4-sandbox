@@ -212,6 +212,30 @@ Keputusan: skor periode dikompilasi otomatis, dan HR melakukan finalisasi. Daily
   5. Ada versi atau tanggal berlaku, supaya scorecard lama tetap memakai definisi saat disimpan.
 - **Permintaan data ke D1** (pemetaan, KPI ke-5, requirement kompetensi, dan data D3/B2 terkait): `docs/d4/drafts/PROMPT-VALENT-DATA-D1-UNTUK-D4.md`.
 
+## Permintaan wawancara 14 Okt yang bisa dipastikan · 9 Nov 2026
+
+Hanya permintaan yang jelas di transkrip Show & Tell (Mas Bram) dan sepenuhnya milik D4:
+
+- **B13 (01:48:13–01:49:03):** PIC "harus ada" agar bisa ditelusuri.
+  - PIC wajib di form Add Requirement, `POST /api/d4/development-needs`, dan fixture.
+  - Edit Requirement tidak bisa mengosongkan PIC. Requirement lama tanpa PIC tetap bisa diubah statusnya, dan alert "Tanpa PIC" tetap menandainya.
+  - Kolom `pic` sudah ada di live, jadi tidak perlu migrasi.
+- **B14 (01:46:09–01:47:34):** objective menyebut kompetensi yang kurang, level tujuan, dan cara menutup gap. Saran objective dari gap kini menambahkan "melalui <Method>" saat Method dipilih. Teks yang sudah diubah user tidak ditimpa.
+- **B12 (01:47:48–01:48:08):** saran Method mengikuti contoh klien: Internal training, External training, Certification, Coaching. Method tetap opsional dan boleh teks lain.
+- **B5 (00:32:52–00:33:46):** pegawai menilai KPI-nya setiap hari sebelum pulang.
+  - Halaman Daily KPI menampilkan pengingat selama hari ini belum diisi.
+  - Lonceng notifikasi di header mendapat badge. Panelnya terbuka sendiri sekali per hari di halaman mana pun selain Daily KPI, dan "Isi sekarang" membawa ke `/daily-kpi`.
+  - Masuk Simulasi Employee langsung membuka `/daily-kpi`, sehingga "My KPI today" tampil pertama.
+
+Tidak dikerjakan karena belum pasti atau bukan milik D4:
+- **B2:** UI target dan standar KPI. Menunggu kesepakatan definisi KPI dengan D1.
+- **B20:** dashboard per level HR. Isi tiap level tidak dijelaskan klien.
+- **B9 / A1:** durasi trainee 3 atau 6 bulan. Tidak ada tanggal mulai kerja di data D4, dan statusnya milik B2.
+- **A2:** wajibnya "dinilai bersama". Kolom `assessed_with` butuh migrasi `20261019120000`.
+- **A4:** promosi otomatis. Butuh riwayat posisi dari D3.
+- **B19:** alert ke MID beserta contoh dari klien. Butuh kontrak MID dan data D3.
+- **B21, B22, B23, B24:** milik B2, D3, atau proses persetujuan.
+
 ## Belum selesai
 
 | Item | Alasan | Langkah berikut |
