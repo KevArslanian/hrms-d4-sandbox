@@ -2,7 +2,7 @@ import type { CompetencyFinding } from "../../../competency/types";
 import type { DevelopmentNeedVersion } from "../../../development/types";
 import { openNeedFor } from "../../../shared/rules";
 import type { EmployeeReference } from "../../../shared/types";
-import { currentCompetencyStatus, currentGap, employeeSearchText, inTrainingOrPositionChange, includesText, latestCurrentPositionAssessment, positionOf, visibleEmployees, type CurrentCompetencyStatus, type Snapshot } from "../../data/selectors";
+import { byProgress, currentCompetencyStatus, currentGap, employeeSearchText, inTrainingOrPositionChange, includesText, latestCurrentPositionAssessment, positionOf, visibleEmployees, type CurrentCompetencyStatus, type Snapshot } from "../../data/selectors";
 import { statusLabel } from "../../ui/primitives";
 
 export type CompetencyRow = { employee: EmployeeReference; position: string; status: CurrentCompetencyStatus; findings: CompetencyFinding[]; lastAssessed?: string };
@@ -26,8 +26,13 @@ export function competencyRows(snapshot: Snapshot, filters: CompetencyFilters): 
   }).filter((row) => includesText(employeeSearchText(snapshot, row.employee), filters.search)
     && (!filters.position || row.employee.positionId === filters.position) && (!filters.department || row.employee.departmentId === filters.department)
     && (!filters.status || statusLabel(row.status) === filters.status) && (!filters.competency || row.findings.some((item) => item.competencyId === filters.competency)))
-    .sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName));
+    .sort(byProgress((row) => COMPETENCY_RANK[row.status] ?? 2, (row) => row.employee.fullName));
 }
+
+// Not assessed and open gaps first; met last, then rows where there is nothing to assess (no requirement).
+const COMPETENCY_RANK: Partial<Record<CurrentCompetencyStatus, number>> = {
+  "Not Evaluated": 0, Gap: 1, "Bukti Belum Cukup": 2, Terpenuhi: 3, "Belum Ada Persyaratan": 4,
+};
 
 /** Difference shown per competency, actual minus required: "−1" is one level short, "—" while no level is recorded. */
 export const formatDifference = (difference: number | null) =>

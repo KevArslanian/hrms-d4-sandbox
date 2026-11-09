@@ -9,7 +9,7 @@ import type { PerformanceEvaluation } from "../../../performance/types";
 import type { EmployeeReference } from "../../../shared/types";
 import type { KpiAssessment } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { canAssess, canWrite, departmentOf, describeSource, developmentNeeds, employeeById, employeeMeta, employeeSearchText, evaluationsOf, formatDate, formatGap, formatPeriod, formatScore, formatScorecard, includesText, latestScorecard, pendingCompilation, positionOf, revisionTag, scorecardsOf, thisMonth, visibleEmployees } from "../../data/selectors";
+import { canAssess, canWrite, departmentOf, describeSource, developmentNeeds, employeeById, employeeMeta, employeeSearchText, evaluationsOf, formatDate, formatGap, formatPeriod, byProgress, formatScore, formatScorecard, includesText, latestScorecard, pendingCompilation, positionOf, revisionTag, scorecardsOf, thisMonth, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
@@ -28,6 +28,8 @@ type Row = { employee: EmployeeReference; position: string; hasKpi: boolean; sco
 
 /** "Compiled": Daily KPI gave the period a score that HR has not finalized yet (B6). */
 const rowStatus = (row: Row) => row.compiled ? "Compiled" : scorecardStatus(row.scorecard);
+// Ready to finalize, then still to assess, then done; a position without KPI cannot be assessed, so it goes last.
+const performanceRank = (row: Row) => row.compiled ? 0 : !row.scorecard ? (row.hasKpi ? 1 : 3) : 2;
 
 /**
  * Performance Review (FR-D4-001 v3.1): one row per employee with the Total KPI, evaluation notes and evaluator of one
@@ -64,7 +66,7 @@ export function PerformanceListPage() {
   }).filter((row) => includesText(employeeSearchText(snapshot, row.employee), search)
     && (!position || row.employee.positionId === position) && (!department || row.employee.departmentId === department)
     && (!progress || rowStatus(row) === progress))
-    .sort((a, b) => a.employee.fullName.localeCompare(b.employee.fullName)), [snapshot, catalog, catalogSet, search, position, department, period, progress]);
+    .sort(byProgress(performanceRank, (row) => row.employee.fullName)), [snapshot, catalog, catalogSet, search, position, department, period, progress]);
 
   return <>
     <PageHeader title="Performance Review" subtitle="Lima Core KPI dan Notes per pegawai dan periode, dalam satu penilaian."

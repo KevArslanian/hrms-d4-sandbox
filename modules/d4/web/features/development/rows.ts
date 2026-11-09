@@ -1,5 +1,5 @@
 import type { DevelopmentNeedVersion } from "../../../development/types";
-import { developmentNeeds, employeeById, employeeSearchText, includesText, positionOf, visibleEmployees, type Snapshot } from "../../data/selectors";
+import { byProgress, developmentNeeds, employeeById, employeeSearchText, includesText, positionOf, reassessmentFor, visibleEmployees, type Snapshot } from "../../data/selectors";
 
 /** Empty string = no filter. `period` is the month the requirement was last recorded (YYYY-MM). */
 export type DevelopmentFilters = { search: string; department: string; sourceType: string; status: string; period: string; competency: string; priority: string };
@@ -30,8 +30,12 @@ export function developmentRows(snapshot: Snapshot, filters: DevelopmentFilters)
       && (!filters.department || employee?.departmentId === filters.department)
       && (!filters.sourceType || need.sourceType === filters.sourceType) && (!filters.status || need.status === filters.status) && (!filters.period || need.createdAt.startsWith(filters.period))
       && (!filters.priority || need.priority === filters.priority) && (!filters.competency || needCompetencyIds(snapshot, need).includes(filters.competency));
-  });
+  }).sort(byProgress((need) => need.status !== "Completed" ? DEVELOPMENT_RANK[need.status] : reassessmentFor(snapshot, need.needId) === "pending" ? 3 : 4,
+    (need) => employeeById(snapshot, need.employeeId)?.fullName ?? ""));
 }
+
+// Open requirements by stage, then Completed still waiting for HR's reassessment, then Completed and decided.
+const DEVELOPMENT_RANK: Record<string, number> = { Identified: 0, Planned: 1, "In Progress": 2 };
 
 /**
  * PIC choices (Q13): employees by name, labelled with their position; the name is what is stored (pic, text <= 120).
