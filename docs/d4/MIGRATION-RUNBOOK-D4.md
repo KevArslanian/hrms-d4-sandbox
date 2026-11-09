@@ -36,7 +36,7 @@ Database D4 adalah project Supabase bersama (`ufjbbwqaztgkqmpdmcyv`), dipakai ju
 | 2 | `20261019120000_d4_development_edit_reassessment.sql` | Kolom `priority` belum ada di `d4_development_need_versions` | Kolom ada; tes Development edit berjalan |
 | 3 | `20261020120000_d4_kpi_reference_required.sql` | `select count(*) from d4_kpi_assessments where evidence_reference is null or btrim(evidence_reference)=''` (3 baris lama boleh) | Constraint `d4_kpi_assessments_evidence_reference_required` ada (NOT VALID) |
 | 4 | `20261020130000_d4_training_follow_up.sql` | Kolom `follow_up` belum ada | Kolom ada; follow-up training bisa disimpan |
-| 5 | `20261108120000_d4_management_read_only.sql` | `select d4_current_role()` sebagai akun DIR-* → `MANAGER` | Sebagai DIR-* → `MANAGEMENT`; snapshot tetap terbaca; POST apa pun → 403 |
+| 5 | `20261108120000_d4_management_read_only.sql` | `select d4_current_role()` sebagai akun DIR-* → `MANAGER` | Sebagai DIR-* → `MANAGEMENT`; snapshot tetap terbaca; POST apa pun → 403, kecuali Daily KPI miliknya sendiri setelah langkah 6 |
 | 6 | `20261108130000_d4_kpi_daily_entries.sql` | Tabel belum ada; langkah 1 dan 5 sudah selesai | Tabel ada; RLS aktif; grant `authenticated` hanya SELECT dan INSERT; menu Daily KPI bisa dipakai |
 
 Langkah 6 bergantung pada langkah 1, karena trigger skor harus mengenal skala 1–100, dan pada langkah 5, karena policy insert merujuk ke `MANAGEMENT`.
@@ -48,7 +48,7 @@ Langkah 6 bergantung pada langkah 1, karena trigger skor harus mengenal skala 1�
   - mengisi untuk tanggal bulan lalu ditolak;
   - mengirim POST dengan `employeeId` orang lain tetap tersimpan atas nama diri sendiri.
 - **HR:** buka Add Performance Review untuk pegawai yang sudah mengisi Daily KPI. Actual harus terisi otomatis, dan Gap tampil.
-- **Director (DIR-GEN/DIR-FAT):** semua halaman bisa dibaca, label peran "Management", dan tidak ada tombol simpan. POST ke endpoint mana pun ditolak dengan 403.
+- **Director (DIR-GEN/DIR-FAT):** semua halaman bisa dibaca, label peran "Management", dan tidak ada tombol simpan untuk data orang lain. POST ke endpoint apa pun ditolak dengan 403, kecuali `POST /api/d4/kpi-daily` untuk Daily KPI miliknya sendiri (bila posisinya punya KPI).
 
 Perilaku RLS langkah 5 dan 6 sudah diuji di Postgres 16 lokal dengan stub auth, B2, dan D3 (8 Nov 2026).
 - Diterima: entri sendiri untuk hari ini, dan koreksi.
@@ -56,7 +56,8 @@ Perilaku RLS langkah 5 dan 6 sudah diuji di Postgres 16 lokal dengan stub auth, 
   - entri untuk orang lain, besok, periode lalu, atau periode yang tidak cocok dengan tanggal;
   - peran KPI lain dan skor 101;
   - UPDATE dan DELETE;
-  - Director, posisi tanpa KPI, dan anon.
+  - posisi tanpa KPI dan anon.
+- Diuji ulang 9 Nov setelah Director diizinkan mengisi Daily KPI sendiri: entri Director untuk dirinya diterima, entri Director untuk pegawai lain dan entri pegawai untuk Director ditolak.
 
 ## Rollback
 

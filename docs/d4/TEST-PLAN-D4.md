@@ -26,11 +26,11 @@ Di luar cakupan: sertifikasi/renewal, trigger performance-gap formal, dan reasse
 | US-D4-005 / FR-D4-005 Training Tracking | TC-D4-005 | 15 | [QA] Pengujian Phase 3 |
 | US-D4-006 / FR-D4-006 Dashboard KPI Orang | TC-D4-006 | 23 | [QA] Pengujian Phase 3 |
 | FR-D4-007 / TR-D4-001 Keterhubungan data | TC-D4-007 | 9 | [QA] Pengujian Integration, Security, Validation & UI Quality |
-| Daily KPI (wawancara D4, 14 Okt 2026) | TC-D4-008 | 13 (baru) | [QA] Pengujian Phase 1 |
+| Daily KPI (wawancara D4, 14 Okt 2026) | TC-D4-008 | 14 (baru) | [QA] Pengujian Phase 1 |
 | TR-D4-002 Security & audit | TC-D4-SEC | 9 | idem |
 | TR-D4-002 Validation & UI quality | TC-D4-UIQ | 13 | idem |
 | Skenario lintas fitur | TS-D4-001 s.d. 003 | 3 | [QA] TS-D4-00x (list To Do List QA) |
-| **Total** | | **140** | |
+| **Total** | | **141** | |
 
 Semua FR dan TR yang dapat diuji punya minimal satu TC positif dan satu TC negatif.
 
@@ -233,7 +233,7 @@ Keputusan 8 Nov 2026: pegawai mengisi skornya sendiri per hari; skor periode dik
 | TC-D4-008-03 | Test tanggal besok dan tanggal periode sebelumnya ditolak (form, API 422, RLS) | Negatif | Not Run | Staging: O7 |
 | TC-D4-008-04 | Test skor kosong, 0, 101 atau desimal ditolak (form, API 422, trigger) | Negatif | Not Run | Staging: O7 |
 | TC-D4-008-05 | Test POST `/api/d4/kpi-daily` dengan `employeeId`/`roleOrder` orang lain tetap tersimpan atas nama dan KPI akun yang login | Negatif | Not Run | Staging: O7 |
-| TC-D4-008-06 | Test akun Management dan akun tanpa data pegawai ditolak 403; posisi tanpa KPI melihat pesan "hubungi HR" | Negatif | Not Run | Staging: O7, O8 |
+| TC-D4-008-06 | Test akun tanpa data pegawai ditolak 403; posisi tanpa KPI melihat pesan "hubungi HR"; akun Management (Director) dengan KPI bisa menyimpan Daily KPI miliknya sendiri, tetapi tidak untuk pegawai lain | Negatif | Not Run | Staging: O7, O8 |
 | TC-D4-008-07 | Test Add Performance Review mengisi Actual dari rata-rata harian (dibulatkan) dengan pesan "Actual diisi dari rata-rata N entri", dan HR tetap bisa mengubahnya | Positif | Not Run | Staging: O5, O7 |
 | TC-D4-008-08 | Test alert People Dashboard: "Daily KPI di bawah target" setelah 3 entri berturut-turut di bawah 85, dan "Belum mengisi Daily KPI" untuk pegawai dengan KPI tanpa entri | Positif | Not Run | Staging: O7 |
 | TC-D4-008-09 | Test pegawai dengan Daily KPI tanpa scorecard periode itu tampil Compiled (total, jumlah entri, gap) di Performance Review dan People Dashboard, tanpa input manual | Positif | Not Run | Staging: O7 |
@@ -241,6 +241,7 @@ Keputusan 8 Nov 2026: pegawai mengisi skornya sendiri per hari; skor periode dik
 | TC-D4-008-11 | Test Finalize tidak tersedia untuk diri sendiri, Employee, dan Management; grafik dan ringkasan dashboard tidak menghitung skor Compiled | Negatif | Not Run | Staging: O7, O8 |
 | TC-D4-008-12 | Test pengingat B5: pegawai yang belum mengisi hari ini melihat "Daily KPI hari ini belum diisi. Isi sebelum pulang."; setelah menyimpan, pengingat hilang | Positif | Not Run | Staging: O7 |
 | TC-D4-008-13 | Test lonceng notifikasi: badge "1" dan panel terbuka sendiri sekali per hari selama Daily KPI hari ini belum diisi; "Isi sekarang" membuka `/daily-kpi`; setelah diisi, badge hilang; Simulasi Employee langsung membuka `/daily-kpi` | Positif | Not Run | Staging: O7 |
+| TC-D4-008-14 | Test kolom Category di tabel entri harian: Under/Average/High Performance per hari untuk skala 1–100, "—" untuk 1–5 | Positif | Not Run | Staging: O5, O7 |
 
 ### TC-D4-SEC · TR-D4-002 Security & audit
 
@@ -252,7 +253,7 @@ Kartu Planka: **[QA] Pengujian Integration, Security, Validation & UI Quality**
 | TC-D4-SEC-02 | Test authorization create | Positif | Not Run | Staging |
 | TC-D4-SEC-03 | Test authorization update | Positif | Not Run | Staging |
 | TC-D4-SEC-04 | Test user tanpa permission tidak dapat mengubah data | Negatif | Not Run | Staging |
-| TC-D4-SEC-05 | Test Management read-only: akun DIR-* berlabel Management, semua menu terbaca, tidak ada tombol simpan, POST ke semua endpoint 403, INSERT langsung ke tabel D4 ditolak RLS | Positif | Not Run | O8 |
+| TC-D4-SEC-05 | Test Management read-only: akun DIR-* berlabel Management, semua menu terbaca, tidak ada tombol simpan untuk data orang lain, POST ke semua endpoint 403 kecuali Daily KPI miliknya sendiri, INSERT langsung ke tabel D4 lain ditolak RLS | Positif | Not Run | O8 |
 | TC-D4-SEC-06 | Test data sensitive tidak terlihat oleh role yang tidak berhak | Negatif | Not Run | Staging |
 | TC-D4-SEC-07 | Test error tidak mengekspos token atau credential | Negatif | Not Run | Staging |
 | TC-D4-SEC-08 | Test audit actor | Positif | Not Run | Staging |

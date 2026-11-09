@@ -55,10 +55,10 @@ describe("daysBelowTarget", () => {
 describe("daily rules", () => {
   afterEach(() => { vi.useRealTimers(); });
 
-  it("lets every linked account except MANAGEMENT fill its own day", () => {
+  it("lets every linked account fill its own day, directors (MANAGEMENT) included", () => {
     expect(canFillDaily("EMPLOYEE", "e1")).toBe(true);
     expect(canFillDaily("HR", "e1")).toBe(true);
-    expect(canFillDaily("MANAGEMENT", "e1")).toBe(false);
+    expect(canFillDaily("MANAGEMENT", "e1")).toBe(true);
     expect(canFillDaily("EMPLOYEE", null)).toBe(false);
   });
 

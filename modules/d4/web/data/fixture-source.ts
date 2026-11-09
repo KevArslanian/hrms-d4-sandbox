@@ -17,7 +17,7 @@ import type { D4DataSource } from "./source";
 const HR_ACTOR = "d4000000-0000-4000-8000-000000000012";
 const ALFA = "d4000000-0000-4000-8000-000000000009";
 // NEXT_PUBLIC_D4_FIXTURE_ROLE=EMPLOYEE previews the self-service view as Kak Ismi (read-only);
-// MANAGEMENT previews a director (reads everything, writes nothing).
+// MANAGEMENT previews a director (reads everything, writes only their own Daily KPI).
 const FIXTURE_ROLES = ["EMPLOYEE", "MANAGER", "MANAGEMENT"] as const;
 const FIXTURE_ROLE = FIXTURE_ROLES.find((role) => role === process.env.NEXT_PUBLIC_D4_FIXTURE_ROLE) ?? "HR";
 const catalog = { version: "V5.1", rows: KPI_V51_CATALOG };
@@ -204,7 +204,6 @@ export function createFixtureSource(): D4DataSource {
     },
     // Mirrors POST /api/d4/kpi-daily: self-service, so the employee and KPI set come from the session, not the draft.
     async createDailyKpi(draft) {
-      if (state.role === "MANAGEMENT") throw new Error("Akun Management hanya dapat melihat data.");
       if (!canFillDaily(state.role, state.actorEmployeeId)) throw new Error("Akun ini belum terhubung ke data pegawai.");
       assertDailyDate(draft.entryDate);
       const period = draft.entryDate.slice(0, 7);
