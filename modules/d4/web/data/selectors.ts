@@ -1,4 +1,5 @@
-import { scaleMaxOf } from "../../kpi/scale";
+import { compileDaily } from "../../kpi/daily";
+import { kpiGap, scaleMaxOf } from "../../kpi/scale";
 import { compareCompetencies } from "../../competency/service";
 import type { CompetencyAssessment, CompetencyFinding, CompetencyOverallStatus } from "../../competency/types";
 import type { DevelopmentNeedVersion, DevelopmentSourceType } from "../../development/types";
@@ -25,7 +26,7 @@ export function asEmployee(snapshot: Snapshot, employeeId: string): Snapshot {
   const own = <T extends { employeeId: string }>(items: readonly T[]) => items.filter((item) => item.employeeId === employeeId);
   return {
     ...snapshot, role: "EMPLOYEE", actorEmployeeId: employeeId,
-    kpi: own(snapshot.kpi), kpiAssessments: snapshot.kpiAssessments && own(snapshot.kpiAssessments), performance: own(snapshot.performance),
+    kpi: own(snapshot.kpi), kpiAssessments: snapshot.kpiAssessments && own(snapshot.kpiAssessments), kpiDaily: snapshot.kpiDaily && own(snapshot.kpiDaily), performance: own(snapshot.performance),
     competency: own(snapshot.competency), developmentVersions: own(snapshot.developmentVersions), trainingVersions: own(snapshot.trainingVersions),
   };
 }
@@ -93,6 +94,8 @@ function indexOf(snapshot: Snapshot): SnapshotIndex {
 export const employeeById = (snapshot: Snapshot, id: string) => indexOf(snapshot).employees.get(id);
 export const positionOf = (snapshot: Snapshot, employee?: EmployeeReference) => employee?.positionId ? indexOf(snapshot).positions.get(employee.positionId) : undefined;
 export const positionById = (snapshot: Snapshot, id?: string | null) => id ? indexOf(snapshot).positions.get(id) : undefined;
+/** Title of a saved assessment's position, which may have left the position master since (UI-008). */
+export const positionTitle = (snapshot: Snapshot, id?: string | null) => positionById(snapshot, id)?.title ?? "posisi tidak ada di master";
 export const departmentOf = (snapshot: Snapshot, employee?: EmployeeReference) => employee?.departmentId ? indexOf(snapshot).departments.get(employee.departmentId) : undefined;
 /** Header line shared by every detail/history page: position · employee ID · department. */
 export const employeeMeta = (snapshot: Snapshot, employee: EmployeeReference) => [positionOf(snapshot, employee)?.title ?? "No position yet", employee.employeeId, departmentOf(snapshot, employee)?.name ?? ""];
@@ -113,6 +116,19 @@ export function revisionTag<T extends { id: string; employeeId: string; period: 
 }
 
 export const latestScorecard = (snapshot: Snapshot, employeeId: string) => scorecardsOf(snapshot, employeeId)[0];
+/**
+ * List order (9 Nov 2026): rows that still need action come first and finished ones last, so what is left to do is on
+ * the first page. `rank` is 0 for the most urgent; rows of the same rank stay in name order.
+ */
+export const byProgress = <T,>(rank: (row: T) => number, name: (row: T) => string) => (a: T, b: T) => rank(a) - rank(b) || name(a).localeCompare(name(b));
+/**
+ * B6: the period score compiled from Daily KPI, shown without manual input until HR finalizes it into a scorecard.
+ * Null once the period has a scorecard, which then takes over everywhere.
+ */
+export function pendingCompilation(snapshot: Snapshot, employeeId: string, period: string) {
+  if (!period || scorecardsOf(snapshot, employeeId).some((item) => item.period === period)) return null;
+  return compileDaily(snapshot.kpiDaily ?? [], employeeId, period);
+}
 
 /** Live comparison of the employee's current position requirements against recorded evidence. */
 export function currentGap(snapshot: Snapshot, employee: EmployeeReference): { findings: CompetencyFinding[]; overallStatus: CompetencyOverallStatus } | null {
@@ -193,6 +209,8 @@ export function objectiveFromFinding(finding: Pick<CompetencyFinding, "competenc
     ? `Naikkan ${finding.competencyName} ke level ${finding.requiredLevel}`
     : `Naikkan ${finding.competencyName} dari level ${finding.actualLevel} ke ${finding.requiredLevel}`;
 }
+/** B14 (interview D4, 14 Oct 2026): the objective also says how the gap is closed, taken from the chosen Method. */
+export const objectiveWithMethod = (objective: string, method: string) => objective && method.trim() ? `${objective} melalui ${method.trim()}` : objective;
 export const trainingHistory = (snapshot: Snapshot, trainingId: string) => snapshot.trainingVersions.filter((item) => item.trainingId === trainingId).sort((a, b) => b.revision - a.revision);
 
 export const sourceTypeLabel: Record<DevelopmentSourceType, string> = {
@@ -243,6 +261,14 @@ export function formatDate(value: string | undefined): string {
 
 export function formatScore(value: number | null | undefined, scale = 5): string {
   return value === null || value === undefined ? "—" : `${value.toFixed(2)} / ${scale}`;
+}
+
+/** KPI gap as shown: signed, "n/a (skala 1–5)" for a 1–5 score, "—" without a score. */
+export function formatGap(score: number | null | undefined, definitionVersion?: string | null): string {
+  if (score === null || score === undefined) return "—";
+  const gap = kpiGap(score, definitionVersion);
+  if (gap === null) return "n/a (skala 1–5)";
+  return `${gap > 0 ? "+" : ""}${Number.isInteger(gap) ? gap : gap.toFixed(2)}`;
 }
 
 /** "4.10 / 5" for a V5.1 scorecard, "82.50 / 100" for V6: every scorecard shows the scale it was saved under. */

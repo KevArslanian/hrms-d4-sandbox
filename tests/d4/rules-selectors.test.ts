@@ -3,13 +3,13 @@ import type { CompetencyAssessment } from "@/modules/d4/competency/types";
 import type { DevelopmentNeedVersion } from "@/modules/d4/development/types";
 import { assertDevelopmentChange, assertTrainingResult, passedTrainingCount, assertGapAssessed, assertNotFutureDate, assertEvaluationInPeriod, assertTrainingDate, nextDevelopmentRevision, openTrainingCount, isTrainingRollback, localMonth, localToday, reassessmentOf, retrainedAt, revisionNumber } from "@/modules/d4/shared/rules";
 import type { EmployeeReference } from "@/modules/d4/shared/types";
-import { asEmployee, assessableEmployees, inTrainingOrPositionChange, canWrite, currentCompetencyStatus, currentGap, latestCurrentPositionAssessment, objectiveFromFinding, revisionChanges, revisionTag, visibleEmployees, type Snapshot } from "@/modules/d4/web/data/selectors";
+import { asEmployee, assessableEmployees, inTrainingOrPositionChange, canWrite, currentCompetencyStatus, currentGap, latestCurrentPositionAssessment, objectiveFromFinding, objectiveWithMethod, revisionChanges, revisionTag, visibleEmployees, type Snapshot } from "@/modules/d4/web/data/selectors";
 import type { TrainingStatus } from "@/modules/d4/training/types";
 
 const ALFA = "d4000000-0000-4000-8000-000000000009";
 const MERCURY = "d4000000-0000-4000-8000-000000000012";
 
-async function fixtureAs(role: "HR" | "MANAGER" | "EMPLOYEE") {
+async function fixtureAs(role: "HR" | "MANAGER" | "MANAGEMENT" | "EMPLOYEE") {
   vi.stubEnv("NEXT_PUBLIC_D4_FIXTURE_ROLE", role);
   vi.resetModules();
   const { createFixtureSource } = await import("@/modules/d4/web/data/fixture-source");
@@ -146,6 +146,14 @@ describe("role views (fixture)", () => {
     expect(canWrite(await (await fixtureAs("MANAGER")).loadSnapshot())).toBe(true);
   });
 
+  it("MANAGEMENT sees every employee but cannot save (B17)", async () => {
+    const source = await fixtureAs("MANAGEMENT");
+    const snapshot = await source.loadSnapshot();
+    expect(canWrite(snapshot)).toBe(false);
+    expect(visibleEmployees(snapshot).length).toBe(snapshot.reference.employees.length);
+    await expect(source.createTraining({ employeeId: ALFA, developmentNeedId: null, activity: "Uji", date: "2026-10-01", status: "Planned", notes: "" } as never)).rejects.toThrow(/Hanya HR atau manager/);
+  });
+
   it("EMPLOYEE is read-only and receives only their own records", async () => {
     const source = await fixtureAs("EMPLOYEE");
     const snapshot = await source.loadSnapshot();
@@ -162,7 +170,7 @@ describe("role views (fixture)", () => {
     const snapshot = asEmployee(await (await fixtureAs("HR")).loadSnapshot(), ALFA);
     expect(canWrite(snapshot)).toBe(false);
     expect(visibleEmployees(snapshot).map((item) => item.id)).toEqual([ALFA]);
-    const records = [...snapshot.performance, ...(snapshot.kpiAssessments ?? []), ...snapshot.competency, ...snapshot.developmentVersions, ...snapshot.trainingVersions];
+    const records = [...snapshot.performance, ...(snapshot.kpiAssessments ?? []), ...(snapshot.kpiDaily ?? []), ...snapshot.competency, ...snapshot.developmentVersions, ...snapshot.trainingVersions];
     expect(records.length).toBeGreaterThan(0);
     expect(records.every((item) => item.employeeId === ALFA)).toBe(true);
   });
@@ -314,6 +322,10 @@ describe("development revision: edit, reassessment, objective", () => {
     expect(revisionChanges(need())).toEqual([]);
     expect(objectiveFromFinding({ competencyName: "Perencanaan Strategi & Anggaran", actualLevel: 3, requiredLevel: 4 })).toBe("Naikkan Perencanaan Strategi & Anggaran dari level 3 ke 4");
     expect(objectiveFromFinding({ competencyName: "Safety", actualLevel: null, requiredLevel: 3 })).toBe("Naikkan Safety ke level 3");
+    // B14: the way the gap is closed joins the objective once a Method is chosen.
+    expect(objectiveWithMethod("Naikkan Safety ke level 3", " Certification ")).toBe("Naikkan Safety ke level 3 melalui Certification");
+    expect(objectiveWithMethod("Naikkan Safety ke level 3", "")).toBe("Naikkan Safety ke level 3");
+    expect(objectiveWithMethod("", "Coaching")).toBe("");
   });
 });
 
@@ -338,5 +350,32 @@ describe("evaluation date within period", () => {
     expect(() => assertEvaluationInPeriod("2026-09", "2026-09-01")).not.toThrow();
     expect(() => assertEvaluationInPeriod("2026-09", "2026-10-05")).not.toThrow();
     expect(() => assertEvaluationInPeriod("2026-09", "")).not.toThrow(); // a missing date is reported by its own check
+  });
+});
+
+describe("Daily KPI in the fixture source (mirrors POST /api/d4/kpi-daily)", () => {
+  const draft = () => ({ entryDate: localToday(), lines: Array.from({ length: 5 }, () => ({ raw_score: 90, comment: "" })) });
+
+  it("lets an EMPLOYEE save their own day and keeps only their own entries", async () => {
+    const source = await fixtureAs("EMPLOYEE");
+    await source.createDailyKpi(draft());
+    const snapshot = await source.loadSnapshot();
+    expect(snapshot.kpiDaily?.every((item) => item.employeeId === ALFA)).toBe(true);
+    expect(snapshot.kpiDaily?.[0]).toMatchObject({ employeeId: ALFA, entryDate: localToday(), overallScore: 90 });
+  });
+
+  it("lets MANAGEMENT score their own day while every other write stays refused", async () => {
+    const source = await fixtureAs("MANAGEMENT");
+    // The fixture's MANAGEMENT actor holds a position without a KPI role: refused for that reason, not for the role.
+    await expect(source.createDailyKpi(draft())).rejects.toThrow(/belum memiliki KPI/);
+    await expect(source.createTraining({ employeeId: ALFA, developmentNeedId: "x", activity: "Uji", date: "2026-10-01", status: "Planned", result: "", notes: "" })).rejects.toThrow(/Hanya HR atau manager/);
+  });
+});
+
+describe("list order: still to do first, done last (9 Nov 2026)", async () => {
+  const { byProgress } = await import("@/modules/d4/web/data/selectors");
+  it("sorts by rank, then by name within the same rank", () => {
+    const rows = [{ name: "Budi", done: true }, { name: "Zaki", done: false }, { name: "Ani", done: true }, { name: "Citra", done: false }];
+    expect(rows.sort(byProgress((row) => row.done ? 1 : 0, (row) => row.name)).map((row) => row.name)).toEqual(["Citra", "Zaki", "Ani", "Budi"]);
   });
 });

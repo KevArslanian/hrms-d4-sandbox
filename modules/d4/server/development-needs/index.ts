@@ -1,6 +1,6 @@
 import type { DevelopmentPriority, DevelopmentSourceType, DevelopmentStatus } from "../../development/types";
 import { latestDevelopment, latestTraining } from "../../supabase/types";
-import { assertGapAssessed, assertNoOpenNeed, nextDevelopmentRevision, REASSESSMENTS } from "../../shared/rules";
+import { assertGapAssessed, assertNoOpenNeed, assertPicFilled, nextDevelopmentRevision, REASSESSMENTS } from "../../shared/rules";
 import { ApiError, employeeFilter, enforce, field, readJson } from "../_lib/http";
 import { d4Session, requireWriter } from "../_lib/session";
 
@@ -34,6 +34,7 @@ export async function createDevelopment(request: Request) {
     priority: field.oneOf(body, "priority", priorities), notes: field.text(body, "notes", { required: false, max: 2000 }),
     method: field.text(body, "method", { required: false, max: 120 }), pic: field.text(body, "pic", { required: false, max: 120 }),
   };
+  enforce(() => assertPicFilled(input.pic));
   const snapshot = await repository.loadSnapshot();
   enforce(() => assertNoOpenNeed(latestDevelopment(snapshot), input.employeeId, input.sourceType, input.sourceRef));
   enforce(() => assertGapAssessed(snapshot.competency, snapshot.reference.employees.find((item) => item.id === input.employeeId), input.sourceType));
@@ -57,6 +58,8 @@ export async function addDevelopmentVersion(request: Request, id: string) {
     pic: optional(body, "pic", () => field.text(body, "pic", { required: false, max: 120 })),
     reassessment: optional(body, "reassessment", () => field.oneOf(body, "reassessment", REASSESSMENTS)),
   };
+  // Clearing the PIC is refused; leaving it out keeps the current one (also an empty one on old requirements).
+  enforce(() => assertPicFilled(change.pic));
   // Checked here so an unknown or malformed id is a 404, not a database error.
   const snapshot = await repository.loadSnapshot();
   const needs = latestDevelopment(snapshot);

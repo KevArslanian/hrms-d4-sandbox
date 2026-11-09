@@ -97,7 +97,7 @@ describe("KPI scorecard (fixture)", () => {
 
 describe("development and training (fixture)", () => {
   it("allows one open requirement per competency gap and a new one after completion", async () => {
-    const draft = { employeeId: ALFA, sourceType: "competency_gap" as const, sourceRef: ALFA_GAP, objective: "Uji", priority: "High" as const, notes: "" };
+    const draft = { employeeId: ALFA, sourceType: "competency_gap" as const, sourceRef: ALFA_GAP, objective: "Uji", priority: "High" as const, notes: "", pic: "Budi" };
     await expect(source.createDevelopment(draft)).rejects.toThrow(/belum selesai/);
     await source.updateDevelopment("FIX-D4-DEV-001", "Completed", "Selesai");
     const needId = await source.createDevelopment({ ...draft, method: "Coaching", pic: "Budi" });

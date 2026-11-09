@@ -138,6 +138,120 @@ Keputusan pemilik produk: Performance Evaluation hanya berisi catatan; skor hany
 - People Dashboard: kolom Performance (skor) menjadi **Evaluation** (Completed / Not Evaluated); kartu profil menampilkan catatan evaluasi.
 - Database: migrasi `20261006120000_d4_evaluation_score_optional.sql` melonggarkan check `d4_performance_evaluations_check` (skor tidak wajib untuk status completed). Kolom `overall_score` tetap ada untuk evaluasi lama. **Belum diterapkan**; sampai diterapkan, simpan evaluasi di mode live ditolak database.
 
+## Perbaikan total D4 · 8 Nov 2026
+
+Cabang `feat/D4-perbaikan-total`, dibangun di atas PR #37. Dua migrasi baru disiapkan tetapi **belum diterapkan**. Urutan, cek, dan rollback ada di [MIGRATION-RUNBOOK-D4.md](MIGRATION-RUNBOOK-D4.md).
+
+**Bug**
+- **UI-005:** logo Andima di `/login` dan `/register` baru tampil mulai lebar 1024 px, jadi tidak menimpa form di 768–1023 px.
+- **UI-006:** sapaan memakai jam browser setelah hydrasi, bukan jam server (UTC).
+- **UI-008:** riwayat Competency Gap memakai fallback "posisi tidak ada di master", sama dengan People Dashboard.
+- `POST /api/d4/performance-evaluations` kini mewajibkan Reference, sama dengan endpoint KPI (Q12).
+
+**Director read-only (B17)**
+- Migrasi `20261108120000`: `DIR-*` dipetakan ke `MANAGEMENT`.
+- Semua policy baca dan view D4 menerima `MANAGEMENT`. Policy insert tetap HR/MANAGER.
+- Aplikasi menampilkan peran "Management" tanpa tombol simpan. Pengecualian (koreksi 9 Nov): Director mengisi Daily KPI miliknya sendiri, lihat bagian 9 Nov.
+
+**Daily KPI** (asumsi kerja, menunggu konfirmasi klien)
+- Menu baru `/daily-kpi`. Pegawai mengisi skor lima Core KPI miliknya per hari. Koreksi berarti entri baru di tanggal yang sama, dan entri terbaru yang dipakai.
+- HR, Manager, dan Management melihat tabel tim: jumlah hari terisi, skor kompilasi, dan gap terhadap 85.
+- Migrasi `20261108130000` membuat tabel `d4_kpi_daily_entries`. Database menegakkan:
+  - pemilik entri adalah akun yang login;
+  - peran KPI sesuai posisi sendiri;
+  - tanggal di periode WIB berjalan dan tidak lewat hari ini.
+- Diuji di Postgres lokal.
+- Add Performance Review mengisi Actual dari rata-rata harian (dibulatkan, karena trigger menyimpan skor bulat). HR tetap meninjau dan menyimpan.
+- Alert People Dashboard baru:
+  - "Daily KPI di bawah target": tiga entri terakhir berturut-turut di bawah 85;
+  - "Belum mengisi Daily KPI".
+
+**KPI gap**
+- Gap = skor − 85, ditampilkan per Core KPI (form dan detail) dan untuk Total KPI (list Performance Review, Ringkasan detail, profil Dashboard).
+- Skala 1–5 tidak dikonversi; tampil `n/a (skala 1–5)`.
+
+**Verifikasi**
+- `typecheck` dan `eslint` (0 error).
+- 448 tes Vitest.
+- Render di mode fixture untuk HR, Employee, dan Management:
+  - Daily KPI di 1440 px dan 375 px;
+  - prefill Performance Review;
+  - alert dashboard;
+  - login/register di 900 px dan 1440 px.
+
+## Skor periode otomatis dari Daily KPI · 8 Nov 2026
+
+Keputusan: skor periode dikompilasi otomatis, dan HR melakukan finalisasi. Daily KPI diisi pegawai saja. Integrasi definisi KPI D1 ditunda. Ini menjawab B6: klien menyebut input manual per periode sebagai langkah mundur.
+
+- **Performance Review:**
+  - Pegawai yang punya entri Daily KPI tetapi belum punya scorecard untuk periode itu tampil dengan status **Compiled**, total kompilasi, jumlah entri, dan gap terhadap 85.
+  - Tanpa filter periode, kompilasi periode berjalan menggantikan scorecard yang lebih lama.
+  - Filter status mendapat pilihan Compiled.
+- **Aksi baru "Finalize from Daily KPI"** (HR/Manager, bukan untuk diri sendiri):
+  - Skor kompilasi tampil read-only. HR menambahkan Notes dan Reference (Q12), lalu menyimpannya sebagai scorecard periode lewat `POST /api/d4/kpi-assessments` yang sudah ada.
+  - Tanggal evaluasi adalah hari ini untuk periode berjalan, atau hari terakhir periode untuk periode lalu.
+  - Mengubah skor tetap bisa lewat Add Performance Review.
+- **People Dashboard:**
+  - Pilihan periode ikut memuat periode Daily KPI.
+  - Kolom Total KPI menampilkan skor kompilasi dengan badge Compiled sampai difinalisasi.
+  - Grafik, ringkasan, dan alert Under Performance tetap hanya memakai scorecard yang sudah final.
+  - Efek samping: begitu ada entri Daily KPI, periode default dashboard bergeser ke bulan berjalan, karena itu periode terbaru yang sudah mulai.
+- **Server dan database:** tidak ada perubahan.
+
+**Syarat integrasi definisi KPI dari D1 (ditunda).** Kondisi live per 9 Nov 2026 (read-only). D1 memperbarui KPI-nya pada 8 Nov: kini 21 posisi D1 punya bobot 100% dengan target 85, dan sebagian besar berisi 4 KPI.
+- **Masih memblokir:**
+  - `d1_kpi_definitions` merujuk ke `d1_job_positions`, bukan ke `d3_positions` yang dipakai pegawai (B2) dan D4.
+  - Tabel pemetaan `d3_d1_position_mappings` masih 0 baris.
+  - 0 dari 14 posisi yang dipegang pegawai punya pasangan D1 Active dengan 5 KPI.
+- **Syarat sebelum D4 membaca KPI dari D1:**
+  1. Pemetaan posisi D3 ke D1 terisi untuk setiap posisi yang dipegang pegawai.
+  2. Hanya posisi `Active`.
+  3. Tepat 5 KPI per posisi dengan bobot 100%. FR-D4-002, constraint DB, dan trigger scorecard mensyaratkan 5 Core KPI.
+  4. Skala skor 1–100 dengan target 85. Sudah terpenuhi di data D1.
+  5. Ada versi atau tanggal berlaku, supaya scorecard lama tetap memakai definisi saat disimpan.
+- **Permintaan data ke D1** (pemetaan, KPI ke-5, requirement kompetensi, dan data D3/B2 terkait): `docs/d4/drafts/PROMPT-VALENT-DATA-D1-UNTUK-D4.md`.
+
+## Permintaan wawancara 14 Okt yang bisa dipastikan · 9 Nov 2026
+
+Hanya permintaan yang jelas di transkrip Show & Tell (Mas Bram) dan sepenuhnya milik D4:
+
+- **B13 (01:48:13–01:49:03):** PIC "harus ada" agar bisa ditelusuri.
+  - PIC wajib di form Add Requirement, `POST /api/d4/development-needs`, dan fixture.
+  - Edit Requirement tidak bisa mengosongkan PIC. Requirement lama tanpa PIC tetap bisa diubah statusnya, dan alert "Tanpa PIC" tetap menandainya.
+  - Kolom `pic` sudah ada di live, jadi tidak perlu migrasi.
+- **B14 (01:46:09–01:47:34):** objective menyebut kompetensi yang kurang, level tujuan, dan cara menutup gap. Saran objective dari gap kini menambahkan "melalui <Method>" saat Method dipilih. Teks yang sudah diubah user tidak ditimpa.
+- **B12 (01:47:48–01:48:08):** saran Method mengikuti contoh klien: Internal training, External training, Certification, Coaching. Method tetap opsional dan boleh teks lain.
+- **B5 (00:32:52–00:33:46):** pegawai menilai KPI-nya setiap hari sebelum pulang.
+  - Halaman Daily KPI menampilkan pengingat selama hari ini belum diisi.
+  - Lonceng notifikasi di header mendapat badge. Panelnya terbuka sendiri sekali per hari di halaman mana pun selain Daily KPI, dan "Isi sekarang" membawa ke `/daily-kpi`.
+  - Masuk Simulasi Employee langsung membuka `/daily-kpi`, sehingga "My KPI today" tampil pertama.
+
+- **Pencocokan ulang Daily KPI dengan transkrip 14 Okt:**
+  - **Director juga mengisi Daily KPI miliknya sendiri.** Contoh Mas Bram di 00:33:23 adalah seorang direktur yang menilai KPI direkturnya ("pencapaian target pendapatan operasional"). Penolakan untuk MANAGEMENT dihapus dari API, fixture, dan policy insert migrasi `20261108130000` (belum diterapkan, jadi diubah di tempat). Untuk data orang lain, Director tetap read-only (B17). Diuji ulang di Postgres lokal: entri sendiri diterima, entri untuk pegawai lain ditolak.
+  - **Peran KPI untuk posisi direktur.** Di live, DIR-FAT dan DIR-GEN belum punya peran KPI, jadi Director tetap tidak bisa mengisi Daily KPI. Migrasi `20261109120000` memetakan keduanya ke peran 2 "Director" di V5.1 dan V6, sama dengan KPI pada contoh Mas Bram. Ini sementara, sampai KPI direktur dari D1 bisa dipetakan. Diuji di Postgres lokal: bisa dijalankan ulang tanpa duplikat, dan Director menyimpan entri dengan KPI Director (total 84.50, sesuai rumus).
+  - **Kategori performa per hari (00:58:05, "nilainya ternyata high performance"):** tabel entri harian mendapat kolom Category untuk skala 1–100.
+  - **Masih terbuka:** notulen 14 Okt menulis "KPI harian ada di tim Raka (D1)" dan "pembagian KPI harian antara D4 dan D1 perlu didiskusikan lagi". Keputusan PO bersama D1 tetap dibutuhkan.
+
+- **Urutan daftar dinamis (permintaan 9 Nov):** di setiap halaman daftar, baris yang masih perlu ditindaklanjuti tampil di atas dan yang sudah selesai di bawah. Dalam kelompok yang sama, urutan tetap per nama.
+
+| Halaman | Urutan (atas ke bawah) |
+|---|---|
+| Performance Review | Compiled (siap Finalize), belum dinilai, sudah dinilai, posisi tanpa KPI |
+| Daily KPI (tim) | Periode berjalan: belum mengisi hari ini, lalu sudah. Periode lalu: tanpa entri, lalu ada entri. |
+| Competency Gap | Belum dinilai, Gap, Insufficient Data, Met, tanpa persyaratan |
+| Development Requirement | Identified, Planned, In Progress, Completed yang menunggu reassessment, Completed |
+| Training Tracking | Not Passed tanpa tindak lanjut, Planned, In Progress, Completed, Cancelled |
+| People Dashboard | Compiled, tanpa Performance Review, sudah dinilai |
+
+Tidak dikerjakan karena belum pasti atau bukan milik D4:
+- **B2:** UI target dan standar KPI. Menunggu kesepakatan definisi KPI dengan D1.
+- **B20:** dashboard per level HR. Isi tiap level tidak dijelaskan klien.
+- **B9 / A1:** durasi trainee 3 atau 6 bulan. Tidak ada tanggal mulai kerja di data D4, dan statusnya milik B2.
+- **A2:** wajibnya "dinilai bersama". Kolom `assessed_with` butuh migrasi `20261019120000`.
+- **A4:** promosi otomatis. Butuh riwayat posisi dari D3.
+- **B19:** alert ke MID beserta contoh dari klien. Butuh kontrak MID dan data D3.
+- **B21, B22, B23, B24:** milik B2, D3, atau proses persetujuan.
+
 ## Belum selesai
 
 | Item | Alasan | Langkah berikut |
@@ -148,5 +262,10 @@ Keputusan pemilik produk: Performance Evaluation hanya berisi catatan; skor hany
 | Docmost dan Planka tim | Keputusan: draft dulu | Terapkan isi `drafts/` setelah disetujui PO |
 | Sales Admin memakai KPI Sales & Marketing | V5.1 tidak punya role Sales Admin; pemetaan sementara | Keputusan PO (lihat `drafts/docmost/03-…`) |
 | Cakupan Manager (O7) | Manager masih melihat semua employee; butuh data atasan dari D3 | Keputusan PO + `supervisor_id` dari D3 |
+| Migrasi V6, edit development, Reference, follow-up training, Management, Daily KPI, peran KPI Director | Memengaruhi project bersama, perlu izin PO (cek 9 Nov 2026: ketujuhnya belum diterapkan) | Ikuti [MIGRATION-RUNBOOK-D4.md](MIGRATION-RUNBOOK-D4.md) |
+| Konfirmasi alur Daily KPI | Dibangun dengan asumsi: pegawai isi sendiri, HR memvalidasi rata-rata periode | Konfirmasi klien; bila skor periode harus otomatis tanpa HR, ubah Performance Review |
+| Definisi KPI dari D1 | D1 belum memenuhi syarat integrasi (lihat "Skor periode otomatis dari Daily KPI") | Koordinasi D1: posisi ke `d3_positions`, 5 KPI Active per posisi, bobot 100% |
+| Volume Daily KPI di snapshot | Snapshot memuat semua entri harian (sekitar 20 per pegawai per bulan) di setiap halaman; cukup untuk sandbox, tetapi tumbuh tanpa batas | Batasi ke periode berjalan + filter periode di API sebelum produksi |
+| Alert ke MID, input level kompetensi, Employee ID di `/register` | Milik squad lain (MID, D3, B2) atau kontraknya belum ada | Koordinasi lintas squad |
 | Kolom `review_status` (O8) dan unique index per periode/gap (O9) | Butuh migrasi Supabase bersama | Persetujuan PO/Back End |
 | HR Associate tanpa KPI | V5.1 tidak mendefinisikan KPI untuk HR Associate | Form menampilkan "Belum tersedia untuk position ini" dan menolak simpan; tunggu KPI dari PO |

@@ -18,7 +18,7 @@ const uuid = (n: number) => `e4000000-0000-4000-8000-${String(n).padStart(12, "0
 const NEED = uuid(1), TRAINING = uuid(2), PERF_ALFA = uuid(3), KPI_ALFA = uuid(4);
 const AUTH_USER = "a4000000-0000-4000-8000-000000000001";
 
-type AccessRow = { app_role: "HR" | "MANAGER" | "EMPLOYEE"; employee_id: string | null };
+type AccessRow = { app_role: "HR" | "MANAGER" | "MANAGEMENT" | "EMPLOYEE"; employee_id: string | null };
 // What Supabase answers for the signed-in user. `user: null` = no session cookie.
 let user: { id: string } | null;
 let accessRow: AccessRow | null;
@@ -38,6 +38,7 @@ const repository = {
   loadReferenceData: async () => snapshot.reference,
   savePerformance: record("savePerformance"),
   saveKpiAssessment: record("saveKpiAssessment"),
+  saveKpiDailyEntry: record("saveKpiDailyEntry"),
   saveCompetency: record("saveCompetency"),
   createDevelopment: record("createDevelopment"),
   updateDevelopment: record("updateDevelopment", undefined),
@@ -86,6 +87,8 @@ const trainingVersions = await import("@/app/api/d4/training-records/[id]/versio
 const trainingFollowUp = await import("@/app/api/d4/training-records/[id]/follow-up/route");
 const competency = await import("@/app/api/d4/competency-assessments/route");
 const snapshotRoute = await import("@/app/api/d4/snapshot/route");
+const daily = await import("@/app/api/d4/kpi-daily/route");
+const { localToday } = await import("@/modules/d4/shared/rules");
 
 const post = (body: unknown) => new Request("http://test/api", { method: "POST", body: typeof body === "string" ? body : JSON.stringify(body) });
 const params = (id: string) => ({ params: Promise.resolve({ id }) });
@@ -118,7 +121,7 @@ beforeEach(() => {
 afterEach(() => { vi.unstubAllEnvs(); });
 
 const evaluationBody = (patch: Record<string, unknown> = {}) => ({
-  employeeId: HOLLY, period: "2026-09", evaluationDate: "2026-09-30", status: "completed", overallScore: 4, generalNotes: "Uji", ...patch,
+  employeeId: HOLLY, period: "2026-09", evaluationDate: "2026-09-30", status: "completed", overallScore: 4, generalNotes: "Uji", evidenceReference: "DOC-1", ...patch,
 });
 const kpiBody = (patch: Record<string, unknown> = {}) => {
   const current = snapshot.kpiAssessments!.find((item) => item.id === KPI_ALFA)!;
@@ -131,7 +134,7 @@ const writeRoutes: [string, () => Promise<Response>][] = [
   ["POST /performance-evaluations", () => perf.POST(post(evaluationBody()))],
   ["POST /kpi-assessments", () => kpi.POST(post(kpiBody()))],
   ["POST /competency-assessments", () => competency.POST(post({ employeeId: ALFA, positionId: FINANCE_STAFF, effectiveDate: "2026-10-01" }))],
-  ["POST /development-needs", () => dev.POST(post({ employeeId: ALFA, sourceType: "performance_context", sourceRef: KPI_ALFA, objective: "Uji", priority: "High" }))],
+  ["POST /development-needs", () => dev.POST(post({ employeeId: ALFA, sourceType: "performance_context", sourceRef: KPI_ALFA, objective: "Uji", priority: "High", pic: "Mrs. Maya" }))],
   ["POST /development-needs/:id/versions", () => devVersions.POST(post({ status: "In Progress", notes: "Uji" }), params(NEED))],
   ["POST /development-needs/:id/versions (edit)", () => devVersions.POST(post({ status: "Planned", notes: "", priority: "High", pic: "Bu Maya" }), params(NEED))],
   ["POST /training-records", () => training.POST(post({ employeeId: ALFA, developmentNeedId: NEED, activity: "Uji", date: "2026-10-01", status: "Planned" }))],
@@ -155,8 +158,9 @@ describe("session guard: real requireWriter over a mocked Supabase client", () =
     expect(writes).toHaveLength(0);
   });
 
-  it.each(writeRoutes)("%s as EMPLOYEE → 403, nothing written", async (_name, send) => {
-    signIn("EMPLOYEE", ALFA);
+  it.each(writeRoutes.flatMap(([name, send]) => [["EMPLOYEE", name, send], ["MANAGEMENT", name, send]] as const))(
+    "as %s, %s → 403, nothing written", async (role, _name, send) => {
+    signIn(role, ALFA);
     const res = await call(send());
     expect(res).toMatchObject({ status: 403, body: { error: { code: "FORBIDDEN" } } });
     expect(res.body.error?.message).toMatch(/Hanya HR atau manager/);
@@ -165,8 +169,8 @@ describe("session guard: real requireWriter over a mocked Supabase client", () =
     expect(accessLookups).toEqual([{ table: "d4_user_access", filters: [["auth_user_id", AUTH_USER]] }]);
   });
 
-  it("EMPLOYEE can still read (reads only need a session; RLS limits the rows)", async () => {
-    signIn("EMPLOYEE", ALFA);
+  it.each(["EMPLOYEE", "MANAGEMENT"] as const)("%s can still read (reads only need a session; RLS limits the rows)", async (role) => {
+    signIn(role, ALFA);
     expect((await call(snapshotRoute.GET())).status).toBe(200);
   });
 
@@ -241,6 +245,7 @@ describe("POST /performance-evaluations", () => {
     ["status draft", { status: "draft" }, /status/],
     ["employeeId not UUID", { employeeId: "x" }, /UUID/],
     ["notes over 4000 chars", { generalNotes: "a".repeat(4001) }, /4000/],
+    ["blank Reference", { evidenceReference: "  " }, /Reference wajib/],
   ])("rejects %s with 422", async (_name, patch, message) => {
     const res = await call(perf.POST(post(evaluationBody(patch))));
     expect(res.status).toBe(422);
@@ -403,8 +408,18 @@ describe("POST /kpi-assessments", () => {
 });
 
 describe("development needs and training", () => {
-  const devBody = { employeeId: ALFA, sourceType: "competency_gap", sourceRef: ALFA_GAP, objective: "Uji", priority: "High" };
+  const devBody = { employeeId: ALFA, sourceType: "competency_gap", sourceRef: ALFA_GAP, objective: "Uji", priority: "High", pic: "Mrs. Maya" };
   const trainingBody = { employeeId: ALFA, developmentNeedId: NEED, activity: "Uji", date: "2026-10-01", status: "Planned" };
+
+  // B13 (interview D4, 14 Oct 2026): a requirement needs a PIC; an edit may not clear it, leaving it out keeps it.
+  it.each([
+    ["create without PIC", () => dev.POST(post({ ...devBody, sourceType: "performance_context", sourceRef: KPI_ALFA, pic: "" }))],
+    ["create with a blank PIC", () => dev.POST(post({ ...devBody, sourceType: "performance_context", sourceRef: KPI_ALFA, pic: "  " }))],
+    ["edit clearing the PIC", () => devVersions.POST(post({ status: "Planned", notes: "", pic: "" }), params(NEED))],
+  ])("rejects %s with 422", async (_name, send) => {
+    expect(await call(send())).toMatchObject({ status: 422, body: { error: { code: "VALIDATION_FAILED", message: "PIC wajib diisi." } } });
+    expect(writes).toHaveLength(0);
+  });
 
   it("rejects a second open need for the same gap", async () => {
     const res = await call(dev.POST(post(devBody)));
@@ -569,5 +584,45 @@ describe("unknown or malformed ids", () => {
     expect(res.status).toBe(201);
     expect(writes[0].args[0]).toMatchObject({ assessedWith: "Rina, Finance Manager" });
     expect((await call(competency.POST(post({ employeeId: ALFA, positionId: FINANCE_STAFF, effectiveDate: "2026-10-01", assessedWith: "x".repeat(201) })))).status).toBe(422);
+  });
+});
+
+describe("POST /kpi-daily (self-service, not HR-only)", () => {
+  const dailyBody = (patch: Record<string, unknown> = {}) => ({ entryDate: localToday(), lines: Array.from({ length: 5 }, () => ({ raw_score: 4, comment: "" })), ...patch });
+
+  it("lets an EMPLOYEE score their own day; the employee comes from the session, never the body", async () => {
+    signIn("EMPLOYEE", ALFA);
+    const res = await call(daily.POST(post(dailyBody({ employeeId: MERCURY, roleOrder: 1 }))));
+    expect(res.status).toBe(201);
+    const saved = writes[0].args[0] as { employeeId: string; roleOrder: number; lines: { kpi_name: string; raw_score: number }[] };
+    expect(saved.employeeId).toBe(ALFA);
+    expect(saved.roleOrder).not.toBe(1);
+    expect(saved.lines.map((line) => line.raw_score)).toEqual([4, 4, 4, 4, 4]);
+  });
+
+  it("lets MANAGEMENT (a director) score their own day; the rest stays read-only (interview 14 Oct, 00:33:23)", async () => {
+    signIn("MANAGEMENT", ALFA);
+    const res = await call(daily.POST(post(dailyBody({ employeeId: MERCURY }))));
+    expect(res.status).toBe(201);
+    expect((writes[0].args[0] as { employeeId: string }).employeeId).toBe(ALFA);
+  });
+
+  it("refuses an account without an employee record with 403", async () => {
+    signIn("EMPLOYEE", null);
+    expect((await call(daily.POST(post(dailyBody())))).status).toBe(403);
+    expect(writes).toHaveLength(0);
+  });
+
+  it.each([
+    ["a future day", { entryDate: "2999-01-01" }, /lebih dari hari ini/],
+    ["a day of an earlier period", { entryDate: "2026-01-15" }, /periode berjalan/],
+    ["a score above the 1–5 scale of V5.1", { lines: Array.from({ length: 5 }, () => ({ raw_score: 6, comment: "" })) }, /1 sampai 5/],
+    ["four lines", { lines: Array.from({ length: 4 }, () => ({ raw_score: 4, comment: "" })) }, /lima indikator/],
+  ])("rejects %s with 422", async (_name, patch, message) => {
+    signIn("EMPLOYEE", ALFA);
+    const res = await call(daily.POST(post(dailyBody(patch))));
+    expect(res.status).toBe(422);
+    expect(res.body.error?.message).toMatch(message);
+    expect(writes).toHaveLength(0);
   });
 });

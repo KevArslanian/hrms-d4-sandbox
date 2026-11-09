@@ -17,7 +17,7 @@ const buttonStyles: Record<ButtonVariant, string> = {
   danger: "bg-danger text-white hover:brightness-95 disabled:bg-muted disabled:text-ink-3",
   ghost: "bg-primary-50 text-primary-600 hover:bg-primary-100 disabled:bg-muted disabled:text-ink-3",
 };
-const buttonBase = "inline-flex h-10 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-[10px] px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 disabled:cursor-not-allowed";
+const buttonBase = "inline-flex h-10 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 disabled:cursor-not-allowed";
 
 export function Button({ variant = "primary", icon, children, className, ...props }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant; icon?: ReactNode }) {
   return <button type="button" data-testid={autoId("btn", children)} {...props} className={cx(buttonBase, buttonStyles[variant], className)}>{icon}{children}</button>;
@@ -40,7 +40,7 @@ const toneStyles: Record<Tone, string> = {
 // The label is always written out, so meaning never depends on colour alone.
 const statusTone: Record<string, Tone> = {
   Completed: "success", Terpenuhi: "success", "On Track": "success",
-  "In Progress": "info", Active: "info",
+  "In Progress": "info", Active: "info", Compiled: "info",
   Planned: "warning", "Needs Review": "warning", Identified: "warning", Draft: "neutral",
   Gap: "danger", Cancelled: "danger", "Needs Attention": "danger",
   // KPI score bands (1–100 scorecards): below 80 yellow, 80–85 average, above 85 high.

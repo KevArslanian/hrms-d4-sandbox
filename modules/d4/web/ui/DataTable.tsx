@@ -14,9 +14,12 @@ export type Column<T> = {
   wrap?: boolean;
   /** Secondary column: hidden below 1400 px so the primary columns keep their room (matches Figma frame 28). */
   secondary?: boolean;
+  /** Hidden below 1280 px, where the table shares a small laptop screen with the sidebar; the cell stays in the DOM. */
+  optional?: boolean;
 };
 
-const secondaryCell = (column: { secondary?: boolean }) => column.secondary && "hidden min-[1400px]:table-cell";
+const secondaryCell = (column: { secondary?: boolean; optional?: boolean }) =>
+  column.secondary ? "hidden min-[1400px]:table-cell" : column.optional && "hidden min-[1280px]:table-cell";
 
 const PAGE_SIZES = [10, 20, 50, 100] as const;
 
@@ -72,7 +75,7 @@ export function DataTable<T>({ rows, columns, rowKey, actions, emptyTitle, empty
 
   return <section className="min-w-0 overflow-hidden rounded-2xl border border-line bg-surface shadow-card">
     <div ref={scroller} onScroll={measure} data-covered={covered} className="group overflow-x-auto">
-      <table data-testid="data-table" className="w-full min-w-[760px] text-left text-sm">
+      <table data-testid="data-table" className="w-full min-w-[640px] text-left text-sm">
         <thead className="bg-app">
           <tr>{columns.map((column) => <th key={column.key} scope="col" className={cx("px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3", secondaryCell(column), column.className)}>{column.header}</th>)}
             {actions && <th scope="col" className={cx(stickyAction, "w-16 bg-app px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3")}>Actions</th>}</tr>

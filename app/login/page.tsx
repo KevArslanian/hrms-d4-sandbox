@@ -4,6 +4,7 @@ import React, { useState, FormEvent, ChangeEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
+import { useGreeting } from '@/lib/useGreeting';
 import { loginErrorMessage } from '@/lib/loginErrorMessage';
 
 // B2 (PISD-B) tidak memuat webfont, jadi var font jatuh ke system stack. Samakan.
@@ -18,8 +19,7 @@ export default function LoginPage() {
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState<string>('');
   const [isSigningIn, setIsSigningIn] = useState<boolean>(false);
-  const hour = new Date().getHours();
-  const greeting = hour >= 3 && hour < 12 ? 'Good Morning' : hour >= 12 && hour < 17 ? 'Good Afternoon' : 'Good Evening';
+  const greeting = useGreeting();
 
   const validateEmailFormat = (emailVal: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -91,7 +91,7 @@ export default function LoginPage() {
       <div className="absolute -bottom-20 left-1/3 w-96 h-96 bg-[#3B6FF5]/30 rounded-full blur-3xl pointer-events-none z-0" />
 
       {/* 2. BRAND TEXT (TITLE) MENGGUNAKAN FONT SYNE */}
-      <div className="hidden md:flex absolute top-1/2 -translate-y-1/2 right-8 lg:right-16 xl:right-24 z-20 pointer-events-none flex-col items-end text-right max-w-lg">
+      <div className="hidden lg:flex absolute top-1/2 -translate-y-1/2 right-16 xl:right-24 z-20 pointer-events-none flex-col items-end text-right max-w-lg">
         <div className="w-32 sm:w-40 lg:w-48 mb-4"><img src="/andima-logo.png" alt="Logo Andima" width={400} height={246} className="w-full h-auto object-contain drop-shadow-lg" data-testid="login-logo" /></div>
         <h1 className="font-[family-name:var(--font-syne)] text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-wider text-white drop-shadow-md leading-tight">
           PT. ANDIMA<br />
@@ -111,7 +111,7 @@ export default function LoginPage() {
 
             {/* Greeting */}
             <div className="mb-7 text-left relative z-10">
-              <h2 suppressHydrationWarning className="font-[family-name:var(--font-syne)] text-xl sm:text-2xl font-bold text-[#0D1B2A] tracking-tight">
+              <h2 className="font-[family-name:var(--font-syne)] text-xl sm:text-2xl font-bold text-[#0D1B2A] tracking-tight">
                 {greeting},
               </h2>
               <p className="font-[family-name:var(--font-montserrat)] text-sm text-[#334155] mt-1.5 font-medium">

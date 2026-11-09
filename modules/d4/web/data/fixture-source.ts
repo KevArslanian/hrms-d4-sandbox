@@ -5,8 +5,8 @@ import { scaleMaxOf } from "../../kpi/scale";
 import { performanceFixtureRecords } from "../../performance/fixtures";
 import { validatePerformanceInput } from "../../performance/validation";
 import { d4ReferenceFixture } from "../../shared/fixtures";
-import { assertGapAssessed, assertTrainingDate, assertNeedOpen, assertNoOpenNeed, assertTrainingResult, assertNotFutureDate, assertEvaluationInPeriod, assertNotSelf, assertPeriodRevision, assertTrainingChange, assertTrainingFollowUp, nextDevelopmentRevision, retrainingNotes } from "../../shared/rules";
-import type { D4LiveSnapshot, KpiAssessment, KpiAssessmentLine } from "../../supabase/types";
+import { assertDailyDate, assertGapAssessed, assertPicFilled, canFillDaily, localMonth, localToday, assertTrainingDate, assertNeedOpen, assertNoOpenNeed, assertTrainingResult, assertNotFutureDate, assertEvaluationInPeriod, assertNotSelf, assertPeriodRevision, assertTrainingChange, assertTrainingFollowUp, nextDevelopmentRevision, retrainingNotes } from "../../shared/rules";
+import type { D4LiveSnapshot, KpiAssessment, KpiAssessmentLine, KpiDailyEntry } from "../../supabase/types";
 import { latestDevelopment, latestTraining } from "../../supabase/types";
 import { trainingFixtureVersions } from "../../training/fixtures";
 import type { D4DataSource } from "./source";
@@ -16,8 +16,10 @@ import type { D4DataSource } from "./source";
 // mirror the server so the UI behaves the same as in live mode.
 const HR_ACTOR = "d4000000-0000-4000-8000-000000000012";
 const ALFA = "d4000000-0000-4000-8000-000000000009";
-// NEXT_PUBLIC_D4_FIXTURE_ROLE=EMPLOYEE previews the self-service view as Kak Ismi (read-only).
-const FIXTURE_ROLE = process.env.NEXT_PUBLIC_D4_FIXTURE_ROLE === "EMPLOYEE" ? "EMPLOYEE" : process.env.NEXT_PUBLIC_D4_FIXTURE_ROLE === "MANAGER" ? "MANAGER" : "HR";
+// NEXT_PUBLIC_D4_FIXTURE_ROLE=EMPLOYEE previews the self-service view as Kak Ismi (read-only);
+// MANAGEMENT previews a director (reads everything, writes only their own Daily KPI).
+const FIXTURE_ROLES = ["EMPLOYEE", "MANAGER", "MANAGEMENT"] as const;
+const FIXTURE_ROLE = FIXTURE_ROLES.find((role) => role === process.env.NEXT_PUBLIC_D4_FIXTURE_ROLE) ?? "HR";
 const catalog = { version: "V5.1", rows: KPI_V51_CATALOG };
 
 function kpiLines(roleOrder: number, scores: (number | null)[], actual: string[]): KpiAssessmentLine[] {
@@ -41,6 +43,27 @@ function assessment(id: string, employeeId: string, roleOrder: number, period: s
   };
 }
 
+
+/**
+ * Daily KPI of the running WIB period up to yesterday: Kak Ismi mostly above target, Kak Dian under it on the last
+ * days, so the dashboard alert has a case. On the 1st of a month there is no earlier day yet, so no entries.
+ */
+function dailyFixture(): KpiDailyEntry[] {
+  const period = localMonth();
+  const periodCatalog = catalogFor(seedCatalogSet(d4ReferenceFixture.positions), period);
+  if (!periodCatalog) return [];
+  const days = Array.from({ length: Math.min(Number(localToday().slice(8)) - 1, 6) }, (_, index) => `${period}-${String(index + 1).padStart(2, "0")}`);
+  const people: [string, number[]][] = [[ALFA, [88, 86, 90, 84, 87, 89]], ["d4000000-0000-4000-8000-000000000011", [86, 85, 83, 80, 79, 78]]];
+  return people.flatMap(([employeeId, totals]) => {
+    const roleOrder = roleForPosition(periodCatalog, d4ReferenceFixture.employees.find((item) => item.id === employeeId)?.positionId);
+    const indicators = indicatorsFor(periodCatalog, roleOrder);
+    if (indicators.length !== 5) return [];
+    return days.map((entryDate, index) => {
+      const lines = indicators.map((row) => ({ indicator_order: row.indicator_order, kpi_name: row.kpi_name, weight_percent: row.weight_percent, target: targetOf(row), actual: String(totals[index]), raw_score: totals[index], comment: "" }));
+      return { id: `FIX-D4-DAILY-${employeeId.slice(-2)}-${index + 1}`, definitionVersion: periodCatalog.version, employeeId, entryDate, period, roleOrder, roleName: indicators[0].role_name, lines, overallScore: total(lines), createdAt: `${entryDate}T10:00:00.000Z` };
+    });
+  });
+}
 
 // Load test (lecturer request): NEXT_PUBLIC_D4_FIXTURE_ROWS=1000 adds that many departments, positions,
 // employees and records of every kind, so list pages, filters and forms can be checked at volume.
@@ -96,6 +119,7 @@ function initialSnapshot(): D4LiveSnapshot {
       assessment("FIX-D4-KPI-001", alfa, 10, "2026-09", [4, 5, 4, 3, 4], "completed"),
       assessment("FIX-D4-KPI-002", alfa, 10, "2026-06", [3, 4, 4, 3, 3], "completed"),
     ],
+    kpiDaily: dailyFixture(),
     performance: performanceFixtureRecords,
     competency: [{
       id: "FIX-D4-COMP-ASSESS-001", source: "local-demo", employeeId: alfa, positionId: finance, effectiveDate: "2026-09-21",
@@ -123,7 +147,7 @@ function initialSnapshot(): D4LiveSnapshot {
 function ownRecords(snapshot: D4LiveSnapshot): D4LiveSnapshot {
   const own = <T extends { employeeId: string }>(items: readonly T[]) => items.filter((item) => item.employeeId === snapshot.actorEmployeeId);
   return {
-    ...snapshot, performance: own(snapshot.performance), kpiAssessments: own(snapshot.kpiAssessments ?? []), competency: own(snapshot.competency),
+    ...snapshot, performance: own(snapshot.performance), kpiAssessments: own(snapshot.kpiAssessments ?? []), kpiDaily: own(snapshot.kpiDaily ?? []), competency: own(snapshot.competency),
     developmentVersions: own(snapshot.developmentVersions), trainingVersions: own(snapshot.trainingVersions),
   };
 }
@@ -135,7 +159,7 @@ const delay = () => new Promise((resolve) => setTimeout(resolve, 250));
 export function createFixtureSource(): D4DataSource {
   let state = BULK_ROWS ? withBulk(initialSnapshot(), BULK_ROWS) : initialSnapshot();
   const update = (patch: Partial<D4LiveSnapshot>) => { state = { ...state, ...patch }; };
-  const assertWriter = () => { if (state.role === "EMPLOYEE") throw new Error("Hanya HR atau manager yang dapat menyimpan perubahan."); };
+  const assertWriter = () => { if (state.role !== "HR" && state.role !== "MANAGER") throw new Error("Hanya HR atau manager yang dapat menyimpan perubahan."); };
   // The evaluator is always the signed-in actor, never a free-text value from the form.
   const actorName = () => state.reference.employees.find((item) => item.id === state.actorEmployeeId)?.fullName ?? "HR";
   return {
@@ -178,6 +202,26 @@ export function createFixtureSource(): D4DataSource {
       update({ kpiAssessments: [{ ...input, id, definitionVersion: periodCatalog.version, roleName: indicators[0].role_name, overallScore: total(input.lines), createdAt: now(), actor: actorName() }, ...(state.kpiAssessments ?? [])] });
       return id;
     },
+    // Mirrors POST /api/d4/kpi-daily: self-service, so the employee and KPI set come from the session, not the draft.
+    async createDailyKpi(draft) {
+      if (!canFillDaily(state.role, state.actorEmployeeId)) throw new Error("Akun ini belum terhubung ke data pegawai.");
+      assertDailyDate(draft.entryDate);
+      const period = draft.entryDate.slice(0, 7);
+      const periodCatalog = catalogFor(seedCatalogSet(state.reference.positions), period);
+      if (!periodCatalog) throw new Error(`Belum ada katalog KPI yang berlaku untuk periode ${period}.`);
+      const roleOrder = roleForPosition(periodCatalog, state.reference.employees.find((item) => item.id === state.actorEmployeeId)?.positionId);
+      const indicators = indicatorsFor(periodCatalog, roleOrder);
+      if (!roleOrder || indicators.length !== 5) throw new Error(`Posisi Anda belum memiliki KPI di katalog ${periodCatalog.version}. Hubungi HR.`);
+      const maxScore = scaleMaxOf(periodCatalog.version);
+      const lines = indicators.map((row, index) => {
+        const score = draft.lines[index]?.raw_score;
+        if (typeof score !== "number" || !Number.isInteger(score) || score < 1 || score > maxScore) throw new Error(`Skor ${row.kpi_name} harus bilangan bulat 1 sampai ${maxScore}.`);
+        return { indicator_order: row.indicator_order, kpi_name: row.kpi_name, weight_percent: row.weight_percent, target: targetOf(row), actual: String(score), raw_score: score, comment: draft.lines[index]?.comment.trim() ?? "" };
+      });
+      const id = newId("FIX-D4-DAILY");
+      update({ kpiDaily: [{ id, definitionVersion: periodCatalog.version, employeeId: state.actorEmployeeId, entryDate: draft.entryDate, period, roleOrder, roleName: indicators[0].role_name, lines, overallScore: total(lines), createdAt: now() }, ...(state.kpiDaily ?? [])] });
+      return id;
+    },
     async saveCompetency(input) {
       assertWriter();
       const employee = state.reference.employees.find((item) => item.id === input.employeeId);
@@ -192,6 +236,7 @@ export function createFixtureSource(): D4DataSource {
       assertWriter();
       if (!input.objective.trim()) throw new Error("Development objective wajib diisi.");
       if (!input.sourceRef) throw new Error("Source reference wajib diisi.");
+      assertPicFilled(input.pic ?? "");
       assertNoOpenNeed(latestDevelopment(state), input.employeeId, input.sourceType, input.sourceRef);
       assertGapAssessed(state.competency, state.reference.employees.find((item) => item.id === input.employeeId), input.sourceType);
       const needId = newId("FIX-D4-DEV");
@@ -203,6 +248,7 @@ export function createFixtureSource(): D4DataSource {
       const needs = latestDevelopment(state);
       const current = needs.find((item) => item.needId === needId);
       if (!current) throw new Error("Development requirement tidak ditemukan.");
+      assertPicFilled(edit?.pic);
       // The spread carries priority/method/PIC forward; reassessment belongs to the revision that records it.
       const next = nextDevelopmentRevision(current, { ...edit, status, notes }, needs, latestTraining(state), state.developmentVersions.filter((item) => item.needId === needId));
       update({ developmentVersions: [{ ...current, ...next, id: newId("FIX-D4-DEV-V"), revision: current.revision + 1, createdAt: now(), actor: actorName() }, ...state.developmentVersions] });

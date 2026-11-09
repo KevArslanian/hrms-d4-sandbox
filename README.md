@@ -16,6 +16,7 @@ Sidebar HRMS → **Performance & Training** berisi enam menu. FR-D4-007 (traceab
 | FR-D4-004 | Development Requirement | `/development`, `/development/[id]`, `/development/[id]/history` |
 | FR-D4-005 | Training Tracking | `/training`, `/training/[id]`, `/training/[id]/history` |
 | FR-D4-006 | People Dashboard | `/dashboard`, `/dashboard/employee/[id]` |
+| Daily KPI (8 Nov 2026) | Daily KPI | `/daily-kpi`, `/daily-kpi/[employeeId]` |
 
 Semua fitur memakai pola yang sama ([UI-D4-001](docs/d4/UI-D4-001.md)): menu ⋮ langsung berisi aksi, Detail dan History sebagai halaman tersendiri, form modal 640 px (KPI 880 px), dan state loading/empty/error/validation/success.
 
@@ -86,6 +87,8 @@ Butuh `D4_SEED_EMAIL` dan `D4_SEED_PASSWORD` akun HR/MANAGER di `.env.local`. Se
 | `20260929140000_d4_kpi_assessments_v31.sql` | Diterapkan |
 | `20260929150000_d4_kpi_catalog_v51.sql` | **Belum**. Menambah katalog V5.1 dan `definition_version`; perlu persetujuan sebelum diterapkan |
 | `20261006120000_d4_evaluation_score_optional.sql` | **Belum**. Evaluasi completed tidak lagi wajib punya `overall_score`; tanpa migrasi ini simpan evaluasi di mode live ditolak database |
+
+Status terbaru (8 Nov 2026), urutan penerapan, dan rollback: [docs/d4/MIGRATION-RUNBOOK-D4.md](docs/d4/MIGRATION-RUNBOOK-D4.md). Tabel di atas adalah catatan lama.
 
 Status dicek dengan `list_migrations` pada 29 Sep 2026. Nama migrasi di database sama, tetapi timestamp versinya berbeda dari nama file (misalnya `d4_kpi_role_catalog_v31` tercatat sebagai `20260929043134`).
 

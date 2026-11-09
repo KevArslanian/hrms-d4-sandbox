@@ -28,6 +28,8 @@
 
   --color-line: #e2e8f0;
   --color-line-strong: #cbd5e1;
+  /* PISD design system (Figma "design system"): highlighted option or menu item, rgba(195,198,215,.7) on white. */
+  --color-selected: #d5d7e3;
 
   --color-success: #16a37a;
   --color-success-bg: #e7f7f1;

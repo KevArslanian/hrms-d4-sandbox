@@ -10,7 +10,8 @@
 | [EMPLOYEE-RULES-D4.md](EMPLOYEE-RULES-D4.md) | User story dan ketetapan sistem peran Employee (identitas dari B2, hak baca/tulis, tampilan, error) |
 | [OBJECTIVE-COMPETENCY-GAP.md](OBJECTIVE-COMPETENCY-GAP.md) | Objective Competency Gap: tujuan, kompetensi per posisi, alur gap → requirement → training → reassessment, metode penutup gap, batasan D3/D1 (draf, menunggu persetujuan) |
 | [AUDIT-UX-D4.md](AUDIT-UX-D4.md) | Audit UX, flow, dan traceability FR → route → Figma → Planka |
-| [TEST-PLAN-D4.md](TEST-PLAN-D4.md) | Test plan + Requirement Traceability Matrix (121 TC/TS), format PASS/FAIL/BLOCKED, dependency |
+| [TEST-PLAN-D4.md](TEST-PLAN-D4.md) | Test plan + Requirement Traceability Matrix (141 TC/TS), format PASS/FAIL/BLOCKED, dependency |
+| [MIGRATION-RUNBOOK-D4.md](MIGRATION-RUNBOOK-D4.md) | Status migrasi live (8 Nov 2026), urutan penerapan, cek sebelum/sesudah, rollback |
 | [QA-STABILITY-D4.md](QA-STABILITY-D4.md) | Uji stabilitas (`npm test`, 90 tes + crawl browser) dan bug log BUG-D4-001…004 |
 | [PLANKA-D4.md](PLANKA-D4.md) | Konvensi board Planka "Squad D4" (layout, nama, label peran) + matriks kartu ↔ bukti |
 | [drafts/](drafts/README.md) | Teks siap tempel untuk Docmost (belum diterapkan) dan Planka (diterapkan 30 Sep 2026) |

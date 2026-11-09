@@ -5,7 +5,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import type { DevelopmentPriority, DevelopmentReassessment, DevelopmentSourceType, DevelopmentStatus } from "../../../development/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
 import { isDevelopmentRollback, openNeedFor, passedTrainingCount, retrainedAt } from "../../../shared/rules";
-import { currentGap, DEFAULT_SOURCE_TYPE, developmentById, developmentHistory, developmentNeeds, employeeById, formatDate, formatPeriod, latestCurrentPositionAssessment, objectiveFromFinding, positionOf, reassessmentFor, scorecardsOf, sourceTypeLabel, today, trainings, visibleEmployees } from "../../data/selectors";
+import { currentGap, DEFAULT_SOURCE_TYPE, developmentById, developmentHistory, developmentNeeds, employeeById, formatDate, formatPeriod, latestCurrentPositionAssessment, objectiveFromFinding, objectiveWithMethod, positionOf, reassessmentFor, scorecardsOf, sourceTypeLabel, today, trainings, visibleEmployees } from "../../data/selectors";
 import { FormError, FormModal, ModalActions, RadioField, ReadOnlyField, SearchSelectField, SelectField, TextAreaField, TextField } from "../../ui/forms";
 import { Notice, statusLabel } from "../../ui/primitives";
 import { picOptions } from "./rows";
@@ -33,9 +33,10 @@ export function sourceOptions(snapshot: ReturnType<typeof useSnapshot>, employee
     .map((item) => ({ ref: item.id, label: `Performance Review ${formatPeriod(item.period)} · ${item.evaluatorName || "—"}` }));
 }
 
-const DEVELOPMENT_METHODS = ["Training", "Coaching", "Mentoring", "On-the-job training", "Self-learning"];
-const OBJECTIVE_HINT = "Tulis kompetensi yang kurang dan level targetnya.";
-const OBJECTIVE_EXAMPLE = "Contoh: Naikkan Perencanaan Strategi & Anggaran dari level 3 ke 4";
+// B12 (interview D4, 14 Oct 2026): internal/external training, certification, coaching. Free text stays allowed.
+const DEVELOPMENT_METHODS = ["Internal training", "External training", "Certification", "Coaching"];
+const OBJECTIVE_HINT = "Tulis kompetensi yang kurang, level targetnya, dan cara menutup gap.";
+const OBJECTIVE_EXAMPLE = "Contoh: Naikkan Perencanaan Strategi & Anggaran dari level 3 ke 4 melalui External training";
 
 function MethodField({ value, onChange, helper }: { value: string; onChange: (value: string) => void; helper?: string }) {
   return <>
@@ -44,10 +45,10 @@ function MethodField({ value, onChange, helper }: { value: string; onChange: (va
   </>;
 }
 
-/** Q13: the PIC (penanggung jawab) is picked from the employee list and stored by name; "No PIC" leaves it empty. */
-function PicField({ value, onChange, current }: { value: string; onChange: (value: string) => void; current?: string }) {
+/** Q13: the PIC (penanggung jawab) is picked from the employee list and stored by name. B13: it is required. */
+function PicField({ value, onChange, current, error }: { value: string; onChange: (value: string) => void; current?: string; error?: string }) {
   const snapshot = useSnapshot();
-  return <SearchSelectField label="PIC" testId="pic" value={value} onChange={onChange} placeholder="No PIC" options={picOptions(snapshot, current)}
+  return <SearchSelectField label="PIC" testId="pic" required value={value} onChange={onChange} placeholder="Select PIC" options={picOptions(snapshot, current)} error={error}
     helper="Penanggung jawab yang menindaklanjuti requirement ini, dipilih dari daftar pegawai." />;
 }
 
@@ -74,18 +75,23 @@ export function DevelopmentFormModal({ employeeId, sourceType, sourceRef, onClos
   const [touched, setTouched] = useState(false);
   const options = useMemo(() => sourceOptions(snapshot, employee, type), [snapshot, employee, type]);
   const selectedEmployee = employeeById(snapshot, employee);
+  const suggestion = objectiveWithMethod(suggested, method);
   function pickReference(ref: string) {
     setReference(ref);
     const next = options.find((item) => item.ref === ref)?.objective ?? "";
-    if (!objective.trim() || objective === suggested) setObjective(next);
+    if (!objective.trim() || objective === suggestion) setObjective(objectiveWithMethod(next, method));
     setSuggested(next);
+  }
+  function chooseMethod(value: string) {
+    if (suggested && objective === suggestion) setObjective(objectiveWithMethod(suggested, value));
+    setMethod(value);
   }
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     setTouched(true);
     const chosen = options.find((item) => item.ref === reference && !item.covered);
-    if (!employee || !chosen || !objective.trim()) { setError("Lengkapi employee, source reference, dan development objective sebelum menyimpan."); return; }
+    if (!employee || !chosen || !objective.trim() || !pic.trim()) { setError("Lengkapi employee, source reference, development objective, dan PIC sebelum menyimpan."); return; }
     setError("");
     // The gap changes as competencies are updated; keep the level seen when the need was raised.
     const snapshotNote = type === "competency_gap" ? `Gap saat dibuat (${formatDate(today())}): ${chosen.label}` : "";
@@ -116,11 +122,11 @@ export function DevelopmentFormModal({ employeeId, sourceType, sourceRef, onClos
           : <>Pegawai ini belum memiliki sumber bertipe {sourceTypeLabel[type]}. Development tidak dibuat hanya karena waktu sudah berlalu.</>}</Notice></div>}
         <TextField label="Development objective" testId="development-objective" required maxLength={500} value={objective} onChange={(event) => setObjective(event.target.value)} placeholder={OBJECTIVE_EXAMPLE}
           error={touched && !objective.trim() ? "Development objective wajib diisi." : undefined} className="sm:col-span-2"
-          helper={suggested && objective === suggested ? `Diisi dari gap kompetensi; boleh diubah. ${OBJECTIVE_HINT}` : `${OBJECTIVE_HINT} ${OBJECTIVE_EXAMPLE}.`} />
+          helper={suggested && objective === suggestion ? `Diisi dari gap kompetensi${method.trim() ? " dan Method" : ""}; boleh diubah. ${OBJECTIVE_HINT}` : `${OBJECTIVE_HINT} ${OBJECTIVE_EXAMPLE}.`} />
         <PrioritySelect value={priority} onChange={setPriority} />
         <ReadOnlyField label="Created date" testId="created-date" value={formatDate(today())} />
-        <MethodField value={method} onChange={setMethod} helper="Opsional. Boleh diisi nanti oleh HR." />
-        <PicField value={pic} onChange={setPic} />
+        <MethodField value={method} onChange={chooseMethod} helper="Opsional, tetapi bila sudah diketahui akan ikut masuk ke objective sebagai cara menutup gap." />
+        <PicField value={pic} onChange={setPic} error={touched && !pic.trim() ? "PIC wajib diisi." : undefined} />
       </div>
       <TextAreaField label="Notes" testId="notes" value={notes} onChange={(event) => setNotes(event.target.value)} helper="HR yang menentukan metode training akhir; gap tidak menentukannya secara otomatis." />
     </form>
@@ -180,6 +186,7 @@ export function DevelopmentEditModal({ needId, onClose }: { needId: string; onCl
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!current || unchanged) return;
+    if (!pic.trim()) { setError("PIC wajib diisi."); return; }
     const result = await run((source) => source.updateDevelopment(needId, current.status, notes, { priority, method, pic }), "Requirement diperbarui sebagai revisi baru.");
     if (result.ok) onClose(); else setError(result.error);
   }
