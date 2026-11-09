@@ -21,6 +21,11 @@ export const localMonth = (now = new Date()) => localToday(now).slice(0, 7);
  */
 export const canFillDaily = (role: string, employeeId: string | null | undefined) => role !== "MANAGEMENT" && Boolean(employeeId);
 
+/** Interview D4 (14 Oct 2026, B13): a development requirement must have a PIC so it can be followed up. */
+export function assertPicFilled(pic: string | undefined) {
+  if (pic !== undefined && !pic.trim()) throw new ApiError("VALIDATION_FAILED", "PIC wajib diisi.");
+}
+
 /** A daily entry is for today or an earlier day of the running WIB period; the database enforces the same. */
 export function assertDailyDate(date: string, now = new Date()) {
   if (date > localToday(now)) throw new ApiError("VALIDATION_FAILED", "Tanggal Daily KPI tidak boleh lebih dari hari ini.");

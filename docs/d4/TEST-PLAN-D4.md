@@ -22,15 +22,15 @@ Di luar cakupan: sertifikasi/renewal, trigger performance-gap formal, dan reasse
 | US-D4-001 / FR-D4-001 Performance Evaluation | TC-D4-001 | 6 (baru) | [QA] Pengujian Phase 1 |
 | US-D4-002 / FR-D4-002 KPI Scorecard | TC-D4-002 | 24 (3 baru: KPI gap) | [QA] Pengujian Phase 1 |
 | US-D4-003 / FR-D4-003 Competency Gap | TC-D4-003 | 12 | [QA] Pengujian Phase 2 |
-| US-D4-004 / FR-D4-004 Development Requirement | TC-D4-004 | 12 | [QA] Pengujian Phase 2 |
+| US-D4-004 / FR-D4-004 Development Requirement | TC-D4-004 | 15 (3 baru) | [QA] Pengujian Phase 2 |
 | US-D4-005 / FR-D4-005 Training Tracking | TC-D4-005 | 15 | [QA] Pengujian Phase 3 |
 | US-D4-006 / FR-D4-006 Dashboard KPI Orang | TC-D4-006 | 23 | [QA] Pengujian Phase 3 |
 | FR-D4-007 / TR-D4-001 Keterhubungan data | TC-D4-007 | 9 | [QA] Pengujian Integration, Security, Validation & UI Quality |
-| Daily KPI (wawancara D4, 14 Okt 2026) | TC-D4-008 | 11 (baru) | [QA] Pengujian Phase 1 |
+| Daily KPI (wawancara D4, 14 Okt 2026) | TC-D4-008 | 12 (baru) | [QA] Pengujian Phase 1 |
 | TR-D4-002 Security & audit | TC-D4-SEC | 9 | idem |
 | TR-D4-002 Validation & UI quality | TC-D4-UIQ | 13 | idem |
 | Skenario lintas fitur | TS-D4-001 s.d. 003 | 3 | [QA] TS-D4-00x (list To Do List QA) |
-| **Total** | | **135** | |
+| **Total** | | **139** | |
 
 Semua FR dan TR yang dapat diuji punya minimal satu TC positif dan satu TC negatif.
 
@@ -150,6 +150,9 @@ Kartu Planka: **[QA] Pengujian Phase 2**
 | TC-D4-004-10 | Test filter berdasarkan employee | Positif | Not Run | Staging |
 | TC-D4-004-11 | Test filter berdasarkan source | Positif | Not Run | Staging |
 | TC-D4-004-12 | Test requirement tidak terbentuk otomatis hanya karena periode waktu | Negatif | Not Run | Staging |
+| TC-D4-004-13 | Test PIC wajib (B13): simpan tanpa PIC ditolak di form dan API (422 `PIC wajib diisi.`); Edit Requirement tidak bisa mengosongkan PIC | Negatif | Not Run | Staging |
+| TC-D4-004-14 | Test objective dari gap ikut menyebut cara menutup gap (B14): pilih Method, objective menjadi "Naikkan X dari level a ke b melalui <Method>"; teks yang sudah diubah user tidak ditimpa | Positif | Not Run | Staging |
+| TC-D4-004-15 | Test saran Method sesuai klien (B12): Internal training, External training, Certification, Coaching; teks lain tetap boleh | Positif | Not Run | Staging |
 
 ### TC-D4-005 · FR-D4-005 Training Tracking
 
@@ -236,6 +239,7 @@ Keputusan 8 Nov 2026: pegawai mengisi skornya sendiri per hari; skor periode dik
 | TC-D4-008-09 | Test pegawai dengan Daily KPI tanpa scorecard periode itu tampil Compiled (total, jumlah entri, gap) di Performance Review dan People Dashboard, tanpa input manual | Positif | Not Run | Staging: O7 |
 | TC-D4-008-10 | Test Finalize from Daily KPI: skor read-only, Notes dan Reference wajib, simpan membuat scorecard periode dengan total = skor kompilasi, lalu status menjadi Completed | Positif | Not Run | Staging: O5, O7 |
 | TC-D4-008-11 | Test Finalize tidak tersedia untuk diri sendiri, Employee, dan Management; grafik dan ringkasan dashboard tidak menghitung skor Compiled | Negatif | Not Run | Staging: O7, O8 |
+| TC-D4-008-12 | Test pengingat B5: pegawai yang belum mengisi hari ini melihat "Daily KPI hari ini belum diisi. Isi sebelum pulang."; setelah menyimpan, pengingat hilang | Positif | Not Run | Staging: O7 |
 
 ### TC-D4-SEC · TR-D4-002 Security & audit
 

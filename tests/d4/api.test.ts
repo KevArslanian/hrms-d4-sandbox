@@ -134,7 +134,7 @@ const writeRoutes: [string, () => Promise<Response>][] = [
   ["POST /performance-evaluations", () => perf.POST(post(evaluationBody()))],
   ["POST /kpi-assessments", () => kpi.POST(post(kpiBody()))],
   ["POST /competency-assessments", () => competency.POST(post({ employeeId: ALFA, positionId: FINANCE_STAFF, effectiveDate: "2026-10-01" }))],
-  ["POST /development-needs", () => dev.POST(post({ employeeId: ALFA, sourceType: "performance_context", sourceRef: KPI_ALFA, objective: "Uji", priority: "High" }))],
+  ["POST /development-needs", () => dev.POST(post({ employeeId: ALFA, sourceType: "performance_context", sourceRef: KPI_ALFA, objective: "Uji", priority: "High", pic: "Mrs. Maya" }))],
   ["POST /development-needs/:id/versions", () => devVersions.POST(post({ status: "In Progress", notes: "Uji" }), params(NEED))],
   ["POST /development-needs/:id/versions (edit)", () => devVersions.POST(post({ status: "Planned", notes: "", priority: "High", pic: "Bu Maya" }), params(NEED))],
   ["POST /training-records", () => training.POST(post({ employeeId: ALFA, developmentNeedId: NEED, activity: "Uji", date: "2026-10-01", status: "Planned" }))],
@@ -408,8 +408,18 @@ describe("POST /kpi-assessments", () => {
 });
 
 describe("development needs and training", () => {
-  const devBody = { employeeId: ALFA, sourceType: "competency_gap", sourceRef: ALFA_GAP, objective: "Uji", priority: "High" };
+  const devBody = { employeeId: ALFA, sourceType: "competency_gap", sourceRef: ALFA_GAP, objective: "Uji", priority: "High", pic: "Mrs. Maya" };
   const trainingBody = { employeeId: ALFA, developmentNeedId: NEED, activity: "Uji", date: "2026-10-01", status: "Planned" };
+
+  // B13 (interview D4, 14 Oct 2026): a requirement needs a PIC; an edit may not clear it, leaving it out keeps it.
+  it.each([
+    ["create without PIC", () => dev.POST(post({ ...devBody, sourceType: "performance_context", sourceRef: KPI_ALFA, pic: "" }))],
+    ["create with a blank PIC", () => dev.POST(post({ ...devBody, sourceType: "performance_context", sourceRef: KPI_ALFA, pic: "  " }))],
+    ["edit clearing the PIC", () => devVersions.POST(post({ status: "Planned", notes: "", pic: "" }), params(NEED))],
+  ])("rejects %s with 422", async (_name, send) => {
+    expect(await call(send())).toMatchObject({ status: 422, body: { error: { code: "VALIDATION_FAILED", message: "PIC wajib diisi." } } });
+    expect(writes).toHaveLength(0);
+  });
 
   it("rejects a second open need for the same gap", async () => {
     const res = await call(dev.POST(post(devBody)));

@@ -80,6 +80,8 @@ function MyDailyKpi({ team }: { team: boolean }) {
     <Card title="My KPI today" testId="my-daily-kpi">
       <form onSubmit={submit} noValidate className="space-y-5">
         <FormError message={error} />
+        {/* B5 (interview D4, 14 Oct 2026): everyone scores their KPI every day before going home. */}
+        {!savedFor(today()) && <div data-testid="daily-reminder"><Notice tone="warning">Daily KPI hari ini belum diisi. Isi sebelum pulang.</Notice></div>}
         <div className="grid gap-4 sm:grid-cols-3">
           <TextField label="Date" testId="daily-date" required type="date" min={`${period}-01`} max={today()} value={date} onChange={(event) => chooseDate(event.target.value)} />
           <ReadOnlyField label="Position KPI" testId="daily-role" value={indicators[0].role_name} />

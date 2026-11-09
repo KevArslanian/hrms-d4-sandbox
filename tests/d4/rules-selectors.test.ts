@@ -3,7 +3,7 @@ import type { CompetencyAssessment } from "@/modules/d4/competency/types";
 import type { DevelopmentNeedVersion } from "@/modules/d4/development/types";
 import { assertDevelopmentChange, assertTrainingResult, passedTrainingCount, assertGapAssessed, assertNotFutureDate, assertEvaluationInPeriod, assertTrainingDate, nextDevelopmentRevision, openTrainingCount, isTrainingRollback, localMonth, localToday, reassessmentOf, retrainedAt, revisionNumber } from "@/modules/d4/shared/rules";
 import type { EmployeeReference } from "@/modules/d4/shared/types";
-import { asEmployee, assessableEmployees, inTrainingOrPositionChange, canWrite, currentCompetencyStatus, currentGap, latestCurrentPositionAssessment, objectiveFromFinding, revisionChanges, revisionTag, visibleEmployees, type Snapshot } from "@/modules/d4/web/data/selectors";
+import { asEmployee, assessableEmployees, inTrainingOrPositionChange, canWrite, currentCompetencyStatus, currentGap, latestCurrentPositionAssessment, objectiveFromFinding, objectiveWithMethod, revisionChanges, revisionTag, visibleEmployees, type Snapshot } from "@/modules/d4/web/data/selectors";
 import type { TrainingStatus } from "@/modules/d4/training/types";
 
 const ALFA = "d4000000-0000-4000-8000-000000000009";
@@ -322,6 +322,10 @@ describe("development revision: edit, reassessment, objective", () => {
     expect(revisionChanges(need())).toEqual([]);
     expect(objectiveFromFinding({ competencyName: "Perencanaan Strategi & Anggaran", actualLevel: 3, requiredLevel: 4 })).toBe("Naikkan Perencanaan Strategi & Anggaran dari level 3 ke 4");
     expect(objectiveFromFinding({ competencyName: "Safety", actualLevel: null, requiredLevel: 3 })).toBe("Naikkan Safety ke level 3");
+    // B14: the way the gap is closed joins the objective once a Method is chosen.
+    expect(objectiveWithMethod("Naikkan Safety ke level 3", " Certification ")).toBe("Naikkan Safety ke level 3 melalui Certification");
+    expect(objectiveWithMethod("Naikkan Safety ke level 3", "")).toBe("Naikkan Safety ke level 3");
+    expect(objectiveWithMethod("", "Coaching")).toBe("");
   });
 });
 
