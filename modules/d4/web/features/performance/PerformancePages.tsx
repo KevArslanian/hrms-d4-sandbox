@@ -86,15 +86,18 @@ export function PerformanceListPage() {
         { key: "position", header: "Position / Department", wrap: true, optional: true, cell: (row) => <><span className="block">{row.position}</span><span className="block text-xs text-ink-3">{departmentOf(snapshot, row.employee)?.name ?? "—"}</span></> },
         { key: "period", header: "Period", cell: (row) => formatPeriod(row.period) },
         { key: "total", header: "Total KPI", className: "tabular-nums", cell: (row) => row.scorecard ? <span className="font-semibold">{formatScorecard(row.scorecard)}</span>
-          : row.compiled ? <><span className="block font-semibold">{formatScore(row.compiled.total, scaleMaxOf(row.compiled.definitionVersion))}</span><span data-testid="compiled-days" className="block text-xs text-ink-3">from {row.compiled.days.length} daily {row.compiled.days.length === 1 ? "entry" : "entries"}</span></>
-          : row.hasKpi ? "—" : <span className="text-xs text-ink-3">Not in catalog {catalog?.version} yet</span> },
+          : row.compiled ? <><span className="block font-semibold">{formatScore(row.compiled.total, scaleMaxOf(row.compiled.definitionVersion))}</span><span data-testid="compiled-days" className="block whitespace-normal text-xs text-ink-3">from {row.compiled.days.length} daily {row.compiled.days.length === 1 ? "entry" : "entries"}</span></>
+          // The small lines may wrap (the score stays on one line), so they do not widen the table past the Status badge.
+          : row.hasKpi ? "—" : <span className="whitespace-normal text-xs text-ink-3">Not in catalog {catalog?.version} yet</span> },
         { key: "gap", header: "Gap vs 85", className: "tabular-nums", optional: true, cell: (row) => row.scorecard ? formatGap(row.scorecard.overallScore, row.scorecard.definitionVersion)
           : row.compiled ? formatGap(row.compiled.total, row.compiled.definitionVersion) : "—" },
-        { key: "notes", header: "Notes", wrap: true, secondary: true, className: "max-w-[280px]", cell: (row) => {
+        // The evaluator sits under the notes, as Department sits under Position: as a column of its own it pushed the
+        // Status badge under the ⋮ column at 1400–1500 px.
+        { key: "notes", header: "Notes / Penilai", wrap: true, secondary: true, className: "max-w-[280px]", cell: (row) => {
           const notes = row.scorecard?.generalNotes || row.evaluation?.generalNotes;
-          return notes ? <span className="line-clamp-2">{notes}</span> : "—";
+          return <>{notes ? <span className="line-clamp-2">{notes}</span> : "—"}
+            {row.scorecard?.evaluatorName && <span data-testid="cell-evaluator" className="mt-0.5 block text-xs text-ink-3">{row.scorecard.evaluatorName}</span>}</>;
         } },
-        { key: "evaluator", header: "Penilai", secondary: true, cell: (row) => row.scorecard?.evaluatorName || "—" },
         { key: "status", header: "Status", cell: (row) => <StatusBadge status={rowStatus(row)} /> },
       ]}
       actions={(row) => <RowActionMenu label={`Actions for ${row.employee.fullName}`} actions={[
