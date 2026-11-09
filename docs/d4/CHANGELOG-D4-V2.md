@@ -245,12 +245,26 @@ Hanya permintaan yang jelas di transkrip Show & Tell (Mas Bram) dan sepenuhnya m
 
 Tidak dikerjakan karena belum pasti atau bukan milik D4:
 - **B2:** UI target dan standar KPI. Menunggu kesepakatan definisi KPI dengan D1.
-- **B20:** dashboard per level HR. Isi tiap level tidak dijelaskan klien.
+- **B20:** dashboard per level HR. Isi tiap level tidak dijelaskan klien. (Sebagian dikerjakan 10 Nov, lihat bawah.)
 - **B9 / A1:** durasi trainee 3 atau 6 bulan. Tidak ada tanggal mulai kerja di data D4, dan statusnya milik B2.
 - **A2:** wajibnya "dinilai bersama". Kolom `assessed_with` butuh migrasi `20261019120000`.
 - **A4:** promosi otomatis. Butuh riwayat posisi dari D3.
 - **B19:** alert ke MID beserta contoh dari klien. Butuh kontrak MID dan data D3.
 - **B21, B22, B23, B24:** milik B2, D3, atau proses persetujuan.
+
+## Persiapan presentasi · 10 Nov 2026
+
+- **Kolom Status Performance Review (PR #39):** Penilai menjadi baris kecil di bawah Notes ("Notes / Penilai"), sehingga badge Status tidak lagi tertutup kolom aksi pada 1400–1500 px.
+- **B20, filter level di People Dashboard (asumsi):**
+  - Klien (00:59:37–00:59:47): semua halaman harus memberi informasi kepada HR staff, HR manager, dan HR director.
+  - Filter baru "All levels" (Staff, Manager, Director) menyaring tabel, ringkasan, dan grafik.
+  - Tabel posisi tidak punya kolom level. Level diambil dari kode posisi dengan aturan yang sama seperti pemetaan peran (`DIR-*` Director, `*-MGR` Manager), lalu judul posisi sebagai cadangan, dan sisanya Staff.
+  - Tanpa migrasi. Perlu dikonfirmasi ke klien.
+- **B9 tetap menunggu.**
+  - `join_date` ada di `d3_employee` (130 pegawai), tetapi view `d4_employee` belum membukanya.
+  - Menampilkan masa trainee 3 atau 6 bulan butuh migrasi view dan keputusan HR per pegawai.
+  - Per 10 Nov hanya 1 pegawai berstatus probation di data B2.
+- **TC-D4-008-18 lulus di produksi** (sebelum migrasi, Simulasi Employee): Daily KPI menampilkan pesan "belum tersedia", menu lain tetap berjalan.
 
 ## Belum selesai
 
