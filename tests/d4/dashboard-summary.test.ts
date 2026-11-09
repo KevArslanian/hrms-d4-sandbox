@@ -4,7 +4,7 @@ import type { KpiAssessment } from "@/modules/d4/supabase/types";
 import type { TrainingVersion } from "@/modules/d4/training/types";
 import { currentCompetencyStatus, currentGap, employeeSearchText, includesText, positionOf, type Snapshot } from "@/modules/d4/web/data/selectors";
 import { catalogFor, seedCatalogSet } from "@/modules/d4/kpi/catalog";
-import { averageScores, competencySlices, dashboardAlerts, defaultPeriod, employeeHistory, gapRanking, performanceSlices, profilePeriod, reviewCounts, withoutKpiRole, type DashboardRow } from "@/modules/d4/web/features/dashboard/summary";
+import { averageScores, competencySlices, dashboardAlerts, defaultPeriod, employeeHistory, gapRanking, jobLevel, performanceSlices, profilePeriod, reviewCounts, withoutKpiRole, type DashboardRow } from "@/modules/d4/web/features/dashboard/summary";
 
 async function hrSnapshot(): Promise<Snapshot> {
   vi.stubEnv("NEXT_PUBLIC_D4_FIXTURE_ROLE", "HR");
@@ -20,6 +20,18 @@ const rowsOf = (snapshot: Snapshot): DashboardRow[] => snapshot.reference.employ
 const lines = (count = 5) => Array.from({ length: count }, (_, index) => ({ indicator_order: index + 1, weight_percent: 20 }));
 /** A scorecard with `count` KPIs of 20% each: valid (FR-06.9) only with the default five. */
 const scorecard = (overallScore: number, definitionVersion: string, count = 5) => ({ overallScore, definitionVersion, lines: lines(count) }) as unknown as KpiAssessment;
+
+describe("People Dashboard level filter (B20)", () => {
+  it("reads the level from the position code the role mapping uses, then the title", () => {
+    expect(jobLevel({ code: "DIR-GEN", title: "General Director / Director Umum" })).toBe("Director");
+    expect(jobLevel({ code: "FIX-D4-DIR-HCC", title: "Director of Human Capital & Culture" })).toBe("Director");
+    expect(jobLevel({ code: "COM-CS-MGR", title: "Manager of Customer Success" })).toBe("Manager");
+    expect(jobLevel({ code: "HCC-HR-MGR", title: "HR Manager" })).toBe("Manager");
+    expect(jobLevel({ code: "X-1", title: "Cash Manager" })).toBe("Manager");
+    expect(jobLevel({ code: "COM-SA", title: "Sales Administration Associate" })).toBe("Staff");
+    expect(jobLevel(undefined)).toBeNull();
+  });
+});
 
 describe("People Dashboard audit (21 Oct 2026)", () => {
   it("opens on the latest period that has started, not on a future one", () => {
