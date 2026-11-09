@@ -192,7 +192,7 @@ describe("Under Performance: assign training from the alert (Q16)", () => {
   it("the fixture source saves the requirement the form submits for that scorecard", async () => {
     const source = await hrSource();
     const scorecard = (await source.loadSnapshot()).kpiAssessments!.find((item) => item.employeeId === ALFA && item.status === "completed")!;
-    const needId = await source.createDevelopment({ employeeId: ALFA, sourceType: "performance_context", sourceRef: scorecard.id, objective: "Naikkan skor KPI", priority: "High", notes: "" });
+    const needId = await source.createDevelopment({ employeeId: ALFA, sourceType: "performance_context", sourceRef: scorecard.id, objective: "Naikkan skor KPI", priority: "High", notes: "", pic: "Mrs. Maya" });
     expect((await source.loadSnapshot()).developmentVersions.find((item) => item.needId === needId)).toMatchObject({ sourceType: "performance_context", sourceRef: scorecard.id, status: "Identified" });
   });
 });

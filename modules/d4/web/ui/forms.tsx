@@ -1,11 +1,11 @@
 "use client";
 
-import { Check, ChevronDown, Search, X } from "lucide-react";
+import { ChevronDown, Search, X } from "lucide-react";
 import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type InputHTMLAttributes, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { createPortal } from "react-dom";
 import { Button, cx, slug } from "./primitives";
 
-const control = "h-10 w-full rounded-[10px] border border-line-strong bg-surface px-3 text-sm text-ink outline-none placeholder:text-ink-3 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/15 disabled:bg-muted disabled:text-ink-3 aria-[invalid=true]:border-danger";
+const control = "h-10 w-full rounded-2xl border border-ink-3 bg-surface px-3 text-sm text-ink outline-none placeholder:text-ink-3 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/15 disabled:bg-muted disabled:text-ink-3 aria-[invalid=true]:border-danger";
 
 /* ---------- Filter bar ---------- */
 
@@ -49,9 +49,12 @@ export function dropdownPlacement(anchor: { top: number; bottom: number; left: n
   };
 }
 
+// Short lists open without a search box, as in the PISD design system; long ones (positions, employees) keep it.
+const SEARCH_FROM = 8;
+
 /**
- * Dropdown with a search box on top (reviewer feedback), shared by list filters and form fields: opening it
- * lists the options, typing narrows them. Only FILTER_VISIBLE options are rendered at once (load test:
+ * Dropdown shared by list filters and form fields. Long lists get a search box on top (reviewer feedback): opening
+ * it lists the options, typing narrows them. Only FILTER_VISIBLE options are rendered at once (load test:
  * 1000 departments/employees); the rest are reached by typing. `emptyLabel` adds a "no value" choice.
  */
 function SearchableSelect({ label, value, onChange, options, emptyLabel, testId, triggerId, invalid, describedBy, className, wrapperClassName, highlightActive }: {
@@ -100,19 +103,19 @@ function SearchableSelect({ label, value, onChange, options, emptyLabel, testId,
       <span className="truncate">{selected?.label ?? emptyLabel ?? label}</span>
       <ChevronDown aria-hidden="true" className={cx("size-4 shrink-0 transition-transform", active ? "text-primary-600" : "text-ink-3", open && "rotate-180")} />
     </button>
-    {open && <div ref={panel} className="fixed z-30 flex flex-col rounded-[10px] border border-line bg-surface p-1.5 shadow-card">
-      <label className="relative block">
+    {open && <div ref={panel} className="fixed z-30 flex flex-col rounded-2xl border border-line bg-surface p-1.5 shadow-card">
+      {all.length >= SEARCH_FROM && <label className="relative mb-1.5 block">
         <span className="sr-only">Search {label}</span>
         <Search aria-hidden="true" className="pointer-events-none absolute left-2.5 top-2.5 size-4 text-ink-3" />
         <input autoFocus data-search data-testid={testId.replace(/^(filter|input)-/, "search-")} role="combobox" aria-controls={listId} aria-expanded aria-autocomplete="list" value={query} onChange={(event) => setQuery(event.target.value)}
           onKeyDown={(event) => { if (event.key === "Enter" && matches[0]) { event.preventDefault(); pick(matches[0].value); } }}
-          placeholder="Search…" className="h-9 w-full rounded-lg border border-line-strong bg-app pl-8 pr-2 text-sm text-ink outline-none placeholder:text-ink-3 focus:border-primary-500" />
-      </label>
-      <ul id={listId} role="listbox" data-testid={testId.replace(/^(filter|input)-/, "options-")} aria-label={label} className="mt-1.5 max-h-64 min-h-0 overflow-y-auto text-sm">
+          placeholder="Search…" className="h-9 w-full rounded-xl border border-line-strong bg-app pl-8 pr-2 text-sm text-ink outline-none placeholder:text-ink-3 focus:border-primary-500" />
+      </label>}
+      <ul id={listId} role="listbox" data-testid={testId.replace(/^(filter|input)-/, "options-")} aria-label={label} className="max-h-64 min-h-0 overflow-y-auto text-sm">
         {matches.length ? matches.map((option) => <li key={option.value || "empty"} role="option" aria-selected={option.value === value}>
           {/* Safari does not focus a clicked button, so without this the input's blur closes the list before the click lands. */}
-          <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => pick(option.value)} className={cx("flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-ink hover:bg-primary-50 focus:bg-primary-50 focus:outline-none", option.value === value && "font-semibold text-primary-600")}>
-            <Check aria-hidden="true" className={cx("size-4 shrink-0", option.value !== value && "invisible")} />{option.label}
+          <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => pick(option.value)} className={cx("flex w-full items-center rounded-xl px-3 py-2 text-left text-ink hover:bg-muted focus:bg-muted focus:outline-none", option.value === value && "bg-selected font-semibold hover:bg-selected focus:bg-selected")}>
+            {option.label}
           </button>
         </li>) : <li className="px-2.5 py-2 text-ink-3">Tidak ada yang cocok</li>}
         {hidden > 0 && <li data-testid={testId.replace(/^(filter|input)-/, "more-")} className="px-2.5 py-2 text-xs text-ink-3">+{hidden} lainnya — ketik untuk mempersempit</li>}

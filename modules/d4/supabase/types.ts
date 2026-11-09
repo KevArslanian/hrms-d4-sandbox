@@ -4,7 +4,8 @@ import type { PerformanceEvaluation } from "../performance/types";
 import type { ReferenceDataSnapshot } from "../shared/types";
 import type { TrainingVersion } from "../training/types";
 
-export type D4AppRole = "EMPLOYEE" | "HR" | "MANAGER";
+// MANAGEMENT (directors, B17) reads everything an HR account reads and writes nothing.
+export type D4AppRole = "EMPLOYEE" | "HR" | "MANAGER" | "MANAGEMENT";
 
 export interface D3KpiRecord {
   readonly id: string;
@@ -48,12 +49,31 @@ export interface KpiAssessment extends KpiAssessmentInput {
   readonly actor: string;
 }
 
+/** One employee's own scores for one day (table d4_kpi_daily_entries); the newest row of a day counts. */
+export interface KpiDailyEntryInput {
+  readonly definitionVersion: string;
+  readonly employeeId: string;
+  readonly entryDate: string;
+  readonly period: string;
+  readonly roleOrder: number;
+  readonly roleName: string;
+  readonly lines: readonly KpiAssessmentLine[];
+}
+
+export interface KpiDailyEntry extends KpiDailyEntryInput {
+  readonly id: string;
+  readonly overallScore: number | null;
+  readonly createdAt: string;
+}
+
 export interface D4LiveSnapshot {
   readonly reference: ReferenceDataSnapshot;
   readonly role: D4AppRole;
   readonly actorEmployeeId: string;
   readonly kpi: readonly D3KpiRecord[];
   readonly kpiAssessments?: readonly KpiAssessment[];
+  /** Undefined until migration 20261108130000 creates d4_kpi_daily_entries. */
+  readonly kpiDaily?: readonly KpiDailyEntry[];
   readonly performance: readonly PerformanceEvaluation[];
   readonly competency: readonly CompetencyAssessment[];
   readonly developmentVersions: readonly DevelopmentNeedVersion[];

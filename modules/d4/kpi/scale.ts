@@ -1,3 +1,5 @@
+import { KPI_TARGET } from "./catalog";
+
 /**
  * KPI score scale per catalog version.
  *
@@ -22,4 +24,13 @@ export function performanceBand(score: number | null | undefined, definitionVers
   if (score === null || score === undefined || scaleMaxOf(definitionVersion) !== 100) return null;
   if (score < UNDER_BELOW) return "Under Performance";
   return score <= HIGH_ABOVE ? "Average Performance" : "High Performance";
+}
+
+/**
+ * KPI gap: score minus the target 85 (KPI_TARGET). Only 1–100 scores have one; a 1–5 score is not on the target's
+ * scale and is not converted (FR-D4-002 defines no conversion), so its gap is null.
+ */
+export function kpiGap(score: number | null | undefined, definitionVersion?: string | null): number | null {
+  if (score === null || score === undefined || scaleMaxOf(definitionVersion) !== 100) return null;
+  return Math.round((score - Number(KPI_TARGET)) * 100) / 100;
 }

@@ -3,11 +3,12 @@
 import { CheckCircle2, CircleAlert } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { catalogFor, indicatorsFor, KPI_TARGET, roleForPosition, targetOf, type KpiCatalog, type KpiCatalogSet } from "../../../kpi/catalog";
+import { compileDaily, type DailyCompilation } from "../../../kpi/daily";
 import { HIGH_ABOVE, performanceBand, scaleMaxOf, UNDER_BELOW } from "../../../kpi/scale";
 import type { KpiAssessmentLine } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
 import { latestForPeriod, periodDateError } from "../../../shared/rules";
-import { assessableEmployees, departmentOf, employeeById, formatDate, positionOf, SCORE_LABELS, thisMonth, today } from "../../data/selectors";
+import { assessableEmployees, departmentOf, employeeById, formatDate, formatGap, formatPeriod, positionOf, SCORE_LABELS, thisMonth, today } from "../../data/selectors";
 import { FormError, FormModal, ModalActions, ReadOnlyField, RevisionConfirm, SearchSelectField, TextAreaField, TextField } from "../../ui/forms";
 import { cx, Notice, StatusBadge } from "../../ui/primitives";
 
@@ -55,6 +56,10 @@ const blankLines = (at: KpiCatalog | null, roleOrder: number): KpiAssessmentLine
   indicator_order: row.indicator_order, kpi_name: row.kpi_name, weight_percent: row.weight_percent, target: targetOf(row), actual: "", raw_score: null, comment: "",
 })) : [];
 
+/** Actual of each line set from the rounded daily averages; HR still reviews every value before saving. */
+export const withDaily = (lines: KpiAssessmentLine[], compiled: DailyCompilation | null) =>
+  compiled ? lines.map((line, index) => ({ ...line, ...actualInput(String(compiled.scores[index])) })) : lines;
+
 /**
  * Form changes when the period changes. A period under another catalog version reloads the employee's KPI set, since
  * its lines and scale may differ (1–5 or 1–100). A message from an earlier Save is cleared, as it may name the old
@@ -79,10 +84,17 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
   const max = scaleMaxOf(catalog?.version);
   const suggest = (id: string) => catalog ? roleForPosition(catalog, employeeById(snapshot, id)?.positionId) : 0;
   const linesFor = (roleOrder: number) => blankLines(catalog, roleOrder);
+  // The employee's daily entries of the period, only when they were scored on the same KPI set as this scorecard.
+  const compiledFor = (id: string, at: string, role: number) => {
+    const compiled = id && at ? compileDaily(snapshot.kpiDaily ?? [], id, at) : null;
+    const version = catalogSet && at ? catalogFor(catalogSet, at)?.version : undefined;
+    return compiled && compiled.roleOrder === role && compiled.definitionVersion === version ? compiled : null;
+  };
 
   const [employee, setEmployee] = useState(employeeId ?? "");
   const [roleOrder, setRoleOrder] = useState(() => employeeId ? suggest(employeeId) : 0);
-  const [lines, setLines] = useState<KpiAssessmentLine[]>(() => linesFor(employeeId ? suggest(employeeId) : 0));
+  const [daily, setDaily] = useState(() => employeeId ? compiledFor(employeeId, thisMonth(), suggest(employeeId)) : null);
+  const [lines, setLines] = useState<KpiAssessmentLine[]>(() => withDaily(linesFor(employeeId ? suggest(employeeId) : 0), daily));
   const [date, setDate] = useState(today());
   // The evaluator is the signed-in user; the server stores that name and ignores the form value.
   const evaluator = actor?.fullName ?? "";
@@ -101,11 +113,19 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
   const position = positionOf(snapshot, selected);
   const roleName = roleOrder && catalog ? indicatorsFor(catalog, roleOrder)[0]?.role_name : undefined;
 
-  function chooseEmployee(id: string) { setEmployee(id); setError(""); const role = suggest(id); setRoleOrder(role); setLines(linesFor(role)); }
+  function chooseEmployee(id: string) {
+    setEmployee(id); setError("");
+    const role = suggest(id), compiled = compiledFor(id, period, role);
+    setRoleOrder(role); setDaily(compiled); setLines(withDaily(linesFor(role), compiled));
+  }
   function choosePeriod(value: string) {
     const change = periodChange(catalogSet, period, value, selected);
     setPeriod(value); setError(change.error);
-    if (change.lines) { setRoleOrder(change.roleOrder); setLines(change.lines); }
+    const role = change.lines ? change.roleOrder : roleOrder, compiled = compiledFor(employee, value, role);
+    if (change.lines) { setRoleOrder(change.roleOrder); setLines(withDaily(change.lines, compiled)); }
+    // Replaces a previous pre-fill; scores HR typed without daily data involved stay as they are.
+    else if (daily || compiled) setLines(withDaily(linesFor(role), compiled));
+    setDaily(compiled);
   }
   function setLine(index: number, patch: Partial<KpiAssessmentLine>) { setLines((items) => items.map((line, at) => at === index ? { ...line, ...patch } : line)); }
 
@@ -142,29 +162,32 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
         <TextField label="Evaluation date" testId="evaluation-date" required type="date" min={period ? `${period}-01` : undefined} max={today()} value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? "Date wajib diisi." : touched && date > today() ? "Tidak boleh lebih dari hari ini." : touched && periodDateError(period, date) || undefined} />
         <ReadOnlyField label="Evaluator" testId="evaluator" value={evaluator || "—"} className="sm:col-span-2" />
       </div>
+      {daily && <div data-testid="daily-prefill"><Notice>Actual diisi dari rata-rata {daily.days.length} entri Daily KPI pegawai ini ({formatPeriod(period)}), dibulatkan. Periksa dan ubah bila perlu sebelum menyimpan.</Notice></div>}
       {existing && <RevisionConfirm what="Performance Review" existing={`${existing.evaluatorName}, ${formatDate(existing.evaluationDate)}`} checked={revise} onChange={setRevise}
         error={touched && !revise ? "Centang untuk menyimpan sebagai revisi, atau pilih periode lain." : undefined} />}
 
       {employee && !lines.length ? <Notice tone="warning">{position ? noKpiText(catalog?.version) : "Pegawai belum memiliki posisi aktif, jadi KPI-nya belum bisa ditentukan."}</Notice> : <div className="overflow-x-auto rounded-2xl border border-line">
         <table data-testid="kpi-lines-table" className="w-full text-left text-sm max-md:block md:min-w-[820px]">
           <thead className="bg-app text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3 max-md:hidden">
-            <tr><th className="w-10 px-3 py-2.5">No</th><th className="min-w-[220px] px-3 py-2.5">Core KPI</th><th className="w-20 px-3 py-2.5">Weight</th><th className="w-24 px-3 py-2.5">Target</th><th className="w-28 px-3 py-2.5 whitespace-nowrap">{`Actual 1–${max}`}</th><th className="w-24 px-3 py-2.5 text-right">Weighted</th><th className="w-44 px-3 py-2.5">Comment</th></tr>
+            <tr><th className="w-10 px-3 py-2.5">No</th><th className="min-w-[220px] px-3 py-2.5">Core KPI</th><th className="w-20 px-3 py-2.5">Weight</th><th className="w-24 px-3 py-2.5">Target</th><th className="w-28 px-3 py-2.5 whitespace-nowrap">{`Actual 1–${max}`}</th>{max === 100 && <th className="w-20 px-3 py-2.5">Gap</th>}<th className="w-24 px-3 py-2.5 text-right">Weighted</th><th className="w-44 px-3 py-2.5">Comment</th></tr>
           </thead>
           <tbody className="max-md:block">
             {lines.map((line, index) => <tr key={`${roleOrder}-${line.indicator_order}`} data-testid={`kpi-line-${line.indicator_order}`} className="border-t border-line align-middle max-md:grid max-md:grid-cols-2 max-md:gap-3 max-md:p-4">
               <td data-label="No" className="px-3 py-2.5 text-ink-3 max-md:p-0 max-md:before:mb-1 max-md:before:block max-md:before:text-[11px] max-md:before:font-semibold max-md:before:uppercase max-md:before:tracking-[0.04em] max-md:before:text-ink-3 max-md:before:content-[attr(data-label)]">{line.indicator_order}</td>
-              <td data-label="Core KPI" className="px-3 py-2 max-md:p-0 max-md:before:mb-1 max-md:before:block max-md:before:text-[11px] max-md:before:font-semibold max-md:before:uppercase max-md:before:tracking-[0.04em] max-md:before:text-ink-3 max-md:before:content-[attr(data-label)] max-md:col-span-2"><input data-testid={`input-core-kpi-${line.indicator_order}`} aria-label={`Core KPI ${line.indicator_order}`} aria-invalid={touched && !line.kpi_name.trim()} maxLength={200} value={line.kpi_name} onChange={(event) => setLine(index, { kpi_name: event.target.value })} className="h-9 w-full rounded-lg border border-line-strong px-2 text-sm font-semibold aria-[invalid=true]:border-danger" /></td>
+              <td data-label="Core KPI" className="px-3 py-2 max-md:p-0 max-md:before:mb-1 max-md:before:block max-md:before:text-[11px] max-md:before:font-semibold max-md:before:uppercase max-md:before:tracking-[0.04em] max-md:before:text-ink-3 max-md:before:content-[attr(data-label)] max-md:col-span-2"><input data-testid={`input-core-kpi-${line.indicator_order}`} aria-label={`Core KPI ${line.indicator_order}`} aria-invalid={touched && !line.kpi_name.trim()} maxLength={200} value={line.kpi_name} onChange={(event) => setLine(index, { kpi_name: event.target.value })} className="h-9 w-full rounded-2xl border border-ink-3 px-3 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/15 text-sm font-semibold aria-[invalid=true]:border-danger" /></td>
               <td data-label="Weight" className="px-3 py-2.5 tabular-nums max-md:p-0 max-md:before:mb-1 max-md:before:block max-md:before:text-[11px] max-md:before:font-semibold max-md:before:uppercase max-md:before:tracking-[0.04em] max-md:before:text-ink-3 max-md:before:content-[attr(data-label)]">{line.weight_percent}%</td>
               <td data-label="Target" className="px-3 py-2 max-md:p-0 max-md:before:mb-1 max-md:before:block max-md:before:text-[11px] max-md:before:font-semibold max-md:before:uppercase max-md:before:tracking-[0.04em] max-md:before:text-ink-3 max-md:before:content-[attr(data-label)]"><span data-testid={`readonly-target-${line.indicator_order}`} title="Target ditetapkan HR dan tidak diubah saat penilaian." className="flex h-9 min-w-[56px] items-center rounded-lg bg-muted px-3 text-sm text-ink">{line.target}</span></td>
-              <td data-label={`Actual 1–${max}`} className="px-3 py-2 max-md:p-0 max-md:before:mb-1 max-md:before:block max-md:before:text-[11px] max-md:before:font-semibold max-md:before:uppercase max-md:before:tracking-[0.04em] max-md:before:text-ink-3 max-md:before:content-[attr(data-label)]"><input type="number" inputMode="numeric" min={1} max={max} step={1} data-testid={`input-realisasi-${line.indicator_order}`} aria-label={`Actual ${line.kpi_name}`} aria-invalid={touched && !validScore(line.raw_score, max)} value={line.raw_score ?? ""} onChange={(event) => setLine(index, actualInput(event.target.value))} className="h-9 w-full rounded-lg border border-line-strong px-2 text-sm tabular-nums aria-[invalid=true]:border-danger" /></td>
+              <td data-label={`Actual 1–${max}`} className="px-3 py-2 max-md:p-0 max-md:before:mb-1 max-md:before:block max-md:before:text-[11px] max-md:before:font-semibold max-md:before:uppercase max-md:before:tracking-[0.04em] max-md:before:text-ink-3 max-md:before:content-[attr(data-label)]"><input type="number" inputMode="numeric" min={1} max={max} step={1} data-testid={`input-realisasi-${line.indicator_order}`} aria-label={`Actual ${line.kpi_name}`} aria-invalid={touched && !validScore(line.raw_score, max)} value={line.raw_score ?? ""} onChange={(event) => setLine(index, actualInput(event.target.value))} className="h-9 w-full rounded-2xl border border-ink-3 px-3 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/15 text-sm tabular-nums aria-[invalid=true]:border-danger" /></td>
+              {max === 100 && <td data-label="Gap" data-testid={`kpi-gap-${line.indicator_order}`} className="px-3 py-2.5 tabular-nums text-ink-2 max-md:p-0 max-md:before:mb-1 max-md:before:block max-md:before:text-[11px] max-md:before:font-semibold max-md:before:uppercase max-md:before:tracking-[0.04em] max-md:before:text-ink-3 max-md:before:content-[attr(data-label)]">{validScore(line.raw_score, max) ? formatGap(line.raw_score, catalog?.version) : "—"}</td>}
               <td data-label="Weighted" className="px-3 py-2.5 text-right font-semibold tabular-nums max-md:p-0 max-md:before:mb-1 max-md:before:block max-md:before:text-[11px] max-md:before:font-semibold max-md:before:uppercase max-md:before:tracking-[0.04em] max-md:before:text-ink-3 max-md:before:content-[attr(data-label)] max-md:text-left">{weighted(line, max)?.toFixed(2) ?? "—"}</td>
-              <td data-label="Comment" className="px-3 py-2 max-md:p-0 max-md:before:mb-1 max-md:before:block max-md:before:text-[11px] max-md:before:font-semibold max-md:before:uppercase max-md:before:tracking-[0.04em] max-md:before:text-ink-3 max-md:before:content-[attr(data-label)] max-md:col-span-2"><input data-testid={`input-komentar-${line.indicator_order}`} aria-label={`Comment ${line.kpi_name}`} maxLength={500} placeholder="Catatan realisasi" value={line.comment} onChange={(event) => setLine(index, { comment: event.target.value })} className="h-9 w-full rounded-lg border border-line-strong px-2 text-sm" /></td>
+              <td data-label="Comment" className="px-3 py-2 max-md:p-0 max-md:before:mb-1 max-md:before:block max-md:before:text-[11px] max-md:before:font-semibold max-md:before:uppercase max-md:before:tracking-[0.04em] max-md:before:text-ink-3 max-md:before:content-[attr(data-label)] max-md:col-span-2"><input data-testid={`input-komentar-${line.indicator_order}`} aria-label={`Comment ${line.kpi_name}`} maxLength={500} placeholder="Catatan realisasi" value={line.comment} onChange={(event) => setLine(index, { comment: event.target.value })} className="h-9 w-full rounded-2xl border border-ink-3 px-3 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/15 text-sm" /></td>
             </tr>)}
           </tbody>
           <tfoot className="border-t border-line bg-app max-md:block">
             <tr className="max-md:flex max-md:flex-wrap max-md:items-center max-md:gap-x-3"><td colSpan={2} className="px-3 py-3 font-semibold">Total</td>
               <td className="px-3 py-3"><span className={cx("inline-flex items-center gap-1 text-xs font-semibold", totalWeight === 100 ? "text-success" : "text-danger")}>{totalWeight === 100 ? <CheckCircle2 className="size-3.5" /> : <CircleAlert className="size-3.5" />}{lines.length ? `${totalWeight}%` : "—"}</span></td>
               <td colSpan={2} className="px-3 py-3 text-xs text-ink-3">{lines.length ? (totalWeight === 100 ? "Total bobot 100%" : "Total bobot harus 100%") : "Pilih pegawai untuk menampilkan KPI posisinya."}</td>
+              {max === 100 && <td data-testid="kpi-gap-total" className="px-3 py-3 text-xs font-semibold tabular-nums text-ink-2">{total === null ? "" : `Gap ${formatGap(total, catalog?.version)}`}</td>}
               <td className="px-3 py-3 text-right font-display font-semibold text-base tabular-nums">{total === null ? "—" : `${total.toFixed(2)} / ${max}`}{band && <span data-testid="performance-band" className="mt-1 block text-right"><StatusBadge status={band} /></span>}</td><td /></tr>
           </tfoot>
         </table>

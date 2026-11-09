@@ -43,8 +43,10 @@ export async function createEvaluation(request: Request) {
     overallScore: null,
     aspects: [],
     generalNotes: field.text(body, "generalNotes", { required: completed, max: 4000 }),
-    evidenceReference: field.text(body, "evidenceReference", { required: false, max: 500 }) || null,
+    // Q12 (20 Oct 2026): Reference is required, the same as on POST /api/d4/kpi-assessments.
+    evidenceReference: field.text(body, "evidenceReference", { required: false, max: 500 }).trim(),
   };
+  if (!input.evidenceReference) throw new ApiError("VALIDATION_FAILED", "Reference wajib diisi.");
   enforce(() => assertNotSelf(access.employeeId, input.employeeId));
   enforce(() => assertNotFutureDate(input.evaluationDate));
   enforce(() => assertEvaluationInPeriod(input.period, input.evaluationDate));

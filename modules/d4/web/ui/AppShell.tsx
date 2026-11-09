@@ -3,21 +3,25 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Bell, ChevronDown, Contact, Eye, Menu, SquareTerminal, Store, Users, X } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { catalogFor, roleForPosition } from "../../kpi/catalog";
+import { canFillDaily } from "../../shared/rules";
 import { createD4BrowserClient } from "../../supabase/client";
 import { useD4 } from "../data/D4DataProvider";
+import { thisMonth, today } from "../data/selectors";
 import { FormModal, SearchSelectField } from "./forms";
 import { Button, cx, slug } from "./primitives";
 
 export const D4_MENU = [
   { href: "/performance", label: "Performance Review" },
+  { href: "/daily-kpi", label: "Daily KPI" },
   { href: "/competency", label: "Competency Gap" },
   { href: "/development", label: "Development Requirement" },
   { href: "/training", label: "Training Tracking" },
   { href: "/dashboard", label: "People Dashboard" },
 ] as const;
 
-const roleLabel: Record<string, string> = { HR: "HR", MANAGER: "Manager", EMPLOYEE: "Employee" };
+const roleLabel: Record<string, string> = { HR: "HR", MANAGER: "Manager", MANAGEMENT: "Management", EMPLOYEE: "Employee" };
 
 const LOGO_URL = "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-ANDIMA-wzx4gpZx20EFE5IYcH3jqabixELIo3.png";
 
@@ -88,6 +92,7 @@ function Sidebar({ onNavigate, onClose }: { onNavigate: () => void; onClose: () 
 
 /** HR/manager backup for demos: preview the app as one employee without that employee's login. Read-only. */
 function SimulateEmployee() {
+  const router = useRouter();
   const { snapshot, canSimulate, viewAs, setViewAs } = useD4();
   const [open, setOpen] = useState(false);
   const [choice, setChoice] = useState("");
@@ -102,11 +107,67 @@ function SimulateEmployee() {
     {open && <FormModal title="Simulasi Employee" description="Lihat aplikasi persis seperti yang dilihat satu pegawai. Hanya tampilan; tidak ada data yang disimpan." onClose={() => setOpen(false)}
       footer={<>
         <Button variant="secondary" data-testid="btn-simulate-cancel" onClick={() => setOpen(false)}>Cancel</Button>
-        <Button data-testid="btn-simulate-start" disabled={!choice} onClick={() => { setViewAs(choice); setOpen(false); }}>Lihat sebagai Employee</Button>
+        <Button data-testid="btn-simulate-start" disabled={!choice} onClick={() => { setViewAs(choice); setOpen(false); router.push("/daily-kpi"); }}>Lihat sebagai Employee</Button>
       </>}>
       <SearchSelectField label="Pegawai" testId="simulate-employee" value={choice} onChange={setChoice} options={options} placeholder="Pilih pegawai" />
     </FormModal>}
   </>;
+}
+
+type Notification = { id: string; title: string; text: string; href: string };
+
+/** B5 (interview D4, 14 Oct 2026): everyone with a KPI role scores today's Daily KPI; until then this is their notification. */
+function useNotifications(): Notification[] {
+  const { snapshot, catalog } = useD4();
+  if (!snapshot?.kpiDaily || !canFillDaily(snapshot.role, snapshot.actorEmployeeId)) return [];
+  const periodCatalog = catalog ? catalogFor(catalog, thisMonth()) : null;
+  const me = snapshot.reference.employees.find((item) => item.id === snapshot.actorEmployeeId);
+  if (!periodCatalog || !roleForPosition(periodCatalog, me?.positionId)) return [];
+  const day = today();
+  if (snapshot.kpiDaily.some((entry) => entry.employeeId === snapshot.actorEmployeeId && entry.entryDate === day)) return [];
+  return [{ id: `daily-kpi-${snapshot.actorEmployeeId}-${day}`, title: "Daily KPI hari ini belum diisi", text: "Isi skor lima Core KPI Anda sebelum pulang.", href: "/daily-kpi" }];
+}
+
+// The last reminder that was opened or dismissed, per browser: the panel opens by itself once per reminder, not on every page.
+const SEEN_KEY = "d4-notification-seen";
+const wasSeen = (id: string) => { try { return localStorage.getItem(SEEN_KEY) === id; } catch { return false; } };
+const markSeen = (id: string) => { try { localStorage.setItem(SEEN_KEY, id); } catch { /* blocked storage: it opens again next load */ } };
+
+function NotificationBell() {
+  const pathname = usePathname();
+  const items = useNotifications();
+  const [open, setOpen] = useState(false);
+  const [dismissed, setDismissed] = useState<string | null>(null);
+  const wrapper = useRef<HTMLDivElement>(null);
+  const first = items[0];
+  // Opens by itself so nobody has to look for it, except on the page the reminder points to.
+  const shown = open || (Boolean(first) && pathname !== first.href && dismissed !== first.id && !wasSeen(first.id));
+  function close() {
+    if (first) { markSeen(first.id); setDismissed(first.id); }
+    setOpen(false);
+  }
+  useEffect(() => {
+    if (!shown) return;
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") close(); };
+    const onPointer = (event: MouseEvent) => { if (!wrapper.current?.contains(event.target as Node)) close(); };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("mousedown", onPointer);
+    return () => { document.removeEventListener("keydown", onKey); document.removeEventListener("mousedown", onPointer); };
+  });
+  return <div ref={wrapper} className="relative">
+    <button type="button" data-testid="btn-notifications" aria-label={items.length ? `Notifications (${items.length})` : "Notifications"} aria-expanded={shown}
+      onClick={() => shown ? close() : setOpen(true)} className="relative rounded-lg p-2 text-ink-2 hover:bg-muted">
+      <Bell aria-hidden="true" className="size-5" />
+      {items.length > 0 && <span data-testid="notification-badge" className="absolute right-1 top-1 flex size-4 items-center justify-center rounded-full bg-danger text-[10px] font-semibold text-white">{items.length}</span>}
+    </button>
+    {shown && <div role="dialog" aria-label="Notifications" data-testid="notification-panel" className="absolute right-0 top-full z-50 mt-2 w-[min(320px,calc(100vw-2rem))] rounded-2xl border border-line bg-surface p-2 shadow-modal">
+      {items.length ? items.map((item) => <Link key={item.id} href={item.href} onClick={close} data-testid="notification-item" className="block rounded-xl px-3 py-2.5 hover:bg-muted">
+        <span className="flex items-center gap-2 text-sm font-semibold text-ink"><span aria-hidden="true" className="size-2 shrink-0 rounded-full bg-danger" />{item.title}</span>
+        <span className="mt-0.5 block text-xs text-ink-2">{item.text}</span>
+        <span className="mt-2 inline-block text-xs font-semibold text-primary-600">Isi sekarang</span>
+      </Link>) : <p className="px-3 py-2.5 text-sm text-ink-3">Tidak ada notifikasi.</p>}
+    </div>}
+  </div>;
 }
 
 function SimulationBanner() {
@@ -143,7 +204,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <span className="flex-1 sm:hidden" />
         {mode === "fixture" && <span className="hidden rounded-full bg-warning-bg px-2.5 py-1 text-[11px] font-semibold text-warning md:inline">Pratinjau · data contoh</span>}
         <SimulateEmployee />
-        <span className="rounded-lg p-2 text-ink-2" title="Notifications"><Bell aria-hidden="true" className="size-5" /><span className="sr-only">Notifications</span></span>
+        <NotificationBell />
         <span aria-hidden="true" className="h-8 w-px bg-line" />
         <div className="flex items-center gap-2.5">
           <span aria-hidden="true" className="flex size-9 items-center justify-center rounded-full bg-avatar-me-bg text-xs font-semibold text-avatar-me">{name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("")}</span>

@@ -207,3 +207,31 @@ describe("migration 20261019120000 (not applied yet)", () => {
     for (const value of REASSESSMENTS) expect(sql).toContain(`reassessment = '${value}' and status`);
   });
 });
+
+// The app is deployed before migration 20261108130000: a missing daily table must not break the other D4 pages.
+describe("Daily KPI before its migration", () => {
+  it.each(["PGRST205", "42P01"])("loads the snapshot without kpiDaily when the table is missing (%s)", async (errorCode) => {
+    const employee = reference.employees[0];
+    const { client } = fakeClient({
+      "d4_user_access:select": { data: { app_role: "HR", employee_id: employee.id }, error: null },
+      "d4_kpi_daily_entries:select": { data: null, error: { code: errorCode, message: "relation \"public.d4_kpi_daily_entries\" does not exist" } },
+    });
+    const snapshot = await new SupabaseD4Repository(client).loadSnapshot();
+    expect(snapshot.kpiDaily).toBeUndefined();
+    expect(snapshot.role).toBe("HR");
+  });
+
+  it.each(["PGRST205", "42P01"])("answers a save with CONFIGURATION_ERROR (%s)", async (errorCode) => {
+    const { client } = fakeClient({ "d4_kpi_daily_entries:insert": { data: null, error: { code: errorCode, message: "missing" } } });
+    const input = { definitionVersion: "V6", employeeId: "e", entryDate: "2026-11-08", period: "2026-11", roleOrder: 5, roleName: "x", lines: [] };
+    expect(await code(new SupabaseD4Repository(client).saveKpiDailyEntry(input))).toBe("CONFIGURATION_ERROR");
+  });
+
+  it("still fails loudly on any other database error", async () => {
+    const { client } = fakeClient({
+      "d4_user_access:select": { data: { app_role: "HR", employee_id: reference.employees[0].id }, error: null },
+      "d4_kpi_daily_entries:select": { data: null, error: { code: "XX000", message: "boom" } },
+    });
+    await expect(new SupabaseD4Repository(client).loadSnapshot()).rejects.toThrow(/Daily KPI: boom/);
+  });
+});
