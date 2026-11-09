@@ -134,6 +134,8 @@ function DailyEntriesTable({ entries }: { entries: KpiDailyEntry[] }) {
       { key: "date", header: "Date", cell: (entry) => formatDate(entry.entryDate) },
       { key: "total", header: "Total", className: "tabular-nums", cell: (entry) => <span className="font-semibold">{formatScore(entry.overallScore, scaleMaxOf(entry.definitionVersion))}</span> },
       { key: "gap", header: `Gap vs ${KPI_TARGET}`, className: "tabular-nums", cell: (entry) => formatGap(entry.overallScore, entry.definitionVersion) },
+      // Interview 14 Oct (00:58:05): each day's score reads as a category ("nilainya ternyata high performance").
+      { key: "category", header: "Category", cell: (entry) => { const band = performanceBand(entry.overallScore, entry.definitionVersion); return band ? <StatusBadge status={band} /> : "—"; } },
       { key: "scores", header: "Scores (KPI 1–5)", className: "tabular-nums", cell: (entry) => entry.lines.map((line) => line.raw_score ?? "—").join(" · ") },
       { key: "comments", header: "Comments", wrap: true, secondary: true, cell: (entry) => entry.lines.map((line) => line.comment).filter(Boolean).join("; ") || "—" },
     ]} />;

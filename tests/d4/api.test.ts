@@ -600,11 +600,11 @@ describe("POST /kpi-daily (self-service, not HR-only)", () => {
     expect(saved.lines.map((line) => line.raw_score)).toEqual([4, 4, 4, 4, 4]);
   });
 
-  it("refuses MANAGEMENT (directors are read-only) with 403", async () => {
+  it("lets MANAGEMENT (a director) score their own day; the rest stays read-only (interview 14 Oct, 00:33:23)", async () => {
     signIn("MANAGEMENT", ALFA);
-    const res = await call(daily.POST(post(dailyBody())));
-    expect(res).toMatchObject({ status: 403, body: { error: { code: "FORBIDDEN", message: "Akun Management hanya dapat melihat data." } } });
-    expect(writes).toHaveLength(0);
+    const res = await call(daily.POST(post(dailyBody({ employeeId: MERCURY }))));
+    expect(res.status).toBe(201);
+    expect((writes[0].args[0] as { employeeId: string }).employeeId).toBe(ALFA);
   });
 
   it("refuses an account without an employee record with 403", async () => {

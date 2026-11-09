@@ -4,8 +4,9 @@
 --   period's daily entries, and HR reviews and saves it.
 -- * Insert-only, like the scorecards: a correction is a new row for the same day, and the newest row of a day counts.
 -- * The writer is the subject, not HR, so the INSERT policy carries every check the HR flow relied on:
---   own employee row, KPI role of the caller's own position in the catalog version, a day in the running WIB period
---   and not after today (WIB), and never a MANAGEMENT account (directors are read-only, 20261108120000).
+--   own employee row, KPI role of the caller's own position in the catalog version, and a day in the running WIB
+--   period not after today (WIB). Directors (MANAGEMENT) score their own day too (interview 14 Oct 2026, 00:33:23);
+--   they stay read-only for everyone else's data (20261108120000).
 -- * The lines are validated and scored by the same triggers as the scorecards (d4_calculate_kpi_assessment,
 --   d4_check_kpi_version), which read only columns this table shares with d4_kpi_assessments.
 --
@@ -58,7 +59,6 @@ create policy "D4 KPI daily read permitted employee" on public.d4_kpi_daily_entr
 create policy "D4 KPI daily insert own entry" on public.d4_kpi_daily_entries for insert to authenticated with check (
   employee_id = (select public.d4_current_employee_uuid())
   and actor_auth_user_id = (select auth.uid())
-  and (select public.d4_current_role()) <> 'MANAGEMENT'
   and role_order = public.d4_current_kpi_role(definition_version)
   and entry_date <= (now() at time zone 'Asia/Jakarta')::date
   and period = to_char(now() at time zone 'Asia/Jakarta', 'YYYY-MM')

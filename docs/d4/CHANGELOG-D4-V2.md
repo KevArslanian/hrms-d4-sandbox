@@ -151,7 +151,7 @@ Cabang `feat/D4-perbaikan-total`, dibangun di atas PR #37. Dua migrasi baru disi
 **Director read-only (B17)**
 - Migrasi `20261108120000`: `DIR-*` dipetakan ke `MANAGEMENT`.
 - Semua policy baca dan view D4 menerima `MANAGEMENT`. Policy insert tetap HR/MANAGER.
-- Aplikasi menampilkan peran "Management" tanpa tombol simpan.
+- Aplikasi menampilkan peran "Management" tanpa tombol simpan. Pengecualian (koreksi 9 Nov): Director mengisi Daily KPI miliknya sendiri, lihat bagian 9 Nov.
 
 **Daily KPI** (asumsi kerja, menunggu konfirmasi klien)
 - Menu baru `/daily-kpi`. Pegawai mengisi skor lima Core KPI miliknya per hari. Koreksi berarti entri baru di tanggal yang sama, dan entri terbaru yang dipakai.
@@ -159,8 +159,7 @@ Cabang `feat/D4-perbaikan-total`, dibangun di atas PR #37. Dua migrasi baru disi
 - Migrasi `20261108130000` membuat tabel `d4_kpi_daily_entries`. Database menegakkan:
   - pemilik entri adalah akun yang login;
   - peran KPI sesuai posisi sendiri;
-  - tanggal di periode WIB berjalan dan tidak lewat hari ini;
-  - Management ditolak.
+  - tanggal di periode WIB berjalan dan tidak lewat hari ini.
 - Diuji di Postgres lokal.
 - Add Performance Review mengisi Actual dari rata-rata harian (dibulatkan, karena trigger menyimpan skor bulat). HR tetap meninjau dan menyimpan.
 - Alert People Dashboard baru:
@@ -226,6 +225,11 @@ Hanya permintaan yang jelas di transkrip Show & Tell (Mas Bram) dan sepenuhnya m
   - Halaman Daily KPI menampilkan pengingat selama hari ini belum diisi.
   - Lonceng notifikasi di header mendapat badge. Panelnya terbuka sendiri sekali per hari di halaman mana pun selain Daily KPI, dan "Isi sekarang" membawa ke `/daily-kpi`.
   - Masuk Simulasi Employee langsung membuka `/daily-kpi`, sehingga "My KPI today" tampil pertama.
+
+- **Pencocokan ulang Daily KPI dengan transkrip 14 Okt:**
+  - **Director juga mengisi Daily KPI miliknya sendiri.** Contoh Mas Bram di 00:33:23 adalah seorang direktur yang menilai KPI direkturnya ("pencapaian target pendapatan operasional"). Penolakan untuk MANAGEMENT dihapus dari API, fixture, dan policy insert migrasi `20261108130000` (belum diterapkan, jadi diubah di tempat). Untuk data orang lain, Director tetap read-only (B17). Diuji ulang di Postgres lokal: entri sendiri diterima, entri untuk pegawai lain ditolak.
+  - **Kategori performa per hari (00:58:05, "nilainya ternyata high performance"):** tabel entri harian mendapat kolom Category untuk skala 1–100.
+  - **Masih terbuka:** notulen 14 Okt menulis "KPI harian ada di tim Raka (D1)" dan "pembagian KPI harian antara D4 dan D1 perlu didiskusikan lagi". Keputusan PO bersama D1 tetap dibutuhkan.
 
 Tidak dikerjakan karena belum pasti atau bukan milik D4:
 - **B2:** UI target dan standar KPI. Menunggu kesepakatan definisi KPI dengan D1.

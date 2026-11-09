@@ -16,10 +16,11 @@ export function localToday(now = new Date()): string {
 export const localMonth = (now = new Date()) => localToday(now).slice(0, 7);
 
 /**
- * Daily KPI is self-service: any account linked to an employee scores its own day, except MANAGEMENT (directors are
- * read-only, B17). The position must also have a KPI role, which needs the catalog and is checked separately.
+ * Daily KPI is self-service: every account linked to an employee scores its own day, directors (MANAGEMENT) too.
+ * Interview D4 (14 Oct 2026, 00:33:23): the example is a director scoring her own Director KPI. MANAGEMENT stays
+ * read-only for everyone else's data (B17). The position must also have a KPI role, which is checked separately.
  */
-export const canFillDaily = (role: string, employeeId: string | null | undefined) => role !== "MANAGEMENT" && Boolean(employeeId);
+export const canFillDaily = (_role: string, employeeId: string | null | undefined) => Boolean(employeeId);
 
 /** Interview D4 (14 Oct 2026, B13): a development requirement must have a PIC so it can be followed up. */
 export function assertPicFilled(pic: string | undefined) {

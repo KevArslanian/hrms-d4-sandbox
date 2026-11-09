@@ -364,7 +364,10 @@ describe("Daily KPI in the fixture source (mirrors POST /api/d4/kpi-daily)", () 
     expect(snapshot.kpiDaily?.[0]).toMatchObject({ employeeId: ALFA, entryDate: localToday(), overallScore: 90 });
   });
 
-  it("refuses MANAGEMENT", async () => {
-    await expect((await fixtureAs("MANAGEMENT")).createDailyKpi(draft())).rejects.toThrow(/Management/);
+  it("lets MANAGEMENT score their own day while every other write stays refused", async () => {
+    const source = await fixtureAs("MANAGEMENT");
+    // The fixture's MANAGEMENT actor holds a position without a KPI role: refused for that reason, not for the role.
+    await expect(source.createDailyKpi(draft())).rejects.toThrow(/belum memiliki KPI/);
+    await expect(source.createTraining({ employeeId: ALFA, developmentNeedId: "x", activity: "Uji", date: "2026-10-01", status: "Planned", result: "", notes: "" })).rejects.toThrow(/Hanya HR atau manager/);
   });
 });
