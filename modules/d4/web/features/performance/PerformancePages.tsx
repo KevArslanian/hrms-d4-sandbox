@@ -83,12 +83,12 @@ export function PerformanceListPage() {
       emptyTitle="Tidak ada pegawai yang cocok" emptyText="Ubah kata kunci atau reset filter untuk melihat semua pegawai."
       columns={[
         { key: "employee", header: "Employee", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
-        { key: "position", header: "Position / Department", wrap: true, cell: (row) => <><span className="block">{row.position}</span><span className="block text-xs text-ink-3">{departmentOf(snapshot, row.employee)?.name ?? "—"}</span></> },
+        { key: "position", header: "Position / Department", wrap: true, optional: true, cell: (row) => <><span className="block">{row.position}</span><span className="block text-xs text-ink-3">{departmentOf(snapshot, row.employee)?.name ?? "—"}</span></> },
         { key: "period", header: "Period", cell: (row) => formatPeriod(row.period) },
         { key: "total", header: "Total KPI", className: "tabular-nums", cell: (row) => row.scorecard ? <span className="font-semibold">{formatScorecard(row.scorecard)}</span>
           : row.compiled ? <><span className="block font-semibold">{formatScore(row.compiled.total, scaleMaxOf(row.compiled.definitionVersion))}</span><span data-testid="compiled-days" className="block text-xs text-ink-3">from {row.compiled.days.length} daily {row.compiled.days.length === 1 ? "entry" : "entries"}</span></>
           : row.hasKpi ? "—" : <span className="text-xs text-ink-3">Not in catalog {catalog?.version} yet</span> },
-        { key: "gap", header: "Gap vs 85", className: "tabular-nums", cell: (row) => row.scorecard ? formatGap(row.scorecard.overallScore, row.scorecard.definitionVersion)
+        { key: "gap", header: "Gap vs 85", className: "tabular-nums", optional: true, cell: (row) => row.scorecard ? formatGap(row.scorecard.overallScore, row.scorecard.definitionVersion)
           : row.compiled ? formatGap(row.compiled.total, row.compiled.definitionVersion) : "—" },
         { key: "notes", header: "Notes", wrap: true, secondary: true, className: "max-w-[280px]", cell: (row) => {
           const notes = row.scorecard?.generalNotes || row.evaluation?.generalNotes;

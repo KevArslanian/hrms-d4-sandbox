@@ -72,11 +72,11 @@ export function CompetencyListPage() {
       columns={[
         { key: "employee", header: "Employee", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
         { key: "position", header: "Position", wrap: true, cell: (row) => row.position },
-        { key: "department", header: "Department", wrap: true, cell: (row) => departmentOf(snapshot, row.employee)?.name ?? "—" },
-        { key: "requirements", header: "Requirement", className: "tabular-nums", cell: (row) => row.findings.length || "—" },
+        { key: "department", header: "Department", wrap: true, optional: true, cell: (row) => departmentOf(snapshot, row.employee)?.name ?? "—" },
+        { key: "requirements", header: "Requirement", className: "tabular-nums", optional: true, cell: (row) => row.findings.length || "—" },
         { key: "gaps", header: "Gap", className: "tabular-nums", cell: (row) => row.findings.filter((item) => item.status === "Gap").length || "—" },
         { key: "status", header: "Status", cell: (row) => <StatusBadge status={row.status} /> },
-        { key: "assessed", header: "Last saved", cell: (row) => formatDate(row.lastAssessed) },
+        { key: "assessed", header: "Last saved", optional: true, cell: (row) => formatDate(row.lastAssessed) },
       ]}
       actions={(row) => <RowActionMenu label={`Actions for ${row.employee.fullName}`} actions={[
         { label: "View Detail", testId: "view-detail", icon: <Eye />, href: `/competency/${row.employee.id}` },
