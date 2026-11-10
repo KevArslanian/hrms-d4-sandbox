@@ -59,7 +59,7 @@ export function KpiDetailPage({ id }: { id: string }) {
           <p className="mt-5 text-xs text-ink-3">Total = Σ (bobot × skor). {scaleMaxOf(scorecard.definitionVersion) === 100 ? `Di bawah ${UNDER_BELOW} Under Performance, ${UNDER_BELOW}–${HIGH_ABOVE} Average Performance, di atas ${HIGH_ABOVE} High Performance.` : "Skala 1–5 (V3.1/V5.1) tidak punya kategori performa; kategori berlaku untuk scorecard 1–100 mulai V6."}</p>
         </Card>
         <Card title="Notes" testId="notes-related">
-          <p className="whitespace-pre-wrap text-sm text-ink-2">{scorecard.generalNotes || evaluation?.generalNotes || "Belum ada catatan."}</p>
+          <p className="whitespace-pre-wrap break-words text-sm text-ink-2">{scorecard.generalNotes || evaluation?.generalNotes || "Belum ada catatan."}</p>
           <h3 className="mb-1 mt-5 text-xs font-semibold uppercase tracking-[0.04em] text-ink-3">Reference</h3>
           <p className="text-sm text-ink-2">{scorecard.evidenceReference || evaluation?.evidenceReference || "—"}</p>
           {(needs.length > 0 || (!scorecard.generalNotes && evaluation)) && <div className="mt-4 flex flex-col items-start gap-2">

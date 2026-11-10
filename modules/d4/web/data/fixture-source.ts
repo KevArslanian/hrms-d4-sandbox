@@ -5,10 +5,11 @@ import { scaleMaxOf } from "../../kpi/scale";
 import { performanceFixtureRecords } from "../../performance/fixtures";
 import { validatePerformanceInput } from "../../performance/validation";
 import { d4ReferenceFixture } from "../../shared/fixtures";
-import { assertDailyDate, assertGapAssessed, assertPicFilled, canFillDaily, localMonth, localToday, assertTrainingDate, assertNeedOpen, assertNoOpenNeed, assertTrainingResult, assertNotFutureDate, assertEvaluationInPeriod, assertNotSelf, assertPeriodRevision, assertTrainingChange, assertTrainingFollowUp, nextDevelopmentRevision, retrainingNotes } from "../../shared/rules";
+import { assertDailyDate, assertGapAssessed, assertPicFilled, canFillDaily, localMonth, localToday, assertTrainingDate, assertNeedOpen, assertNoOpenNeed, assertTrainingResult, assertNotFutureDate, assertEvaluationInPeriod, assertNotSelf, assertPeriodRevision, assertTrainingChange, nextDevelopmentRevision, planTrainingCompletion, retrainingNotes } from "../../shared/rules";
 import type { D4LiveSnapshot, KpiAssessment, KpiAssessmentLine, KpiDailyEntry } from "../../supabase/types";
 import { latestDevelopment, latestTraining } from "../../supabase/types";
 import { trainingFixtureVersions } from "../../training/fixtures";
+import type { TrainingFollowUp } from "../../training/types";
 import type { D4DataSource } from "./source";
 
 // Local preview only (NEXT_PUBLIC_D4_DATA_MODE=fixture in development). All people and
@@ -273,19 +274,31 @@ export function createFixtureSource(): D4DataSource {
       // A follow-up belongs to the version that records it (followUpOf reads the history), as in Supabase.
       update({ trainingVersions: [{ ...current, id: newId("FIX-D4-TRN-V"), revision: current.revision + 1, status, result, notes, followUp: null, createdAt: now(), actor: actorName() }, ...state.trainingVersions] });
     },
-    async recordTrainingFollowUp(trainingId, input) {
+    // Mirrors POST /api/d4/training-records/:id/complete in one update; the timestamps keep the server's write order.
+    async completeTraining(trainingId, input) {
       assertWriter();
-      const history = state.trainingVersions.filter((item) => item.trainingId === trainingId);
       const current = latestTraining(state).find((item) => item.trainingId === trainingId);
       if (!current) throw new Error("Training tidak ditemukan.");
-      assertTrainingFollowUp(history, input, latestDevelopment(state).find((item) => item.needId === current.developmentNeedId));
-      const at = now(), actor = actorName();
-      const followUp = { ...current, id: newId("FIX-D4-TRN-V"), revision: current.revision + 1, notes: input.notes.trim(), followUp: input.followUp, createdAt: at, actor };
-      if (input.followUp !== "Retraining") { update({ trainingVersions: [followUp, ...state.trainingVersions] }); return null; }
-      const retrainingId = newId("FIX-D4-TRN");
-      const retraining = { ...current, id: newId("FIX-D4-TRN-V"), trainingId: retrainingId, revision: 1, source: "local-demo" as const, activity: (input.activity ?? "").trim(), date: input.date ?? "",
-        status: "Planned" as const, result: "", notes: retrainingNotes(current, input.notes), followUp: null, createdAt: at, actor };
-      update({ trainingVersions: [retraining, followUp, ...state.trainingVersions] });
+      const needs = latestDevelopment(state);
+      const need = needs.find((item) => item.needId === current.developmentNeedId);
+      const employee = state.reference.employees.find((item) => item.id === current.employeeId);
+      const comparison = employee?.positionId ? compareCompetencies(employee.id, employee.positionId, state.reference) : null;
+      const start = Date.now(), at = (step: number) => new Date(start + step).toISOString(), actor = actorName();
+      const plan = planTrainingCompletion(input, {
+        trainingId, history: state.trainingVersions.filter((item) => item.trainingId === trainingId), need,
+        needHistory: state.developmentVersions.filter((item) => item.needId === current.developmentNeedId), latestNeeds: needs, latestTrainings: latestTraining(state),
+        finding: comparison?.findings.find((item) => item.requirementId === need?.sourceRef), at: at(0),
+      });
+      const trainingVersions = [...state.trainingVersions], developmentVersions = [...state.developmentVersions], competency = [...state.competency];
+      if (plan.training) trainingVersions.unshift({ ...current, id: newId("FIX-D4-TRN-V"), revision: current.revision + 1, status: "Completed", result: input.result, notes: input.notes.trim(),
+        followUp: plan.training === "follow-up" ? input.decision as TrainingFollowUp : null, createdAt: at(0), actor });
+      if (plan.snapshot && employee?.positionId && comparison?.findings.length) competency.unshift({ id: newId("FIX-D4-COMP"), source: "local-demo", employeeId: employee.id, positionId: employee.positionId,
+        effectiveDate: localToday(), context: "current-position", findings: comparison.findings, overallStatus: comparison.overallStatus, createdAt: at(1), actor, assessedWith: null });
+      if (plan.development && need) developmentVersions.unshift({ ...need, ...plan.development, id: newId("FIX-D4-DEV-V"), revision: need.revision + 1, createdAt: at(2), actor });
+      const retrainingId = plan.retraining ? newId("FIX-D4-TRN") : null;
+      if (retrainingId) trainingVersions.unshift({ ...current, id: newId("FIX-D4-TRN-V"), trainingId: retrainingId, revision: 1, source: "local-demo", activity: (input.activity ?? "").trim(), date: input.date ?? "",
+        status: "Planned", result: "", notes: retrainingNotes(current, input.notes, input.result), followUp: null, createdAt: at(3), actor });
+      update({ trainingVersions, developmentVersions, competency });
       return retrainingId;
     },
   };

@@ -1,5 +1,6 @@
-import type { TrainingStatus } from "../../training/types";
-import { assertNeedOpen, assertTrainingChange, assertTrainingDate, assertTrainingFollowUp, TRAINING_FOLLOW_UPS, TRAINING_RESULTS } from "../../shared/rules";
+import { compareCompetencies } from "../../competency/service";
+import type { TrainingFollowUp, TrainingStatus } from "../../training/types";
+import { assertNeedOpen, assertTrainingChange, assertTrainingDate, assertTrainingFollowUp, localToday, planTrainingCompletion, retrainingNotes, TRAINING_DECISIONS, TRAINING_FOLLOW_UPS, TRAINING_RESULTS } from "../../shared/rules";
 import { latestDevelopment, latestTraining } from "../../supabase/types";
 import { ApiError, employeeFilter, enforce, field, readJson } from "../_lib/http";
 import { d4Session, requireWriter } from "../_lib/session";
@@ -71,4 +72,44 @@ export async function recordTrainingFollowUp(request: Request, id: string) {
   if (!history.length) throw new ApiError("NOT_FOUND", "Training tidak ditemukan.");
   enforce(() => assertTrainingFollowUp(history, input, latestDevelopment(snapshot).find((item) => item.needId === history[0].developmentNeedId)));
   return { trainingId: id, followUp, retrainingId: await repository.recordTrainingFollowUp(id, input, snapshot) };
+}
+
+/**
+ * POST /api/d4/training-records/:id/complete — the one save of Training Tracking that finishes a training: the result
+ * and HR's decision (Passed: Meets requirement or Retraining; Not Passed: Retraining or Other follow-up). Every rule
+ * is checked before the first write. Writes follow this order so the histories read correctly: the training version,
+ * a competency snapshot (Passed), the requirement revision (Passed), then the Retraining training. Not one transaction:
+ * a failure part-way keeps the earlier records and the training page shows the step that is still open.
+ */
+export async function completeTraining(request: Request, id: string) {
+  const { repository } = await requireWriter();
+  const body = await readJson(request);
+  const decision = field.oneOf(body, "decision", TRAINING_DECISIONS);
+  const input = { result: field.oneOf(body, "result", TRAINING_RESULTS), decision, notes: field.text(body, "notes", { required: false, max: 2000 }),
+    ...(decision === "Retraining" ? { activity: field.text(body, "activity", { max: 200 }), date: field.date(body, "date") } : {}) };
+  const snapshot = await repository.loadSnapshot();
+  const record = latestTraining(snapshot).find((item) => item.trainingId === id);
+  if (!record) throw new ApiError("NOT_FOUND", "Training tidak ditemukan.");
+  const needs = latestDevelopment(snapshot);
+  const need = needs.find((item) => item.needId === record.developmentNeedId);
+  const employee = snapshot.reference.employees.find((item) => item.id === record.employeeId);
+  const comparison = employee?.positionId && snapshot.reference.positions.some((item) => item.id === employee.positionId)
+    ? compareCompetencies(employee.id, employee.positionId, snapshot.reference) : null;
+  const plan = planTrainingCompletion(input, {
+    trainingId: id, history: snapshot.trainingVersions.filter((item) => item.trainingId === id), need,
+    needHistory: snapshot.developmentVersions.filter((item) => item.needId === record.developmentNeedId), latestNeeds: needs, latestTrainings: latestTraining(snapshot),
+    finding: comparison?.findings.find((item) => item.requirementId === need?.sourceRef), at: new Date().toISOString(),
+  });
+  if (plan.training === "follow-up") {
+    const retrainingId = await repository.recordTrainingFollowUp(id, { followUp: decision as TrainingFollowUp, notes: input.notes, activity: input.activity, date: input.date }, snapshot);
+    return { trainingId: id, result: input.result, decision, retrainingId };
+  }
+  if (plan.training === "version") await repository.updateTraining(id, "Completed", "Passed", input.notes);
+  if (plan.snapshot && employee?.positionId && comparison?.findings.length) {
+    await repository.saveCompetency({ employeeId: employee.id, positionId: employee.positionId, effectiveDate: localToday() }, snapshot.reference);
+  }
+  if (plan.development && need) await repository.updateDevelopment(need.needId, plan.development, need);
+  const retrainingId = plan.retraining ? await repository.createTraining({ employeeId: record.employeeId, developmentNeedId: record.developmentNeedId,
+    activity: input.activity ?? "", date: input.date ?? "", status: "Planned", result: "", notes: retrainingNotes(record, input.notes, "Passed") }, snapshot) : null;
+  return { trainingId: id, result: input.result, decision, retrainingId };
 }

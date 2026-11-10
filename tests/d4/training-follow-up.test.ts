@@ -63,7 +63,7 @@ describe("follow-up of a Not Passed training", () => {
     expect(alert?.people).toEqual([enaName(before)]);
     expect(alert?.label).toBe("Awaiting follow-up");
 
-    const id = await source.recordTrainingFollowUp("FIX-D4-TRN-003", { followUp: "Retraining", notes: "Jadwal ulang dengan trainer lain", activity: "Records Retention Workshop (ulang)", date: "2026-10-27" });
+    const id = await source.completeTraining("FIX-D4-TRN-003", { result: "Not Passed", decision: "Retraining", notes: "Jadwal ulang dengan trainer lain", activity: "Records Retention Workshop (ulang)", date: "2026-10-27" });
     const after = await source.loadSnapshot();
     const retraining = latestTraining(after).find((item) => item.trainingId === id)!;
     expect(retraining).toMatchObject({ employeeId: ENA, developmentNeedId: "FIX-D4-DEV-003", activity: "Records Retention Workshop (ulang)", date: "2026-10-27", status: "Planned", result: "", revision: 1 });
@@ -77,28 +77,36 @@ describe("follow-up of a Not Passed training", () => {
     expect(titles.some((item) => item.includes("Records Retention Workshop (ulang)"))).toBe(true);
     expect(titles.some((item) => item.includes("Follow-up: Retraining"))).toBe(true);
     // Recorded once.
-    await expect(source.recordTrainingFollowUp("FIX-D4-TRN-003", { followUp: "Other follow-up", notes: "Coaching" })).rejects.toThrow(/sudah dicatat/);
+    await expect(source.completeTraining("FIX-D4-TRN-003", { result: "Not Passed", decision: "Other follow-up", notes: "Coaching" })).rejects.toThrow(/sudah dicatat/);
   });
 
   it("Mba Ena: Other follow-up requires a note, then clears the alert without a new training", async () => {
     const source = await hrSource();
-    await expect(source.recordTrainingFollowUp("FIX-D4-TRN-003", { followUp: "Other follow-up", notes: "  " })).rejects.toThrow(/Catatan wajib diisi/);
-    expect(await source.recordTrainingFollowUp("FIX-D4-TRN-003", { followUp: "Other follow-up", notes: "Coaching oleh manajer akuntansi" })).toBeNull();
+    await expect(source.completeTraining("FIX-D4-TRN-003", { result: "Not Passed", decision: "Other follow-up", notes: "  " })).rejects.toThrow(/Catatan wajib diisi/);
+    expect(await source.completeTraining("FIX-D4-TRN-003", { result: "Not Passed", decision: "Other follow-up", notes: "Coaching oleh manajer akuntansi" })).toBeNull();
     const after = await source.loadSnapshot();
     expect(after.trainingVersions.filter((item) => item.developmentNeedId === "FIX-D4-DEV-003" && item.revision === 1)).toHaveLength(1);
     expect(followUpOf(history(after, "FIX-D4-TRN-003"))).toBe("Other follow-up");
     expect(notPassedAlert(after)).toBeUndefined();
   });
 
-  it("rejects a follow-up for a training that is not Not Passed, and an unknown training", async () => {
+  it("rejects a decision that does not belong to the result, and an unknown training", async () => {
     const source = await hrSource();
-    await expect(source.recordTrainingFollowUp("FIX-D4-TRN-001", { followUp: "Other follow-up", notes: "x" })).rejects.toThrow(/hasil Not Passed/);
-    await expect(source.recordTrainingFollowUp("NOPE", { followUp: "Other follow-up", notes: "x" })).rejects.toThrow(/tidak ditemukan/);
+    await expect(source.completeTraining("FIX-D4-TRN-001", { result: "Passed", decision: "Other follow-up", notes: "x" })).rejects.toThrow(/Meets requirement atau Retraining/);
+    await expect(source.completeTraining("FIX-D4-TRN-001", { result: "Not Passed", decision: "Meets requirement", notes: "x" })).rejects.toThrow(/Retraining atau Other follow-up/);
+    await expect(source.completeTraining("NOPE", { result: "Not Passed", decision: "Other follow-up", notes: "x" })).rejects.toThrow(/tidak ditemukan/);
+  });
+
+  it("completes a running training as Not Passed with its follow-up in one version", async () => {
+    const source = await hrSource();
+    await source.completeTraining("FIX-D4-TRN-001", { result: "Not Passed", decision: "Other follow-up", notes: "Coaching oleh atasan" });
+    const versions = history(await source.loadSnapshot(), "FIX-D4-TRN-001").sort((a, b) => a.revision - b.revision);
+    expect(versions.map((item) => [item.revision, item.status, item.result, item.followUp ?? null])).toEqual([[1, "Planned", "", null], [2, "Completed", "Not Passed", "Other follow-up"]]);
   });
 
   it("a plain progress update after the follow-up does not copy it to the new version", async () => {
     const source = await hrSource();
-    await source.recordTrainingFollowUp("FIX-D4-TRN-003", { followUp: "Other follow-up", notes: "Rotasi" });
+    await source.completeTraining("FIX-D4-TRN-003", { result: "Not Passed", decision: "Other follow-up", notes: "Rotasi" });
     await source.updateTraining("FIX-D4-TRN-003", "Completed", "Passed", "Lulus setelah coaching");
     const latest = latestTraining(await source.loadSnapshot()).find((item) => item.trainingId === "FIX-D4-TRN-003")!;
     expect(latest.followUp).toBeNull();

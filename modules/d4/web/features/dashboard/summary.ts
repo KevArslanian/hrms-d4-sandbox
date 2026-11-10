@@ -3,11 +3,10 @@ import type { DevelopmentNeedVersion } from "../../../development/types";
 import { KPI_TARGET, roleForPosition, type KpiCatalog } from "../../../kpi/catalog";
 import { dailyEntriesOf, daysBelowTarget } from "../../../kpi/daily";
 import { performanceBand, scaleMaxOf, type PerformanceBand } from "../../../kpi/scale";
-import { followUpOf, localMonth, localToday, retrainedAt } from "../../../shared/rules";
+import { completedAt, followUpOf, localMonth, localToday, retrainedAt } from "../../../shared/rules";
 import type { EmployeeReference } from "../../../shared/types";
 import type { PositionReference } from "../../../shared/types/reference-data";
 import type { KpiAssessment } from "../../../supabase/types";
-import type { TrainingVersion } from "../../../training/types";
 import { currentGap, developmentHistory, formatDate, formatPeriod, formatScorecard, needsOf, positionById, positionTitle, revisionChanges, scorecardsOf, trainingHistory, trainingsOf, type Snapshot } from "../../data/selectors";
 import type { TimelineEntry } from "../../ui/layout";
 import { slug, statusLabel } from "../../ui/primitives";
@@ -139,16 +138,6 @@ export function gapRanking(snapshot: Snapshot, rows: readonly DashboardRow[]) {
  */
 export const openNeedCount = (snapshot: Snapshot, employeeId: string) => needsOf(snapshot, employeeId).filter((need) => need.status !== "Completed").length;
 
-/** When a training was recorded Completed with its current result: the first version of that run (later ones only add notes). */
-function completedAt(history: readonly TrainingVersion[]): string | undefined {
-  let at = history[0]?.createdAt;
-  for (const version of history) {
-    if (version.status !== "Completed" || version.result !== history[0].result) break;
-    at = version.createdAt;
-  }
-  return at;
-}
-
 /**
  * Q14 (20 Oct 2026): when the training of a gap-based need finished, or undefined while it has not. A need counts once
  * it is Completed or a training of the current round (since the last Retraining) was Passed. The moment is when the
@@ -228,7 +217,7 @@ export function dashboardAlerts(snapshot: Snapshot, rows: readonly DashboardRow[
   }
   const alerts: (Omit<DashboardAlert, "count" | "people"> & { list: string[] })[] = [
     { key: "under-performance", list: found.under, assign, title: "Under Performance", href: "/performance", detail: "pegawai di bawah 80 pada periode ini. HR menindaklanjuti dengan Assign training: development requirement dari Performance Review-nya." },
-    { key: "completed-gap-open", list: found.completedGap, title: "Completed, gap masih terbuka", href: "/competency", detail: "development requirement Completed atau training Passed, tetapi belum ada penilaian kompetensi baru yang menunjukkan level terpenuhi. Nilai ulang di Competency Gap." },
+    { key: "completed-gap-open", list: found.completedGap, title: "Completed, gap masih terbuka", href: "/training", detail: "development requirement Completed atau training Passed, tetapi belum ada penilaian kompetensi baru yang menunjukkan level terpenuhi. Catat hasil reassessment di detail training." },
     { key: "training-not-passed", list: found.notPassed, title: "Training Not Passed", label: "Awaiting follow-up", href: "/training", detail: "development requirement dengan training terakhir Not Passed dan belum ada tindak lanjut. Catat Retraining atau Other follow-up di detail training." },
     { key: "gap-no-requirement", list: found.noPlan, title: "Gap tanpa development requirement", href: "/competency", detail: "gap kompetensi belum dibuatkan development requirement." },
     { key: "daily-below-target", list: found.dailyBelow, title: "Daily KPI di bawah target", href: "/daily-kpi", detail: `pegawai dengan total Daily KPI di bawah ${KPI_TARGET} pada tiga entri terakhir berturut-turut periode ini.` },
