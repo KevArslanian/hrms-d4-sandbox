@@ -1,12 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState, type FormEvent } from "react";
-import type { DevelopmentPriority, DevelopmentReassessment, DevelopmentSourceType, DevelopmentStatus } from "../../../development/types";
+import type { DevelopmentPriority, DevelopmentSourceType, DevelopmentStatus } from "../../../development/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
 import { isDevelopmentRollback, openNeedFor, passedTrainingCount, retrainedAt } from "../../../shared/rules";
-import { currentGap, DEFAULT_SOURCE_TYPE, developmentById, developmentHistory, developmentNeeds, employeeById, formatDate, formatPeriod, latestCurrentPositionAssessment, objectiveFromFinding, objectiveWithMethod, positionOf, reassessmentFor, scorecardsOf, sourceTypeLabel, today, trainings, visibleEmployees } from "../../data/selectors";
-import { FormError, FormModal, ModalActions, RadioField, ReadOnlyField, SearchSelectField, SelectField, SuggestField, TextAreaField, TextField } from "../../ui/forms";
+import { currentGap, DEFAULT_SOURCE_TYPE, developmentById, developmentHistory, developmentNeeds, employeeById, formatDate, formatPeriod, latestCurrentPositionAssessment, objectiveFromFinding, objectiveWithMethod, positionOf, scorecardsOf, sourceTypeLabel, today, trainings, visibleEmployees } from "../../data/selectors";
+import { FormError, FormModal, ModalActions, ReadOnlyField, SearchSelectField, SelectField, SuggestField, TextAreaField, TextField } from "../../ui/forms";
 import { Notice, statusLabel } from "../../ui/primitives";
 import { picOptions } from "./rows";
 
@@ -199,48 +198,6 @@ export function DevelopmentEditModal({ needId, onClose }: { needId: string; onCl
       <TextAreaField label="Reason for change" testId="alasan-perubahan" value={notes} onChange={(event) => setNotes(event.target.value)}
         helper={unchanged ? "Belum ada perubahan. Ubah Priority, Method, atau PIC untuk menyimpan." : "Opsional. Contoh: kebijakan pajak berubah, sertifikasi pajak dinaikkan ke High."} />
       <Notice>Perubahan disimpan sebagai revisi baru; nilai sebelumnya tetap ada di riwayat.</Notice>
-    </form>
-  </FormModal>;
-}
-
-/**
- * HR's decision after reassessing a Completed requirement (interview D4: "apakah harus dilakukan retraining?").
- * Retraining reopens the requirement as Planned so a new training can be created; Meets requirement keeps it Completed.
- */
-export function ReassessmentModal({ needId, onClose }: { needId: string; onClose: () => void }) {
-  const snapshot = useSnapshot();
-  const { run, busy } = useD4();
-  const current = developmentById(snapshot, needId);
-  const [decision, setDecision] = useState<DevelopmentReassessment | "">("");
-  const [notes, setNotes] = useState("");
-  const [error, setError] = useState("");
-  const [touched, setTouched] = useState(false);
-  if (!current) return null;
-  // The decision already in force for this round; recording it again changes nothing.
-  const recorded = reassessmentFor(snapshot, needId);
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    setTouched(true);
-    if (decision && decision === recorded) return;
-    if (!decision) { setError("Pilih hasil reassessment: Retraining atau Meets requirement."); return; }
-    const status: DevelopmentStatus = decision === "Retraining" ? "Planned" : "Completed";
-    const result = await run((source) => source.updateDevelopment(needId, status, notes, { reassessment: decision }), "Hasil reassessment tersimpan sebagai revisi baru.");
-    if (result.ok) onClose(); else setError(result.error);
-  }
-  return <FormModal title="Record Reassessment" description={current.objective} onClose={onClose} footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Reassessment" disabled={Boolean(decision) && decision === recorded} />}>
-    <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
-      <FormError message={error} />
-      <RadioField label="Reassessment result" testId="reassessment" required value={decision} onChange={(value) => setDecision(value as DevelopmentReassessment)}
-        error={touched && !decision ? "Hasil reassessment wajib dipilih." : undefined}
-        helper={decision && decision === recorded ? `${decision} sudah tercatat untuk requirement ini.` : "Hasil penilaian ulang kompetensi setelah training/development selesai."}
-        options={[
-          { value: "Retraining", label: "Retraining", description: "Gap belum tertutup, perlu training ulang." },
-          { value: "Meets requirement", label: "Meets requirement", description: "Kompetensi sudah sesuai persyaratan posisi.", testId: "meets-requirement" },
-        ]} />
-      {decision === "Retraining" && <Notice tone="warning">Requirement dibuka kembali dengan status Planned agar training ulang bisa dibuat dari requirement yang sama.</Notice>}
-      {decision === "Meets requirement" && <Notice>Requirement tetap Completed. Pastikan penilaian kompetensi terbaru sudah disimpan di Competency Gap.</Notice>}
-      <TextAreaField label="Notes" testId="notes" value={notes} onChange={(event) => setNotes(event.target.value)} helper="Opsional. Misalnya hasil evaluasi bersama atasan atau departemen pengaju." />
-      <p className="text-xs text-ink-3">Belum menilai ulang? <Link href={`/competency/${current.employeeId}`} className="font-semibold text-primary-600 hover:underline">Buka Competency Gap</Link> lalu simpan penilaian terbaru.</p>
     </form>
   </FormModal>;
 }

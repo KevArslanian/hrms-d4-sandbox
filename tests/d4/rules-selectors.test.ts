@@ -268,11 +268,13 @@ describe("development revision: edit, reassessment, objective", () => {
     expect(() => nextDevelopmentRevision(need(), { status: "Completed", notes: "" }, [], passed)).not.toThrow();
   });
 
-  it("records a reassessment only on a Completed need: Retraining reopens it as Planned, Meets requirement keeps it Completed", () => {
+  it("pairs a reassessment with its status: Retraining (re)opens the need as Planned, Meets requirement completes it", () => {
     const done = need({ status: "Completed" });
-    expect(() => nextDevelopmentRevision(need(), { status: "In Progress", notes: "", reassessment: "Meets requirement" }, [], [])).toThrow(/setelah development requirement Completed/);
+    expect(() => nextDevelopmentRevision(need(), { status: "In Progress", notes: "", reassessment: "Meets requirement" }, [], [])).toThrow(/berarti requirement Completed/);
+    // Recorded from Training Tracking with the result, so the need may still be open.
+    expect(nextDevelopmentRevision(need({ status: "In Progress" }), { status: "Planned", notes: "", reassessment: "Retraining" }, [], [])).toMatchObject({ status: "Planned", reassessment: "Retraining" });
     expect(() => nextDevelopmentRevision(done, { status: "Completed", notes: "", reassessment: "Retraining" }, [], [])).toThrow(/status Planned/);
-    expect(() => nextDevelopmentRevision(done, { status: "Planned", notes: "", reassessment: "Meets requirement" }, [], [])).toThrow(/tetap Completed/);
+    expect(() => nextDevelopmentRevision(done, { status: "Planned", notes: "", reassessment: "Meets requirement" }, [], [])).toThrow(/berarti requirement Completed/);
     // The decision is the reason for moving back, so no extra note is needed.
     expect(nextDevelopmentRevision(done, { status: "Planned", notes: "", reassessment: "Retraining" }, [], [])).toMatchObject({ status: "Planned", reassessment: "Retraining" });
     expect(nextDevelopmentRevision(done, { status: "Completed", notes: "", reassessment: "Meets requirement" }, [], [])).toMatchObject({ status: "Completed", reassessment: "Meets requirement" });

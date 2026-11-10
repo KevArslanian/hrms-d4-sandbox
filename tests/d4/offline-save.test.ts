@@ -26,10 +26,10 @@ const uiWrites: [string, (source: D4DataSource) => Promise<unknown>][] = [
   ["Development: Add Requirement → Save Requirement", (source) => source.createDevelopment(development)],
   ["Development: Update Status → Save Status", (source) => source.updateDevelopment("n1", "Planned", "")],
   ["Development: Edit Requirement → Save Changes", (source) => source.updateDevelopment("n1", "Planned", "", { priority: "High", method: "Coaching", pic: "HR" })],
-  ["Development: Record Reassessment → Save Reassessment", (source) => source.updateDevelopment("n1", "Planned", "", { reassessment: "Retraining" })],
   ["Training: Create Training → Save Training", (source) => source.createTraining(training)],
   ["Training: Update Progress → Save Progress", (source) => source.updateTraining("t1", "In Progress", "", "")],
-  ["Training: Record Follow-up → Save Follow-up", (source) => source.recordTrainingFollowUp("t1", { followUp: "Other follow-up", notes: "Coaching" })],
+  ["Training: Update Progress → Completed + Not Passed follow-up → Save Progress", (source) => source.completeTraining("t1", { result: "Not Passed", decision: "Other follow-up", notes: "Coaching" })],
+  ["Training: Update Progress → Completed + Passed reassessment → Save Progress", (source) => source.completeTraining("t1", { result: "Passed", decision: "Retraining", notes: "", activity: "Ulang", date: "2026-11-20" })],
 ];
 
 const offline = () => vi.fn<typeof fetch>(async () => { throw new TypeError("Failed to fetch"); });

@@ -1,6 +1,7 @@
 "use client";
 
-import { ClipboardCheck, Eye, GraduationCap, History, Pencil, Plus, RefreshCw, Scale } from "lucide-react";
+import { Eye, GraduationCap, History, Pencil, Plus, RefreshCw, Scale } from "lucide-react";
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { DevelopmentNeedVersion, DevelopmentSourceType } from "../../../development/types";
 import { useSnapshot } from "../../data/D4DataProvider";
@@ -11,7 +12,7 @@ import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
 import { Button, ButtonLink, Card, InfoGrid, Notice, SourceChip, statusLabel, StatusBadge } from "../../ui/primitives";
 import { TrainingFormModal } from "../training/TrainingModals";
-import { DevelopmentEditModal, DevelopmentFormModal, DevelopmentStatusModal, ReassessmentModal } from "./DevelopmentModals";
+import { DevelopmentEditModal, DevelopmentFormModal, DevelopmentStatusModal } from "./DevelopmentModals";
 import { competencyOptions } from "../competency/rows";
 import { developmentRows } from "./rows";
 
@@ -29,15 +30,17 @@ export function ReassessmentBadge({ snapshot, needId, compact }: { snapshot: Sna
 }
 
 /**
- * Action column of the list (Q10): a Completed requirement waiting for HR's decision gets the Record Reassessment
- * button; once recorded, the decision shows here instead (Retraining stays until the requirement is Completed again).
- * The button wraps to two lines so the column stays narrow; changing a recorded decision goes through the ⋮ menu.
+ * Action column of the list (Q10): a Completed requirement waiting for HR's decision links to the passed training,
+ * where the decision is recorded (Training Tracking is the only place); once recorded, the decision shows here instead
+ * (Retraining stays until the requirement is Completed again). The link wraps to two lines so the column stays narrow.
  */
-function ReassessmentAction({ snapshot, needId, writer, onRecord }: { snapshot: Snapshot; needId: string; writer: boolean; onRecord: () => void }) {
+function ReassessmentAction({ snapshot, needId, writer }: { snapshot: Snapshot; needId: string; writer: boolean }) {
   const state = reassessmentFor(snapshot, needId);
-  if (state === "pending" && writer) return <button type="button" data-testid="btn-row-record-reassessment" onClick={onRecord}
+  const passed = state === "pending" && trainings(snapshot).filter((item) => item.developmentNeedId === needId && item.status === "Completed" && item.result === "Passed")
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+  if (passed && writer) return <Link href={`/training/${passed.trainingId}`} data-testid="btn-row-record-reassessment"
     className="inline-flex items-center gap-1.5 rounded-lg bg-primary-50 px-2.5 py-1.5 text-left text-xs font-semibold leading-4 text-primary-600 hover:bg-primary-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500">
-    <Scale aria-hidden="true" className="size-3.5 shrink-0" />Record Reassessment</button>;
+    <Scale aria-hidden="true" className="size-3.5 shrink-0" />Record in Training</Link>;
   return state ? <ReassessmentBadge snapshot={snapshot} needId={needId} compact /> : <span className="text-ink-3">—</span>;
 }
 
@@ -54,7 +57,6 @@ export function DevelopmentListPage() {
   const [adding, setAdding] = useState(false);
   const [statusFor, setStatusFor] = useState<string | null>(null);
   const [editFor, setEditFor] = useState<string | null>(null);
-  const [reassessFor, setReassessFor] = useState<string | null>(null);
   const [trainingFor, setTrainingFor] = useState<DevelopmentNeedVersion | null>(null);
   // FR-04.8: filter by employee, source, period (month the requirement was last recorded) and status; FR-D4-002 B adds competency and priority.
   const periods = useMemo(() => [...new Set(developmentNeeds(snapshot).map((need) => need.createdAt.slice(0, 7)))].sort().reverse(), [snapshot]);
@@ -88,7 +90,7 @@ export function DevelopmentListPage() {
           <span data-testid="cell-pic" className="block text-xs text-ink-3">{row.pic || "—"}</span>
         </> },
         { key: "status", header: "Status", cell: (row) => <StatusBadge status={row.status} /> },
-        { key: "action", header: "Action", wrap: true, cell: (row) => <ReassessmentAction snapshot={snapshot} needId={row.needId} writer={writer} onRecord={() => setReassessFor(row.needId)} /> },
+        { key: "action", header: "Action", wrap: true, cell: (row) => <ReassessmentAction snapshot={snapshot} needId={row.needId} writer={writer} /> },
         // Below 1400 px the date gives way (it is also on the detail page), so Method / PIC stays visible for the "Tanpa PIC" alert.
         { key: "updated", header: "Updated", secondary: true, cell: (row) => formatDate(row.createdAt) },
       ]}
@@ -98,12 +100,10 @@ export function DevelopmentListPage() {
         { label: "Create Training", testId: "create-training", icon: <GraduationCap />, onSelect: () => setTrainingFor(row), hidden: !writer || row.status === "Completed" },
         { label: "Update Status", testId: "update-status", icon: <RefreshCw />, onSelect: () => setStatusFor(row.needId), hidden: !writer },
         { label: "Edit Requirement", testId: "edit-requirement", icon: <Pencil />, onSelect: () => setEditFor(row.needId), hidden: !writer },
-        { label: "Record Reassessment", testId: "record-reassessment", icon: <Scale />, onSelect: () => setReassessFor(row.needId), hidden: !writer || row.status !== "Completed" },
       ]} />} />
     {adding && <DevelopmentFormModal onClose={() => setAdding(false)} />}
     {statusFor && <DevelopmentStatusModal needId={statusFor} onClose={() => setStatusFor(null)} />}
     {editFor && <DevelopmentEditModal needId={editFor} onClose={() => setEditFor(null)} />}
-    {reassessFor && <ReassessmentModal needId={reassessFor} onClose={() => setReassessFor(null)} />}
     {trainingFor && <TrainingFormModal employeeId={trainingFor.employeeId} developmentNeedId={trainingFor.needId} onClose={() => setTrainingFor(null)} />}
   </>;
 }
@@ -113,7 +113,6 @@ export function DevelopmentDetailPage({ needId }: { needId: string }) {
   const writer = canWrite(snapshot);
   const [statusOpen, setStatusOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
-  const [reassessOpen, setReassessOpen] = useState(false);
   const [trainingOpen, setTrainingOpen] = useState(false);
   const need = developmentById(snapshot, needId);
   const employee = need && employeeById(snapshot, need.employeeId);
@@ -130,13 +129,10 @@ export function DevelopmentDetailPage({ needId }: { needId: string }) {
         {writer && <Button icon={<RefreshCw className="size-4" />} onClick={() => setStatusOpen(true)} data-testid="btn-update-status">Update Status</Button>}
         {/* A completed requirement cannot take new training (assertNeedOpen). */}
         {writer && need.status !== "Completed" && <Button icon={<GraduationCap className="size-4" />} onClick={() => setTrainingOpen(true)} data-testid="btn-create-training">Create Training</Button>}
-        {/* Completed does not close the gap by itself: the next step is a fresh competency assessment. */}
-        {writer && need.status === "Completed" && <ButtonLink href={`/competency/${employee.id}`} icon={<ClipboardCheck className="size-4" />} testId="reassess-competency">Reassess Competency</ButtonLink>}
-        {writer && need.status === "Completed" && <Button icon={<Scale className="size-4" />} onClick={() => setReassessOpen(true)} data-testid="btn-record-reassessment">Record Reassessment</Button>}
       </>} />
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
       <Card title="Requirement">
-        <p className="font-display font-semibold text-lg text-ink">{need.objective}</p>
+        <p className="break-words font-display font-semibold text-lg text-ink">{need.objective}</p>
         <div className="mt-6"><InfoGrid columns={3} items={[
           { label: "Priority", testId: "priority", value: statusLabel(need.priority) },
           { label: "Method", testId: "method", value: need.method || "—" },
@@ -148,7 +144,7 @@ export function DevelopmentDetailPage({ needId }: { needId: string }) {
           { label: "Revisions", testId: "revisions", value: String(history.length) },
         ]} /></div>
         <h3 className="mb-2 mt-8 text-sm font-semibold text-ink-2">Notes</h3>
-        <p className="whitespace-pre-wrap text-sm text-ink-2">{need.notes || "—"}</p>
+        <p className="whitespace-pre-wrap break-words text-sm text-ink-2">{need.notes || "—"}</p>
       </Card>
       <div className="space-y-6">
         <Card title="Source (traceability)" testId="source-traceability">
@@ -165,7 +161,6 @@ export function DevelopmentDetailPage({ needId }: { needId: string }) {
     <Notice>Status development atau training yang selesai tidak otomatis menutup gap kompetensi; gap tetap harus dinilai ulang.</Notice>
     {statusOpen && <DevelopmentStatusModal needId={need.needId} onClose={() => setStatusOpen(false)} />}
     {editOpen && <DevelopmentEditModal needId={need.needId} onClose={() => setEditOpen(false)} />}
-    {reassessOpen && <ReassessmentModal needId={need.needId} onClose={() => setReassessOpen(false)} />}
     {trainingOpen && <TrainingFormModal employeeId={need.employeeId} developmentNeedId={need.needId} onClose={() => setTrainingOpen(false)} />}
   </>;
 }

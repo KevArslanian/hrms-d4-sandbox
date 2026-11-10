@@ -5,7 +5,7 @@ import type { CompetencyAssessment, CompetencyFinding, CompetencyOverallStatus }
 import type { DevelopmentNeedVersion, DevelopmentSourceType } from "../../development/types";
 import type { PerformanceEvaluation } from "../../performance/types";
 import type { EmployeeReference } from "../../shared/types";
-import { localMonth, localToday, reassessmentOf, revisionNumber } from "../../shared/rules";
+import { localMonth, localToday, passedTrainingCount, pendingDecision, reassessmentOf, retrainedAt, revisionNumber } from "../../shared/rules";
 import { latestDevelopment, latestTraining, type D4LiveSnapshot, type KpiAssessment } from "../../supabase/types";
 import type { TrainingVersion } from "../../training/types";
 
@@ -189,9 +189,26 @@ export const developmentById = (snapshot: Snapshot, needId: string) => developme
 export const trainingById = (snapshot: Snapshot, trainingId: string) => trainings(snapshot).find((item) => item.trainingId === trainingId);
 /** Every revision of a need, newest first. */
 export const developmentHistory = (snapshot: Snapshot, needId: string): DevelopmentNeedVersion[] => [...(indexOf(snapshot).needHistory.get(needId) ?? [])];
-/** Reassessment result shown for a need: Retraining, Meets requirement, "pending" (Completed, not yet decided) or null. */
-export const reassessmentFor = (snapshot: Snapshot, needId: string) => reassessmentOf(indexOf(snapshot).needHistory.get(needId) ?? []);
+/**
+ * Reassessment result shown for a need: Retraining, Meets requirement, "pending" or null. Pending means Completed with
+ * a training of this round Passed and no decision yet; a need closed another way (no passed training) has none to wait for.
+ */
+export function reassessmentFor(snapshot: Snapshot, needId: string) {
+  const history = indexOf(snapshot).needHistory.get(needId) ?? [];
+  const state = reassessmentOf(history);
+  return state === "pending" && !passedTrainingCount(trainings(snapshot), needId, retrainedAt(history)) ? null : state;
+}
 export const REASSESSMENT_PENDING = "Needs reassessment";
+
+/** The decision HR still records for a training in Training Tracking: "follow-up", "reassessment" or null. */
+export const trainingDecision = (snapshot: Snapshot, record: TrainingVersion) =>
+  pendingDecision(trainingHistory(snapshot, record.trainingId), developmentById(snapshot, record.developmentNeedId), developmentHistory(snapshot, record.developmentNeedId));
+
+/** Live comparison (latest skill data) of a gap-based need's requirement on the employee's current position, if it is part of it. */
+export function sourceFinding(snapshot: Snapshot, need: DevelopmentNeedVersion): CompetencyFinding | undefined {
+  const employee = need.sourceType === "competency_gap" ? employeeById(snapshot, need.employeeId) : undefined;
+  return employee ? currentGap(snapshot, employee)?.findings.find((item) => item.requirementId === need.sourceRef) : undefined;
+}
 
 /** What a revision changed besides its status, for history lines: priority, method, PIC, reassessment. */
 export function revisionChanges(version: DevelopmentNeedVersion, previous?: DevelopmentNeedVersion): string[] {
