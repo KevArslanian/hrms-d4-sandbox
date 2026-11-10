@@ -92,7 +92,7 @@ Perilaku RLS langkah 5 dan 6 sudah diuji di Postgres 16 lokal dengan stub auth, 
 
 ## Temuan yang perlu keputusan PO
 
-- **Scorecard periode 2026-12 di V5.1 (selesai 10 Nov: dihapus bersama scorecard 2026-11 V5.1, lihat "Data demo dan uji akses"):** 1 baris live untuk periode yang belum mulai, disimpan sebelum aturan D4-FN-01. Setelah V6 berlaku, baris itu tetap berskala 1–5 di periode V6. Aplikasi menampilkannya apa adanya: skala 1–5, tanpa band dan tanpa gap. Revisi atas baris itu harus memakai V6. Saran: HR menghapus atau merevisinya. Agen tidak mengubah data live.
+- **Scorecard periode 2026-12 di V5.1 (selesai 10 Nov: dihapus bersama scorecard 2026-11 V5.1, lihat "Data demo dan uji akses"):** 1 baris live untuk periode yang belum mulai, disimpan sebelum aturan D4-FN-01. Setelah V6 berlaku, baris itu tetap berskala 1–5 di periode V6. Aplikasi menampilkannya apa adanya: skala 1–5, tanpa band dan tanpa gap. Revisi atas baris itu harus memakai V6. Saran: HR menghapus atau merevisinya.
 - **Riwayat migrasi:** setelah langkah di atas selesai, catat juga dua migrasi yang tidak tercatat (`d4_kpi_catalog_v51`, `d4_development_method_pic`) di `schema_migrations`, supaya `db push` kelak tidak mencoba menerapkannya lagi.
 
 ## Pembersihan requirement uji (10 Nov 2026)
