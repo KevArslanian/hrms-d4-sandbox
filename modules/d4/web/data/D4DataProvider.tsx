@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { KpiCatalogSet } from "../../kpi/catalog";
 import { createD4BrowserClient } from "../../supabase/client";
 import type { D4LiveSnapshot } from "../../supabase/types";
+import { ApiError } from "../../shared/errors";
 import { apiSource, D4RequestError } from "./api-source";
 import { asEmployee } from "./selectors";
 import type { D4DataSource } from "./source";
@@ -132,7 +133,12 @@ export function D4DataProvider({ children, mode }: { children: ReactNode; mode: 
       data = await source;
       value = await operation(data);
     } catch (cause) {
-      const message = cause instanceof Error ? cause.message : "Gagal menyimpan.";
+      let message = cause instanceof Error ? cause.message : "Gagal menyimpan.";
+      // 409: a newer record was saved elsewhere (another tab or device). Load it, so the next save builds on it.
+      const conflict = (cause instanceof D4RequestError && cause.status === 409) || (cause instanceof ApiError && cause.code === "CONFLICT");
+      if (conflict) {
+        try { setSnapshot(await (await source).loadSnapshot()); message = `${message} Data terbaru sudah dimuat; periksa lalu simpan lagi.`; } catch { /* the save error above still stands */ }
+      }
       pushToast("error", message);
       writing.current = false;
       setBusy(false);

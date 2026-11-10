@@ -48,7 +48,9 @@ export function latestForPeriod<T extends PeriodRecord>(records: readonly T[], e
  */
 export function assertPeriodRevision(records: readonly PeriodRecord[], employeeId: string, period: string, revisionOf: string | null | undefined, label: string) {
   const current = latestForPeriod(records, employeeId, period);
-  if (current && revisionOf !== current.id) throw new ApiError("VALIDATION_FAILED", `${label} untuk periode ini sudah ada. Simpan sebagai revisi atau buka riwayatnya.`);
+  if (current && !revisionOf) throw new ApiError("VALIDATION_FAILED", `${label} untuk periode ini sudah ada. Simpan sebagai revisi atau buka riwayatnya.`);
+  // A revision of an older record: someone saved a newer one after this form was opened (another tab or device).
+  if (current && revisionOf !== current.id) throw new ApiError("CONFLICT", `Sudah ada revisi ${label} yang lebih baru untuk periode ini sejak form dibuka.`);
   if (!current && revisionOf) throw new ApiError("VALIDATION_FAILED", `${label} yang direvisi tidak cocok dengan pegawai atau periodenya.`);
 }
 
