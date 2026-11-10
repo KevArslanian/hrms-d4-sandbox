@@ -1,15 +1,16 @@
 import { compareCompetencies } from "../../competency/service";
 import { developmentFixtureVersions } from "../../development/fixtures";
+import type { DevelopmentNeedVersion } from "../../development/types";
 import { catalogFor, indicatorsFor, KPI_V51_CATALOG, roleForPosition, seedCatalogSet, targetOf } from "../../kpi/catalog";
 import { scaleMaxOf } from "../../kpi/scale";
 import { performanceFixtureRecords } from "../../performance/fixtures";
 import { validatePerformanceInput } from "../../performance/validation";
 import { d4ReferenceFixture } from "../../shared/fixtures";
-import { assertDailyDate, assertGapAssessed, assertPicFilled, canFillDaily, localMonth, localToday, assertTrainingDate, assertNeedOpen, assertNoOpenNeed, assertTrainingResult, assertNotFutureDate, assertEvaluationInPeriod, assertNotSelf, assertPeriodRevision, assertTrainingChange, nextDevelopmentRevision, planTrainingCompletion, retrainingNotes } from "../../shared/rules";
+import { assertDailyDate, assertGapAssessed, assertPicFilled, canFillDaily, localMonth, localToday, assertTrainingDate, assertNeedOpen, assertNoOpenNeed, assertTrainingResult, assertNotFutureDate, assertEvaluationInPeriod, assertNotSelf, assertPeriodRevision, assertTrainingChange, nextDevelopmentRevision, needFollowsTraining, planTrainingCompletion, retrainingNotes } from "../../shared/rules";
 import type { D4LiveSnapshot, KpiAssessment, KpiAssessmentLine, KpiDailyEntry } from "../../supabase/types";
 import { latestDevelopment, latestTraining } from "../../supabase/types";
 import { trainingFixtureVersions } from "../../training/fixtures";
-import type { TrainingFollowUp } from "../../training/types";
+import type { TrainingFollowUp, TrainingStatus } from "../../training/types";
 import type { D4DataSource } from "./source";
 
 // Local preview only (NEXT_PUBLIC_D4_DATA_MODE=fixture in development). All people and
@@ -163,6 +164,12 @@ export function createFixtureSource(): D4DataSource {
   const assertWriter = () => { if (state.role !== "HR" && state.role !== "MANAGER") throw new Error("Hanya HR atau manager yang dapat menyimpan perubahan."); };
   // The evaluator is always the signed-in actor, never a free-text value from the form.
   const actorName = () => state.reference.employees.find((item) => item.id === state.actorEmployeeId)?.fullName ?? "HR";
+  // Same rule as the API: the requirement moves forward with its training, one revision after the training's.
+  const followTraining = (developmentVersions: readonly DevelopmentNeedVersion[], needId: string, training: { activity: string; status: TrainingStatus }, createdAt = now()) => {
+    const need = latestDevelopment({ ...state, developmentVersions }).find((item) => item.needId === needId);
+    const next = need && needFollowsTraining(need, training);
+    return need && next ? [{ ...need, ...next, id: newId("FIX-D4-DEV-V"), revision: need.revision + 1, createdAt, actor: actorName() }, ...developmentVersions] : developmentVersions;
+  };
   return {
     mode: "fixture",
     async loadSnapshot() { await delay(); return state.role === "EMPLOYEE" ? ownRecords(state) : state; },
@@ -263,6 +270,7 @@ export function createFixtureSource(): D4DataSource {
       assertTrainingResult(input.status, input.result);
       const trainingId = newId("FIX-D4-TRN");
       update({ trainingVersions: [{ ...input, id: newId("FIX-D4-TRN-V"), trainingId, revision: 1, source: "local-demo", createdAt: now(), actor: actorName() }, ...state.trainingVersions] });
+      update({ developmentVersions: followTraining(state.developmentVersions, need.needId, input) });
       return trainingId;
     },
     async updateTraining(trainingId, status, result, notes) {
@@ -273,6 +281,7 @@ export function createFixtureSource(): D4DataSource {
       assertTrainingChange(current.status, status, notes);
       // A follow-up belongs to the version that records it (followUpOf reads the history), as in Supabase.
       update({ trainingVersions: [{ ...current, id: newId("FIX-D4-TRN-V"), revision: current.revision + 1, status, result, notes, followUp: null, createdAt: now(), actor: actorName() }, ...state.trainingVersions] });
+      update({ developmentVersions: followTraining(state.developmentVersions, current.developmentNeedId, { activity: current.activity, status }) });
     },
     // Mirrors POST /api/d4/training-records/:id/complete in one update; the timestamps keep the server's write order.
     async completeTraining(trainingId, input) {
@@ -298,7 +307,8 @@ export function createFixtureSource(): D4DataSource {
       const retrainingId = plan.retraining ? newId("FIX-D4-TRN") : null;
       if (retrainingId) trainingVersions.unshift({ ...current, id: newId("FIX-D4-TRN-V"), trainingId: retrainingId, revision: 1, source: "local-demo", activity: (input.activity ?? "").trim(), date: input.date ?? "",
         status: "Planned", result: "", notes: retrainingNotes(current, input.notes, input.result), followUp: null, createdAt: at(3), actor });
-      update({ trainingVersions, developmentVersions, competency });
+      const followed = plan.training === "follow-up" ? followTraining(developmentVersions, current.developmentNeedId, { activity: current.activity, status: "Completed" }, at(4)) : developmentVersions;
+      update({ trainingVersions, developmentVersions: followed, competency });
       return retrainingId;
     },
   };

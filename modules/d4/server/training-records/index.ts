@@ -1,7 +1,7 @@
 import { compareCompetencies } from "../../competency/service";
 import type { TrainingFollowUp, TrainingStatus } from "../../training/types";
-import { assertNeedOpen, assertTrainingChange, assertTrainingDate, assertTrainingFollowUp, localToday, planTrainingCompletion, retrainingNotes, TRAINING_DECISIONS, TRAINING_FOLLOW_UPS, TRAINING_RESULTS } from "../../shared/rules";
-import { latestDevelopment, latestTraining } from "../../supabase/types";
+import { assertNeedOpen, assertTrainingChange, assertTrainingDate, assertTrainingFollowUp, localToday, needFollowsTraining, planTrainingCompletion, retrainingNotes, TRAINING_DECISIONS, TRAINING_FOLLOW_UPS, TRAINING_RESULTS } from "../../shared/rules";
+import { latestDevelopment, latestTraining, type D4LiveSnapshot } from "../../supabase/types";
 import { ApiError, employeeFilter, enforce, field, readJson } from "../_lib/http";
 import { d4Session, requireWriter } from "../_lib/session";
 
@@ -9,6 +9,15 @@ const statuses: readonly TrainingStatus[] = ["Planned", "In Progress", "Complete
 
 /** Only a completed training has a result, and it is Passed or Not Passed. */
 const completedResult = (body: Record<string, unknown>, status: TrainingStatus) => status === "Completed" ? field.oneOf(body, "result", TRAINING_RESULTS) : "";
+
+type Repository = Awaited<ReturnType<typeof requireWriter>>["repository"];
+
+/** One more requirement revision when the training moves it forward (needFollowsTraining), written after the training. */
+async function followTraining(repository: Repository, snapshot: D4LiveSnapshot, needId: string, training: { activity: string; status: TrainingStatus }) {
+  const need = latestDevelopment(snapshot).find((item) => item.needId === needId);
+  const next = need && needFollowsTraining(need, training);
+  if (need && next) await repository.updateDevelopment(needId, next, need);
+}
 
 /** GET /api/d4/training-records?employee_id= — latest version of each training record. */
 export async function listTraining(request: Request) {
@@ -39,7 +48,9 @@ export async function createTraining(request: Request) {
   const snapshot = await repository.loadSnapshot();
   enforce(() => assertNeedOpen(latestDevelopment(snapshot).find((item) => item.needId === input.developmentNeedId)));
   enforce(() => assertTrainingDate(input.status, input.date));
-  return { id: await repository.createTraining(input, snapshot) };
+  const id = await repository.createTraining(input, snapshot);
+  await followTraining(repository, snapshot, input.developmentNeedId, input);
+  return { id };
 }
 
 /** POST /api/d4/training-records/:id/versions — progress update as a new version. Completion never closes a gap. */
@@ -49,10 +60,12 @@ export async function addTrainingVersion(request: Request, id: string) {
   const status = field.oneOf(body, "status", statuses);
   const result = completedResult(body, status);
   const notes = field.text(body, "notes", { required: false, max: 2000 });
-  const current = latestTraining(await repository.loadSnapshot()).find((item) => item.trainingId === id);
+  const snapshot = await repository.loadSnapshot();
+  const current = latestTraining(snapshot).find((item) => item.trainingId === id);
   if (!current) throw new ApiError("NOT_FOUND", "Training tidak ditemukan.");
   enforce(() => assertTrainingChange(current.status, status, notes));
   await repository.updateTraining(id, status, result, notes);
+  await followTraining(repository, snapshot, current.developmentNeedId, { activity: current.activity, status });
   return { trainingId: id, status };
 }
 
@@ -78,7 +91,8 @@ export async function recordTrainingFollowUp(request: Request, id: string) {
  * POST /api/d4/training-records/:id/complete — the one save of Training Tracking that finishes a training: the result
  * and HR's decision (Passed: Meets requirement or Retraining; Not Passed: Retraining or Other follow-up). Every rule
  * is checked before the first write. Writes follow this order so the histories read correctly: the training version,
- * a competency snapshot (Passed), the requirement revision (Passed), then the Retraining training. Not one transaction:
+ * a competency snapshot (Passed), the requirement revision (Passed decision, or In Progress after Not Passed), then the
+ * Retraining training (Not Passed: before the requirement revision, inside recordTrainingFollowUp). Not one transaction:
  * a failure part-way keeps the earlier records and the training page shows the step that is still open.
  */
 export async function completeTraining(request: Request, id: string) {
@@ -102,6 +116,7 @@ export async function completeTraining(request: Request, id: string) {
   });
   if (plan.training === "follow-up") {
     const retrainingId = await repository.recordTrainingFollowUp(id, { followUp: decision as TrainingFollowUp, notes: input.notes, activity: input.activity, date: input.date }, snapshot);
+    await followTraining(repository, snapshot, record.developmentNeedId, { activity: record.activity, status: "Completed" });
     return { trainingId: id, result: input.result, decision, retrainingId };
   }
   if (plan.training === "version") await repository.updateTraining(id, "Completed", "Passed", input.notes);
