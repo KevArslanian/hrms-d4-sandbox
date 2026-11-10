@@ -11,7 +11,7 @@ import type { KpiDailyEntry } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
 import { byProgress, departmentOf, employeeById, employeeMeta, employeeSearchText, formatDate, formatGap, formatPeriod, formatScore, includesText, positionOf, thisMonth, today, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
-import { FilterBar, FormError, ReadOnlyField, SearchInput, SelectFilter, TextField } from "../../ui/forms";
+import { DateField, FilterBar, FormError, ReadOnlyField, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
 import { Button, Card, InfoGrid, Notice, StatusBadge } from "../../ui/primitives";
@@ -83,7 +83,7 @@ function MyDailyKpi({ team }: { team: boolean }) {
         {/* B5 (interview D4, 14 Oct 2026): everyone scores their KPI every day before going home. */}
         {!savedFor(today()) && <div data-testid="daily-reminder"><Notice tone="warning">Daily KPI hari ini belum diisi. Isi sebelum pulang.</Notice></div>}
         <div className="grid gap-4 sm:grid-cols-3">
-          <TextField label="Date" testId="daily-date" required type="date" min={`${period}-01`} max={today()} value={date} onChange={(event) => chooseDate(event.target.value)} />
+          <DateField label="Date" testId="daily-date" required min={`${period}-01`} max={today()} value={date} onChange={(event) => chooseDate(event.target.value)} />
           <ReadOnlyField label="Position KPI" testId="daily-role" value={indicators[0].role_name} />
           <ReadOnlyField label="Catalog" testId="daily-catalog" value={`KPI Scorecard ${catalog.version} · skala 1–${max}`} />
         </div>
