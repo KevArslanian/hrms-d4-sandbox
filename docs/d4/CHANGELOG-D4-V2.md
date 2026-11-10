@@ -296,6 +296,22 @@ Tidak dikerjakan karena belum pasti atau bukan milik D4:
 - **Batas karakter dan teks panjang.**
   - Semua kolom catatan kini dibatasi 2000 karakter di form, sama dengan server. Notes Performance Review dibatasi 4000, dan Training / activity 200.
   - Teks panjang tanpa spasi kini terbungkus di halaman detail, riwayat, dan profil dashboard. Sebelumnya teks seperti itu membuat halaman riwayat melebar ke samping.
+- **Development Requirement menunjukkan langkah berikutnya, termasuk Retraining.** HR menemukan requirement yang masih "Identified" padahal training-nya sudah selesai. Kolom Action juga hanya berisi "—" walaupun ada keputusan Retraining yang menunggu.
+  - **Status mengikuti training:** membuat training memindahkan requirement Identified ke Planned. Training yang dimulai atau selesai memindahkannya ke In Progress. Status tidak pernah mundur dan tidak pernah otomatis Completed; Completed tetap lewat Meets requirement atau Update Status. Setiap perpindahan disimpan sebagai revisi dengan catatan "Otomatis mengikuti training ...". Tidak ada migrasi.
+  - **Kolom Next step menggantikan Action**, dengan isi sesuai keadaan:
+
+    | Keadaan | Isi kolom |
+    |---|---|
+    | Training Not Passed menunggu keputusan | tombol "Retraining / Follow-up" |
+    | Training Passed menunggu keputusan | tombol "Meets / Retraining" |
+    | Training berjalan | tautan "Training" atau "Retraining" dengan statusnya |
+    | Belum ada training | tombol "Create Training" (atau "Create Retraining") |
+    | Requirement ditutup | "Meets requirement" atau "Closed" |
+
+    Akun tanpa hak simpan melihat "Menunggu keputusan HR". Keputusan membuka modal Update Progress yang sama dengan Training Tracking, jadi aturannya tetap satu.
+  - **Menu ⋮ dan halaman detail:** menu ⋮ memuat "Record Reassessment" atau "Retraining / Follow-up" saat ada keputusan yang ditunggu. Halaman detail punya kartu Next step dengan penjelasan satu kalimat.
+  - **Legenda status** di atas tabel menjelaskan arti Identified, Planned, In Progress, dan Completed.
+  - **Teks "level di D3"** diganti "data kompetensi pegawai (modul D3)" agar HR tahu data mana yang harus diperbarui sebelum Meets requirement bisa dipilih.
 
 ## Belum selesai
 

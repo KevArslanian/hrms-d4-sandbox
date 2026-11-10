@@ -204,6 +204,35 @@ export const REASSESSMENT_PENDING = "Needs reassessment";
 export const trainingDecision = (snapshot: Snapshot, record: TrainingVersion) =>
   pendingDecision(trainingHistory(snapshot, record.trainingId), developmentById(snapshot, record.developmentNeedId), developmentHistory(snapshot, record.developmentNeedId));
 
+/** What HR does next for a requirement (Development Requirement, Next step). */
+export type NeedStep =
+  | { kind: "decide"; decision: "follow-up" | "reassessment"; training: TrainingVersion }
+  | { kind: "running"; training: TrainingVersion; retraining: boolean }
+  | { kind: "create"; retraining: boolean }
+  | { kind: "closed"; meets: boolean };
+
+/**
+ * A decision HR still owes on one of the requirement's trainings comes first (the newest one), then the training under
+ * way, then a training still to create while the requirement is open. A training is a retraining when a Retraining was
+ * recorded for this requirement (Passed reassessment or Not Passed follow-up) before the training was created.
+ */
+export function nextStep(snapshot: Snapshot, need: DevelopmentNeedVersion): NeedStep {
+  const own = trainings(snapshot).filter((item) => item.developmentNeedId === need.needId).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  for (const training of own) {
+    const decision = trainingDecision(snapshot, training);
+    if (decision) return { kind: "decide", decision, training };
+  }
+  const followUps = snapshot.trainingVersions.filter((item) => item.developmentNeedId === need.needId && item.followUp === "Retraining").map((item) => item.createdAt);
+  const retried = [retrainedAt(developmentHistory(snapshot, need.needId)), ...followUps].filter((at): at is string => Boolean(at));
+  const running = own.find((item) => item.status === "Planned" || item.status === "In Progress");
+  if (running) {
+    const created = trainingHistory(snapshot, running.trainingId).at(-1)?.createdAt ?? running.createdAt;
+    return { kind: "running", training: running, retraining: retried.some((at) => at <= created) };
+  }
+  if (need.status !== "Completed") return { kind: "create", retraining: retried.length > 0 };
+  return { kind: "closed", meets: reassessmentFor(snapshot, need.needId) === "Meets requirement" };
+}
+
 /** Live comparison (latest skill data) of a gap-based need's requirement on the employee's current position, if it is part of it. */
 export function sourceFinding(snapshot: Snapshot, need: DevelopmentNeedVersion): CompetencyFinding | undefined {
   const employee = need.sourceType === "competency_gap" ? employeeById(snapshot, need.employeeId) : undefined;
