@@ -13,10 +13,8 @@ Database D4 adalah project Supabase bersama (`ufjbbwqaztgkqmpdmcyv`), dipakai ju
   - Langkah 5–7: 5 policy baca menerima MANAGEMENT; `d4_kpi_daily_entries` punya RLS, 2 policy, dan 2 trigger, dengan hak `authenticated` hanya SELECT dan INSERT dan tanpa akses `anon`; DIR-FAT dan DIR-GEN mendapat peran 2 untuk V5.1 dan V6.
 - **Riwayat:** 9 baris di `supabase_migrations.schema_migrations` (`created_by = 'd4-runbook'`), yaitu tujuh langkah ini ditambah `d4_kpi_catalog_v51` dan `d4_development_method_pic`.
 - **Di aplikasi:** akun Manager membuka Daily KPI dengan katalog V6 skala 1–100, tabel tim tampil, dan pengingat serta lonceng aktif.
-- **Belum dicek dengan akun-nya sendiri:**
-  - akun Director: tidak ada tombol simpan, POST ditolak 403 kecuali Daily KPI miliknya;
-  - akun Employee: Daily KPI menolak tanggal besok.
-- **Belum diputuskan:** scorecard periode 2026-12 di V5.1 (lihat "Temuan") tidak diubah.
+- **Uji akses di database (10 Nov, lihat "Data demo dan uji akses"):** 11 dari 11 lulus lewat simulasi sesi. Director (MANAGEMENT) membaca semua data, Daily KPI miliknya diterima, dan data orang lain ditolak RLS. Employee hanya bisa mengisi hari ini untuk dirinya, sedangkan besok dan bulan lalu ditolak. **Belum dicek dengan login UI:** tombol simpan Director dan respons 403 dari API.
+- **Scorecard V5.1 di periode V6:** dua baris milik Aldo Sapan (2026-11 dan 2026-12) dihapus 10 Nov, dengan backup. Lihat "Data demo dan uji akses".
 
 Tabel "Kondisi live" di bawah adalah kondisi sebelum penerapan.
 
@@ -94,7 +92,7 @@ Perilaku RLS langkah 5 dan 6 sudah diuji di Postgres 16 lokal dengan stub auth, 
 
 ## Temuan yang perlu keputusan PO
 
-- **Scorecard periode 2026-12 di V5.1:** 1 baris live untuk periode yang belum mulai, disimpan sebelum aturan D4-FN-01. Setelah V6 berlaku, baris itu tetap berskala 1–5 di periode V6. Aplikasi menampilkannya apa adanya: skala 1–5, tanpa band dan tanpa gap. Revisi atas baris itu harus memakai V6. Saran: HR menghapus atau merevisinya. Agen tidak mengubah data live.
+- **Scorecard periode 2026-12 di V5.1 (selesai 10 Nov: dihapus bersama scorecard 2026-11 V5.1, lihat "Data demo dan uji akses"):** 1 baris live untuk periode yang belum mulai, disimpan sebelum aturan D4-FN-01. Setelah V6 berlaku, baris itu tetap berskala 1–5 di periode V6. Aplikasi menampilkannya apa adanya: skala 1–5, tanpa band dan tanpa gap. Revisi atas baris itu harus memakai V6. Saran: HR menghapus atau merevisinya. Agen tidak mengubah data live.
 - **Riwayat migrasi:** setelah langkah di atas selesai, catat juga dua migrasi yang tidak tercatat (`d4_kpi_catalog_v51`, `d4_development_method_pic`) di `schema_migrations`, supaya `db push` kelak tidak mencoba menerapkannya lagi.
 
 ## Pembersihan requirement uji (10 Nov 2026)
@@ -128,3 +126,59 @@ Ini perubahan data, bukan migrasi skema. Tabel `position_requirements` milik D3 
   select id, position_id, competency_id, min_proficiency_level, is_mandatory, created_at
   from d4_backup.position_requirements_test_rows;
   ```
+
+## Data demo dan uji akses (10 Nov 2026)
+
+Perubahan data atas permintaan WebDev untuk presentasi. Aturan awal "tidak menulis data uji ke database live" sengaja dikecualikan untuk langkah ini.
+
+- **Uji akses (tanpa perubahan data):**
+  - Satu blok `DO` yang selalu diakhiri `raise exception`. Identitas diganti dengan `set local role authenticated` ditambah klaim JWT, sehingga RLS menilai persis seperti panggilan dari aplikasi.
+  - Director (Stevanus Imanuel, DIR-FAT):
+    - peran MANAGEMENT;
+    - membaca 71 scorecard;
+    - Daily KPI miliknya diterima;
+    - Daily KPI dan scorecard orang lain ditolak RLS.
+  - Employee (Tom Hanks, FAT-TRS-ASC):
+    - peran EMPLOYEE;
+    - entri hari ini diterima;
+    - besok dan bulan lalu ditolak;
+    - tidak melihat entri orang lain;
+    - scorecard ditolak.
+  - Hasil 11 dari 11 lulus. Sesudahnya jumlah baris tidak berubah.
+- **Data demo Daily KPI:**
+  - 33 entri V6 untuk lima akun bernama fiktif, di hari kerja 2–10 Nov 2026: Tom Hanks dan Emma Watson masing-masing 6, lalu Michael Jackson, Testing Manager, dan Testing HR masing-masing 7.
+  - 11 Nov sengaja kosong untuk diisi saat demo.
+  - Skor dibuat deterministik (dasar per orang ± 4).
+  - Penanda: `actor_auth_user_id` = akun Deltaoga Putra (WebDev), berbeda dari `employee_id`. Kolom ini tidak tampil di aplikasi.
+- **Scorecard V5.1 di periode V6:** dua scorecard Aldo Sapan, `47eeb3e9-…` (2026-11) dan `0fe38320-…` (2026-12), dihapus. Keduanya disimpan sebelum V6 berlaku dan tidak dirujuk development need. Backup: `d4_backup.kpi_assessments_v51_in_v6_period` (2 baris, RLS aktif).
+- **Cara:**
+  - Satu transaksi dengan cek: kelima akun aktif dan punya peran KPI V6, belum ada entri, tepat 33 entri masuk, dan tepat 2 scorecard terhapus.
+  - Diuji dulu di Postgres 16 lokal dengan katalog, ID, dan trigger yang sama: jalan pertama, jalan ulang (batal), rollback, dan dua kasus yang harus batal.
+  - Isi editor dicocokkan dengan file lewat hash.
+- **Hasil di production:**
+  - Skor periode di halaman Daily KPI (tim):
+
+    | Akun | Skor | Kategori |
+    |---|---|---|
+    | Tom Hanks | 89.00 | High |
+    | Michael Jackson | 91.60 | High |
+    | Testing Manager | 85.60 | High |
+    | Emma Watson | 83.30 | Average |
+    | Testing HR | 75.60 | Under |
+
+  - Alert "Daily KPI di bawah target" berisi Emma Watson dan Testing HR.
+  - Form Add Performance Review untuk Tom Hanks terisi dari 6 entri (total 89.00). Form ditutup tanpa menyimpan.
+- **Rollback:**
+
+  ```sql
+  delete from public.d4_kpi_daily_entries
+  where actor_auth_user_id = '3ac5b219-1d2a-4b6d-80d4-e8046ad36125' and employee_id <> actor_auth_user_id;
+
+  begin;
+  alter table public.d4_kpi_assessments disable trigger d4_kpi_assessments_version;
+  insert into public.d4_kpi_assessments select * from d4_backup.kpi_assessments_v51_in_v6_period;
+  alter table public.d4_kpi_assessments enable trigger d4_kpi_assessments_version;
+  commit;
+  ```
+
+  Trigger versi dimatikan sementara karena periode 2026-11 dan 2026-12 kini mewajibkan V6.
