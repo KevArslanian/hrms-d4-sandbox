@@ -305,8 +305,8 @@ export function EmployeeProfilePage({ employeeId, initialPeriod = "" }: { employ
       </Card>
       {/* FR-04.3: the evaluation card shows the notes of the Performance Review (older records: the separate evaluation). */}
       <Card title="Notes" testId="performance-evaluation" actions={<SourceLink href={scorecard ? `/performance/scorecard/${scorecard.id}` : evaluation ? `/performance/${evaluation.id}` : `/performance/history/${employee.id}`} />}>
-        {scorecard?.generalNotes ? <><p className="text-sm text-ink-2">{formatPeriod(scorecard.period)} · {formatDate(scorecard.evaluationDate)} · Penilai {scorecard.evaluatorName || "—"}</p><p className="mt-3 line-clamp-6 whitespace-pre-wrap text-sm text-ink">{scorecard.generalNotes}</p></>
-          : evaluation ? <><p className="text-sm text-ink-2">{formatPeriod(evaluation.period)} · {formatDate(evaluation.evaluationDate)} · Penilai {evaluation.evaluator || "—"}</p><p className="mt-3 line-clamp-6 whitespace-pre-wrap text-sm text-ink">{evaluation.generalNotes || "—"}</p></>
+        {scorecard?.generalNotes ? <><p className="text-sm text-ink-2">{formatPeriod(scorecard.period)} · {formatDate(scorecard.evaluationDate)} · Penilai {scorecard.evaluatorName || "—"}</p><p className="mt-3 line-clamp-6 whitespace-pre-wrap break-words text-sm text-ink">{scorecard.generalNotes}</p></>
+          : evaluation ? <><p className="text-sm text-ink-2">{formatPeriod(evaluation.period)} · {formatDate(evaluation.evaluationDate)} · Penilai {evaluation.evaluator || "—"}</p><p className="mt-3 line-clamp-6 whitespace-pre-wrap break-words text-sm text-ink">{evaluation.generalNotes || "—"}</p></>
           : <p className="text-sm text-ink-3">Belum ada notes untuk periode ini.</p>}
       </Card>
       <Card title="Competency Gap" testId="competency-gap" actions={<SourceLink href={`/competency/${employee.id}`} />}>

@@ -85,6 +85,7 @@ const devVersions = await import("@/app/api/d4/development-needs/[id]/versions/r
 const training = await import("@/app/api/d4/training-records/route");
 const trainingVersions = await import("@/app/api/d4/training-records/[id]/versions/route");
 const trainingFollowUp = await import("@/app/api/d4/training-records/[id]/follow-up/route");
+const trainingComplete = await import("@/app/api/d4/training-records/[id]/complete/route");
 const competency = await import("@/app/api/d4/competency-assessments/route");
 const snapshotRoute = await import("@/app/api/d4/snapshot/route");
 const daily = await import("@/app/api/d4/kpi-daily/route");
@@ -141,6 +142,7 @@ const writeRoutes: [string, () => Promise<Response>][] = [
   ["POST /training-records/:id/versions", () => trainingVersions.POST(post({ status: "In Progress", notes: "Uji" }), params(TRAINING))],
   // FIX-D4-TRN-003 (Mba Ena): Completed, Not Passed, no follow-up yet.
   ["POST /training-records/:id/follow-up", () => trainingFollowUp.POST(post({ followUp: "Other follow-up", notes: "Coaching" }), params("FIX-D4-TRN-003"))],
+  ["POST /training-records/:id/complete", () => trainingComplete.POST(post({ result: "Not Passed", decision: "Other follow-up", notes: "Coaching" }), params("FIX-D4-TRN-003"))],
 ];
 
 describe("session guard: real requireWriter over a mocked Supabase client", () => {
@@ -521,6 +523,43 @@ describe("training result and follow-up", () => {
   });
 });
 
+// One menu (10 Nov 2026): Update Progress → Completed saves the result and HR's decision in one request.
+describe("training completion in one save", () => {
+  const RUNNING = "FIX-D4-TRN-002"; // Bu Dian, In Progress, gap requirement still at level 3 of 4
+  const complete = (body: Record<string, unknown>, id = RUNNING) => call(trainingComplete.POST(post(body), params(id)));
+
+  it("Passed + Retraining writes the training, a competency snapshot, the requirement, then the next training", async () => {
+    const res = await complete({ result: "Passed", decision: "Retraining", notes: "Level belum naik", activity: "Coretax Reporting Clinic", date: "2026-11-24" });
+    expect(res).toMatchObject({ status: 201, body: { data: { trainingId: RUNNING, decision: "Retraining" } } });
+    expect(writes.map((item) => item.method)).toEqual(["updateTraining", "saveCompetency", "updateDevelopment", "createTraining"]);
+    expect(writes[0].args).toEqual([RUNNING, "Completed", "Passed", "Level belum naik"]);
+    expect(writes[2].args[1]).toMatchObject({ status: "Planned", reassessment: "Retraining" });
+    expect(writes[3].args[0]).toMatchObject({ developmentNeedId: "FIX-D4-DEV-002", status: "Planned", activity: "Coretax Reporting Clinic", date: "2026-11-24" });
+  });
+
+  it("refuses Meets requirement while the level is not met, before any write", async () => {
+    const res = await complete({ result: "Passed", decision: "Meets requirement", notes: "" });
+    expect(res.status).toBe(422);
+    expect(res.body.error?.message).toMatch(/level saat ini 3, required 4/);
+    expect(writes).toHaveLength(0);
+  });
+
+  it("Not Passed writes one version that carries the follow-up", async () => {
+    const res = await complete({ result: "Not Passed", decision: "Retraining", notes: "", activity: "Coretax Reporting Clinic", date: "2026-11-24" });
+    expect(res.status).toBe(201);
+    expect(writes.map((item) => item.method)).toEqual(["recordTrainingFollowUp"]);
+  });
+
+  it.each([
+    ["a decision of the other result", { result: "Passed", decision: "Other follow-up", notes: "x" }, 422],
+    ["Retraining without the next training", { result: "Passed", decision: "Retraining", notes: "" }, 422],
+    ["an unknown decision", { result: "Passed", decision: "Later", notes: "" }, 422],
+  ])("rejects %s", async (_name, body, status) => {
+    expect((await complete(body)).status).toBe(status);
+    expect(writes).toHaveLength(0);
+  });
+});
+
 describe("unknown or malformed ids", () => {
   it.each([["unknown uuid", uuid(404)], ["non-uuid", "not-a-uuid"]])("returns 404 on version endpoints for %s", async (_name, id) => {
     const devRes = await call(devVersions.POST(post({ status: "Planned" }), params(id)));
@@ -552,7 +591,7 @@ describe("unknown or malformed ids", () => {
   it.each([
     ["unknown priority", { status: "Planned", priority: "Urgent" }, /priority/],
     ["unknown reassessment", { status: "Planned", reassessment: "Maybe" }, /reassessment/],
-    ["reassessment of an open need", { status: "Planned", reassessment: "Retraining" }, /setelah development requirement Completed/],
+    ["Meets requirement without completing the need", { status: "In Progress", reassessment: "Meets requirement" }, /berarti requirement Completed/],
     ["no change", { status: "Planned" }, /Tidak ada perubahan/],
   ])("rejects a development revision with %s (422)", async (_name, body, message) => {
     const res = await call(devVersions.POST(post(body), params(NEED)));

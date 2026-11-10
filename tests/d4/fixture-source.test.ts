@@ -162,7 +162,7 @@ describe("development edit and reassessment (fixture)", () => {
     // The decision belongs to the revision that recorded it, not to the ones after it.
     await source.updateDevelopment("FIX-D4-DEV-001", "In Progress", "");
     expect((await latest("FIX-D4-DEV-001")).reassessment).toBeNull();
-    await expect(source.updateDevelopment("FIX-D4-DEV-001", "In Progress", "", { reassessment: "Meets requirement" })).rejects.toThrow(/setelah development requirement Completed/);
+    await expect(source.updateDevelopment("FIX-D4-DEV-001", "In Progress", "", { reassessment: "Meets requirement" })).rejects.toThrow(/berarti requirement Completed/);
   });
 
   it("stores who the competency was assessed with", async () => {

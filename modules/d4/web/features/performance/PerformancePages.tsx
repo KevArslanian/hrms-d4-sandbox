@@ -138,7 +138,7 @@ export function PerformanceDetailPage({ id }: { id: string }) {
           { label: "Department", testId: "department", value: departmentOf(snapshot, employee)?.name ?? "—" },
         ]} />
         <h3 className="mb-2 mt-8 text-sm font-semibold text-ink-2">Notes</h3>
-        <p className="whitespace-pre-wrap text-sm text-ink-2">{evaluation.generalNotes || "Belum ada notes."}</p>
+        <p className="whitespace-pre-wrap break-words text-sm text-ink-2">{evaluation.generalNotes || "Belum ada notes."}</p>
       </Card>
       <div className="space-y-6">
         <Card title="Reference" testId="evidence">
