@@ -34,9 +34,9 @@ describe("performance evaluation (fixture)", () => {
   it("rejects a second record for the same period unless it names the current one", async () => {
     const first = await source.createEvaluation(evaluation());
     await expect(source.createEvaluation(evaluation())).rejects.toThrow(/sudah ada/);
-    await expect(source.createEvaluation(evaluation({ revisionOf: "FIX-OTHER" }))).rejects.toThrow(/sudah ada/);
+    await expect(source.createEvaluation(evaluation({ revisionOf: "FIX-OTHER" }))).rejects.toThrow(/lebih baru/);
     const second = await source.createEvaluation(evaluation({ revisionOf: first, overallScore: 3 }));
-    await expect(source.createEvaluation(evaluation({ revisionOf: first }))).rejects.toThrow(/sudah ada/); // stale revision
+    await expect(source.createEvaluation(evaluation({ revisionOf: first }))).rejects.toThrow(/lebih baru/); // stale revision
     await source.createEvaluation(evaluation({ revisionOf: second }));
     expect((await source.loadSnapshot()).performance.filter((item) => item.employeeId === HOLLY)).toHaveLength(3);
   });

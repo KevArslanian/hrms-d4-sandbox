@@ -402,6 +402,15 @@ describe("POST /kpi-assessments", () => {
     expect(res.status).toBe(201);
   });
 
+  it("answers 409 for a revision of a scorecard that is no longer the latest (saved again in another tab)", async () => {
+    const current = snapshot.kpiAssessments!.find((item) => item.id === KPI_ALFA)!;
+    snapshot = { ...snapshot, kpiAssessments: [{ ...current, id: uuid(77), createdAt: "2099-01-01T00:00:00Z" }, ...snapshot.kpiAssessments!] };
+    const res = await call(kpi.POST(post(kpiBody({ period: "2026-09", revisionOf: KPI_ALFA }))));
+    expect(res).toMatchObject({ status: 409, body: { error: { code: "CONFLICT" } } });
+    expect(res.body.error?.message).toMatch(/lebih baru/);
+    expect(writes).toHaveLength(0);
+  });
+
   it("rejects a self scorecard", async () => {
     signIn("MANAGER", ALFA);
     const res = await call(kpi.POST(post(kpiBody())));
