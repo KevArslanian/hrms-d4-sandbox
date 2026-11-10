@@ -277,6 +277,20 @@ Tidak dikerjakan karena belum pasti atau bukan milik D4:
 - **Dua scorecard V5.1 di periode V6 dihapus** (Aldo Sapan, 2026-11 dan 2026-12), dengan backup. Detail ketiga butir ini ada di MIGRATION-RUNBOOK-D4, bagian "Data demo dan uji akses".
 - **Semua dropdown form memakai gaya design system PISD.** Delapan dropdown di form Development dan Training sebelumnya memakai daftar bawaan browser (Priority, Source type, Source reference, Status, Result, Source requirement); kini sama dengan dropdown Employee dan PIC. Saran Method tetap boleh diketik bebas, tetapi daftarnya kini bergaya sama, bukan popup bawaan browser.
 - **Passed/Not Passed tidak lagi berulang.** Di modal Update Progress, notice langkah berikutnya hanya tampil sekali dan hanya saat hasil baru dipilih. Di detail training, tombol "Reassess Competency" di header dan notice kuning di bawah dihapus karena sudah diwakili kartu Next step atau Follow-up.
+- **Selesai training dan reassessment kini satu menu, satu Save.**
+  - **Alur lama:** setelah Passed, HR perlu 4 kali Save di 3 menu (Training, Competency Gap, Development).
+  - **Alur baru:** di Training Tracking, Update Progress → Completed meminta Result sekaligus keputusannya:
+    - **Passed:** Meets requirement (requirement ditutup), Retraining (requirement dibuka lagi dan training ulang dibuat), atau Decide later.
+    - **Not Passed:** Retraining atau Other follow-up.
+  - **Isi satu Save:** snapshot Competency Gap ikut tersimpan.
+  - **Syarat Meets requirement:** hanya bisa dipilih bila level di data D3 sudah memenuhi. Menyelesaikan training tidak mengubah data itu.
+  - **Yang dihapus:** tombol dan menu "Record Reassessment" di Development, modal Record Follow-up yang terpisah, dan tombol "Reassess competency".
+  - **Yang tetap ada:** testid `btn-record-follow-up` dan `btn-record-reassessment` sekarang ada di kartu Next step, dan membuka modal Update Progress yang sama.
+  - **Server dan database:** endpoint baru `POST /api/d4/training-records/:id/complete`. Tidak ada migrasi.
+  - **Requirement yang ditutup manual:** bila ditutup tanpa training Passed, tidak lagi ditandai "Needs reassessment".
+- **Batas karakter dan teks panjang.**
+  - Semua kolom catatan kini dibatasi 2000 karakter di form, sama dengan server. Notes Performance Review dibatasi 4000, dan Training / activity 200.
+  - Teks panjang tanpa spasi kini terbungkus di halaman detail, riwayat, dan profil dashboard. Sebelumnya teks seperti itu membuat halaman riwayat melebar ke samping.
 
 ## Belum selesai
 

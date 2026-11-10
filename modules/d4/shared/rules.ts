@@ -1,3 +1,4 @@
+import type { CompetencyFinding } from "../competency/types";
 import type { DevelopmentNeedVersion, DevelopmentPriority, DevelopmentReassessment, DevelopmentSourceType, DevelopmentStatus } from "../development/types";
 import type { TrainingFollowUp, TrainingStatus, TrainingVersion } from "../training/types";
 import { ApiError } from "./errors";
@@ -114,9 +115,10 @@ export type DevelopmentRevision = { status: DevelopmentStatus; notes: string; pr
 
 /**
  * The next revision of a need, checked the same way by the fixture and the server. Priority, method and PIC stay
- * editable after creation (interview D4: priority follows context, e.g. a tax policy change). A reassessment is
- * recorded only on a Completed need: Retraining reopens it as Planned so training can be repeated, Meets requirement
- * keeps it Completed. `history` is every revision of this need; without it only `current` is known.
+ * editable after creation (interview D4: priority follows context, e.g. a tax policy change). A reassessment is HR's
+ * decision after a passed training, recorded from Training Tracking: Retraining (re)opens the need as Planned so
+ * training can be repeated, Meets requirement completes it or keeps it Completed. `history` is every revision of this
+ * need; without it only `current` is known.
  */
 export function nextDevelopmentRevision(current: DevelopmentNeedVersion, change: DevelopmentChange, latestNeeds: readonly DevelopmentNeedVersion[], latestTrainings: readonly TrainingOutcome[], history: readonly DevelopmentNeedVersion[] = []): DevelopmentRevision {
   const versions = history.length ? history : [current];
@@ -124,14 +126,11 @@ export function nextDevelopmentRevision(current: DevelopmentNeedVersion, change:
     status: change.status, notes: change.notes, priority: change.priority ?? current.priority,
     method: (change.method ?? current.method ?? "").trim(), pic: (change.pic ?? current.pic ?? "").trim(), reassessment: change.reassessment ?? null,
   };
-  if (next.reassessment) {
-    if (current.status !== "Completed") throw new ApiError("VALIDATION_FAILED", "Hasil reassessment hanya dicatat setelah development requirement Completed.");
-    if (next.reassessment === "Retraining" && next.status !== "Planned") throw new ApiError("VALIDATION_FAILED", "Retraining membuka kembali requirement dengan status Planned.");
-    if (next.reassessment === "Meets requirement" && next.status !== "Completed") throw new ApiError("VALIDATION_FAILED", "Meets requirement berarti requirement tetap Completed.");
-  }
+  if (next.reassessment === "Retraining" && next.status !== "Planned") throw new ApiError("VALIDATION_FAILED", "Retraining membuka kembali requirement dengan status Planned.");
+  if (next.reassessment === "Meets requirement" && next.status !== "Completed") throw new ApiError("VALIDATION_FAILED", "Meets requirement berarti requirement Completed.");
   const edited = next.priority !== current.priority || next.method !== (current.method ?? "") || next.pic !== (current.pic ?? "");
-  // Recording the decision already in force (e.g. Meets requirement twice) changes nothing.
-  const repeated = next.reassessment !== null && next.reassessment === reassessmentOf(versions);
+  // Meets requirement twice changes nothing. Every Retraining starts a new round, even on a need already reopened.
+  const repeated = next.reassessment === "Meets requirement" && reassessmentOf(versions) === "Meets requirement";
   if (next.status === current.status && !edited && (!next.reassessment || repeated)) throw new ApiError("VALIDATION_FAILED", "Tidak ada perubahan untuk disimpan.");
   // Retraining is the reason for moving back, so it needs no extra note.
   if (next.status !== current.status && next.reassessment !== "Retraining") {
@@ -247,5 +246,85 @@ export function assertTrainingFollowUp(history: readonly FollowUpVersion[], inpu
 }
 
 /** Notes of the training created by Retraining: where it comes from, then HR's own note. */
-export const retrainingNotes = (previous: Pick<TrainingVersion, "activity" | "date">, notes: string) =>
-  [`Retraining setelah "${previous.activity}" (${previous.date}) Not Passed.`, notes.trim()].filter(Boolean).join("\n");
+export const retrainingNotes = (previous: Pick<TrainingVersion, "activity" | "date">, notes: string, result = "Not Passed") =>
+  [`Retraining setelah "${previous.activity}" (${previous.date}) ${result === "Passed" ? "Passed, tetapi gap belum tertutup" : "Not Passed"}.`, notes.trim()].filter(Boolean).join("\n");
+
+type CompletionVersion = Pick<TrainingVersion, "revision" | "status" | "result" | "followUp" | "createdAt">;
+type NeedRevision = Pick<DevelopmentNeedVersion, "revision" | "status" | "reassessment" | "createdAt">;
+
+/** When a training was recorded Completed with its current result: the first version of that run (later ones only add notes). */
+export function completedAt(history: readonly CompletionVersion[]): string | undefined {
+  const versions = [...history].sort((a, b) => b.revision - a.revision);
+  let at = versions[0]?.createdAt;
+  for (const version of versions) {
+    if (version.status !== "Completed" || version.result !== versions[0].result) break;
+    at = version.createdAt;
+  }
+  return at;
+}
+
+/**
+ * What HR still has to record for a training in Training Tracking: "follow-up" for a Not Passed result without one,
+ * "reassessment" for a Passed result its requirement has no decision for yet, else null. A Retraining recorded after
+ * the pass decides it; so does Meets requirement on the Completed requirement.
+ */
+export function pendingDecision(history: readonly CompletionVersion[], need: Pick<DevelopmentNeedVersion, "status"> | undefined, needHistory: readonly NeedRevision[]): "follow-up" | "reassessment" | null {
+  const latest = [...history].sort((a, b) => b.revision - a.revision)[0];
+  if (latest?.status !== "Completed") return null;
+  if (latest.result === "Not Passed") return followUpOf(history) ? null : "follow-up";
+  if (latest.result !== "Passed" || !need) return null;
+  const since = retrainedAt(needHistory);
+  if (since && since > (completedAt(history) ?? "")) return null;
+  return need.status !== "Completed" || reassessmentOf(needHistory) === "pending" ? "reassessment" : null;
+}
+
+/** HR's decision in the same save as the result: Passed → a reassessment, Not Passed → a follow-up (Q16). */
+export const TRAINING_DECISIONS = ["Meets requirement", "Retraining", "Other follow-up"] as const;
+export type TrainingDecision = typeof TRAINING_DECISIONS[number];
+/** `activity` and `date` describe the next training and are used only for Retraining. */
+export type TrainingCompletion = { result: typeof TRAINING_RESULTS[number]; decision: TrainingDecision; notes: string; activity?: string; date?: string };
+
+type LevelFinding = Pick<CompetencyFinding, "competencyName" | "requiredLevel" | "actualLevel" | "status">;
+
+/** Why Meets requirement is not available yet for a gap-based requirement, or "" when it is. */
+export const meetsBlockedReason = (finding: LevelFinding | undefined) => finding && finding.status !== "Terpenuhi"
+  ? `${finding.competencyName}: level saat ini ${finding.actualLevel ?? "belum tercatat"}, required ${finding.requiredLevel}. Meets requirement bisa dipilih setelah level di data kompetensi (D3) memenuhi.`
+  : "";
+
+/**
+ * Plan of the one save that completes a training: checks every rule against the state after the training is
+ * Completed, before anything is written. The database keeps the decision in two places: a follow-up only on a Not
+ * Passed version, a reassessment only with the matching requirement status (Retraining → Planned, Meets → Completed).
+ * `finding`: the live comparison of a gap-based requirement on the employee's current position, if it is part of it;
+ * completing the training does not change that skill data (D3), so Meets requirement waits for it.
+ */
+export function planTrainingCompletion(input: TrainingCompletion, context: {
+  trainingId: string; history: readonly TrainingVersion[]; need: DevelopmentNeedVersion | undefined; needHistory: readonly DevelopmentNeedVersion[];
+  latestNeeds: readonly DevelopmentNeedVersion[]; latestTrainings: readonly (TrainingOutcome & { trainingId: string })[]; finding: LevelFinding | undefined; at: string;
+}): { training: "version" | "follow-up" | null; development: DevelopmentRevision | null; retraining: boolean; snapshot: boolean } {
+  assertTrainingResult("Completed", input.result);
+  const passed = input.result === "Passed";
+  if (!((passed ? REASSESSMENTS : TRAINING_FOLLOW_UPS) as readonly string[]).includes(input.decision))
+    throw new ApiError("VALIDATION_FAILED", passed ? "Pilih hasil reassessment: Meets requirement atau Retraining." : "Pilih tindak lanjut: Retraining atau Other follow-up.");
+  const latest = [...context.history].sort((a, b) => b.revision - a.revision)[0];
+  if (!latest) throw new ApiError("NOT_FOUND", "Training tidak ditemukan.");
+  if (latest.status === "Completed" && (TRAINING_RESULTS as readonly string[]).includes(latest.result) && !pendingDecision(context.history, context.need, context.needHistory))
+    throw new ApiError("VALIDATION_FAILED", "Keputusan untuk hasil training ini sudah dicatat. Lihat riwayat training.");
+  assertTrainingChange(latest.status, "Completed", input.notes);
+  const saved = latest.status === "Completed" && latest.result === input.result;
+  if (!passed) {
+    const completed = saved ? context.history : [{ ...latest, revision: latest.revision + 1, status: "Completed" as const, result: "Not Passed", followUp: null }, ...context.history];
+    assertTrainingFollowUp(completed, { followUp: input.decision as TrainingFollowUp, notes: input.notes, activity: input.activity, date: input.date }, context.need);
+    return { training: "follow-up", development: null, retraining: input.decision === "Retraining", snapshot: false };
+  }
+  if (!context.need) throw new ApiError("VALIDATION_FAILED", "Development requirement sumber training ini tidak ditemukan.");
+  const decision = input.decision as DevelopmentReassessment;
+  if (decision === "Retraining" && (!input.activity?.trim() || !input.date)) throw new ApiError("VALIDATION_FAILED", "Isi nama training dan tanggal untuk Retraining.");
+  if (decision === "Meets requirement" && context.need.sourceType === "competency_gap" && meetsBlockedReason(context.finding))
+    throw new ApiError("VALIDATION_FAILED", meetsBlockedReason(context.finding));
+  const trainingsAfter = context.latestTrainings.map((item) => item.trainingId === context.trainingId ? { ...item, status: "Completed" as const, result: "Passed", createdAt: context.at } : item);
+  const kept = decision === "Meets requirement" && context.need.status === "Completed" && reassessmentOf(context.needHistory) === "Meets requirement";
+  const development = kept ? null : nextDevelopmentRevision(context.need, { status: decision === "Retraining" ? "Planned" : "Completed", notes: input.notes, reassessment: decision },
+    context.latestNeeds, trainingsAfter, context.needHistory);
+  return { training: saved ? null : "version", development, retraining: decision === "Retraining", snapshot: true };
+}

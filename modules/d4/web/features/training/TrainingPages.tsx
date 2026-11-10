@@ -1,21 +1,20 @@
 "use client";
 
-import { ClipboardCheck, Eye, FileSearch, History, ListChecks, RefreshCw, Scale } from "lucide-react";
+import { Eye, FileSearch, History, ListChecks, RefreshCw, Scale } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { TrainingVersion } from "../../../training/types";
 import { followUpOf } from "../../../shared/rules";
 import { useSnapshot } from "../../data/D4DataProvider";
-import { byProgress, canWrite, employeeById, employeeMeta, employeeSearchText, formatDate, formatPeriod, includesText, trainingById, trainingHistory, trainings, trainingSource, visibleEmployees } from "../../data/selectors";
+import { byProgress, canWrite, employeeById, employeeMeta, employeeSearchText, formatDate, formatPeriod, includesText, sourceFinding, trainingById, trainingDecision, trainingHistory, trainings, trainingSource, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
 import { Button, ButtonLink, Card, InfoGrid, Notice, SourceChip, statusLabel, StatusBadge } from "../../ui/primitives";
-import { ReassessmentModal } from "../development/DevelopmentModals";
 import { ReassessmentBadge } from "../development/DevelopmentPages";
-import { TrainingFollowUpModal, TrainingProgressModal } from "./TrainingModals";
+import { LevelLine, TrainingProgressModal } from "./TrainingModals";
 
-// Not Passed still waiting for a follow-up first (Q16), then planned and running trainings; finished and cancelled last.
+// A result still waiting for HR's decision first (Q16 follow-up, Passed reassessment), then planned and running trainings; finished and cancelled last.
 const TRAINING_RANK: Record<string, number> = { Planned: 1, "In Progress": 2, Completed: 3, Cancelled: 4 };
 
 export function TrainingListPage() {
@@ -36,7 +35,7 @@ export function TrainingListPage() {
     return includesText(`${employeeSearchText(snapshot, employee)} ${item.activity}`, search)
       && (!department || employee?.departmentId === department)
       && (!period || item.date.startsWith(period)) && (!status || item.status === status);
-  }).sort(byProgress((item) => item.status === "Completed" && item.result === "Not Passed" && !followUpOf(trainingHistory(snapshot, item.trainingId)) ? 0 : TRAINING_RANK[item.status] ?? 3,
+  }).sort(byProgress((item) => trainingDecision(snapshot, item) ? 0 : TRAINING_RANK[item.status] ?? 3,
     (item) => employeeById(snapshot, item.employeeId)?.fullName ?? ""));
 
   return <>
@@ -69,8 +68,6 @@ export function TrainingListPage() {
 export function TrainingDetailPage({ trainingId }: { trainingId: string }) {
   const snapshot = useSnapshot();
   const [progressOpen, setProgressOpen] = useState(false);
-  const [reassessOpen, setReassessOpen] = useState(false);
-  const [followUpOpen, setFollowUpOpen] = useState(false);
   const record = trainingById(snapshot, trainingId);
   const employee = record && employeeById(snapshot, record.employeeId);
   if (!record || !employee || !visibleEmployees(snapshot).some((item) => item.id === employee.id)) return <NotFound what="Training" backHref="/training" backLabel="Back to Training Tracking" />;
@@ -81,18 +78,18 @@ export function TrainingDetailPage({ trainingId }: { trainingId: string }) {
   const followUp = followUpOf(versions) && versions.find((item) => item.followUp);
   const retrainings = followUp?.followUp === "Retraining" ? trainings(snapshot).filter((item) => item.developmentNeedId === record.developmentNeedId && item.trainingId !== record.trainingId
     && (trainingHistory(snapshot, item.trainingId).at(-1)?.createdAt ?? "") >= followUp.createdAt) : [];
+  const pending = trainingDecision(snapshot, record);
+  const finding = need && sourceFinding(snapshot, need);
   return <>
     <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Training Tracking", href: "/training" }, { label: "Detail" }]} backHref="/training"
       name={employee.fullName} meta={[...employeeMeta(snapshot, employee), record.activity]} status={record.status}
       actions={<>
         <ButtonLink href={`/training/${record.trainingId}/history`} icon={<History className="size-4" />} testId="view-history">View History</ButtonLink>
         {canWrite(snapshot) && <Button icon={<RefreshCw className="size-4" />} onClick={() => setProgressOpen(true)} data-testid="btn-update-progress">Update Progress</Button>}
-        {/* The result is recorded on the source requirement once it is Completed. */}
-        {canWrite(snapshot) && record.status === "Completed" && need?.status === "Completed" && <Button icon={<Scale className="size-4" />} onClick={() => setReassessOpen(true)} data-testid="btn-record-reassessment">Record Reassessment</Button>}
       </>} />
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
       <Card title="Training">
-        <p className="font-display font-semibold text-lg text-ink">{record.activity}</p>
+        <p className="break-words font-display font-semibold text-lg text-ink">{record.activity}</p>
         <div className="mt-6"><InfoGrid columns={3} items={[
           { label: "Date", testId: "date", value: formatDate(record.date) },
           { label: "Status", value: <StatusBadge status={record.status} /> },
@@ -101,23 +98,24 @@ export function TrainingDetailPage({ trainingId }: { trainingId: string }) {
           { label: "Last updated", testId: "last-updated", value: `${formatDate(record.createdAt)} · ${record.actor}` },
         ]} /></div>
         <h3 className="mb-2 mt-8 text-sm font-semibold text-ink-2">Notes</h3>
-        <p className="whitespace-pre-wrap text-sm text-ink-2">{record.notes || "—"}</p>
+        <p className="whitespace-pre-wrap break-words text-sm text-ink-2">{record.notes || "—"}</p>
       </Card>
       <div className="min-w-0 space-y-6">
-        {/* Q14: a Passed training is followed by HR reassessing the competency in D4; D3 reads that result. */}
-        {canWrite(snapshot) && record.status === "Completed" && record.result === "Passed" && <Card title="Next step" testId="reassess-cta">
-          <p className="text-sm text-ink-2">Training Passed. Nilai ulang kompetensi {employee.fullName} di Competency Gap. Gap dianggap tertutup hanya bila penilaian baru menunjukkan level terpenuhi.</p>
-          <div className="mt-4"><ButtonLink href={`/competency/${employee.id}`} variant="primary" icon={<ClipboardCheck className="size-4" />} testId="cta-reassess-competency">Reassess competency</ButtonLink></div>
+        {/* Q14/Q16: the decision after a result is recorded here, in the same Update Progress form. */}
+        {pending && <Card title="Next step" testId="training-next-step">
+          {pending === "follow-up"
+            ? <Notice tone="warning"><strong>Awaiting follow-up.</strong> Hasil Not Passed wajib ditindaklanjuti HR: Retraining, atau Other follow-up (coaching, rotasi, eskalasi ke atasan) dengan catatan.</Notice>
+            : <div className="space-y-3">
+                <p className="text-sm text-ink-2">Training Passed. Catat hasil reassessment: Meets requirement bila level kompetensinya sudah memenuhi, atau Retraining bila gap belum tertutup.</p>
+                {finding && <LevelLine finding={finding} />}
+              </div>}
+          {canWrite(snapshot) && <div className="mt-4"><Button variant="primary" icon={pending === "follow-up" ? <ListChecks className="size-4" /> : <Scale className="size-4" />} onClick={() => setProgressOpen(true)}
+            data-testid={pending === "follow-up" ? "btn-record-follow-up" : "btn-record-reassessment"}>{pending === "follow-up" ? "Record Follow-up" : "Record Reassessment"}</Button></div>}
         </Card>}
-        {notPassed && <Card title="Follow-up" testId="training-follow-up">
-          {followUp ? <>
-            <p className="text-sm text-ink"><span data-testid="follow-up-value" className="font-semibold">{followUp.followUp}</span> · {formatDate(followUp.createdAt)} · {followUp.actor}</p>
-            {followUp.notes && <p className="mt-2 whitespace-pre-wrap text-sm text-ink-2">{followUp.notes}</p>}
-            {retrainings.map((item) => <div key={item.trainingId} data-testid={`retraining-${item.trainingId}`} className="mt-3"><SourceChip label="Retraining" reference={`${item.activity} · ${statusLabel(item.status)}`} href={`/training/${item.trainingId}`} /></div>)}
-          </> : <>
-            <Notice tone="warning"><strong>Awaiting follow-up.</strong> Hasil Not Passed wajib ditindaklanjuti HR: Retraining, atau Other follow-up (coaching, rotasi, eskalasi ke atasan) dengan catatan.</Notice>
-            {canWrite(snapshot) && <div className="mt-4"><Button icon={<ListChecks className="size-4" />} onClick={() => setFollowUpOpen(true)} data-testid="btn-record-follow-up">Record Follow-up</Button></div>}
-          </>}
+        {notPassed && followUp && <Card title="Follow-up" testId="training-follow-up">
+          <p className="text-sm text-ink"><span data-testid="follow-up-value" className="font-semibold">{followUp.followUp}</span> · {formatDate(followUp.createdAt)} · {followUp.actor}</p>
+          {followUp.notes && <p className="mt-2 whitespace-pre-wrap break-words text-sm text-ink-2">{followUp.notes}</p>}
+          {retrainings.map((item) => <div key={item.trainingId} data-testid={`retraining-${item.trainingId}`} className="mt-3"><SourceChip label="Retraining" reference={`${item.activity} · ${statusLabel(item.status)}`} href={`/training/${item.trainingId}`} /></div>)}
         </Card>}
         <Card title="Source requirement" testId="source-requirement">
           {need ? <><SourceChip label="Development Requirement" reference={statusLabel(need.status)} href={`/development/${need.needId}`} /><p className="mt-3 text-sm text-ink">{need.objective}</p>
@@ -128,8 +126,6 @@ export function TrainingDetailPage({ trainingId }: { trainingId: string }) {
       </div>
     </div>
     {progressOpen && <TrainingProgressModal trainingId={record.trainingId} onClose={() => setProgressOpen(false)} />}
-    {reassessOpen && need && <ReassessmentModal needId={need.needId} onClose={() => setReassessOpen(false)} />}
-    {followUpOpen && <TrainingFollowUpModal trainingId={record.trainingId} onClose={() => setFollowUpOpen(false)} />}
   </>;
 }
 

@@ -227,7 +227,8 @@ export function SearchSelectField({ label, testId, required, error, helper, clas
 export function TextAreaField({ label, testId, required, error, helper, className, ...props }: Common & TextareaHTMLAttributes<HTMLTextAreaElement>) {
   const id = useId();
   return <FieldShell {...{ label, required, error, helper, id, className }}>
-    <textarea id={id} data-testid={`input-${testId ?? slug(label)}`} aria-invalid={Boolean(error)} aria-describedby={error || helper ? `${id}-message` : undefined} required={required} rows={3} {...props} className={cx(control, "h-auto py-2.5")} />
+    {/* 2000 is the server limit of notes; a field with a larger one (general notes, 4000) passes its own. */}
+    <textarea id={id} data-testid={`input-${testId ?? slug(label)}`} aria-invalid={Boolean(error)} aria-describedby={error || helper ? `${id}-message` : undefined} required={required} rows={3} maxLength={2000} {...props} className={cx(control, "h-auto py-2.5")} />
   </FieldShell>;
 }
 
@@ -237,8 +238,8 @@ export function RadioField({ label, testId, required, error, helper, className, 
   const name = testId ?? slug(label);
   return <fieldset data-testid={`input-${name}`} aria-invalid={Boolean(error)} aria-describedby={error || helper ? `${id}-message` : undefined} className={cx("min-w-0", className)}>
     <legend className="mb-1.5 block text-sm font-semibold text-ink-2">{label}{required && <span className="text-danger"> *</span>}</legend>
-    <div className="grid gap-2 sm:grid-cols-2">{options.map((option) => <label key={option.value} className="flex cursor-pointer items-start gap-2.5 rounded-[10px] border border-line-strong px-3 py-2.5 has-[:checked]:border-primary-500 has-[:checked]:bg-primary-50 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary-500/15">
-      <input type="radio" name={`${id}-${name}`} value={option.value} checked={value === option.value} onChange={() => onChange(option.value)} required={required}
+    <div className="grid gap-2 sm:grid-cols-2">{options.map((option) => <label key={option.value} className="flex cursor-pointer items-start gap-2.5 rounded-[10px] border border-line-strong px-3 py-2.5 has-[:checked]:border-primary-500 has-[:checked]:bg-primary-50 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary-500/15 has-[:disabled]:cursor-not-allowed has-[:disabled]:bg-muted has-[:disabled]:opacity-70">
+      <input type="radio" name={`${id}-${name}`} value={option.value} checked={value === option.value} onChange={() => onChange(option.value)} required={required} disabled={option.disabled}
         data-testid={`input-${name}-${option.testId ?? slug(option.value)}`} className="mt-0.5 size-4 shrink-0 accent-primary-600" />
       <span className="min-w-0"><span className="block text-sm font-semibold text-ink">{option.label}</span>{option.description && <span className="mt-0.5 block text-xs text-ink-3">{option.description}</span>}</span>
     </label>)}</div>

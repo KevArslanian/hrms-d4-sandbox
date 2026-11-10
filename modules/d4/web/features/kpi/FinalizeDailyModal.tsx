@@ -58,7 +58,7 @@ export function FinalizeDailyModal({ employeeId, period, compiled, onClose }: { 
             {band && <span className="ml-2 inline-block align-middle"><StatusBadge status={band} /></span>}</td></tr></tfoot>
         </table>
       </div>
-      <TextAreaField label="Notes" testId="catatan-evaluasi" required value={notes} onChange={(event) => setNotes(event.target.value)} error={touched && !notes.trim() ? "Notes wajib diisi." : undefined}
+      <TextAreaField label="Notes" testId="catatan-evaluasi" required maxLength={4000} value={notes} onChange={(event) => setNotes(event.target.value)} error={touched && !notes.trim() ? "Notes wajib diisi." : undefined}
         helper="Kekuatan, hal yang perlu diperbaiki, dan rekomendasi pelatihan." />
       <TextField label="Reference" testId="evidence-reference" required maxLength={500} value={evidence} onChange={(event) => setEvidence(event.target.value)} error={touched && !evidence.trim() ? "Reference wajib diisi." : undefined} helper="Nomor dokumen, tautan laporan, atau lokasi dokumen pencapaian KPI." />
     </form>

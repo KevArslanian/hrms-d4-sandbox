@@ -195,7 +195,7 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
       <p className="text-xs text-ink-3">{max === 5
         ? `Actual diisi skor 1–5: ${[1, 2, 3, 4, 5].map((value) => `${value} ${SCORE_LABELS[value]}`).join(" · ")}. Skor terbobot = bobot × Actual; total = jumlah skor terbobot. Catatan realisasi ditulis di Comment. Tidak ada label tercapai/tidak tercapai.`
         : `Actual diisi skor 1–100 dengan target ${KPI_TARGET}. Di bawah ${UNDER_BELOW} = Under Performance, ${UNDER_BELOW}–${HIGH_ABOVE} = Average Performance, di atas ${HIGH_ABOVE} = High Performance. Skor terbobot = bobot × Actual; total = jumlah skor terbobot. Catatan realisasi ditulis di Comment.`}</p>
-      <TextAreaField label="Notes" testId="catatan-evaluasi" required value={notes} onChange={(event) => setNotes(event.target.value)} error={touched && !notes.trim() ? "Notes wajib diisi." : undefined}
+      <TextAreaField label="Notes" testId="catatan-evaluasi" required maxLength={4000} value={notes} onChange={(event) => setNotes(event.target.value)} error={touched && !notes.trim() ? "Notes wajib diisi." : undefined}
         helper="Kekuatan, hal yang perlu diperbaiki, dan rekomendasi pelatihan — bisa menjadi dasar Development Requirement." />
       <TextField label="Reference" testId="evidence-reference" required maxLength={500} value={evidence} onChange={(event) => setEvidence(event.target.value)} error={touched && !evidence.trim() ? "Reference wajib diisi." : undefined} helper="Nomor dokumen, tautan laporan, atau lokasi dokumen pencapaian KPI." />
     </form>
