@@ -1,8 +1,9 @@
 "use client";
 
-import { ChevronDown, Search, X } from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 import { Children, createContext, isValidElement, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type InputHTMLAttributes, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, type TextareaHTMLAttributes } from "react";
 import { createPortal } from "react-dom";
+import { localToday } from "../../shared/rules";
 import { Button, cx, slug } from "./primitives";
 
 const control = "h-10 w-full rounded-2xl border border-ink-3 bg-surface px-3 text-sm text-ink outline-none placeholder:text-ink-3 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/15 disabled:bg-muted disabled:text-ink-3 aria-[invalid=true]:border-danger";
@@ -164,6 +165,96 @@ export function SelectField({ label, testId, required, error, helper, className,
     <SearchableSelect label={label} value={value} onChange={(next) => onChange({ target: { value: next } })} options={all.filter((option) => option.value !== "")}
       emptyLabel={all.find((option) => option.value === "")?.label} testId={`input-${testId ?? slug(label)}`} triggerId={id} invalid={Boolean(error)}
       describedBy={error || helper ? `${id}-message` : undefined} disabled={disabled} />
+  </FieldShell>;
+}
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const WEEKDAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
+const pad = (n: number) => String(n).padStart(2, "0");
+/** YYYY-MM-DD `days` after `date` (UTC arithmetic, so no time zone shifts the day). */
+const addDays = (date: string, days: number) => new Date(Date.parse(`${date}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
+const addMonths = (month: string, by: number) => { const [y, m] = month.split("-").map(Number); return new Date(Date.UTC(y, m - 1 + by, 1)).toISOString().slice(0, 7); };
+const readable = (value: string) => value.length === 7 ? `${MONTHS[Number(value.slice(5)) - 1]} ${value.slice(0, 4)}` : `${Number(value.slice(8))} ${MONTHS[Number(value.slice(5, 7)) - 1]} ${value.slice(0, 4)}`;
+
+/**
+ * Date (YYYY-MM-DD) or, with `month`, period (YYYY-MM) picker in the dropdown style. The browser's own calendar
+ * cannot be styled and shows 10/11/2026, which reads as 10 Nov or 11 Oct depending on the locale; this one shows
+ * "10 Nov 2026" like the rest of the app. Days or months outside `min`/`max` cannot be picked. Same onChange shape as
+ * an input, so a form only swaps the component.
+ */
+export function DateField({ label, testId, required, error, helper, className, value, onChange, min, max, month }: Common & {
+  value: string; onChange: (event: { target: { value: string } }) => void; min?: string; max?: string; month?: boolean;
+}) {
+  const id = useId();
+  const wrapper = useRef<HTMLDivElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false);
+  const today = localToday();
+  const unit = (date: string) => month ? date.slice(0, 7) : date;
+  // The cursor is the day (or month) keyboard focus sits on; the view shows its month (or year).
+  const [cursor, setCursor] = useState(value || unit(today));
+  const lo = min && unit(min), hi = max && unit(max);
+  const outside = (item: string) => Boolean((lo && item < lo) || (hi && item > hi));
+  const view = month ? cursor.slice(0, 4) : cursor.slice(0, 7);
+  const cells = month
+    ? MONTHS.map((_, index) => `${view}-${pad(index + 1)}`)
+    : (() => {
+        const first = `${view}-01`, lead = (new Date(`${first}T00:00:00Z`).getUTCDay() + 6) % 7;
+        const length = new Date(Date.UTC(Number(view.slice(0, 4)), Number(view.slice(5)), 0)).getUTCDate();
+        return [...Array(lead).fill(""), ...Array.from({ length }, (_, index) => addDays(first, index))];
+      })();
+  const close = () => setOpen(false);
+  const pick = (next: string) => { if (outside(next)) return; onChange({ target: { value: next } }); close(); };
+  const step = (by: number) => setCursor((at) => month ? addMonths(at, by) : addDays(at, by));
+  const page = (by: number) => setCursor((at) => month ? addMonths(at, by * 12) : `${addMonths(at.slice(0, 7), by)}-01`);
+  useLayoutEffect(() => {
+    if (!open) return;
+    const place = () => {
+      if (!wrapper.current || !panel.current) return;
+      const anchor = wrapper.current.getBoundingClientRect();
+      Object.assign(panel.current.style, dropdownPlacement(anchor, window.innerHeight), { width: "296px", maxHeight: "", left: `${Math.max(8, Math.min(anchor.left, window.innerWidth - 304))}px` });
+    };
+    place();
+    window.addEventListener("scroll", place, true);
+    window.addEventListener("resize", place);
+    return () => { window.removeEventListener("scroll", place, true); window.removeEventListener("resize", place); };
+  }, [open]);
+  useEffect(() => { if (open) panel.current?.querySelector<HTMLElement>(`[data-cell="${cursor}"]`)?.focus(); }, [open, cursor]);
+  const keys: Record<string, () => void> = month
+    ? { ArrowLeft: () => step(-1), ArrowRight: () => step(1), ArrowUp: () => step(-3), ArrowDown: () => step(3), PageUp: () => page(-1), PageDown: () => page(1) }
+    : { ArrowLeft: () => step(-1), ArrowRight: () => step(1), ArrowUp: () => step(-7), ArrowDown: () => step(7), PageUp: () => page(-1), PageDown: () => page(1) };
+  const navButton = "inline-flex size-8 items-center justify-center rounded-lg text-ink-2 hover:bg-muted focus:bg-muted focus:outline-none";
+  return <FieldShell {...{ label, required, error, helper, id, className }}>
+    <div ref={wrapper} className="relative" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) close(); }}
+      onKeyDown={(event) => {
+        if (event.key === "Escape" && open) { event.stopPropagation(); close(); }
+        else if (open && keys[event.key] && event.target !== event.currentTarget.querySelector("button")) { event.preventDefault(); keys[event.key](); }
+      }}>
+      <button type="button" id={id} data-testid={`input-${testId ?? slug(label)}`} aria-haspopup="dialog" aria-expanded={open}
+        aria-describedby={error || helper ? `${id}-message` : undefined} onClick={() => { setCursor(value || unit(today)); setOpen(!open); }}
+        className={cx(control, "flex items-center justify-between gap-2 text-left", !value && "text-ink-2", error && "border-danger")}>
+        <span className="truncate">{value ? readable(value) : month ? "Select period" : "Select date"}</span>
+        <CalendarDays aria-hidden="true" className="size-4 shrink-0 text-ink-3" />
+      </button>
+      {open && <div ref={panel} role="dialog" aria-label={label} data-testid={`calendar-${testId ?? slug(label)}`} className="fixed z-30 rounded-2xl border border-line bg-surface p-3 shadow-card">
+        <div className="mb-2 flex items-center justify-between">
+          <button type="button" aria-label={month ? "Previous year" : "Previous month"} data-testid="calendar-prev" onMouseDown={(event) => event.preventDefault()} onClick={() => page(-1)} className={navButton}><ChevronLeft className="size-4" /></button>
+          <span className="text-sm font-semibold text-ink">{month ? view : readable(view)}</span>
+          <button type="button" aria-label={month ? "Next year" : "Next month"} data-testid="calendar-next" onMouseDown={(event) => event.preventDefault()} onClick={() => page(1)} className={navButton}><ChevronRight className="size-4" /></button>
+        </div>
+        {!month && <div className="grid grid-cols-7 text-center text-[11px] font-semibold text-ink-3">{WEEKDAYS.map((day) => <span key={day} className="py-1">{day}</span>)}</div>}
+        <div className={cx("grid gap-0.5 text-sm", month ? "grid-cols-3" : "grid-cols-7")}>
+          {cells.map((cell, index) => cell ? <button key={cell} type="button" data-cell={cell} data-testid={`${month ? "month" : "day"}-${cell}`} tabIndex={cell === cursor ? 0 : -1}
+            disabled={outside(cell)} aria-pressed={cell === value} aria-label={readable(cell)} onMouseDown={(event) => event.preventDefault()} onClick={() => pick(cell)}
+            className={cx("rounded-xl text-ink hover:bg-muted focus:bg-muted focus:outline-none disabled:cursor-not-allowed disabled:text-line-strong disabled:hover:bg-transparent", month ? "h-10" : "h-9",
+              cell === unit(today) && "ring-1 ring-inset ring-primary-500", cell === value && "bg-selected font-semibold hover:bg-selected focus:bg-selected")}>
+            {month ? MONTHS[Number(cell.slice(5)) - 1] : Number(cell.slice(8))}
+          </button> : <span key={`lead-${index}`} />)}
+        </div>
+        {!outside(unit(today)) && <button type="button" data-testid="calendar-today" onMouseDown={(event) => event.preventDefault()} onClick={() => pick(unit(today))}
+          className="mt-2 w-full rounded-xl px-3 py-2 text-sm font-semibold text-primary-600 hover:bg-muted focus:bg-muted focus:outline-none">{month ? "This month" : "Today"}</button>}
+      </div>}
+    </div>
   </FieldShell>;
 }
 

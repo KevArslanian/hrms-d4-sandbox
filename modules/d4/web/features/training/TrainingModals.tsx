@@ -6,7 +6,7 @@ import type { TrainingStatus } from "../../../training/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
 import { developmentById, developmentNeeds, employeeById, reassessmentFor, sourceFinding, today, trainingById, trainingDecision, trainingHistory, visibleEmployees } from "../../data/selectors";
 import { followUpOf, isTrainingRollback, meetsBlockedReason, TRAINING_RESULTS, type TrainingCompletion, type TrainingDecision } from "../../../shared/rules";
-import { FormError, FormModal, ModalActions, RadioField, ReadOnlyField, SearchSelectField, SelectField, TextAreaField, TextField } from "../../ui/forms";
+import { DateField, FormError, FormModal, ModalActions, RadioField, ReadOnlyField, SearchSelectField, SelectField, TextAreaField, TextField } from "../../ui/forms";
 import { Notice, statusLabel } from "../../ui/primitives";
 
 const STATUSES: TrainingStatus[] = ["Planned", "In Progress", "Completed", "Cancelled"];
@@ -72,7 +72,7 @@ export function TrainingFormModal({ employeeId, developmentNeedId, onClose }: { 
           {needs.map((item) => <option key={item.needId} value={item.needId}>{item.objective} · {statusLabel(item.status)}</option>)}
         </SelectField>}
         <TextField label="Training / activity" testId="training-activity" required maxLength={200} value={activity} onChange={(event) => setActivity(event.target.value)} error={touched && !activity.trim() ? "Nama aktivitas wajib diisi." : undefined} className="sm:col-span-2" />
-        <TextField label="Date" testId="date" required type="date" max={status === "Completed" ? today() : undefined} value={date} onChange={(event) => setDate(event.target.value)} error={touched && futureDone ? "Tidak boleh lebih dari hari ini untuk training yang Completed." : undefined} />
+        <DateField label="Date" testId="date" required max={status === "Completed" ? today() : undefined} value={date} onChange={(event) => setDate(event.target.value)} error={touched && futureDone ? "Tidak boleh lebih dari hari ini untuk training yang Completed." : undefined} />
         <SelectField label="Status" required value={status} onChange={(event) => setStatus(event.target.value as TrainingStatus)}>{STATUSES.map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}</SelectField>
         {status === "Completed" && <ResultField value={result} onChange={setResult} error={touched && !result ? "Result wajib dipilih bila status Completed." : undefined} />}
       </div>
@@ -127,7 +127,7 @@ export function TrainingProgressModal({ trainingId, onClose }: { trainingId: str
   const options = result === "Passed" ? [
     { value: "Meets requirement", label: "Meets requirement", description: blocked ? "Belum bisa: level di D3 belum memenuhi." : "Gap tertutup. Requirement ditutup (Completed).", testId: "meets-requirement", disabled: Boolean(blocked) },
     { value: "Retraining", label: "Retraining", description: "Gap belum tertutup. Requirement dibuka lagi dan training ulang dibuat (Planned)." },
-    { value: LATER, label: LATER, description: "Level di D3 belum diperbarui. Keputusan dicatat nanti dari detail training ini.", testId: "decide-later" },
+    { value: LATER, label: LATER, description: "Hasil Passed disimpan sekarang. Keputusan dicatat nanti dari Next step, setelah level di D3 diperbarui.", testId: "decide-later" },
   ] : FOLLOW_UP_OPTIONS;
   const saveResult = status === "Completed" ? result : "";
   const sameResult = status === record.status && saveResult === record.result;
@@ -167,7 +167,7 @@ export function TrainingProgressModal({ trainingId, onClose }: { trainingId: str
           <ReadOnlyField label="Source requirement" testId="retraining-source" value={need ? need.objective : "—"} className="sm:col-span-2" />
           <TextField label="Training / activity" testId="retraining-activity" required maxLength={200} value={activity} onChange={(event) => setActivity(event.target.value)} className="sm:col-span-2"
             error={touched && !activity.trim() ? "Nama training wajib diisi." : undefined} />
-          <TextField label="Date" testId="retraining-date" required type="date" value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? "Tanggal wajib diisi." : undefined} />
+          <DateField label="Date" testId="retraining-date" required value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? "Tanggal wajib diisi." : undefined} />
           <ReadOnlyField label="Status" testId="retraining-status" value={statusLabel("Planned")} />
         </div>}
       </>}
