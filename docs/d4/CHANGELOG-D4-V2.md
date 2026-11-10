@@ -272,6 +272,9 @@ Tidak dikerjakan karena belum pasti atau bukan milik D4:
   - D4 belum membaca `d1_kpi_definitions`, jadi perilaku KPI D4 tidak berubah.
   - D1 juga menambah 17 requirement kompetensi untuk 6 posisi. Requirement ini langsung terbaca di Competency Gap, sehingga status kompetensi 13 pegawai berubah.
 - **20 requirement uji dihapus dari `position_requirements`** dengan izin PO, menindaklanjuti temuan D1: 18 requirement "Demo D4:" dan 2 kompetensi IT di COM-SA. Detail, backup, dan rollback ada di MIGRATION-RUNBOOK-D4, bagian "Pembersihan requirement uji".
+- **Uji akses di database, 11 dari 11 lulus** lewat simulasi sesi. Director membaca semua data dan hanya bisa menulis Daily KPI miliknya. Employee hanya bisa mengisi hari ini untuk dirinya. Login UI dengan akun Director dan Employee belum dicoba.
+- **Data demo Daily KPI untuk presentasi:** 33 entri V6 untuk lima akun bernama fiktif, di hari kerja 2–10 Nov. Hasilnya tiga kategori kinerja tampil, dan alert "Daily KPI di bawah target" muncul untuk dua pegawai.
+- **Dua scorecard V5.1 di periode V6 dihapus** (Aldo Sapan, 2026-11 dan 2026-12), dengan backup. Detail ketiga butir ini ada di MIGRATION-RUNBOOK-D4, bagian "Data demo dan uji akses".
 
 ## Belum selesai
 
@@ -282,7 +285,7 @@ Tidak dikerjakan karena belum pasti atau bukan milik D4:
 | Docmost dan Planka tim | Keputusan: draft dulu | Terapkan isi `drafts/` setelah disetujui PO |
 | Sales Admin memakai KPI Sales & Marketing | V5.1 tidak punya role Sales Admin; pemetaan sementara | Keputusan PO (lihat `drafts/docmost/03-…`) |
 | Cakupan Manager (O7) | Manager masih melihat semua employee; butuh data atasan dari D3 | Keputusan PO + `supervisor_id` dari D3 |
-| Sisa setelah migrasi D4 | Ketujuh migrasi dan katalog V5.1 sudah diterapkan 10 Nov (lihat [MIGRATION-RUNBOOK-D4.md](MIGRATION-RUNBOOK-D4.md), bagian "Status"). Yang belum: uji dengan akun Director dan Employee, dan 1 scorecard periode 2026-12 yang masih berskala 1–5 | Uji dengan akun dari PO; PO memutuskan nasib scorecard 2026-12 |
+| Sisa setelah migrasi D4 | Ketujuh migrasi dan katalog V5.1 sudah diterapkan 10 Nov (lihat [MIGRATION-RUNBOOK-D4.md](MIGRATION-RUNBOOK-D4.md), bagian "Status"). Aturan akses sudah diuji di database dan scorecard V5.1 di periode V6 sudah dihapus. Yang belum: login UI dengan akun Director dan Employee | Uji dengan akun dari PO: Director tanpa tombol simpan untuk data orang lain, dan Employee ditolak mengisi tanggal besok |
 | Konfirmasi alur Daily KPI | Dibangun dengan asumsi: pegawai isi sendiri, HR memvalidasi rata-rata periode | Konfirmasi klien; bila skor periode harus otomatis tanpa HR, ubah Performance Review |
 | Definisi KPI dari D1 | Sejak 10 Nov, 7 dari 14 posisi pegawai lengkap di D1. Sisanya (Sales Executive, Tax Associate, Cash Associate, Billing, General Director, IT, Field Agent) menunggu keputusan PO. | Keputusan PO atas daftar dari D1, persetujuan Pak Gema (B24), lalu sepakati apakah D4 membaca KPI dari D1 |
 | Volume Daily KPI di snapshot | Snapshot memuat semua entri harian (sekitar 20 per pegawai per bulan) di setiap halaman; cukup untuk sandbox, tetapi tumbuh tanpa batas | Batasi ke periode berjalan + filter periode di API sebelum produksi |
