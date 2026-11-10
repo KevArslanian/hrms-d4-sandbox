@@ -96,3 +96,35 @@ Perilaku RLS langkah 5 dan 6 sudah diuji di Postgres 16 lokal dengan stub auth, 
 
 - **Scorecard periode 2026-12 di V5.1:** 1 baris live untuk periode yang belum mulai, disimpan sebelum aturan D4-FN-01. Setelah V6 berlaku, baris itu tetap berskala 1–5 di periode V6. Aplikasi menampilkannya apa adanya: skala 1–5, tanpa band dan tanpa gap. Revisi atas baris itu harus memakai V6. Saran: HR menghapus atau merevisinya. Agen tidak mengubah data live.
 - **Riwayat migrasi:** setelah langkah di atas selesai, catat juga dua migrasi yang tidak tercatat (`d4_kpi_catalog_v51`, `d4_development_method_pic`) di `schema_migrations`, supaya `db push` kelak tidak mencoba menerapkannya lagi.
+
+## Pembersihan requirement uji (10 Nov 2026)
+
+Ini perubahan data, bukan migrasi skema. Tabel `position_requirements` milik D3 dan kini dikelola D1.
+
+- **Izin:** PO D4 (Gabriella), dengan syarat penghapusannya aman. Izin disampaikan lewat WebDev. D1 dan PO D3 perlu diberi tahu; pesannya untuk Valent sudah disiapkan.
+- **Latar:** D1 menemukan requirement yang tidak cocok dengan posisinya saat integrasi data D1. Requirement itu tampil di Competency Gap.
+- **Dihapus, 20 baris:**
+  - 18 requirement dengan kompetensi `DEMO-D4-C*` berlabel "Demo D4:" (kepabeanan, gudang, cabang): 12 di COM-SA, 3 di COM-CS-MGR, dan 3 di FAT-ACC-MGR.
+  - 2 kompetensi IT di COM-SA, yaitu `D4-SIM-S15` dan `D4-SIM-S16`. Keduanya kemungkinan besar ikut terbawa saat posisi Tim IT diubah menjadi COM-SA: 28 penilaian kompetensi 14 Okt, termasuk milik pegawai IT, tercatat di posisi yang sama.
+- **Cek sebelum (read-only):**
+  - Satu-satunya foreign key ke tabel ini berasal dari `d4_development_needs`, dan tidak ada baris yang merujuk ke-20 baris target. Tabel ini juga tidak punya trigger.
+  - Pencarian ke-20 ID di semua kolom teks dan JSON seluruh tabel hanya menemukannya di 28 snapshot `d4_competency_assessments`. Snapshot itu riwayat dan tidak diubah.
+- **Cara:**
+  - Satu transaksi di SQL Editor. Skrip lebih dulu memastikan setiap ID masih pasangan posisi dan kompetensi yang sama, dan tidak dirujuk development need. Bila tidak, transaksi batal.
+  - Isi editor dicocokkan dengan file lewat hash, dengan spasi awal baris diabaikan.
+  - Skrip diuji dulu di Postgres 16 lokal dengan salinan baris live: jalan pertama, jalan ulang (batal), rollback, serta dua kasus yang harus batal.
+- **Hasil:**
+  - Jumlah requirement: COM-SA 18 → 4, COM-CS-MGR 8 → 5, FAT-ACC-MGR 6 → 3.
+  - Backup: `d4_backup.position_requirements_test_rows`, 20 baris, RLS aktif.
+  - Tidak ada development need yang kehilangan rujukan.
+  - Halaman Competency Gap Emma Watson di production tidak lagi menampilkan baris "Demo D4".
+- **Sengaja tidak dihapus:**
+  - `D4-SIM-S14` di COM-SA (`85385771-cce2-4967-af4f-32109570ef0e`). Requirement ini dirujuk development need `e42a24ce-dad2-4d00-9118-619205bec6fe` milik akun yang tidak lagi ada di `b2_register`, yang punya 2 versi dan 1 training record. Menghapusnya berarti menghapus riwayat D4, jadi butuh keputusan PO.
+  - 12 requirement `DEMO-D4-C*` lain. Semuanya menempel di 2 posisi yang tidak terbaca di `d3_positions` dan tidak dipegang pegawai, sehingga tidak tampil di aplikasi.
+- **Rollback:**
+
+  ```sql
+  insert into public.position_requirements (id, position_id, competency_id, min_proficiency_level, is_mandatory, created_at)
+  select id, position_id, competency_id, min_proficiency_level, is_mandatory, created_at
+  from d4_backup.position_requirements_test_rows;
+  ```
