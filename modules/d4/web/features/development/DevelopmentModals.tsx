@@ -6,7 +6,7 @@ import type { DevelopmentPriority, DevelopmentReassessment, DevelopmentSourceTyp
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
 import { isDevelopmentRollback, openNeedFor, passedTrainingCount, retrainedAt } from "../../../shared/rules";
 import { currentGap, DEFAULT_SOURCE_TYPE, developmentById, developmentHistory, developmentNeeds, employeeById, formatDate, formatPeriod, latestCurrentPositionAssessment, objectiveFromFinding, objectiveWithMethod, positionOf, reassessmentFor, scorecardsOf, sourceTypeLabel, today, trainings, visibleEmployees } from "../../data/selectors";
-import { FormError, FormModal, ModalActions, RadioField, ReadOnlyField, SearchSelectField, SelectField, TextAreaField, TextField } from "../../ui/forms";
+import { FormError, FormModal, ModalActions, RadioField, ReadOnlyField, SearchSelectField, SelectField, SuggestField, TextAreaField, TextField } from "../../ui/forms";
 import { Notice, statusLabel } from "../../ui/primitives";
 import { picOptions } from "./rows";
 
@@ -39,10 +39,7 @@ const OBJECTIVE_HINT = "Tulis kompetensi yang kurang, level targetnya, dan cara 
 const OBJECTIVE_EXAMPLE = "Contoh: Naikkan Perencanaan Strategi & Anggaran dari level 3 ke 4 melalui External training";
 
 function MethodField({ value, onChange, helper }: { value: string; onChange: (value: string) => void; helper?: string }) {
-  return <>
-    <TextField label="Method" testId="method" list="d4-development-methods" maxLength={120} value={value} onChange={(event) => onChange(event.target.value)} helper={helper} />
-    <datalist id="d4-development-methods">{DEVELOPMENT_METHODS.map((item) => <option key={item} value={item} />)}</datalist>
-  </>;
+  return <SuggestField label="Method" testId="method" maxLength={120} value={value} onChange={onChange} suggestions={DEVELOPMENT_METHODS} helper={helper} />;
 }
 
 /** Q13: the PIC (penanggung jawab) is picked from the employee list and stored by name. B13: it is required. */
