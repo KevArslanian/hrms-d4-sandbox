@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronDown, Search, X } from "lucide-react";
-import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type InputHTMLAttributes, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
+import { Children, createContext, isValidElement, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type InputHTMLAttributes, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, type TextareaHTMLAttributes } from "react";
 import { createPortal } from "react-dom";
 import { Button, cx, slug } from "./primitives";
 
@@ -31,7 +31,7 @@ export function SearchInput({ value, onChange, placeholder }: { value: string; o
 
 const FILTER_VISIBLE = 10;
 
-type Option = { value: string; label: string };
+type Option = { value: string; label: string; disabled?: boolean };
 
 // Height of the open list: search box plus at most max-h-64 of options.
 const PANEL_MAX = 320;
@@ -57,9 +57,9 @@ const SEARCH_FROM = 8;
  * it lists the options, typing narrows them. Only FILTER_VISIBLE options are rendered at once (load test:
  * 1000 departments/employees); the rest are reached by typing. `emptyLabel` adds a "no value" choice.
  */
-function SearchableSelect({ label, value, onChange, options, emptyLabel, testId, triggerId, invalid, describedBy, className, wrapperClassName, highlightActive }: {
+function SearchableSelect({ label, value, onChange, options, emptyLabel, testId, triggerId, invalid, describedBy, className, wrapperClassName, highlightActive, disabled }: {
   label: string; value: string; onChange: (value: string) => void; options: readonly Option[]; emptyLabel?: string; testId: string;
-  triggerId?: string; invalid?: boolean; describedBy?: string; className?: string; wrapperClassName?: string; highlightActive?: boolean;
+  triggerId?: string; invalid?: boolean; describedBy?: string; className?: string; wrapperClassName?: string; highlightActive?: boolean; disabled?: boolean;
 }) {
   const listId = useId();
   const wrapper = useRef<HTMLDivElement>(null);
@@ -79,7 +79,7 @@ function SearchableSelect({ label, value, onChange, options, emptyLabel, testId,
   // Arrow keys move between the search box and the options (keyboard use without Tab).
   const moveFocus = (event: ReactKeyboardEvent<HTMLElement>) => {
     if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
-    const items = [...event.currentTarget.querySelectorAll<HTMLElement>(`[data-search], #${CSS.escape(listId)} button`)];
+    const items = [...event.currentTarget.querySelectorAll<HTMLElement>(`[data-search], #${CSS.escape(listId)} button:not(:disabled)`)];
     const at = items.indexOf(document.activeElement as HTMLElement);
     const next = items[Math.min(items.length - 1, Math.max(0, at + (event.key === "ArrowDown" ? 1 : -1)))];
     if (next) { event.preventDefault(); next.focus(); }
@@ -96,7 +96,7 @@ function SearchableSelect({ label, value, onChange, options, emptyLabel, testId,
   }, [open]);
   return <div ref={wrapper} className={cx("relative", wrapperClassName)} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) close(); }}
     onKeyDown={(event) => { if (event.key === "Escape" && open) { event.stopPropagation(); close(); } else if (open) moveFocus(event); else if (event.key === "ArrowDown") { event.preventDefault(); setOpen(true); } }}>
-    <button type="button" id={triggerId} data-testid={testId} aria-label={triggerId ? undefined : label} aria-haspopup="listbox" aria-expanded={open} aria-describedby={describedBy}
+    <button type="button" id={triggerId} data-testid={testId} aria-label={triggerId ? undefined : label} aria-haspopup="listbox" aria-expanded={open} aria-describedby={describedBy} disabled={disabled}
       data-active={active || undefined} title={selected ? `${label}: ${selected.label}` : undefined}
       onClick={() => open ? close() : setOpen(true)} className={cx(control, "flex items-center justify-between gap-2 text-left", !selected && "text-ink-2",
         active && "border-primary-500 bg-primary-50 font-semibold text-primary-700", invalid && "border-danger", className)}>
@@ -108,13 +108,13 @@ function SearchableSelect({ label, value, onChange, options, emptyLabel, testId,
         <span className="sr-only">Search {label}</span>
         <Search aria-hidden="true" className="pointer-events-none absolute left-2.5 top-2.5 size-4 text-ink-3" />
         <input autoFocus data-search data-testid={testId.replace(/^(filter|input)-/, "search-")} role="combobox" aria-controls={listId} aria-expanded aria-autocomplete="list" value={query} onChange={(event) => setQuery(event.target.value)}
-          onKeyDown={(event) => { if (event.key === "Enter" && matches[0]) { event.preventDefault(); pick(matches[0].value); } }}
+          onKeyDown={(event) => { const first = matches.find((option) => !option.disabled); if (event.key === "Enter" && first) { event.preventDefault(); pick(first.value); } }}
           placeholder="Search…" className="h-9 w-full rounded-xl border border-line-strong bg-app pl-8 pr-2 text-sm text-ink outline-none placeholder:text-ink-3 focus:border-primary-500" />
       </label>}
       <ul id={listId} role="listbox" data-testid={testId.replace(/^(filter|input)-/, "options-")} aria-label={label} className="max-h-64 min-h-0 overflow-y-auto text-sm">
         {matches.length ? matches.map((option) => <li key={option.value || "empty"} role="option" aria-selected={option.value === value}>
           {/* Safari does not focus a clicked button, so without this the input's blur closes the list before the click lands. */}
-          <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => pick(option.value)} className={cx("flex w-full items-center rounded-xl px-3 py-2 text-left text-ink hover:bg-muted focus:bg-muted focus:outline-none", option.value === value && "bg-selected font-semibold hover:bg-selected focus:bg-selected")}>
+          <button type="button" disabled={option.disabled} onMouseDown={(event) => event.preventDefault()} onClick={() => pick(option.value)} className={cx("flex w-full items-center rounded-xl px-3 py-2 text-left text-ink hover:bg-muted focus:bg-muted focus:outline-none disabled:cursor-not-allowed disabled:text-ink-3 disabled:hover:bg-transparent", option.value === value && "bg-selected font-semibold hover:bg-selected focus:bg-selected")}>
             {option.label}
           </button>
         </li>) : <li className="px-2.5 py-2 text-ink-3">Tidak ada yang cocok</li>}
@@ -150,12 +150,67 @@ export function TextField({ label, testId, required, error, helper, className, .
   </FieldShell>;
 }
 
-export function SelectField({ label, testId, required, error, helper, className, children, ...props }: Common & SelectHTMLAttributes<HTMLSelectElement>) {
+/**
+ * Form dropdown written with <option> children, rendered with the same PISD-styled list as the filters: the browser's
+ * own <select> popup cannot be styled. An option with value "" is the placeholder.
+ */
+export function SelectField({ label, testId, required, error, helper, className, value, onChange, disabled, children }: Common & {
+  value: string; onChange: (event: { target: { value: string } }) => void; disabled?: boolean; children: ReactNode;
+}) {
   const id = useId();
+  const all = Children.toArray(children).flatMap((child) => isValidElement<{ value?: string; disabled?: boolean; children?: ReactNode }>(child)
+    ? [{ value: String(child.props.value ?? ""), label: Children.toArray(child.props.children).join(""), disabled: child.props.disabled }] : []);
   return <FieldShell {...{ label, required, error, helper, id, className }}>
-    <div className="relative">
-      <select id={id} data-testid={`input-${testId ?? slug(label)}`} aria-invalid={Boolean(error)} aria-describedby={error || helper ? `${id}-message` : undefined} required={required} {...props} className={cx(control, "appearance-none pr-9")}>{children}</select>
-      <ChevronDown aria-hidden="true" className="pointer-events-none absolute right-3 top-3 size-4 text-ink-3" />
+    <SearchableSelect label={label} value={value} onChange={(next) => onChange({ target: { value: next } })} options={all.filter((option) => option.value !== "")}
+      emptyLabel={all.find((option) => option.value === "")?.label} testId={`input-${testId ?? slug(label)}`} triggerId={id} invalid={Boolean(error)}
+      describedBy={error || helper ? `${id}-message` : undefined} disabled={disabled} />
+  </FieldShell>;
+}
+
+/** Free text with suggestions shown in the same list style as the dropdowns (the browser's datalist popup cannot be styled). */
+export function SuggestField({ label, testId, required, error, helper, className, value, onChange, suggestions, maxLength }: Common & {
+  value: string; onChange: (value: string) => void; suggestions: readonly string[]; maxLength?: number;
+}) {
+  const id = useId(), listId = useId();
+  const wrapper = useRef<HTMLDivElement>(null);
+  const panel = useRef<HTMLUListElement>(null);
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(-1);
+  const term = value.trim().toLowerCase();
+  // A value that is already one of the suggestions lists them all, so it can be swapped for another.
+  const matches = !term || suggestions.some((item) => item.toLowerCase() === term) ? suggestions : suggestions.filter((item) => item.toLowerCase().includes(term));
+  const shown = open && matches.length > 0;
+  const pick = (next: string) => { onChange(next); setOpen(false); setActive(-1); };
+  useLayoutEffect(() => {
+    if (!shown) return;
+    const place = () => { if (wrapper.current && panel.current) Object.assign(panel.current.style, dropdownPlacement(wrapper.current.getBoundingClientRect(), window.innerHeight)); };
+    place();
+    window.addEventListener("scroll", place, true);
+    window.addEventListener("resize", place);
+    return () => { window.removeEventListener("scroll", place, true); window.removeEventListener("resize", place); };
+  }, [shown]);
+  return <FieldShell {...{ label, required, error, helper, id, className }}>
+    <div ref={wrapper} className="relative" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}>
+      <input id={id} data-testid={`input-${testId ?? slug(label)}`} role="combobox" aria-expanded={shown} aria-controls={listId} aria-autocomplete="list"
+        aria-activedescendant={shown && active >= 0 ? `${listId}-${active}` : undefined} aria-invalid={Boolean(error)} aria-describedby={error || helper ? `${id}-message` : undefined}
+        autoComplete="off" required={required} maxLength={maxLength} value={value} className={control}
+        onFocus={() => setOpen(true)} onClick={() => setOpen(true)} onChange={(event) => { onChange(event.target.value); setOpen(true); setActive(-1); }}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+            event.preventDefault();
+            setOpen(true);
+            setActive((at) => Math.min(matches.length - 1, Math.max(0, at + (event.key === "ArrowDown" ? 1 : -1))));
+          } else if (event.key === "Enter" && shown && active >= 0) { event.preventDefault(); pick(matches[active]); }
+          else if (event.key === "Escape" && shown) { event.stopPropagation(); setOpen(false); }
+        }} />
+      {shown && <ul ref={panel} id={listId} role="listbox" aria-label={label} className="fixed z-30 overflow-y-auto rounded-2xl border border-line bg-surface p-1.5 text-sm shadow-card">
+        {matches.map((item, index) => <li key={item} id={`${listId}-${index}`} role="option" aria-selected={item === value}>
+          <button type="button" tabIndex={-1} onMouseDown={(event) => event.preventDefault()} onClick={() => pick(item)}
+            className={cx("flex w-full items-center rounded-xl px-3 py-2 text-left text-ink hover:bg-muted", index === active && "bg-muted", item === value && "bg-selected font-semibold hover:bg-selected")}>
+            {item}
+          </button>
+        </li>)}
+      </ul>}
     </div>
   </FieldShell>;
 }

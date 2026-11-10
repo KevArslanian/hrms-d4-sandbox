@@ -275,6 +275,8 @@ Tidak dikerjakan karena belum pasti atau bukan milik D4:
 - **Uji akses di database, 11 dari 11 lulus** lewat simulasi sesi. Director membaca semua data dan hanya bisa menulis Daily KPI miliknya. Employee hanya bisa mengisi hari ini untuk dirinya. Login UI dengan akun Director dan Employee belum dicoba.
 - **Data demo Daily KPI untuk presentasi:** 33 entri V6 untuk lima akun bernama fiktif, di hari kerja 2–10 Nov. Hasilnya tiga kategori kinerja tampil, dan alert "Daily KPI di bawah target" muncul untuk dua pegawai.
 - **Dua scorecard V5.1 di periode V6 dihapus** (Aldo Sapan, 2026-11 dan 2026-12), dengan backup. Detail ketiga butir ini ada di MIGRATION-RUNBOOK-D4, bagian "Data demo dan uji akses".
+- **Semua dropdown form memakai gaya design system PISD.** Delapan dropdown di form Development dan Training sebelumnya memakai daftar bawaan browser (Priority, Source type, Source reference, Status, Result, Source requirement); kini sama dengan dropdown Employee dan PIC. Saran Method tetap boleh diketik bebas, tetapi daftarnya kini bergaya sama, bukan popup bawaan browser.
+- **Passed/Not Passed tidak lagi berulang.** Di modal Update Progress, notice langkah berikutnya hanya tampil sekali dan hanya saat hasil baru dipilih. Di detail training, tombol "Reassess Competency" di header dan notice kuning di bawah dihapus karena sudah diwakili kartu Next step atau Follow-up.
 
 ## Belum selesai
 

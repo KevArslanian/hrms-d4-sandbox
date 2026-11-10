@@ -10,16 +10,19 @@ import { Notice, statusLabel } from "../../ui/primitives";
 
 const STATUSES: TrainingStatus[] = ["Planned", "In Progress", "Completed", "Cancelled"];
 
-/** Passed / Not Passed, shown only for a completed training; Not Passed means the training is repeated. */
-function ResultField({ value, onChange, error }: { value: string; onChange: (value: string) => void; error?: string }) {
+/**
+ * Passed / Not Passed, shown only for a completed training; Not Passed means the training is repeated. `hint`: the
+ * next-step note, shown only while a result is being chosen, not again for a result that is already saved.
+ */
+function ResultField({ value, onChange, error, hint = true }: { value: string; onChange: (value: string) => void; error?: string; hint?: boolean }) {
   return <>
     <SelectField label="Result" testId="result" required value={value} onChange={(event) => onChange(event.target.value)} error={error} className="sm:col-span-2"
       helper="Detail hasil (nilai, sertifikat, catatan trainer) ditulis di Notes.">
       <option value="">Select result</option>
       {TRAINING_RESULTS.map((item) => <option key={item} value={item}>{item}</option>)}
     </SelectField>
-    {value === "Not Passed" && <div className="sm:col-span-2"><Notice tone="warning">Requirement tetap terbuka. Setelah disimpan, catat tindak lanjutnya di detail training: Retraining atau Other follow-up.</Notice></div>}
-    {value === "Passed" && <div className="sm:col-span-2"><Notice>Lanjutkan dengan menilai ulang kompetensinya di Competency Gap sebelum requirement ditandai Completed.</Notice></div>}
+    {hint && value === "Not Passed" && <div className="sm:col-span-2"><Notice tone="warning">Requirement tetap terbuka. Setelah disimpan, catat tindak lanjutnya di detail training: Retraining atau Other follow-up.</Notice></div>}
+    {hint && value === "Passed" && <div className="sm:col-span-2"><Notice>Training selesai tidak otomatis menutup gap. Setelah disimpan, nilai ulang kompetensinya di Competency Gap.</Notice></div>}
   </>;
 }
 
@@ -104,11 +107,11 @@ export function TrainingProgressModal({ trainingId, onClose }: { trainingId: str
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />
       <SelectField label="Status" required value={status} onChange={(event) => setStatus(event.target.value as TrainingStatus)}>{STATUSES.map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}</SelectField>
-      {status === "Completed" && <ResultField value={result} onChange={setResult} error={touched && !result ? "Result wajib dipilih." : undefined} />}
+      {status === "Completed" && <ResultField value={result} onChange={setResult} error={touched && !result ? "Result wajib dipilih." : undefined}
+        hint={status !== record?.status || result !== (record?.result ?? "")} />}
       <TextAreaField label={rollback ? "Reason for change" : "Update notes"} testId={rollback ? "alasan-perubahan" : "update-notes"} required={rollback} value={notes} onChange={(event) => setNotes(event.target.value)}
         error={touched && rollback && !notes.trim() ? "Alasan wajib diisi." : undefined}
         helper={rollback ? `Status mundur dari ${statusLabel(record?.status ?? "")}; alasannya disimpan di riwayat versi.` : undefined} />
-      <Notice tone="warning">Menandai training Completed tidak otomatis menutup gap kompetensi; perlu penilaian ulang.</Notice>
     </form>
   </FormModal>;
 }
