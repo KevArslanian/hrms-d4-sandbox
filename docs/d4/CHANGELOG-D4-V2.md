@@ -266,6 +266,12 @@ Tidak dikerjakan karena belum pasti atau bukan milik D4:
   - Per 10 Nov hanya 1 pegawai berstatus probation di data B2.
 - **TC-D4-008-18 lulus di produksi** (sebelum migrasi, Simulasi Employee): Daily KPI menampilkan pesan "belum tersedia", menu lain tetap berjalan.
 - **Tujuh migrasi D4 diterapkan** dengan izin PO, setelah dicocokkan dengan permintaan Mas Bram. Akibatnya Daily KPI, skala 1–100 (V6), Gap vs 85, kategori, Management read-only, edit requirement, reassessment, dan tindak lanjut training kini aktif di production. Detail, backup, dan hasil cek ada di MIGRATION-RUNBOOK-D4, bagian "Status".
+- **Integrasi data D1 (dijalankan D1):**
+  - D1 memetakan 9 posisi D3 ke posisi D1. Sebanyak 7 dari 14 posisi pegawai kini lengkap: 5 KPI, bobot 100, dan target 85.
+  - KPI untuk 6 posisi sama persis dengan katalog V6 D4. HR Manager memakai 5 KPI HR milik D1, yang bukan berasal dari scorecard klien.
+  - D4 belum membaca `d1_kpi_definitions`, jadi perilaku KPI D4 tidak berubah.
+  - D1 juga menambah 17 requirement kompetensi untuk 6 posisi. Requirement ini langsung terbaca di Competency Gap, sehingga status kompetensi 13 pegawai berubah.
+- **20 requirement uji dihapus dari `position_requirements`** dengan izin PO, menindaklanjuti temuan D1: 18 requirement "Demo D4:" dan 2 kompetensi IT di COM-SA. Detail, backup, dan rollback ada di MIGRATION-RUNBOOK-D4, bagian "Pembersihan requirement uji".
 
 ## Belum selesai
 
@@ -279,7 +285,7 @@ Tidak dikerjakan karena belum pasti atau bukan milik D4:
 | Cakupan Manager (O7) | Manager masih melihat semua employee; butuh data atasan dari D3 | Keputusan PO + `supervisor_id` dari D3 |
 | Migrasi V6, edit development, Reference, follow-up training, Management, Daily KPI, peran KPI Director | Memengaruhi project bersama, perlu izin PO (cek 9 Nov 2026: ketujuhnya belum diterapkan) | Ikuti [MIGRATION-RUNBOOK-D4.md](MIGRATION-RUNBOOK-D4.md) |
 | Konfirmasi alur Daily KPI | Dibangun dengan asumsi: pegawai isi sendiri, HR memvalidasi rata-rata periode | Konfirmasi klien; bila skor periode harus otomatis tanpa HR, ubah Performance Review |
-| Definisi KPI dari D1 | D1 belum memenuhi syarat integrasi (lihat "Skor periode otomatis dari Daily KPI") | Koordinasi D1: posisi ke `d3_positions`, 5 KPI Active per posisi, bobot 100% |
+| Definisi KPI dari D1 | Sejak 10 Nov, 7 dari 14 posisi pegawai lengkap di D1. Sisanya (Sales Executive, Tax Associate, Cash Associate, Billing, General Director, IT, Field Agent) menunggu keputusan PO. | Keputusan PO atas daftar dari D1, persetujuan Pak Gema (B24), lalu sepakati apakah D4 membaca KPI dari D1 |
 | Volume Daily KPI di snapshot | Snapshot memuat semua entri harian (sekitar 20 per pegawai per bulan) di setiap halaman; cukup untuk sandbox, tetapi tumbuh tanpa batas | Batasi ke periode berjalan + filter periode di API sebelum produksi |
 | Alert ke MID, input level kompetensi, Employee ID di `/register` | Milik squad lain (MID, D3, B2) atau kontraknya belum ada | Koordinasi lintas squad |
 | Kolom `review_status` (O8) dan unique index per periode/gap (O9) | Butuh migrasi Supabase bersama | Persetujuan PO/Back End |
