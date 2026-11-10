@@ -87,8 +87,6 @@ export function TrainingDetailPage({ trainingId }: { trainingId: string }) {
       actions={<>
         <ButtonLink href={`/training/${record.trainingId}/history`} icon={<History className="size-4" />} testId="view-history">View History</ButtonLink>
         {canWrite(snapshot) && <Button icon={<RefreshCw className="size-4" />} onClick={() => setProgressOpen(true)} data-testid="btn-update-progress">Update Progress</Button>}
-        {/* Completed does not close the gap by itself: the next step is a fresh competency assessment. */}
-        {canWrite(snapshot) && record.status === "Completed" && <ButtonLink href={`/competency/${employee.id}`} icon={<ClipboardCheck className="size-4" />} testId="reassess-competency">Reassess Competency</ButtonLink>}
         {/* The result is recorded on the source requirement once it is Completed. */}
         {canWrite(snapshot) && record.status === "Completed" && need?.status === "Completed" && <Button icon={<Scale className="size-4" />} onClick={() => setReassessOpen(true)} data-testid="btn-record-reassessment">Record Reassessment</Button>}
       </>} />
@@ -125,7 +123,8 @@ export function TrainingDetailPage({ trainingId }: { trainingId: string }) {
           {need ? <><SourceChip label="Development Requirement" reference={statusLabel(need.status)} href={`/development/${need.needId}`} /><p className="mt-3 text-sm text-ink">{need.objective}</p>
             <div className="mt-3"><ReassessmentBadge snapshot={snapshot} needId={need.needId} /></div></> : <p className="text-sm text-ink-3">Requirement sumber tidak tersedia.</p>}
         </Card>
-        <Notice tone="warning">Training yang Completed tidak otomatis membuat gap kompetensi terpenuhi. Gap tetap terbuka sampai dinilai ulang.</Notice>
+        {/* Once Completed, the Next step or Follow-up card above already says what comes after. */}
+        {record.status !== "Completed" && <Notice tone="warning">Training yang Completed tidak otomatis membuat gap kompetensi terpenuhi. Gap tetap terbuka sampai dinilai ulang.</Notice>}
       </div>
     </div>
     {progressOpen && <TrainingProgressModal trainingId={record.trainingId} onClose={() => setProgressOpen(false)} />}
