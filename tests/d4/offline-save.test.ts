@@ -88,4 +88,17 @@ describe("D4DataProvider.run while offline", () => {
     expect(saved.ok).toBe(true);
     expect(fetchOnline.mock.calls.map(([url, init]) => `${init?.method ?? "GET"} ${String(url)}`).at(-1)).toBe("GET /api/d4/snapshot");
   });
+
+  // A newer revision was saved in another tab or device: the 409 reloads the snapshot so the form points at it.
+  it("reloads the data after a 409 and says so", async () => {
+    const run = renderRun();
+    const stale = "Sudah ada revisi Scorecard yang lebih baru untuk periode ini sejak form dibuka.";
+    const fetchConflict = vi.fn<typeof fetch>(async (_url, init) => init?.method === "POST"
+      ? Response.json({ error: { code: "CONFLICT", message: stale } }, { status: 409 })
+      : Response.json({ data: {} }));
+    vi.stubGlobal("fetch", fetchConflict);
+    const failed = await run((source) => source.createKpiAssessment({ ...kpi, revisionOf: "old" }), "Tersimpan.");
+    expect(failed).toEqual({ ok: false, error: `${stale} Data terbaru sudah dimuat; periksa lalu simpan lagi.` });
+    expect(fetchConflict.mock.calls.map(([url, init]) => `${init?.method ?? "GET"} ${String(url)}`)).toEqual(["POST /api/d4/kpi-assessments", "GET /api/d4/snapshot"]);
+  });
 });
