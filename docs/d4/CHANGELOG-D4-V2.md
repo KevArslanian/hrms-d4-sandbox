@@ -288,6 +288,10 @@ Tidak dikerjakan karena belum pasti atau bukan milik D4:
   - **Yang tetap ada:** testid `btn-record-follow-up` dan `btn-record-reassessment` sekarang ada di kartu Next step, dan membuka modal Update Progress yang sama.
   - **Server dan database:** endpoint baru `POST /api/d4/training-records/:id/complete`. Tidak ada migrasi.
   - **Requirement yang ditutup manual:** bila ditutup tanpa training Passed, tidak lagi ditandai "Needs reassessment".
+- **Input tanggal dan periode memakai kalender bergaya design system.** Enam input tanggal sebelumnya memakai kalender bawaan browser dan menampilkan "10/11/2026", yang bisa terbaca 10 Nov atau 11 Okt. Inputnya adalah Date di Add Training dan Retraining, Effective date, Daily KPI, Period, dan Evaluation date.
+  - Kini tampil "10 Nov 2026" dengan kalender yang sama gayanya dengan dropdown. Senin ada di kolom pertama, hari di luar batas tanggal nonaktif, dan ada tombol Today.
+  - Keyboard: panah dan Enter untuk memilih, PageUp dan PageDown untuk pindah bulan, Escape menutup kalender saja.
+  - Katalon: hari dipilih lewat testid `day-YYYY-MM-DD` dan bulan lewat `month-YYYY-MM`, bukan Set Text.
 - **Batas karakter dan teks panjang.**
   - Semua kolom catatan kini dibatasi 2000 karakter di form, sama dengan server. Notes Performance Review dibatasi 4000, dan Training / activity 200.
   - Teks panjang tanpa spasi kini terbungkus di halaman detail, riwayat, dan profil dashboard. Sebelumnya teks seperti itu membuat halaman riwayat melebar ke samping.

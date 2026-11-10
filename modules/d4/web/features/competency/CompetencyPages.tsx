@@ -10,7 +10,7 @@ import { openNeedFor } from "../../../shared/rules";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
 import { canWrite, currentCompetencyStatus, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, formatDate, latestCurrentPositionAssessment, positionTitle, today, trainingsOf, visibleEmployees, type Snapshot } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
-import { FilterBar, FormError, FormModal, ModalActions, SearchInput, SearchSelectField, SelectFilter, TextField } from "../../ui/forms";
+import { DateField, FilterBar, FormError, FormModal, ModalActions, SearchInput, SearchSelectField, SelectFilter, TextField } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
 import { Button, ButtonLink, Card, cx, InfoGrid, Notice, statusLabel, StatusBadge } from "../../ui/primitives";
@@ -110,7 +110,7 @@ function PositionChangeModal({ employee, onClose }: { employee: EmployeeReferenc
       <FormError message={error} />
       <SearchSelectField label="New position" testId="new-position" required value={position} onChange={(value) => setPosition(value)} placeholder="Select position"
         options={snapshot.reference.positions.filter((item) => item.id !== employee.positionId).map((item) => ({ value: item.id, label: `${item.title}` }))} />
-      <TextField label="Effective date" testId="effective-date" required type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+      <DateField label="Effective date" testId="effective-date" required value={date} onChange={(event) => setDate(event.target.value)} />
       <AssessedWithField value={assessedWith} onChange={setAssessedWith} />
       <Notice>Penilaian ini tidak mengubah data master posisi pegawai dan tidak memindahkan siapa pun secara otomatis.</Notice>
     </form>
