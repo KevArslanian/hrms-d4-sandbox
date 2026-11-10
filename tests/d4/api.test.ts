@@ -188,7 +188,8 @@ describe("session guard: real requireWriter over a mocked Supabase client", () =
       signIn(role, employeeId);
       const res = await call(send());
       expect(res.status).toBe(201);
-      expect(writes).toHaveLength(1);
+      // A training update may also move its requirement forward (needFollowsTraining), after the training's own write.
+      expect(writes.length).toBeGreaterThan(0);
     });
 
   // Current behaviour, documented: requireWriter only checks app_role; it does not require employee_id.
@@ -446,6 +447,14 @@ describe("development needs and training", () => {
   it("creates training for an open need", async () => {
     const res = await call(training.POST(post(trainingBody)));
     expect(res.status).toBe(201);
+  });
+
+  // HR (10 Nov 2026): the requirement follows its training, as a revision written after the training's.
+  it("moves the requirement to In Progress when its training starts", async () => {
+    const res = await call(trainingVersions.POST(post({ status: "In Progress", notes: "" }), params(TRAINING)));
+    expect(res.status).toBe(201);
+    expect(writes.map((item) => item.method)).toEqual(["updateTraining", "updateDevelopment"]);
+    expect(writes[1].args).toEqual([NEED, expect.objectContaining({ status: "In Progress", reassessment: null }), expect.objectContaining({ status: "Planned" })]);
   });
 
   it("requires a reason when training moves back", async () => {

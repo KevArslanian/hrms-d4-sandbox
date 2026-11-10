@@ -161,6 +161,17 @@ export function reassessmentOf(history: readonly Pick<DevelopmentNeedVersion, "r
   return done ? "pending" : null;
 }
 
+/**
+ * The requirement follows its training (10 Nov 2026): a planned training moves an Identified requirement to Planned,
+ * a training under way or finished moves it to In Progress. Never backwards and never to Completed, which stays HR's
+ * decision (Meets requirement or Update Status). The revision to add, or null when the status already got there.
+ */
+export function needFollowsTraining(need: Pick<DevelopmentNeedVersion, "status" | "priority" | "method" | "pic">, training: { activity: string; status: TrainingStatus }): DevelopmentRevision | null {
+  const status: DevelopmentStatus | null = training.status === "Planned" ? "Planned" : training.status === "Cancelled" ? null : "In Progress";
+  if (!status || need.status === "Completed" || DEVELOPMENT_STEP[status] <= DEVELOPMENT_STEP[need.status]) return null;
+  return { status, notes: `Otomatis mengikuti training "${training.activity.trim()}" (${training.status}).`, priority: need.priority, method: need.method ?? "", pic: need.pic ?? "", reassessment: null };
+}
+
 /** Planned/In Progress trainings of a need: completing the need while these run needs a reason. */
 export const openTrainingCount = (trainings: readonly { developmentNeedId: string; status: TrainingStatus }[], needId: string) =>
   trainings.filter((item) => item.developmentNeedId === needId && (item.status === "Planned" || item.status === "In Progress")).length;
@@ -290,7 +301,7 @@ type LevelFinding = Pick<CompetencyFinding, "competencyName" | "requiredLevel" |
 
 /** Why Meets requirement is not available yet for a gap-based requirement, or "" when it is. */
 export const meetsBlockedReason = (finding: LevelFinding | undefined) => finding && finding.status !== "Terpenuhi"
-  ? `${finding.competencyName}: level saat ini ${finding.actualLevel ?? "belum tercatat"}, required ${finding.requiredLevel}. Meets requirement bisa dipilih setelah level di data kompetensi (D3) memenuhi.`
+  ? `${finding.competencyName}: level saat ini ${finding.actualLevel ?? "belum tercatat"}, required ${finding.requiredLevel}. Meets requirement bisa dipilih setelah level di data kompetensi pegawai (modul D3) memenuhi.`
   : "";
 
 /**
