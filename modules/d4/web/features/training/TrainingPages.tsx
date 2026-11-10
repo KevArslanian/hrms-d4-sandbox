@@ -3,7 +3,7 @@
 import { Eye, FileSearch, History, ListChecks, RefreshCw, Scale } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { TrainingVersion } from "../../../training/types";
-import { followUpOf } from "../../../shared/rules";
+import { completedAt, followUpOf } from "../../../shared/rules";
 import { useSnapshot } from "../../data/D4DataProvider";
 import { byProgress, canWrite, employeeById, employeeMeta, employeeSearchText, formatDate, formatPeriod, includesText, sourceFinding, trainingById, trainingDecision, trainingHistory, trainings, trainingSource, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
@@ -79,6 +79,10 @@ export function TrainingDetailPage({ trainingId }: { trainingId: string }) {
   const retrainings = followUp?.followUp === "Retraining" ? trainings(snapshot).filter((item) => item.developmentNeedId === record.developmentNeedId && item.trainingId !== record.trainingId
     && (trainingHistory(snapshot, item.trainingId).at(-1)?.createdAt ?? "") >= followUp.createdAt) : [];
   const pending = trainingDecision(snapshot, record);
+  // Passed + Retraining: the trainings of the next round, created after this pass.
+  const passedAt = record.status === "Completed" && record.result === "Passed" ? completedAt(versions) ?? "" : "";
+  const nextRound = passedAt ? trainings(snapshot).filter((item) => item.developmentNeedId === record.developmentNeedId && item.trainingId !== record.trainingId
+    && (trainingHistory(snapshot, item.trainingId).at(-1)?.createdAt ?? "") > passedAt) : [];
   const finding = need && sourceFinding(snapshot, need);
   return <>
     <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Training Tracking", href: "/training" }, { label: "Detail" }]} backHref="/training"
@@ -119,7 +123,8 @@ export function TrainingDetailPage({ trainingId }: { trainingId: string }) {
         </Card>}
         <Card title="Source requirement" testId="source-requirement">
           {need ? <><SourceChip label="Development Requirement" reference={statusLabel(need.status)} href={`/development/${need.needId}`} /><p className="mt-3 text-sm text-ink">{need.objective}</p>
-            <div className="mt-3"><ReassessmentBadge snapshot={snapshot} needId={need.needId} /></div></> : <p className="text-sm text-ink-3">Requirement sumber tidak tersedia.</p>}
+            <div className="mt-3"><ReassessmentBadge snapshot={snapshot} needId={need.needId} /></div>
+            {nextRound.map((item) => <div key={item.trainingId} data-testid={`retraining-${item.trainingId}`} className="mt-3"><SourceChip label="Retraining" reference={`${item.activity} · ${statusLabel(item.status)}`} href={`/training/${item.trainingId}`} /></div>)}</> : <p className="text-sm text-ink-3">Requirement sumber tidak tersedia.</p>}
         </Card>
         {/* Once Completed, the Next step or Follow-up card above already says what comes after. */}
         {record.status !== "Completed" && <Notice tone="warning">Training yang Completed tidak otomatis membuat gap kompetensi terpenuhi. Gap tetap terbuka sampai dinilai ulang.</Notice>}
