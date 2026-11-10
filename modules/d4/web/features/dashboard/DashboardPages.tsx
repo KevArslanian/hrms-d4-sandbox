@@ -279,8 +279,11 @@ export function EmployeeProfilePage({ employeeId, initialPeriod = "" }: { employ
   const [period, setPeriod] = useState(initialPeriod);
   const employee = employeeById(snapshot, employeeId);
   if (!employee || !visibleEmployees(snapshot).some((item) => item.id === employeeId)) return <NotFound what="Employee" backHref="/dashboard" backLabel="Back to People Dashboard" />;
-  const periods = [...new Set([...scorecardsOf(snapshot, employee.id), ...evaluationsOf(snapshot, employee.id)].filter((item) => item.status === "completed").map((item) => item.period))].sort().reverse();
-  const { period: shown, scorecard, evaluation } = periodData(snapshot, employee.id, period);
+  // Periods with Daily KPI count too, so a row the dashboard shows as Compiled opens on the same period here.
+  const periods = [...new Set([...[...scorecardsOf(snapshot, employee.id), ...evaluationsOf(snapshot, employee.id)].filter((item) => item.status === "completed").map((item) => item.period),
+    ...(snapshot.kpiDaily ?? []).filter((item) => item.employeeId === employee.id).map((item) => item.period)])].sort().reverse();
+  const { period: shown, scorecard, evaluation } = periodData(snapshot, employee.id, period || defaultPeriod(periods));
+  const compiled = !scorecard && shown ? pendingCompilation(snapshot, employee.id, shown) : null;
   const gap = currentGap(snapshot, employee);
   const competencyStatus = currentCompetencyStatus(snapshot, employee);
   const needs = developmentNeeds(snapshot).filter((item) => item.employeeId === employee.id);
@@ -301,7 +304,12 @@ export function EmployeeProfilePage({ employeeId, initialPeriod = "" }: { employ
           <thead className="bg-app text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3"><tr><th className="py-2.5 pl-5 pr-2.5">Core KPI</th><th className="px-2.5 py-2.5">Weight</th><th className="px-2.5 py-2.5">Target</th><th className="px-2.5 py-2.5">Actual</th><th className="px-2.5 py-2.5 text-right">Weighted</th><th className="py-2.5 pl-2.5 pr-5">Comment</th></tr></thead>
           <tbody>{scorecard.lines.map((line) => <tr key={line.indicator_order} data-testid={`kpi-line-${line.indicator_order}`} className="border-t border-line"><td className="py-2.5 pl-5 pr-2.5 font-semibold">{line.kpi_name}</td><td className="px-2.5 py-2.5 tabular-nums">{line.weight_percent}%</td><td className="px-2.5 py-2.5">{line.target || "—"}</td><td className="px-2.5 py-2.5 tabular-nums">{line.raw_score ?? "—"}</td><td className="px-2.5 py-2.5 text-right tabular-nums">{weighted(line, scaleMaxOf(scorecard.definitionVersion))?.toFixed(2) ?? "—"}</td><td data-testid={`dashboard-kpi-comment-${line.indicator_order}`} className="py-2.5 pl-2.5 pr-5 text-ink-2"><LineComment line={line} /></td></tr>)}</tbody>
           <tfoot className="border-t border-line bg-app"><tr><td colSpan={4} className="py-2.5 pl-5 pr-2.5 font-semibold">Total ({formatPeriod(scorecard.period)})</td><td className="whitespace-nowrap px-2.5 py-2.5 text-right font-display font-semibold tabular-nums">{formatScorecard(scorecard)}<span data-testid="dashboard-kpi-gap" className="block font-sans text-xs font-normal text-ink-3">Gap {formatGap(scorecard.overallScore, scorecard.definitionVersion)}</span></td><td /></tr></tfoot>
-        </table></div> : <p className="px-6 pb-6 text-sm text-ink-3">Belum ada Performance Review untuk periode ini.</p>}
+        </table></div> : compiled ? <div data-testid="dashboard-kpi-compiled" className="px-6 pb-6">
+          {/* Same number and badge as the dashboard row; not final, so the charts and the completion count leave it out. */}
+          <p className="font-display text-lg font-semibold tabular-nums text-ink">{formatScore(compiled.total, scaleMaxOf(compiled.definitionVersion))}</p>
+          <div className="mt-1"><StatusBadge status="Compiled" /></div>
+          <p className="mt-2 text-sm text-ink-3">Rata-rata {compiled.days.length} entri Daily KPI. Belum difinalisasi HR/Manager, jadi belum dihitung di grafik dan Performance Review complete.</p>
+        </div> : <p className="px-6 pb-6 text-sm text-ink-3">Belum ada Performance Review untuk periode ini.</p>}
       </Card>
       {/* FR-04.3: the evaluation card shows the notes of the Performance Review (older records: the separate evaluation). */}
       <Card title="Notes" testId="performance-evaluation" actions={<SourceLink href={scorecard ? `/performance/scorecard/${scorecard.id}` : evaluation ? `/performance/${evaluation.id}` : `/performance/history/${employee.id}`} />}>
