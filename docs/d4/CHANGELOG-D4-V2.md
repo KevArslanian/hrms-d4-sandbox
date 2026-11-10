@@ -292,6 +292,7 @@ Tidak dikerjakan karena belum pasti atau bukan milik D4:
   - Kini tampil "10 Nov 2026" dengan kalender yang sama gayanya dengan dropdown. Senin ada di kolom pertama, hari di luar batas tanggal nonaktif, dan ada tombol Today.
   - Keyboard: panah dan Enter untuk memilih, PageUp dan PageDown untuk pindah bulan, Escape menutup kalender saja.
   - Katalon: hari dipilih lewat testid `day-YYYY-MM-DD` dan bulan lewat `month-YYYY-MM`, bukan Set Text.
+- **Save as revision tidak lagi gagal terus saat ada revisi lebih baru.** Bila form dibuka sebelum revisi lain untuk periode yang sama tersimpan (tab atau perangkat lain), server menjawab 409 "Sudah ada revisi ... yang lebih baru untuk periode ini sejak form dibuka." Aplikasi langsung memuat data terbaru, jadi Simpan berikutnya merevisi versi terakhir. Kasus belum mencentang Save as revision tetap 422.
 - **Batas karakter dan teks panjang.**
   - Semua kolom catatan kini dibatasi 2000 karakter di form, sama dengan server. Notes Performance Review dibatasi 4000, dan Training / activity 200.
   - Teks panjang tanpa spasi kini terbungkus di halaman detail, riwayat, dan profil dashboard. Sebelumnya teks seperti itu membuat halaman riwayat melebar ke samping.
