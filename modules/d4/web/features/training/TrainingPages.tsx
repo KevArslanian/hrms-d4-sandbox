@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { Eye, FileSearch, History, ListChecks, RefreshCw, Scale } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { TrainingVersion } from "../../../training/types";
@@ -10,7 +11,7 @@ import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
-import { Button, ButtonLink, Card, InfoGrid, Notice, SourceChip, statusLabel, StatusBadge } from "../../ui/primitives";
+import { Button, ButtonLink, Card, InfoGrid, Notice, SavedNotice, SourceChip, statusLabel, StatusBadge } from "../../ui/primitives";
 import { ReassessmentBadge } from "../development/DevelopmentPages";
 import { LevelLine, TrainingProgressModal } from "./TrainingModals";
 
@@ -19,17 +20,20 @@ const TRAINING_RANK: Record<string, number> = { Planned: 1, "In Progress": 2, Co
 
 export function TrainingListPage() {
   const snapshot = useSnapshot();
-  // K15: dashboard alerts link here with ?q=<name>. The page renders only after the snapshot loads, so window exists.
-  const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get("q") ?? "");
+  // K15: dashboard alerts link here with ?q=<name>. Read from the router: during a client navigation window.location is still the previous page.
+  const params = useSearchParams();
+  const [search, setSearch] = useState(() => params.get("q") ?? "");
   const [department, setDepartment] = useState("");
   const [period, setPeriod] = useState("");
   const [status, setStatus] = useState("");
   const [progressFor, setProgressFor] = useState<string | null>(null);
+  const [savedId, setSavedId] = useState("");
   const all = useMemo(() => {
     const visible = new Set(visibleEmployees(snapshot).map((item) => item.id));
     return trainings(snapshot).filter((item) => visible.has(item.employeeId));
   }, [snapshot]);
   const periods = [...new Set(all.map((item) => item.date.slice(0, 7)))].sort().reverse();
+  const saved = savedId ? all.find((item) => item.trainingId === savedId) : undefined;
   const rows = all.filter((item) => {
     const employee = employeeById(snapshot, item.employeeId);
     return includesText(`${employeeSearchText(snapshot, employee)} ${item.activity}`, search)
@@ -47,7 +51,8 @@ export function TrainingListPage() {
       <SelectFilter label="All periods" testId="all-periods" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
       <SelectFilter label="All status" testId="all-status" value={status} onChange={setStatus} options={["Planned", "In Progress", "Completed", "Cancelled"].map((item) => ({ value: item, label: statusLabel(item) }))} />
     </FilterBar>
-    <DataTable<TrainingVersion> rows={rows} noun="trainings" rowKey={(row) => row.trainingId}
+    {saved && <SavedNotice text={`Training "${saved.activity}" untuk ${employeeById(snapshot, saved.employeeId)?.fullName ?? ""} tersimpan (${statusLabel(saved.status)}).`} href={`/training/${saved.trainingId}`} />}
+    <DataTable<TrainingVersion> rows={rows} noun="trainings" rowKey={(row) => row.trainingId} highlightKey={saved ? saved.trainingId : undefined}
       emptyTitle={filtered ? "Tidak ada training yang cocok" : "Belum ada training"}
       emptyText={filtered ? "Ubah kata kunci atau reset filter." : canWrite(snapshot) ? "Training dibuat dari development requirement (Create Training) di Development Requirement." : "Belum ada training yang tercatat."}
       columns={[
@@ -63,7 +68,7 @@ export function TrainingListPage() {
         { label: "Update Progress", testId: "update-progress", icon: <RefreshCw />, onSelect: () => setProgressFor(row.trainingId), hidden: !canAssess(snapshot, row.employeeId) },
         { label: "Open Source Requirement", testId: "open-source-requirement", icon: <FileSearch />, href: `/development/${row.developmentNeedId}` },
       ]} />} />
-    {progressFor && <TrainingProgressModal trainingId={progressFor} onClose={() => setProgressFor(null)} />}
+    {progressFor && <TrainingProgressModal trainingId={progressFor} onClose={() => setProgressFor(null)} onSaved={() => setSavedId(progressFor)} />}
   </>;
 }
 

@@ -45,7 +45,7 @@ export function pageWindow(current: number, count: number): (number | "gap")[] {
  * Standard D4 table: caps header, 56 px rows, ⋮ action column last, pagination bottom right.
  * Clicking a row opens its detail page (same as "View Detail" in the menu).
  */
-export function DataTable<T>({ rows, columns, rowKey, actions, emptyTitle, emptyText, noun, label }: {
+export function DataTable<T>({ rows: sorted, columns, rowKey, actions, emptyTitle, emptyText, noun, label, highlightKey }: {
   rows: readonly T[];
   columns: Column<T>[];
   rowKey: (row: T) => string;
@@ -55,7 +55,11 @@ export function DataTable<T>({ rows, columns, rowKey, actions, emptyTitle, empty
   noun: string;
   /** Accessible name of the table; defaults to the noun ("Employees"). */
   label?: string;
+  /** Row just saved by the page: shown first and marked, since its new status may sort it pages away. */
+  highlightKey?: string;
 }) {
+  const pinned = highlightKey ? sorted.find((row) => rowKey(row) === highlightKey) : undefined;
+  const rows = pinned ? [pinned, ...sorted.filter((row) => row !== pinned)] : sorted;
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   // Other rows (a search or filter) start again at page 1; a re-render with the same rows (toast, saved edit) keeps the page.
@@ -97,10 +101,14 @@ export function DataTable<T>({ rows, columns, rowKey, actions, emptyTitle, empty
         </thead>
         <tbody>
           {visible.map((row) => {
+            const marked = row === pinned;
+            const cellBg = marked ? "bg-primary-50" : "bg-surface";
             // Rows are not clickable: details open only from the ⋮ menu (View Detail / View History).
-            return <tr key={rowKey(row)} data-testid={`row-${rowKey(row)}`} className="h-14 border-t border-line hover:bg-primary-50/40">
-              {columns.map((column, index) => <td key={column.key} data-testid={`cell-${column.key}`} className={cx("px-5 py-3 align-middle text-ink", index === 0 && cx(stickyFirst, "bg-surface"), !column.wrap && "whitespace-nowrap", secondaryCell(column), column.className)}>{column.cell(row)}</td>)}
-              {actions && <td className={cx(stickyAction, "bg-surface px-5 py-3 text-right")}>{actions(row)}</td>}
+            return <tr key={rowKey(row)} data-testid={`row-${rowKey(row)}`} data-highlighted={marked || undefined} className={cx("h-14 border-t border-line", marked ? "bg-primary-50 [&_.text-ink-3]:text-ink-2" : "hover:bg-primary-50/40")}>
+              {columns.map((column, index) => <td key={column.key} data-testid={`cell-${column.key}`} className={cx("px-5 py-3 align-middle text-ink", index === 0 && cx(stickyFirst, cellBg), !column.wrap && "whitespace-nowrap", secondaryCell(column), column.className)}>
+                {column.cell(row)}{marked && index === 0 && <span data-testid="row-just-saved" className="mt-1 inline-block rounded-full bg-primary-600 px-2 py-0.5 text-[11px] font-semibold text-white">Just saved</span>}
+              </td>)}
+              {actions && <td className={cx(stickyAction, cellBg, "px-5 py-3 text-right")}>{actions(row)}</td>}
             </tr>;
           })}
         </tbody>

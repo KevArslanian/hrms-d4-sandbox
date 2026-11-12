@@ -15,7 +15,7 @@ import { COMPILED_RULE } from "../daily/entry";
  * finalizes it. Scores are read-only here; HR adds Notes and Reference (Q12) and saves it as the period's scorecard.
  * Adjusting a score stays possible through Add Performance Review.
  */
-export function FinalizeDailyModal({ employeeId, period, compiled, onClose }: { employeeId: string; period: string; compiled: DailyCompilation; onClose: () => void }) {
+export function FinalizeDailyModal({ employeeId, period, compiled, onClose, onSaved }: { employeeId: string; period: string; compiled: DailyCompilation; onClose: () => void; onSaved?: (id: string) => void }) {
   const snapshot = useSnapshot();
   const { catalog: catalogSet, run, busy } = useD4();
   const [notes, setNotes] = useState("");
@@ -45,7 +45,7 @@ export function FinalizeDailyModal({ employeeId, period, compiled, onClose }: { 
     setError("");
     const result = await run((source) => source.createKpiAssessment({ employeeId, roleOrder: compiled.roleOrder, period, evaluationDate: date, evaluatorName: "", status: "completed", lines, generalNotes: notes, evidenceReference: evidence.trim(), revisionOf: null }),
       "Performance Review difinalisasi dari Daily KPI.");
-    if (result.ok) onClose(); else setError(result.error);
+    if (result.ok) { onSaved?.(result.value); onClose(); } else setError(result.error);
   }
 
   return <FormModal size="lg" title="Finalize from Daily KPI" description={`Skor ${formatPeriod(period)} dikompilasi dari ${compiled.days.length} entri Daily KPI ${employee?.fullName ?? ""}. Skor tidak diubah di sini; tambahkan Notes dan Reference lalu simpan.`} onClose={onClose}

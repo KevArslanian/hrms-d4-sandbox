@@ -137,7 +137,7 @@ export function DevelopmentFormModal({ employeeId, sourceType, sourceRef, onClos
   </FormModal>;
 }
 
-export function DevelopmentStatusModal({ needId, onClose }: { needId: string; onClose: () => void }) {
+export function DevelopmentStatusModal({ needId, onClose, onSaved }: { needId: string; onClose: () => void; onSaved?: () => void }) {
   const snapshot = useSnapshot();
   const { run, busy } = useD4();
   const current = snapshot.developmentVersions.filter((item) => item.needId === needId).sort((a, b) => b.revision - a.revision)[0];
@@ -159,7 +159,7 @@ export function DevelopmentStatusModal({ needId, onClose }: { needId: string; on
     if (completingOpen && !notes.trim()) { setError("Training untuk requirement ini masih Planned atau In Progress. Selesaikan atau batalkan dulu, atau jelaskan alasannya di Notes."); return; }
     if (completingUnpassed && !notes.trim()) { setError("Belum ada training berhasil Passed untuk requirement ini. Jelaskan di Notes mengapa requirement tetap diselesaikan."); return; }
     const result = await run((source) => source.updateDevelopment(needId, status, notes), "Status development diperbarui sebagai revisi baru.");
-    if (result.ok) onClose(); else setError(result.error);
+    if (result.ok) { onSaved?.(); onClose(); } else setError(result.error);
   }
   return <FormModal title="Update Status" description={current?.objective} onClose={onClose} footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Status" disabled={status === current?.status} />}>
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
@@ -176,7 +176,7 @@ export function DevelopmentStatusModal({ needId, onClose }: { needId: string; on
 }
 
 /** Priority, method and PIC change after creation (interview D4: priority follows context, e.g. a tax policy change). */
-export function DevelopmentEditModal({ needId, onClose }: { needId: string; onClose: () => void }) {
+export function DevelopmentEditModal({ needId, onClose, onSaved }: { needId: string; onClose: () => void; onSaved?: () => void }) {
   const snapshot = useSnapshot();
   const { run, busy } = useD4();
   const current = developmentById(snapshot, needId);
@@ -192,7 +192,7 @@ export function DevelopmentEditModal({ needId, onClose }: { needId: string; onCl
     if (!current || unchanged) return;
     if (!pic.trim()) { setError("PIC wajib diisi."); return; }
     const result = await run((source) => source.updateDevelopment(needId, current.status, notes, { priority, method, pic }), "Requirement diperbarui sebagai revisi baru.");
-    if (result.ok) onClose(); else setError(result.error);
+    if (result.ok) { onSaved?.(); onClose(); } else setError(result.error);
   }
   return <FormModal title="Edit Requirement" description={current.objective} onClose={onClose} footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Changes" disabled={unchanged} />}>
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
