@@ -71,6 +71,9 @@ export const field = {
   date(body: Record<string, unknown>, key: string, { required = true } = {}): string {
     const value = field.text(body, key, { required });
     if (value && !/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new ApiError("VALIDATION_FAILED", `Field ${key} harus berformat YYYY-MM-DD.`);
+    // The pattern alone lets 2026-10-45 or 2026-02-30 through to the database, which would answer with a 5xx.
+    const time = Date.parse(`${value}T00:00:00Z`);
+    if (value && (Number.isNaN(time) || new Date(time).toISOString().slice(0, 10) !== value)) throw new ApiError("VALIDATION_FAILED", `Field ${key} bukan tanggal yang valid.`);
     return value;
   },
   /** Integer score 1–`max` (5 for the Excel scale, 100 from catalog V6; 3.5 is rejected). */

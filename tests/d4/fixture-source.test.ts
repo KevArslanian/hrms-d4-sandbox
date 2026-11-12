@@ -49,6 +49,12 @@ describe("performance evaluation (fixture)", () => {
     await expect(source.createEvaluation(evaluation({ employeeId: MERCURY, period: "2026-12" }))).rejects.toThrow(/diri sendiri/);
   });
 
+  it("rejects a competency assessment, requirement or training for the actor themselves (SR-D4-EMP-23)", async () => {
+    await expect(source.saveCompetency({ employeeId: MERCURY, positionId: ALFA, effectiveDate: "2026-10-01" })).rejects.toThrow(/diri sendiri/);
+    await expect(source.createDevelopment({ employeeId: MERCURY, sourceType: "role_change", sourceRef: ALFA, objective: "Uji", priority: "High", pic: "Mrs. Maya", notes: "" })).rejects.toThrow(/diri sendiri/);
+    await expect(source.createTraining({ employeeId: MERCURY, developmentNeedId: "FIX-D4-DEV-001", activity: "Uji", date: "2026-10-01", status: "Planned", result: "", notes: "" })).rejects.toThrow(/diri sendiri/);
+  });
+
   it.each([
     ["empty notes", { generalNotes: "  " }],
     ["bad period", { period: "2026-13" }],

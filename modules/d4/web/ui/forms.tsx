@@ -14,9 +14,9 @@ export function FilterBar({ children, onReset, canReset }: { children: ReactNode
   return <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-surface p-3 shadow-card">
     {children}
     {/* D3 button variants (Figma PISD node 247:7): solid blue pill once a filter is set, the light "Disable" pill otherwise,
-        so it is obvious the button can be pressed after filtering. */}
+        so it is obvious the button can be pressed after filtering. Figma's #3b6ff5 is a shade darker here so white text reaches 4.5:1. */}
     {onReset && <button type="button" data-testid="btn-filter-reset" onClick={onReset} disabled={!canReset}
-      className="ml-auto inline-flex h-10 items-center gap-1.5 rounded-[20px] bg-[#3b6ff5] px-4 text-sm font-semibold text-white shadow-sm transition hover:shadow-[0_0_15px_2px_rgba(59,111,245,0.45)] disabled:cursor-not-allowed disabled:bg-[#d9e2ec] disabled:text-[#adbed1] disabled:shadow-none">
+      className="ml-auto inline-flex h-10 items-center gap-1.5 rounded-[20px] bg-[#346af5] px-4 text-sm font-semibold text-white shadow-sm transition hover:shadow-[0_0_15px_2px_rgba(59,111,245,0.45)] disabled:cursor-not-allowed disabled:bg-[#d9e2ec] disabled:text-[#adbed1] disabled:shadow-none">
       <X aria-hidden="true" className="size-4" />Reset filter
     </button>}
   </div>;
@@ -31,6 +31,12 @@ export function SearchInput({ value, onChange, placeholder }: { value: string; o
 }
 
 const FILTER_VISIBLE = 10;
+
+// Keyboard focus on a list option or calendar cell: a 2 px outline (>= 3:1 on white and on the selected grey), not only a tint.
+const focusRing = "focus-visible:outline-2 focus-visible:outline-solid focus-visible:-outline-offset-2 focus-visible:outline-primary-600";
+
+// A choice from a dropdown or calendar fires no input event, so FormModal is told directly that the form changed.
+const ModalDirtyContext = createContext<() => void>(() => {});
 
 type Option = { value: string; label: string; disabled?: boolean };
 
@@ -62,21 +68,27 @@ function SearchableSelect({ label, value, onChange, options, emptyLabel, testId,
   label: string; value: string; onChange: (value: string) => void; options: readonly Option[]; emptyLabel?: string; testId: string;
   triggerId?: string; invalid?: boolean; describedBy?: string; className?: string; wrapperClassName?: string; highlightActive?: boolean; disabled?: boolean;
 }) {
-  const listId = useId();
+  const listId = useId(), ownId = useId();
+  const buttonId = triggerId ?? ownId;
   const wrapper = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLDivElement>(null);
+  const markDirty = useContext(ModalDirtyContext);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const all = emptyLabel === undefined ? options : [{ value: "", label: emptyLabel }, ...options];
   const term = query.trim().toLowerCase();
-  const allMatches = term ? all.filter((option) => option.label.toLowerCase().includes(term)) : all;
-  const matches = allMatches.slice(0, FILTER_VISIBLE);
-  const hidden = allMatches.length - matches.length;
+  const found = term ? options.filter((option) => option.label.toLowerCase().includes(term)) : options;
+  // The "no value" choice does not use up one of the FILTER_VISIBLE places, or one real option hides behind "+1".
+  const empty: Option[] = emptyLabel !== undefined && (!term || emptyLabel.toLowerCase().includes(term)) ? [{ value: "", label: emptyLabel }] : [];
+  const matches = [...empty, ...found.slice(0, FILTER_VISIBLE)];
+  const hidden = found.length - FILTER_VISIBLE;
   const selected = options.find((option) => option.value === value);
   // A list filter that narrows the table stands out, so users can see at a glance which filters are on.
   const active = Boolean(highlightActive && selected);
   const close = () => { setOpen(false); setQuery(""); };
-  const pick = (next: string) => { onChange(next); close(); };
+  // Esc and a choice put focus back on the trigger; the focused option or search box is about to unmount.
+  const closeToTrigger = () => { close(); document.getElementById(buttonId)?.focus(); };
+  const pick = (next: string) => { onChange(next); markDirty(); closeToTrigger(); };
   // Arrow keys move between the search box and the options (keyboard use without Tab).
   const moveFocus = (event: ReactKeyboardEvent<HTMLElement>) => {
     if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
@@ -96,8 +108,8 @@ function SearchableSelect({ label, value, onChange, options, emptyLabel, testId,
     return () => { window.removeEventListener("scroll", place, true); window.removeEventListener("resize", place); };
   }, [open]);
   return <div ref={wrapper} className={cx("relative", wrapperClassName)} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) close(); }}
-    onKeyDown={(event) => { if (event.key === "Escape" && open) { event.stopPropagation(); close(); } else if (open) moveFocus(event); else if (event.key === "ArrowDown") { event.preventDefault(); setOpen(true); } }}>
-    <button type="button" id={triggerId} data-testid={testId} aria-label={triggerId ? undefined : label} aria-haspopup="listbox" aria-expanded={open} aria-describedby={describedBy} disabled={disabled}
+    onKeyDown={(event) => { if (event.key === "Escape" && open) { event.stopPropagation(); closeToTrigger(); } else if (open) moveFocus(event); else if (event.key === "ArrowDown") { event.preventDefault(); setOpen(true); } }}>
+    <button type="button" id={buttonId} data-testid={testId} aria-label={triggerId ? undefined : label} aria-haspopup="listbox" aria-expanded={open} aria-describedby={describedBy} disabled={disabled}
       data-active={active || undefined} title={selected ? `${label}: ${selected.label}` : undefined}
       onClick={() => open ? close() : setOpen(true)} className={cx(control, "flex items-center justify-between gap-2 text-left", !selected && "text-ink-2",
         active && "border-primary-500 bg-primary-50 font-semibold text-primary-700", invalid && "border-danger", className)}>
@@ -115,11 +127,11 @@ function SearchableSelect({ label, value, onChange, options, emptyLabel, testId,
       <ul id={listId} role="listbox" data-testid={testId.replace(/^(filter|input)-/, "options-")} aria-label={label} className="max-h-64 min-h-0 overflow-y-auto text-sm">
         {matches.length ? matches.map((option) => <li key={option.value || "empty"} role="option" aria-selected={option.value === value}>
           {/* Safari does not focus a clicked button, so without this the input's blur closes the list before the click lands. */}
-          <button type="button" disabled={option.disabled} onMouseDown={(event) => event.preventDefault()} onClick={() => pick(option.value)} className={cx("flex w-full items-center rounded-xl px-3 py-2 text-left text-ink hover:bg-muted focus:bg-muted focus:outline-none disabled:cursor-not-allowed disabled:text-ink-3 disabled:hover:bg-transparent", option.value === value && "bg-selected font-semibold hover:bg-selected focus:bg-selected")}>
+          <button type="button" disabled={option.disabled} onMouseDown={(event) => event.preventDefault()} onClick={() => pick(option.value)} className={cx("flex w-full items-center rounded-xl px-3 py-2 text-left text-ink hover:bg-muted focus:bg-muted focus:outline-none disabled:cursor-not-allowed disabled:text-ink-3 disabled:hover:bg-transparent", focusRing, option.value === value && "bg-selected font-semibold hover:bg-selected focus:bg-selected")}>
             {option.label}
           </button>
         </li>) : <li className="px-2.5 py-2 text-ink-3">Tidak ada yang cocok</li>}
-        {hidden > 0 && <li data-testid={testId.replace(/^(filter|input)-/, "more-")} className="px-2.5 py-2 text-xs text-ink-3">+{hidden} lainnya — ketik untuk mempersempit</li>}
+        {hidden > 0 && <li data-testid={testId.replace(/^(filter|input)-/, "more-")} className="px-2.5 py-2 text-xs text-ink-3">+{hidden} lainnya, ketik untuk mempersempit</li>}
       </ul>
     </div>}
   </div>;
@@ -188,6 +200,7 @@ export function DateField({ label, testId, required, error, helper, className, v
   const id = useId();
   const wrapper = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLDivElement>(null);
+  const markDirty = useContext(ModalDirtyContext);
   const [open, setOpen] = useState(false);
   const today = localToday();
   const unit = (date: string) => month ? date.slice(0, 7) : date;
@@ -204,7 +217,8 @@ export function DateField({ label, testId, required, error, helper, className, v
         return [...Array(lead).fill(""), ...Array.from({ length }, (_, index) => addDays(first, index))];
       })();
   const close = () => setOpen(false);
-  const pick = (next: string) => { if (outside(next)) return; onChange({ target: { value: next } }); close(); };
+  const closeToTrigger = () => { close(); document.getElementById(id)?.focus(); };
+  const pick = (next: string) => { if (outside(next)) return; onChange({ target: { value: next } }); markDirty(); closeToTrigger(); };
   const step = (by: number) => setCursor((at) => month ? addMonths(at, by) : addDays(at, by));
   const page = (by: number) => setCursor((at) => month ? addMonths(at, by * 12) : `${addMonths(at.slice(0, 7), by)}-01`);
   useLayoutEffect(() => {
@@ -219,15 +233,16 @@ export function DateField({ label, testId, required, error, helper, className, v
     window.addEventListener("resize", place);
     return () => { window.removeEventListener("scroll", place, true); window.removeEventListener("resize", place); };
   }, [open]);
-  useEffect(() => { if (open) panel.current?.querySelector<HTMLElement>(`[data-cell="${cursor}"]`)?.focus(); }, [open, cursor]);
+  // A month outside min/max has only disabled cells; focus then stays on the panel, so Esc and the arrow keys still work.
+  useEffect(() => { if (open) (panel.current?.querySelector<HTMLElement>(`[data-cell="${cursor}"]:not(:disabled)`) ?? panel.current)?.focus(); }, [open, cursor]);
   const keys: Record<string, () => void> = month
     ? { ArrowLeft: () => step(-1), ArrowRight: () => step(1), ArrowUp: () => step(-3), ArrowDown: () => step(3), PageUp: () => page(-1), PageDown: () => page(1) }
     : { ArrowLeft: () => step(-1), ArrowRight: () => step(1), ArrowUp: () => step(-7), ArrowDown: () => step(7), PageUp: () => page(-1), PageDown: () => page(1) };
-  const navButton = "inline-flex size-8 items-center justify-center rounded-lg text-ink-2 hover:bg-muted focus:bg-muted focus:outline-none";
+  const navButton = cx("inline-flex size-8 items-center justify-center rounded-lg text-ink-2 hover:bg-muted focus:bg-muted focus:outline-none", focusRing);
   return <FieldShell {...{ label, required, error, helper, id, className }}>
     <div ref={wrapper} className="relative" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) close(); }}
       onKeyDown={(event) => {
-        if (event.key === "Escape" && open) { event.stopPropagation(); close(); }
+        if (event.key === "Escape" && open) { event.stopPropagation(); closeToTrigger(); }
         else if (open && keys[event.key] && event.target !== event.currentTarget.querySelector("button")) { event.preventDefault(); keys[event.key](); }
       }}>
       <button type="button" id={id} data-testid={`input-${testId ?? slug(label)}`} aria-haspopup="dialog" aria-expanded={open}
@@ -236,7 +251,7 @@ export function DateField({ label, testId, required, error, helper, className, v
         <span className="truncate">{value ? readable(value) : month ? "Select period" : "Select date"}</span>
         <CalendarDays aria-hidden="true" className="size-4 shrink-0 text-ink-3" />
       </button>
-      {open && <div ref={panel} role="dialog" aria-label={label} data-testid={`calendar-${testId ?? slug(label)}`} className="fixed z-30 rounded-2xl border border-line bg-surface p-3 shadow-card">
+      {open && <div ref={panel} role="dialog" aria-label={label} tabIndex={-1} data-testid={`calendar-${testId ?? slug(label)}`} className="fixed z-30 rounded-2xl border border-line bg-surface p-3 shadow-card outline-none">
         <div className="mb-2 flex items-center justify-between">
           <button type="button" aria-label={month ? "Previous year" : "Previous month"} data-testid="calendar-prev" onMouseDown={(event) => event.preventDefault()} onClick={() => page(-1)} className={navButton}><ChevronLeft className="size-4" /></button>
           <span className="text-sm font-semibold text-ink">{month ? view : readable(view)}</span>
@@ -246,13 +261,13 @@ export function DateField({ label, testId, required, error, helper, className, v
         <div className={cx("grid gap-0.5 text-sm", month ? "grid-cols-3" : "grid-cols-7")}>
           {cells.map((cell, index) => cell ? <button key={cell} type="button" data-cell={cell} data-testid={`${month ? "month" : "day"}-${cell}`} tabIndex={cell === cursor ? 0 : -1}
             disabled={outside(cell)} aria-pressed={cell === value} aria-label={readable(cell)} onMouseDown={(event) => event.preventDefault()} onClick={() => pick(cell)}
-            className={cx("rounded-xl text-ink hover:bg-muted focus:bg-muted focus:outline-none disabled:cursor-not-allowed disabled:text-line-strong disabled:hover:bg-transparent", month ? "h-10" : "h-9",
+            className={cx("rounded-xl text-ink hover:bg-muted focus:bg-muted focus:outline-none disabled:cursor-not-allowed disabled:text-line-strong disabled:hover:bg-transparent", focusRing, month ? "h-10" : "h-9",
               cell === unit(today) && "ring-1 ring-inset ring-primary-500", cell === value && "bg-selected font-semibold hover:bg-selected focus:bg-selected")}>
             {month ? MONTHS[Number(cell.slice(5)) - 1] : Number(cell.slice(8))}
           </button> : <span key={`lead-${index}`} />)}
         </div>
         {!outside(unit(today)) && <button type="button" data-testid="calendar-today" onMouseDown={(event) => event.preventDefault()} onClick={() => pick(unit(today))}
-          className="mt-2 w-full rounded-xl px-3 py-2 text-sm font-semibold text-primary-600 hover:bg-muted focus:bg-muted focus:outline-none">{month ? "This month" : "Today"}</button>}
+          className={cx("mt-2 w-full rounded-xl px-3 py-2 text-sm font-semibold text-primary-600 hover:bg-muted focus:bg-muted focus:outline-none", focusRing)}>{month ? "This month" : "Today"}</button>}
       </div>}
     </div>
   </FieldShell>;
@@ -265,13 +280,14 @@ export function SuggestField({ label, testId, required, error, helper, className
   const id = useId(), listId = useId();
   const wrapper = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLUListElement>(null);
+  const markDirty = useContext(ModalDirtyContext);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
   const term = value.trim().toLowerCase();
   // A value that is already one of the suggestions lists them all, so it can be swapped for another.
   const matches = !term || suggestions.some((item) => item.toLowerCase() === term) ? suggestions : suggestions.filter((item) => item.toLowerCase().includes(term));
   const shown = open && matches.length > 0;
-  const pick = (next: string) => { onChange(next); setOpen(false); setActive(-1); };
+  const pick = (next: string) => { onChange(next); markDirty(); setOpen(false); setActive(-1); };
   useLayoutEffect(() => {
     if (!shown) return;
     const place = () => { if (wrapper.current && panel.current) Object.assign(panel.current.style, dropdownPlacement(wrapper.current.getBoundingClientRect(), window.innerHeight)); };
@@ -297,7 +313,7 @@ export function SuggestField({ label, testId, required, error, helper, className
       {shown && <ul ref={panel} id={listId} role="listbox" aria-label={label} className="fixed z-30 overflow-y-auto rounded-2xl border border-line bg-surface p-1.5 text-sm shadow-card">
         {matches.map((item, index) => <li key={item} id={`${listId}-${index}`} role="option" aria-selected={item === value}>
           <button type="button" tabIndex={-1} onMouseDown={(event) => event.preventDefault()} onClick={() => pick(item)}
-            className={cx("flex w-full items-center rounded-xl px-3 py-2 text-left text-ink hover:bg-muted", index === active && "bg-muted", item === value && "bg-selected font-semibold hover:bg-selected")}>
+            className={cx("flex w-full items-center rounded-xl px-3 py-2 text-left text-ink hover:bg-muted", index === active && "bg-muted outline-2 -outline-offset-2 outline-primary-600", item === value && "bg-selected font-semibold hover:bg-selected")}>
             {item}
           </button>
         </li>)}
@@ -306,11 +322,11 @@ export function SuggestField({ label, testId, required, error, helper, className
   </FieldShell>;
 }
 
-/** Form field for long lists (employees, positions): same searchable dropdown as the filters. */
+/** Form field for long lists of names (employees, positions): same searchable dropdown as the filters, sorted A-Z. */
 export function SearchSelectField({ label, testId, required, error, helper, className, value, onChange, options, placeholder }: Common & { value: string; onChange: (value: string) => void; options: readonly Option[]; placeholder: string }) {
   const id = useId();
   return <FieldShell {...{ label, required, error, helper, id, className }}>
-    <SearchableSelect label={label} value={value} onChange={onChange} options={options} emptyLabel={placeholder} testId={`input-${testId ?? slug(label)}`}
+    <SearchableSelect label={label} value={value} onChange={onChange} options={[...options].sort((a, b) => a.label.localeCompare(b.label))} emptyLabel={placeholder} testId={`input-${testId ?? slug(label)}`}
       triggerId={id} invalid={Boolean(error)} describedBy={error || helper ? `${id}-message` : undefined} />
   </FieldShell>;
 }
@@ -390,11 +406,13 @@ export function FormModal({ title, description, size = "md", onClose, children, 
   const [confirming, setConfirming] = useState(false);
   const confirmingRef = useRef(false);
   useLayoutEffect(() => { confirmingRef.current = confirming; });
+  const markDirty = useCallback(() => { dirty.current = true; }, []);
   const requestClose = useCallback(() => { if (dirty.current) setConfirming(true); else closeRef.current(); }, []);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     const body = dialog.current?.querySelector<HTMLElement>("[data-modal-body]");
-    (body?.querySelector<HTMLElement>("input:not([disabled]), select:not([disabled]), textarea:not([disabled])") ?? dialog.current)?.focus();
+    // Buttons count: Employee, Period and Date are dropdown and calendar buttons, and they come before the text fields.
+    (body?.querySelector<HTMLElement>("input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled])") ?? dialog.current)?.focus();
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") { if (confirmingRef.current) setConfirming(false); else requestClose(); }
       if (event.key !== "Tab" || !dialog.current) return;
@@ -415,7 +433,7 @@ export function FormModal({ title, description, size = "md", onClose, children, 
         <div><h2 id={titleId} data-testid="modal-title" className="font-display font-semibold text-lg text-ink">{title}</h2>{description && <p className="mt-1 text-xs text-ink-3">{description}</p>}</div>
         <button type="button" data-testid="btn-modal-close" aria-label="Close" onClick={requestClose} className="rounded-lg p-1.5 text-ink-3 hover:bg-muted hover:text-ink"><X className="size-5" /></button>
       </header>
-      <div data-modal-body className="min-h-0 flex-1 overflow-y-auto px-6 py-5">{children}</div>
+      <div data-modal-body className="min-h-0 flex-1 overflow-y-auto px-6 py-5"><ModalDirtyContext.Provider value={markDirty}>{children}</ModalDirtyContext.Provider></div>
       <footer className="flex flex-wrap justify-end gap-3 border-t border-line px-6 py-4"><ModalCloseContext.Provider value={requestClose}>{footer}</ModalCloseContext.Provider></footer>
       {confirming && <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-ink/30 p-6">
         <div role="alertdialog" data-testid="modal-discard-confirm" aria-labelledby={`${titleId}-discard`} className="w-full max-w-sm rounded-2xl bg-surface p-6 shadow-modal">

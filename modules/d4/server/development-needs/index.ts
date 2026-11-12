@@ -1,6 +1,6 @@
 import type { DevelopmentPriority, DevelopmentSourceType, DevelopmentStatus } from "../../development/types";
 import { latestDevelopment, latestTraining } from "../../supabase/types";
-import { assertGapAssessed, assertNoOpenNeed, assertPicFilled, nextDevelopmentRevision, REASSESSMENTS } from "../../shared/rules";
+import { assertGapAssessed, assertNoOpenNeed, assertNotSelf, assertPicFilled, nextDevelopmentRevision, REASSESSMENTS } from "../../shared/rules";
 import { ApiError, employeeFilter, enforce, field, readJson } from "../_lib/http";
 import { d4Session, requireWriter } from "../_lib/session";
 
@@ -26,7 +26,7 @@ export async function getDevelopment(id: string) {
 
 /** POST /api/d4/development-needs — a need must reference a valid source (gap, role change, or evaluation). */
 export async function createDevelopment(request: Request) {
-  const { repository } = await requireWriter();
+  const { repository, access } = await requireWriter();
   const body = await readJson(request);
   const input = {
     employeeId: field.uuid(body, "employeeId"), sourceType: field.oneOf(body, "sourceType", sourceTypes),
@@ -34,6 +34,7 @@ export async function createDevelopment(request: Request) {
     priority: field.oneOf(body, "priority", priorities), notes: field.text(body, "notes", { required: false, max: 2000 }),
     method: field.text(body, "method", { required: false, max: 120 }), pic: field.text(body, "pic", { required: false, max: 120 }),
   };
+  enforce(() => assertNotSelf(access.employeeId, input.employeeId));
   enforce(() => assertPicFilled(input.pic));
   const snapshot = await repository.loadSnapshot();
   enforce(() => assertNoOpenNeed(latestDevelopment(snapshot), input.employeeId, input.sourceType, input.sourceRef));
@@ -49,7 +50,7 @@ const optional = <T>(body: Record<string, unknown>, key: string, read: () => T):
  * new revision; history is never overwritten.
  */
 export async function addDevelopmentVersion(request: Request, id: string) {
-  const { repository } = await requireWriter();
+  const { repository, access } = await requireWriter();
   const body = await readJson(request);
   const change = {
     status: field.oneOf(body, "status", statuses), notes: field.text(body, "notes", { required: false, max: 2000 }),
@@ -65,6 +66,7 @@ export async function addDevelopmentVersion(request: Request, id: string) {
   const needs = latestDevelopment(snapshot);
   const current = needs.find((item) => item.needId === id);
   if (!current) throw new ApiError("NOT_FOUND", "Development requirement tidak ditemukan.");
+  enforce(() => assertNotSelf(access.employeeId, current.employeeId));
   const next = nextDevelopmentRevision(current, change, needs, latestTraining(snapshot), snapshot.developmentVersions.filter((item) => item.needId === id));
   await repository.updateDevelopment(id, next, current);
   return { developmentNeedId: id, status: next.status };

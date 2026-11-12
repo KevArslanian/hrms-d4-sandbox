@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import type { TrainingVersion } from "../../../training/types";
 import { completedAt, followUpOf } from "../../../shared/rules";
 import { useSnapshot } from "../../data/D4DataProvider";
-import { byProgress, canWrite, employeeById, employeeMeta, employeeSearchText, formatDate, formatPeriod, includesText, sourceFinding, trainingById, trainingDecision, trainingHistory, trainings, trainingSource, visibleEmployees } from "../../data/selectors";
+import { byProgress, canAssess, canWrite, employeeById, employeeMeta, employeeSearchText, formatDate, formatPeriod, includesText, sourceFinding, trainingById, trainingDecision, trainingHistory, trainings, trainingSource, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
@@ -19,8 +19,8 @@ const TRAINING_RANK: Record<string, number> = { Planned: 1, "In Progress": 2, Co
 
 export function TrainingListPage() {
   const snapshot = useSnapshot();
-  const writer = canWrite(snapshot);
-  const [search, setSearch] = useState("");
+  // K15: dashboard alerts link here with ?q=<name>. The page renders only after the snapshot loads, so window exists.
+  const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get("q") ?? "");
   const [department, setDepartment] = useState("");
   const [period, setPeriod] = useState("");
   const [status, setStatus] = useState("");
@@ -37,17 +37,19 @@ export function TrainingListPage() {
       && (!period || item.date.startsWith(period)) && (!status || item.status === status);
   }).sort(byProgress((item) => trainingDecision(snapshot, item) ? 0 : TRAINING_RANK[item.status] ?? 3,
     (item) => employeeById(snapshot, item.employeeId)?.fullName ?? ""));
+  const filtered = Boolean(search || department || period || status);
 
   return <>
     <PageHeader title="Training Tracking" subtitle="Pantau training dan development dari requirement sumber sampai hasilnya." />
-    <FilterBar canReset={Boolean(search || department || period || status)} onReset={() => { setSearch(""); setDepartment(""); setPeriod(""); setStatus(""); }}>
+    <FilterBar canReset={filtered} onReset={() => { setSearch(""); setDepartment(""); setPeriod(""); setStatus(""); }}>
       <SearchInput value={search} onChange={setSearch} placeholder="Search name or position" />
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All departments" testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />}
       <SelectFilter label="All periods" testId="all-periods" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
       <SelectFilter label="All status" testId="all-status" value={status} onChange={setStatus} options={["Planned", "In Progress", "Completed", "Cancelled"].map((item) => ({ value: item, label: statusLabel(item) }))} />
     </FilterBar>
     <DataTable<TrainingVersion> rows={rows} noun="trainings" rowKey={(row) => row.trainingId}
-      emptyTitle="Tidak ada training yang cocok" emptyText="Training dibuat dari development requirement (Create Training). Ubah filter atau buka Development Requirement."
+      emptyTitle={filtered ? "Tidak ada training yang cocok" : "Belum ada training"}
+      emptyText={filtered ? "Ubah kata kunci atau reset filter." : canWrite(snapshot) ? "Training dibuat dari development requirement (Create Training) di Development Requirement." : "Belum ada training yang tercatat."}
       columns={[
         { key: "employee", header: "Employee", cell: (row) => { const employee = employeeById(snapshot, row.employeeId); return <PersonCell name={employee?.fullName ?? "—"} code={employee?.employeeId ?? ""} />; } },
         { key: "activity", header: "Training", wrap: true, cell: (row) => <span className="font-semibold">{row.activity}</span> },
@@ -58,7 +60,7 @@ export function TrainingListPage() {
       actions={(row) => <RowActionMenu label={`Actions for ${row.activity}`} actions={[
         { label: "View Detail", testId: "view-detail", icon: <Eye />, href: `/training/${row.trainingId}` },
         { label: "View History", testId: "view-history", icon: <History />, href: `/training/${row.trainingId}/history` },
-        { label: "Update Progress", testId: "update-progress", icon: <RefreshCw />, onSelect: () => setProgressFor(row.trainingId), hidden: !writer },
+        { label: "Update Progress", testId: "update-progress", icon: <RefreshCw />, onSelect: () => setProgressFor(row.trainingId), hidden: !canAssess(snapshot, row.employeeId) },
         { label: "Open Source Requirement", testId: "open-source-requirement", icon: <FileSearch />, href: `/development/${row.developmentNeedId}` },
       ]} />} />
     {progressFor && <TrainingProgressModal trainingId={progressFor} onClose={() => setProgressFor(null)} />}
@@ -89,7 +91,8 @@ export function TrainingDetailPage({ trainingId }: { trainingId: string }) {
       name={employee.fullName} meta={[...employeeMeta(snapshot, employee), record.activity]} status={record.status}
       actions={<>
         <ButtonLink href={`/training/${record.trainingId}/history`} icon={<History className="size-4" />} testId="view-history">View History</ButtonLink>
-        {canWrite(snapshot) && <Button icon={<RefreshCw className="size-4" />} onClick={() => setProgressOpen(true)} data-testid="btn-update-progress">Update Progress</Button>}
+        {/* V2: while the Next step card holds the primary action, this one steps back. */}
+        {canAssess(snapshot, record.employeeId) && <Button variant={pending ? "secondary" : "primary"} icon={<RefreshCw className="size-4" />} onClick={() => setProgressOpen(true)} data-testid="btn-update-progress">Update Progress</Button>}
       </>} />
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
       <Card title="Training">
@@ -111,9 +114,9 @@ export function TrainingDetailPage({ trainingId }: { trainingId: string }) {
             ? <Notice tone="warning"><strong>Awaiting follow-up.</strong> Hasil Not Passed wajib ditindaklanjuti HR: Retraining, atau Other follow-up (coaching, rotasi, eskalasi ke atasan) dengan catatan.</Notice>
             : <div className="space-y-3">
                 <p className="text-sm text-ink-2">Training Passed. Catat hasil reassessment: Meets requirement bila level kompetensinya sudah memenuhi, atau Retraining bila gap belum tertutup.</p>
-                {finding && <LevelLine finding={finding} />}
+                {finding && <LevelLine finding={finding} employeeId={record.employeeId} />}
               </div>}
-          {canWrite(snapshot) && <div className="mt-4"><Button variant="primary" icon={pending === "follow-up" ? <ListChecks className="size-4" /> : <Scale className="size-4" />} onClick={() => setProgressOpen(true)}
+          {canAssess(snapshot, record.employeeId) && <div className="mt-4"><Button variant="primary" icon={pending === "follow-up" ? <ListChecks className="size-4" /> : <Scale className="size-4" />} onClick={() => setProgressOpen(true)}
             data-testid={pending === "follow-up" ? "btn-record-follow-up" : "btn-record-reassessment"}>{pending === "follow-up" ? "Record Follow-up" : "Record Reassessment"}</Button></div>}
         </Card>}
         {notPassed && followUp && <Card title="Follow-up" testId="training-follow-up">

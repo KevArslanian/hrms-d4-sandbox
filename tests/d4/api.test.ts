@@ -191,21 +191,29 @@ describe("session guard: real requireWriter over a mocked Supabase client", () =
       expect(writes).toHaveLength(1);
     });
 
-  // Current behaviour, documented: requireWriter only checks app_role; it does not require employee_id.
-  // Routes that store the evaluator's name (performance, KPI) then refuse with 403; the other writes succeed.
+  // requireWriter also needs the actor's employee record: writes are attributed to it and checked against self-assessment.
   describe.each(["HR", "MANAGER"] as const)("%s account without employee_id", (role) => {
-    it.each(writeRoutes.slice(0, 2))("%s → 403 'not linked to an employee record'", async (_name, send) => {
+    it.each(writeRoutes)("%s → 403 'not linked to an employee record', nothing written", async (_name, send) => {
       signIn(role, null);
       const res = await call(send());
       expect(res).toMatchObject({ status: 403, body: { error: { code: "FORBIDDEN" } } });
       expect(res.body.error?.message).toMatch(/belum terhubung ke data pegawai/);
       expect(writes).toHaveLength(0);
     });
+  });
 
-    it.each(writeRoutes.slice(2))("%s → passes (201): the guard itself does not require employee_id", async (_name, send) => {
-      signIn(role, null);
-      expect((await call(send())).status).toBe(201);
-    });
+  // SR-D4-EMP-23: a writer may not assess or follow up their own record, on every route, not only performance and KPI.
+  const ownerOf = (name: string) =>
+    name.includes("development-needs/:id") ? snapshot.developmentVersions.find((item) => item.needId === NEED)!.employeeId
+      : name.includes("training-records/:id/versions") ? snapshot.trainingVersions.find((item) => item.trainingId === TRAINING)!.employeeId
+        : name.includes("training-records/:id") ? snapshot.trainingVersions.find((item) => item.trainingId === "FIX-D4-TRN-003")!.employeeId
+          : ALFA;
+  it.each(writeRoutes.slice(2))("%s on the writer's own record → 422, nothing written", async (name, send) => {
+    signIn("MANAGER", ownerOf(name));
+    const res = await call(send());
+    expect(res.status).toBe(422);
+    expect(res.body.error?.message).toMatch(/diri sendiri/);
+    expect(writes).toHaveLength(0);
   });
 
   it("returns a 5xx without leaking details when the Supabase config is missing, before creating a client", async () => {
@@ -258,7 +266,8 @@ describe("POST /performance-evaluations", () => {
 
   it("rejects a period that has not started yet (D4-FN-01)", async () => {
     const res = await call(perf.POST(post(evaluationBody({ period: "2026-12", evaluationDate: "2026-10-01" }))));
-    expect(res).toMatchObject({ status: 422, body: { error: { code: "VALIDATION_FAILED", message: "Tanggal evaluasi tidak boleh sebelum awal periode." } } });
+    // K7 (audit 12 Nov 2026): the message names the future period instead of the misleading evaluation-date rule.
+    expect(res).toMatchObject({ status: 422, body: { error: { code: "VALIDATION_FAILED", message: "Period belum dimulai. Performance Review hanya untuk periode yang sudah berjalan." } } });
     expect(writes).toHaveLength(0);
   });
 

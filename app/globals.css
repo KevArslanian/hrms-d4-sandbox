@@ -31,15 +31,17 @@
   /* PISD design system (Figma "design system"): highlighted option or menu item, rgba(195,198,215,.7) on white. */
   --color-selected: #d5d7e3;
 
-  --color-success: #16a37a;
+  /* Tone colours are mostly text on their own -bg tint (badges, notices). The Figma values (#16a37a, #b57f0f, #d9364f,
+     #3b6ff5, #64748b) reached only 2.9-4.3:1 there, so each is darkened, same hue, to >= 4.6:1 on the tint and on white. */
+  --color-success: #107a5b;
   --color-success-bg: #e7f7f1;
-  --color-warning: #b57f0f;
+  --color-warning: #8d630c;
   --color-warning-bg: #fdf4e3;
-  --color-danger: #d9364f;
+  --color-danger: #cd2740;
   --color-danger-bg: #fcebee;
-  --color-info: #3b6ff5;
+  --color-info: #235df4;
   --color-info-bg: #eaf0ff;
-  --color-neutral: #64748b;
+  --color-neutral: #5d6c82;
   --color-neutral-bg: #f1f5f9;
   --color-teal: #069494;
   /* D3 avatar accent: employee initials on green, signed-in user on mint. */

@@ -225,6 +225,7 @@ export function createFixtureSource(): D4DataSource {
     },
     async saveCompetency(input) {
       assertWriter();
+      assertNotSelf(state.actorEmployeeId, input.employeeId);
       const employee = state.reference.employees.find((item) => item.id === input.employeeId);
       if (!employee) throw new Error("Pegawai tidak ditemukan.");
       const comparison = compareCompetencies(input.employeeId, input.positionId, state.reference);
@@ -235,6 +236,7 @@ export function createFixtureSource(): D4DataSource {
     },
     async createDevelopment(input) {
       assertWriter();
+      assertNotSelf(state.actorEmployeeId, input.employeeId);
       if (!input.objective.trim()) throw new Error("Development objective wajib diisi.");
       if (!input.sourceRef) throw new Error("Source reference wajib diisi.");
       assertPicFilled(input.pic ?? "");
@@ -249,6 +251,7 @@ export function createFixtureSource(): D4DataSource {
       const needs = latestDevelopment(state);
       const current = needs.find((item) => item.needId === needId);
       if (!current) throw new Error("Development requirement tidak ditemukan.");
+      assertNotSelf(state.actorEmployeeId, current.employeeId);
       assertPicFilled(edit?.pic);
       // The spread carries priority/method/PIC forward; reassessment belongs to the revision that records it.
       const next = nextDevelopmentRevision(current, { ...edit, status, notes }, needs, latestTraining(state), state.developmentVersions.filter((item) => item.needId === needId));
@@ -256,6 +259,7 @@ export function createFixtureSource(): D4DataSource {
     },
     async createTraining(input) {
       assertWriter();
+      assertNotSelf(state.actorEmployeeId, input.employeeId);
       const need = latestDevelopment(state).find((item) => item.needId === input.developmentNeedId);
       if (!need || need.employeeId !== input.employeeId) throw new Error("Training harus merujuk ke development requirement milik pegawai yang sama.");
       assertNeedOpen(need);
@@ -269,6 +273,7 @@ export function createFixtureSource(): D4DataSource {
       assertWriter();
       const current = latestTraining(state).find((item) => item.trainingId === trainingId);
       if (!current) throw new Error("Training tidak ditemukan.");
+      assertNotSelf(state.actorEmployeeId, current.employeeId);
       assertTrainingResult(status, result);
       assertTrainingChange(current.status, status, notes);
       // A follow-up belongs to the version that records it (followUpOf reads the history), as in Supabase.
@@ -279,6 +284,7 @@ export function createFixtureSource(): D4DataSource {
       assertWriter();
       const current = latestTraining(state).find((item) => item.trainingId === trainingId);
       if (!current) throw new Error("Training tidak ditemukan.");
+      assertNotSelf(state.actorEmployeeId, current.employeeId);
       const needs = latestDevelopment(state);
       const need = needs.find((item) => item.needId === current.developmentNeedId);
       const employee = state.reference.employees.find((item) => item.id === current.employeeId);
