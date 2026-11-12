@@ -27,7 +27,8 @@ const EMPLOYEE_MENU = [
   { href: "/daily-kpi", label: "Daily KPI" },
 ] as const;
 
-const menuFor = (role: string | undefined) => role === "EMPLOYEE" ? EMPLOYEE_MENU : D4_MENU;
+// No items until the role is known, or an employee briefly sees the HR menu while the snapshot loads.
+const menuFor = (role: string | undefined): readonly { href: string; label: string }[] => !role ? [] : role === "EMPLOYEE" ? EMPLOYEE_MENU : D4_MENU;
 
 const roleLabel: Record<string, string> = { HR: "HR", MANAGER: "Manager", MANAGEMENT: "Management", EMPLOYEE: "Employee" };
 
@@ -194,7 +195,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { snapshot, mode } = useD4();
   const [menuOpen, setMenuOpen] = useState(false);
   // Detail pages outside the employee menu (opened from "View source") still get their section name.
-  const current = [...menuFor(snapshot?.role), ...D4_MENU].find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
+  const current = !snapshot ? undefined : [...menuFor(snapshot.role), ...D4_MENU].find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
   const actor = snapshot?.reference.employees.find((item) => item.id === snapshot.actorEmployeeId);
   const name = actor?.fullName ?? "—";
 
