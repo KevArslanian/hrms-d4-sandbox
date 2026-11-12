@@ -4,7 +4,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import type { DevelopmentPriority, DevelopmentSourceType, DevelopmentStatus } from "../../../development/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
 import { isDevelopmentRollback, openNeedFor, passedTrainingCount, retrainedAt } from "../../../shared/rules";
-import { currentGap, DEFAULT_SOURCE_TYPE, developmentById, developmentHistory, developmentNeeds, employeeById, formatDate, formatPeriod, latestCurrentPositionAssessment, objectiveFromFinding, objectiveWithMethod, positionOf, scorecardsOf, sourceTypeLabel, today, trainings, visibleEmployees } from "../../data/selectors";
+import { assessableEmployees, currentGap, DEFAULT_SOURCE_TYPE, developmentById, developmentHistory, developmentNeeds, employeeById, formatDate, formatPeriod, latestCurrentPositionAssessment, objectiveFromFinding, objectiveWithMethod, positionOf, scorecardsOf, sourceTypeLabel, today, trainings } from "../../data/selectors";
 import { FormError, FormModal, ModalActions, ReadOnlyField, SearchSelectField, SelectField, SuggestField, TextAreaField, TextField } from "../../ui/forms";
 import { Notice, statusLabel } from "../../ui/primitives";
 import { picOptions } from "./rows";
@@ -34,6 +34,8 @@ export function sourceOptions(snapshot: ReturnType<typeof useSnapshot>, employee
 
 // B12 (interview D4, 14 Oct 2026): internal/external training, certification, coaching. Free text stays allowed.
 const DEVELOPMENT_METHODS = ["Internal training", "External training", "Certification", "Coaching"];
+// TextAreaField's default limit, the server limit of notes.
+const NOTES_MAX = 2000;
 const OBJECTIVE_HINT = "Tulis kompetensi yang kurang, level targetnya, dan cara menutup gap.";
 const OBJECTIVE_EXAMPLE = "Contoh: Naikkan Perencanaan Strategi & Anggaran dari level 3 ke 4 melalui External training";
 
@@ -87,7 +89,13 @@ export function DevelopmentFormModal({ employeeId, sourceType, sourceRef, onClos
     event.preventDefault();
     setTouched(true);
     const chosen = options.find((item) => item.ref === reference && !item.covered);
-    if (!employee || !chosen || !objective.trim() || !pic.trim()) { setError("Lengkapi employee, source reference, development objective, dan PIC sebelum menyimpan."); return; }
+    // PW1: name only the fields that are actually empty, and take the user to the first one.
+    const missing = [!employee && ["employee", "input-employee"], !chosen && ["source reference", "input-source-reference"], !objective.trim() && ["development objective", "input-development-objective"], !pic.trim() && ["PIC", "input-pic"]].filter((item) => item !== false);
+    if (!chosen || missing.length) {
+      setError(`Lengkapi ${missing.map(([field]) => field).join(", ")} sebelum menyimpan.`);
+      document.querySelector<HTMLElement>(`[data-testid="${missing[0][1]}"]`)?.focus();
+      return;
+    }
     setError("");
     // The gap changes as competencies are updated; keep the level seen when the need was raised.
     const snapshotNote = type === "competency_gap" ? `Gap saat dibuat (${formatDate(today())}): ${chosen.label}` : "";
@@ -102,7 +110,7 @@ export function DevelopmentFormModal({ employeeId, sourceType, sourceRef, onClos
       <div className="grid gap-4 sm:grid-cols-2">
         {employeeId ? <ReadOnlyField label="Employee" testId="employee" value={`${selectedEmployee?.fullName ?? "—"} · ${selectedEmployee?.employeeId ?? ""}`} className="sm:col-span-2" />
           : <SearchSelectField label="Employee" testId="employee" required value={employee} onChange={(value) => { setEmployee(value); pickReference(""); setError(""); }} error={touched && !employee ? "Employee wajib diisi." : undefined} className="sm:col-span-2" placeholder="Select employee"
-            options={visibleEmployees(snapshot).map((item) => ({ value: item.id, label: `${item.fullName} · ${item.employeeId}` }))} />}
+            options={assessableEmployees(snapshot).map((item) => ({ value: item.id, label: `${item.fullName} · ${item.employeeId}` }))} />}
         <ReadOnlyField label="Position" testId="position" value={positionOf(snapshot, selectedEmployee)?.title ?? "—"} />
         {sourceType ? <ReadOnlyField label="Source type" testId="source-type" value={sourceTypeLabel[type]} /> : <SelectField label="Source type" testId="source-type" required value={type} onChange={(event) => { setType(event.target.value as DevelopmentSourceType); pickReference(""); }}>
           {(Object.keys(sourceTypeLabel) as DevelopmentSourceType[]).map((key) => <option key={key} value={key}>{sourceTypeLabel[key]}</option>)}
@@ -118,13 +126,13 @@ export function DevelopmentFormModal({ employeeId, sourceType, sourceRef, onClos
           : <>Pegawai ini belum memiliki sumber bertipe {sourceTypeLabel[type]}. Development tidak dibuat hanya karena waktu sudah berlalu.</>}</Notice></div>}
         <TextField label="Development objective" testId="development-objective" required maxLength={500} value={objective} onChange={(event) => setObjective(event.target.value)} placeholder={OBJECTIVE_EXAMPLE}
           error={touched && !objective.trim() ? "Development objective wajib diisi." : undefined} className="sm:col-span-2"
-          helper={suggested && objective === suggestion ? `Diisi dari gap kompetensi${method.trim() ? " dan Method" : ""}; boleh diubah. ${OBJECTIVE_HINT}` : `${OBJECTIVE_HINT} ${OBJECTIVE_EXAMPLE}.`} />
+          helper={`${suggested && objective === suggestion ? `Diisi dari gap kompetensi${method.trim() ? " dan Method" : ""}; boleh diubah. ${OBJECTIVE_HINT}` : `${OBJECTIVE_HINT} ${OBJECTIVE_EXAMPLE}.`} ${objective.length}/500`} />
         <PrioritySelect value={priority} onChange={setPriority} />
         <ReadOnlyField label="Created date" testId="created-date" value={formatDate(today())} />
         <MethodField value={method} onChange={chooseMethod} helper="Opsional, tetapi bila sudah diketahui akan ikut masuk ke objective sebagai cara menutup gap." />
         <PicField value={pic} onChange={setPic} error={touched && !pic.trim() ? "PIC wajib diisi." : undefined} />
       </div>
-      <TextAreaField label="Notes" testId="notes" value={notes} onChange={(event) => setNotes(event.target.value)} helper="HR yang menentukan metode training akhir; gap tidak menentukannya secara otomatis." />
+      <TextAreaField label="Notes" testId="notes" value={notes} onChange={(event) => setNotes(event.target.value)} helper={`HR yang menentukan metode training akhir; gap tidak menentukannya secara otomatis. ${notes.length}/${NOTES_MAX}`} />
     </form>
   </FormModal>;
 }
@@ -161,7 +169,7 @@ export function DevelopmentStatusModal({ needId, onClose }: { needId: string; on
       </SelectField>
       {status === "Completed" && openTrainings.length > 0 && <Notice tone="warning">Masih ada {openTrainings.length} training berstatus Planned/In Progress untuk requirement ini ({openTrainings.map((item) => item.activity).join(", ")}). Selesaikan atau batalkan terlebih dahulu, atau jelaskan alasannya di Notes.</Notice>}
       {completingUnpassed && <Notice tone="warning">Belum ada training dengan hasil Passed untuk requirement ini{since ? " sejak Retraining terakhir" : ""}. Jika gap ditutup dengan cara lain (misalnya coaching), jelaskan di Notes.</Notice>}
-      <TextAreaField label="Notes" testId="notes" required={needsReason} value={notes} onChange={(event) => setNotes(event.target.value)} helper={status === current?.status ? `Status sudah ${status}. Pilih status lain untuk menyimpan.` : rollback ? "Wajib: status mundur ke tahap sebelumnya." : completingOpen ? "Wajib: jelaskan mengapa requirement diselesaikan saat training masih berjalan." : completingUnpassed ? "Wajib: belum ada training yang Passed." : undefined} />
+      <TextAreaField label="Notes" testId="notes" required={needsReason} value={notes} onChange={(event) => setNotes(event.target.value)} helper={`${status === current?.status ? `Status sudah ${status}. Pilih status lain untuk menyimpan. ` : rollback ? "Wajib: status mundur ke tahap sebelumnya. " : completingOpen ? "Wajib: jelaskan mengapa requirement diselesaikan saat training masih berjalan. " : completingUnpassed ? "Wajib: belum ada training yang Passed. " : ""}${notes.length}/${NOTES_MAX}`} />
       <Notice>Perubahan disimpan sebagai revisi baru; riwayat sebelumnya tetap tersedia. Status Completed tidak otomatis menutup gap kompetensi.</Notice>
     </form>
   </FormModal>;
@@ -196,7 +204,7 @@ export function DevelopmentEditModal({ needId, onClose }: { needId: string; onCl
         <PicField value={pic} onChange={setPic} current={current.pic} />
       </div>
       <TextAreaField label="Reason for change" testId="alasan-perubahan" value={notes} onChange={(event) => setNotes(event.target.value)}
-        helper={unchanged ? "Belum ada perubahan. Ubah Priority, Method, atau PIC untuk menyimpan." : "Opsional. Contoh: kebijakan pajak berubah, sertifikasi pajak dinaikkan ke High."} />
+        helper={`${unchanged ? "Belum ada perubahan. Ubah Priority, Method, atau PIC untuk menyimpan." : "Opsional. Contoh: kebijakan pajak berubah, sertifikasi pajak dinaikkan ke High."} ${notes.length}/${NOTES_MAX}`} />
       <Notice>Perubahan disimpan sebagai revisi baru; nilai sebelumnya tetap ada di riwayat.</Notice>
     </form>
   </FormModal>;

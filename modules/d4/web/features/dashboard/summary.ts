@@ -7,7 +7,7 @@ import { completedAt, followUpOf, localMonth, localToday, retrainedAt } from "..
 import type { EmployeeReference } from "../../../shared/types";
 import type { PositionReference } from "../../../shared/types/reference-data";
 import type { KpiAssessment } from "../../../supabase/types";
-import { currentGap, developmentHistory, formatDate, formatPeriod, formatScorecard, needsOf, positionById, positionTitle, revisionChanges, scorecardsOf, trainingHistory, trainingsOf, type Snapshot } from "../../data/selectors";
+import { currentGap, developmentHistory, formatDate, formatPeriod, formatScorecard, needsOf, pendingCompilation, positionById, positionTitle, revisionChanges, scorecardsOf, trainingHistory, trainingsOf, type Snapshot } from "../../data/selectors";
 import type { TimelineEntry } from "../../ui/layout";
 import { slug, statusLabel } from "../../ui/primitives";
 
@@ -168,21 +168,35 @@ export function gapClosedAfter(assessments: readonly Pick<CompetencyAssessment, 
 export type AssignTarget = { employeeId: string; name: string; scorecardId: string };
 /**
  * `label`: state shown next to the title, e.g. a Not Passed training still awaiting HR's follow-up (Q16).
+ * `action`: the follow-up sentence, shown only to HR and managers since the other roles cannot do it (K9).
  * `assign`: per employee of the Under Performance alert, the scorecard a training requirement is raised from.
  */
-export type DashboardAlert = { key: string; title: string; detail: string; href: string; count: number; people: string[]; label?: string; assign?: AssignTarget[] };
+export type DashboardAlert = { key: string; title: string; detail: string; action?: string; href: string; count: number; people: string[]; label?: string; assign?: AssignTarget[] };
+
+/** Ended periods whose Daily KPI compilation was never finalized into a scorecard, so they do not vanish at month end (W1). */
+export const unfinalizedPeriods = (snapshot: Snapshot, employeeId: string, today = localMonth()) =>
+  [...new Set((snapshot.kpiDaily ?? []).filter((item) => item.employeeId === employeeId && item.period < today).map((item) => item.period))]
+    .filter((period) => pendingCompilation(snapshot, employeeId, period)).sort().reverse();
 
 /**
  * Follow-ups HR should act on, computed from D4 data only (interview D4, 14 Oct 2026). Alerts that need data D4
  * does not hold (field agent vacancy, maternity leave) are not computed here.
- * The Daily KPI alerts look at the running WIB period whatever period the dashboard shows, since they ask for action
- * now. `dailyCatalog` is the catalog of that period: only employees with a KPI role are expected to fill Daily KPI.
+ * The rows, and so the Under Performance alert, belong to `period`, the period the dashboard shows. The Daily KPI
+ * alerts look at the running WIB period `today` whatever period is shown, since they ask for action now, and name that
+ * month. `dailyCatalog` is the catalog of that period: only employees with a KPI role are expected to fill Daily KPI.
+ * An alert about one person links to the list narrowed to them (`?q=<name>`, K15).
  */
-export function dashboardAlerts(snapshot: Snapshot, rows: readonly DashboardRow[], dailyCatalog: KpiCatalog | null = null): DashboardAlert[] {
-  const found = { under: [] as string[], completedGap: [] as string[], notPassed: [] as string[], noPlan: [] as string[], noPic: [] as string[], dailyBelow: [] as string[], noDaily: [] as string[] };
+export function dashboardAlerts(snapshot: Snapshot, rows: readonly DashboardRow[], dailyCatalog: KpiCatalog | null = null, period = "", today = localMonth()): DashboardAlert[] {
+  const found = { under: [] as string[], unfinalized: [] as string[], completedGap: [] as string[], notPassed: [] as string[], noPlan: [] as string[], noPic: [] as string[], dailyBelow: [] as string[], noDaily: [] as string[] };
   const assign: AssignTarget[] = [];
+  let unfinalizedPeriod = "";
   for (const row of rows) {
     const name = row.employee.fullName;
+    const ended = unfinalizedPeriods(snapshot, row.employee.id, today)[0];
+    if (ended) {
+      found.unfinalized.push(name);
+      if (ended > unfinalizedPeriod) unfinalizedPeriod = ended;
+    }
     if (row.scorecard && bandOf(row) === "Under Performance") {
       found.under.push(name);
       assign.push({ employeeId: row.employee.id, name, scorecardId: row.scorecard.id });
@@ -200,7 +214,7 @@ export function dashboardAlerts(snapshot: Snapshot, rows: readonly DashboardRow[
       if (!gapClosedAfter(snapshot.competency.filter((item) => item.employeeId === row.employee.id), need.sourceRef, finished)) found.completedGap.push(name);
     }
     if (snapshot.kpiDaily) {
-      const days = dailyEntriesOf(snapshot.kpiDaily, row.employee.id, localMonth());
+      const days = dailyEntriesOf(snapshot.kpiDaily, row.employee.id, today);
       // Interview D4 (14 Oct 2026): three daily scores in a row under the target is the trigger HR follows up.
       if (daysBelowTarget(days, Number(KPI_TARGET)) >= 3) found.dailyBelow.push(name);
       if (!days.length && dailyCatalog && roleForPosition(dailyCatalog, row.employee.positionId)) found.noDaily.push(name);
@@ -215,16 +229,21 @@ export function dashboardAlerts(snapshot: Snapshot, rows: readonly DashboardRow[
       if (last?.status === "Completed" && last.result === "Not Passed" && !followUpOf(trainingHistory(snapshot, last.trainingId))) found.notPassed.push(name);
     }
   }
-  const alerts: (Omit<DashboardAlert, "count" | "people"> & { list: string[] })[] = [
-    { key: "under-performance", list: found.under, assign, title: "Under Performance", href: "/performance", detail: "pegawai di bawah 80 pada periode ini. HR menindaklanjuti dengan Assign training: development requirement dari Performance Review-nya." },
-    { key: "completed-gap-open", list: found.completedGap, title: "Completed, gap masih terbuka", href: "/training", detail: "development requirement Completed atau training Passed, tetapi belum ada penilaian kompetensi baru yang menunjukkan level terpenuhi. Catat hasil reassessment di detail training." },
-    { key: "training-not-passed", list: found.notPassed, title: "Training Not Passed", label: "Awaiting follow-up", href: "/training", detail: "development requirement dengan training terakhir Not Passed dan belum ada tindak lanjut. Catat Retraining atau Other follow-up di detail training." },
+  const alerts: (Omit<DashboardAlert, "count" | "people"> & { list: string[]; period?: string })[] = [
+    { key: "under-performance", list: found.under, assign, title: "Under Performance", href: "/performance", period, detail: `pegawai di bawah 80 pada ${period ? formatPeriod(period) : "periode ini"}.`, action: "Tindak lanjuti dengan Assign training: development requirement dari Performance Review-nya." },
+    { key: "daily-not-finalized", list: found.unfinalized, title: "Daily KPI belum difinalisasi", href: "/performance", period: unfinalizedPeriod, detail: "pegawai punya skor Compiled dari Daily KPI periode yang sudah berakhir, belum menjadi Performance Review.", action: "Finalize from Daily KPI di Performance Review periode itu." },
+    { key: "completed-gap-open", list: found.completedGap, title: "Completed, gap masih terbuka", href: "/training", detail: "development requirement Completed atau training Passed, tetapi belum ada penilaian kompetensi baru yang menunjukkan level terpenuhi.", action: "Catat hasil reassessment di detail training." },
+    { key: "training-not-passed", list: found.notPassed, title: "Training Not Passed", label: "Awaiting follow-up", href: "/training", detail: "development requirement dengan training terakhir Not Passed dan belum ada tindak lanjut.", action: "Catat Retraining atau Other follow-up di detail training." },
     { key: "gap-no-requirement", list: found.noPlan, title: "Gap tanpa development requirement", href: "/competency", detail: "gap kompetensi belum dibuatkan development requirement." },
-    { key: "daily-below-target", list: found.dailyBelow, title: "Daily KPI di bawah target", href: "/daily-kpi", detail: `pegawai dengan total Daily KPI di bawah ${KPI_TARGET} pada tiga entri terakhir berturut-turut periode ini.` },
-    { key: "daily-missing", list: found.noDaily, title: "Belum mengisi Daily KPI", href: "/daily-kpi", detail: "pegawai dengan KPI di katalog belum punya entri Daily KPI periode ini." },
+    { key: "daily-below-target", list: found.dailyBelow, title: "Daily KPI di bawah target", href: "/daily-kpi", detail: `pegawai dengan total Daily KPI di bawah ${KPI_TARGET} pada tiga entri terakhir berturut-turut di ${formatPeriod(today)}.` },
+    { key: "daily-missing", list: found.noDaily, title: "Belum mengisi Daily KPI", href: "/daily-kpi", detail: `pegawai dengan KPI di katalog belum punya entri Daily KPI di ${formatPeriod(today)}.` },
     { key: "requirement-no-pic", list: found.noPic, title: "Tanpa PIC", href: "/development", detail: "development requirement terbuka belum punya PIC." },
   ];
-  return alerts.filter((item) => item.list.length).map(({ list, ...item }) => ({ ...item, count: list.length, people: [...new Set(list)] }));
+  return alerts.filter((item) => item.list.length).map(({ list, period: at, href, ...item }) => {
+    const people = [...new Set(list)];
+    const query = [at && `period=${at}`, people.length === 1 && `q=${encodeURIComponent(people[0])}`].filter(Boolean).join("&");
+    return { ...item, href: query ? `${href}?${query}` : href, count: list.length, people };
+  });
 }
 
 export type HistoryEntry = TimelineEntry & { kind: "competency" | "performance" | "development" | "training"; day: string; createdAt: string };
@@ -253,7 +272,7 @@ export function employeeHistory(snapshot: Snapshot, employeeId: string): History
     const on = item.evaluationDate || item.createdAt;
     entries.push({ id: `performance-${item.id}`, kind: "performance", day: dayOf(on), createdAt: item.createdAt, actor: item.actor,
       date: `${formatPeriod(item.period)} · ${formatDate(on)}`, status: performanceBand(item.overallScore, item.definitionVersion) ?? undefined,
-      title: `Performance Review ${formatPeriod(item.period)} · ${formatScorecard(item)}`, body: `Penilai ${item.evaluatorName || "—"}`, href: `/performance/scorecard/${item.id}` });
+      title: `Performance Review ${formatPeriod(item.period)} · ${formatScorecard(item)}`, body: `Evaluator ${item.evaluatorName || "—"}`, href: `/performance/scorecard/${item.id}` });
   }
   for (const need of needsOf(snapshot, employeeId)) {
     const versions = developmentHistory(snapshot, need.needId);

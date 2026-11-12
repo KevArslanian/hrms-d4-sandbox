@@ -1,6 +1,6 @@
 import { compareCompetencies } from "../../competency/service";
 import type { TrainingFollowUp, TrainingStatus } from "../../training/types";
-import { assertNeedOpen, assertTrainingChange, assertTrainingDate, assertTrainingFollowUp, localToday, planTrainingCompletion, retrainingNotes, TRAINING_DECISIONS, TRAINING_FOLLOW_UPS, TRAINING_RESULTS } from "../../shared/rules";
+import { assertNeedOpen, assertNotSelf, assertTrainingChange, assertTrainingDate, assertTrainingFollowUp, localToday, planTrainingCompletion, retrainingNotes, TRAINING_DECISIONS, TRAINING_FOLLOW_UPS, TRAINING_RESULTS } from "../../shared/rules";
 import { latestDevelopment, latestTraining } from "../../supabase/types";
 import { ApiError, employeeFilter, enforce, field, readJson } from "../_lib/http";
 import { d4Session, requireWriter } from "../_lib/session";
@@ -28,7 +28,7 @@ export async function getTraining(id: string) {
 
 /** POST /api/d4/training-records — training must point to a development need of the same employee. */
 export async function createTraining(request: Request) {
-  const { repository } = await requireWriter();
+  const { repository, access } = await requireWriter();
   const body = await readJson(request);
   const status = field.oneOf(body, "status", statuses);
   const input = {
@@ -36,6 +36,7 @@ export async function createTraining(request: Request) {
     activity: field.text(body, "activity", { max: 200 }), date: field.date(body, "date"), status,
     result: completedResult(body, status), notes: field.text(body, "notes", { required: false, max: 2000 }),
   };
+  enforce(() => assertNotSelf(access.employeeId, input.employeeId));
   const snapshot = await repository.loadSnapshot();
   enforce(() => assertNeedOpen(latestDevelopment(snapshot).find((item) => item.needId === input.developmentNeedId)));
   enforce(() => assertTrainingDate(input.status, input.date));
@@ -44,13 +45,14 @@ export async function createTraining(request: Request) {
 
 /** POST /api/d4/training-records/:id/versions — progress update as a new version. Completion never closes a gap. */
 export async function addTrainingVersion(request: Request, id: string) {
-  const { repository } = await requireWriter();
+  const { repository, access } = await requireWriter();
   const body = await readJson(request);
   const status = field.oneOf(body, "status", statuses);
   const result = completedResult(body, status);
   const notes = field.text(body, "notes", { required: false, max: 2000 });
   const current = latestTraining(await repository.loadSnapshot()).find((item) => item.trainingId === id);
   if (!current) throw new ApiError("NOT_FOUND", "Training tidak ditemukan.");
+  enforce(() => assertNotSelf(access.employeeId, current.employeeId));
   enforce(() => assertTrainingChange(current.status, status, notes));
   await repository.updateTraining(id, status, result, notes);
   return { trainingId: id, status };
@@ -62,7 +64,7 @@ export async function addTrainingVersion(request: Request, id: string) {
  * same requirement and returns its id.
  */
 export async function recordTrainingFollowUp(request: Request, id: string) {
-  const { repository } = await requireWriter();
+  const { repository, access } = await requireWriter();
   const body = await readJson(request);
   const followUp = field.oneOf(body, "followUp", TRAINING_FOLLOW_UPS);
   const input = { followUp, notes: field.text(body, "notes", { required: false, max: 2000 }),
@@ -70,6 +72,7 @@ export async function recordTrainingFollowUp(request: Request, id: string) {
   const snapshot = await repository.loadSnapshot();
   const history = snapshot.trainingVersions.filter((item) => item.trainingId === id);
   if (!history.length) throw new ApiError("NOT_FOUND", "Training tidak ditemukan.");
+  enforce(() => assertNotSelf(access.employeeId, history[0].employeeId));
   enforce(() => assertTrainingFollowUp(history, input, latestDevelopment(snapshot).find((item) => item.needId === history[0].developmentNeedId)));
   return { trainingId: id, followUp, retrainingId: await repository.recordTrainingFollowUp(id, input, snapshot) };
 }
@@ -82,7 +85,7 @@ export async function recordTrainingFollowUp(request: Request, id: string) {
  * a failure part-way keeps the earlier records and the training page shows the step that is still open.
  */
 export async function completeTraining(request: Request, id: string) {
-  const { repository } = await requireWriter();
+  const { repository, access } = await requireWriter();
   const body = await readJson(request);
   const decision = field.oneOf(body, "decision", TRAINING_DECISIONS);
   const input = { result: field.oneOf(body, "result", TRAINING_RESULTS), decision, notes: field.text(body, "notes", { required: false, max: 2000 }),
@@ -90,6 +93,7 @@ export async function completeTraining(request: Request, id: string) {
   const snapshot = await repository.loadSnapshot();
   const record = latestTraining(snapshot).find((item) => item.trainingId === id);
   if (!record) throw new ApiError("NOT_FOUND", "Training tidak ditemukan.");
+  enforce(() => assertNotSelf(access.employeeId, record.employeeId));
   const needs = latestDevelopment(snapshot);
   const need = needs.find((item) => item.needId === record.developmentNeedId);
   const employee = snapshot.reference.employees.find((item) => item.id === record.employeeId);
