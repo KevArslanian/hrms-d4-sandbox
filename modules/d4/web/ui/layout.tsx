@@ -30,7 +30,8 @@ export function Breadcrumb({ items }: { items: Crumb[] }) {
 
 export function DetailHeader({ crumbs, backHref, name, meta, status, actions }: {
   crumbs: Crumb[];
-  backHref: string;
+  /** Left out on a page that is itself a menu destination, where there is nothing to go back to. */
+  backHref?: string;
   name: string;
   meta: string[];
   status?: string;
@@ -38,7 +39,7 @@ export function DetailHeader({ crumbs, backHref, name, meta, status, actions }: 
 }) {
   return <div className="space-y-4">
     <div className="flex flex-wrap items-center gap-3">
-      <Link href={backHref} data-testid="btn-back" className="inline-flex h-9 items-center gap-1.5 rounded-[10px] border border-line bg-surface px-3 text-sm font-semibold text-ink hover:border-primary-500"><ArrowLeft aria-hidden="true" className="size-4" />Back</Link>
+      {backHref && <Link href={backHref} data-testid="btn-back" className="inline-flex h-9 items-center gap-1.5 rounded-[10px] border border-line bg-surface px-3 text-sm font-semibold text-ink hover:border-primary-500"><ArrowLeft aria-hidden="true" className="size-4" />Back</Link>}
       <Breadcrumb items={crumbs} />
     </div>
     <section className="overflow-hidden rounded-2xl border border-line bg-surface shadow-card">

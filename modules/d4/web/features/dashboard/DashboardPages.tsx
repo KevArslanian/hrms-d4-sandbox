@@ -36,6 +36,12 @@ function periodData(snapshot: D4LiveSnapshot, employeeId: string, period: string
  */
 export function DashboardPage() {
   const snapshot = useSnapshot();
+  // An employee's list would only ever hold themselves, so their home is their own profile.
+  return snapshot.role === "EMPLOYEE" ? <EmployeeProfilePage employeeId={snapshot.actorEmployeeId} own /> : <PeopleDashboard />;
+}
+
+function PeopleDashboard() {
+  const snapshot = useSnapshot();
   const { catalog: catalogSet } = useD4();
   const [search, setSearch] = useState("");
   const [position, setPosition] = useState("");
@@ -274,7 +280,7 @@ function SourceLink({ href, children = "View source" }: { href: string; children
   return <Link href={href} data-testid="link-view-source" className="inline-flex items-center gap-1 text-sm font-semibold text-primary-600 hover:underline">{children}<ArrowUpRight aria-hidden="true" className="size-4" /></Link>;
 }
 
-export function EmployeeProfilePage({ employeeId, initialPeriod = "" }: { employeeId: string; initialPeriod?: string }) {
+export function EmployeeProfilePage({ employeeId, initialPeriod = "", own = false }: { employeeId: string; initialPeriod?: string; own?: boolean }) {
   const snapshot = useSnapshot();
   const [period, setPeriod] = useState(initialPeriod);
   const employee = employeeById(snapshot, employeeId);
@@ -290,7 +296,7 @@ export function EmployeeProfilePage({ employeeId, initialPeriod = "" }: { employ
   const employeeTraining = trainings(snapshot).filter((item) => item.employeeId === employee.id);
 
   return <>
-    <DetailHeader crumbs={[{ label: "HRMS" }, { label: "People Dashboard", href: "/dashboard" }, { label: "Employee" }]} backHref="/dashboard"
+    <DetailHeader crumbs={own ? [{ label: "HRMS" }, { label: "My Performance" }] : [{ label: "HRMS" }, { label: "People Dashboard", href: "/dashboard" }, { label: "Employee" }]} backHref={own ? undefined : "/dashboard"}
       name={employee.fullName} meta={employeeMeta(snapshot, employee)} />
     <FilterBar>
       <SelectFilter label="Period" testId="latest-period" emptyOption={false} value={shown ?? ""} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
