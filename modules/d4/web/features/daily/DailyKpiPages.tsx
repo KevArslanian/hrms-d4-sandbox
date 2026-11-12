@@ -2,7 +2,7 @@
 
 import { CheckCircle2, Eye } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { compileDaily, dailyEntriesOf, type DailyCompilation } from "../../../kpi/daily";
 import { catalogFor, indicatorsFor, KPI_TARGET, roleForPosition, targetOf } from "../../../kpi/catalog";
@@ -16,7 +16,7 @@ import { DataTable, PersonCell } from "../../ui/DataTable";
 import { DateField, FilterBar, FormError, ReadOnlyField, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
-import { Button, Card, InfoGrid, Notice, StatusBadge } from "../../ui/primitives";
+import { Button, Card, InfoGrid, Notice, SavedNotice, StatusBadge } from "../../ui/primitives";
 import { FinalizeDailyModal } from "../kpi/FinalizeDailyModal";
 import { noKpiText, scorecardTotal } from "../kpi/KpiFormModal";
 import { COMPILED_RULE, correctionsByDay, isDirty, scoreProblem, workingDaysSoFar } from "./entry";
@@ -236,10 +236,12 @@ type TeamRow = { employee: EmployeeReference; position: string; compiled: DailyC
 function TeamDailyKpi() {
   const snapshot = useSnapshot();
   const { catalog: catalogSet } = useD4();
-  // K15: dashboard alerts link here with ?q=<name>. The page renders only after the snapshot loads, so window exists.
-  const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get("q") ?? "");
+  // K15: dashboard alerts link here with ?q=<name>. Read from the router: during a client navigation window.location is still the previous page.
+  const params = useSearchParams();
+  const [search, setSearch] = useState(() => params.get("q") ?? "");
   const [period, setPeriod] = useState(thisMonth());
   const [finalizing, setFinalizing] = useState<TeamRow | null>(null);
+  const [saved, setSaved] = useState<{ employeeId: string; scorecardId: string } | null>(null);
   const periods = useMemo(() => [...new Set([thisMonth(), ...(snapshot.kpiDaily ?? []).map((entry) => entry.period)])].sort().reverse(), [snapshot]);
   const catalog = catalogSet && catalogFor(catalogSet, period);
   const running = period === thisMonth();
@@ -267,7 +269,8 @@ function TeamDailyKpi() {
       <SearchInput value={search} onChange={setSearch} placeholder="Search name or position" />
       <SelectFilter label="Period" testId="daily-period" value={period} onChange={(value) => setPeriod(value || thisMonth())} emptyOption={false} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
     </FilterBar>
-    <DataTable<TeamRow> rows={rows} noun="employees" rowKey={(row) => row.employee.id}
+    {saved && <SavedNotice text={`Performance Review ${employeeById(snapshot, saved.employeeId)?.fullName ?? ""} · ${formatPeriod(period)} difinalisasi dari Daily KPI.`} href={`/performance/scorecard/${saved.scorecardId}`} />}
+    <DataTable<TeamRow> rows={rows} noun="employees" rowKey={(row) => row.employee.id} highlightKey={saved?.employeeId}
       emptyTitle="Tidak ada pegawai yang cocok" emptyText="Ubah kata kunci atau periode. Hanya pegawai dengan KPI di katalog yang tampil."
       columns={[
         { key: "employee", header: "Employee", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
@@ -289,7 +292,7 @@ function TeamDailyKpi() {
         // W8: the same Finalize as on Performance Review, so HR does not have to switch screens.
         { label: "Finalize from Daily KPI", testId: "finalize-daily", icon: <CheckCircle2 />, onSelect: () => setFinalizing(row), hidden: !row.compiled || Boolean(row.scorecard) || !canAssess(snapshot, row.employee.id) },
       ]} />} />
-    {finalizing?.compiled && <FinalizeDailyModal employeeId={finalizing.employee.id} period={period} compiled={finalizing.compiled} onClose={() => setFinalizing(null)} />}
+    {finalizing?.compiled && <FinalizeDailyModal employeeId={finalizing.employee.id} period={period} compiled={finalizing.compiled} onClose={() => setFinalizing(null)} onSaved={(scorecardId) => setSaved({ employeeId: finalizing.employee.id, scorecardId })} />}
   </section>;
 }
 

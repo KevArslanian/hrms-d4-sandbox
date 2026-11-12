@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { Eye, GraduationCap, History, Pencil, Plus, RefreshCw, Scale } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -10,7 +11,7 @@ import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
-import { Button, ButtonLink, Card, InfoGrid, Notice, SourceChip, statusLabel, StatusBadge } from "../../ui/primitives";
+import { Button, ButtonLink, Card, InfoGrid, Notice, SavedNotice, SourceChip, statusLabel, StatusBadge } from "../../ui/primitives";
 import { TrainingFormModal } from "../training/TrainingModals";
 import { DevelopmentEditModal, DevelopmentFormModal, DevelopmentStatusModal } from "./DevelopmentModals";
 import { competencyOptions } from "../competency/rows";
@@ -47,8 +48,9 @@ function ReassessmentAction({ snapshot, needId, writer }: { snapshot: Snapshot; 
 export function DevelopmentListPage() {
   const snapshot = useSnapshot();
   const writer = canWrite(snapshot);
-  // K15: dashboard alerts link here with ?q=<name>. The page renders only after the snapshot loads, so window exists.
-  const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get("q") ?? "");
+  // K15: dashboard alerts link here with ?q=<name>. Read from the router: during a client navigation window.location is still the previous page.
+  const params = useSearchParams();
+  const [search, setSearch] = useState(() => params.get("q") ?? "");
   const [department, setDepartment] = useState("");
   const [sourceType, setSourceType] = useState("");
   const [status, setStatus] = useState("");
@@ -59,10 +61,14 @@ export function DevelopmentListPage() {
   const [statusFor, setStatusFor] = useState<string | null>(null);
   const [editFor, setEditFor] = useState<string | null>(null);
   const [trainingFor, setTrainingFor] = useState<DevelopmentNeedVersion | null>(null);
+  const [saved, setSaved] = useState<{ needId: string; trainingId?: string } | null>(null);
   // FR-04.8: filter by employee, source, period (month the requirement was last recorded) and status; FR-D4-002 B adds competency and priority.
   const periods = useMemo(() => [...new Set(developmentNeeds(snapshot).map((need) => need.createdAt.slice(0, 7)))].sort().reverse(), [snapshot]);
   const rows = useMemo(() => developmentRows(snapshot, { search, department, sourceType, status, period, competency, priority }), [snapshot, search, department, sourceType, status, period, competency, priority]);
   const filtered = Boolean(search || department || sourceType || status || period || competency || priority);
+  const savedNeed = saved && developmentNeeds(snapshot).find((need) => need.needId === saved.needId);
+  const savedTraining = saved?.trainingId && trainings(snapshot).find((item) => item.trainingId === saved.trainingId);
+  const savedName = savedNeed ? employeeById(snapshot, savedNeed.employeeId)?.fullName : "";
 
   return <>
     <PageHeader title="Development Requirement" subtitle="Kebutuhan development dan training dengan alasan dan sumber yang dapat ditelusuri."
@@ -76,7 +82,9 @@ export function DevelopmentListPage() {
       <SelectFilter label="All competencies" testId="all-competencies" value={competency} onChange={setCompetency} options={competencyOptions(snapshot)} />
       <SelectFilter label="All priorities" testId="all-priorities" value={priority} onChange={setPriority} options={["High", "Medium", "Low"].map((item) => ({ value: item, label: statusLabel(item) }))} />
     </FilterBar>
-    <DataTable<DevelopmentNeedVersion> rows={rows} noun="requirements" rowKey={(row) => row.needId}
+    {savedTraining ? <SavedNotice text={`Training "${savedTraining.activity}" untuk ${savedName} tersimpan.`} href={`/training/${savedTraining.trainingId}`} />
+      : savedNeed && <SavedNotice text={`Development requirement ${savedName} tersimpan (${statusLabel(savedNeed.status)}).`} href={`/development/${savedNeed.needId}`} />}
+    <DataTable<DevelopmentNeedVersion> rows={rows} noun="requirements" rowKey={(row) => row.needId} highlightKey={savedNeed ? savedNeed.needId : undefined}
       emptyTitle={filtered ? "Tidak ada requirement yang cocok" : "Belum ada development requirement"}
       emptyText={filtered ? "Ubah kata kunci atau reset filter." : writer ? "Buat dari gap kompetensi, perubahan posisi, atau evaluasi performance dengan Add Requirement." : "Belum ada development requirement yang tercatat."}
       columns={[
@@ -104,10 +112,10 @@ export function DevelopmentListPage() {
         { label: "Update Status", testId: "update-status", icon: <RefreshCw />, onSelect: () => setStatusFor(row.needId), hidden: !canAssess(snapshot, row.employeeId) },
         { label: "Edit Requirement", testId: "edit-requirement", icon: <Pencil />, onSelect: () => setEditFor(row.needId), hidden: !canAssess(snapshot, row.employeeId) },
       ]} />} />
-    {adding && <DevelopmentFormModal onClose={() => setAdding(false)} />}
-    {statusFor && <DevelopmentStatusModal needId={statusFor} onClose={() => setStatusFor(null)} />}
-    {editFor && <DevelopmentEditModal needId={editFor} onClose={() => setEditFor(null)} />}
-    {trainingFor && <TrainingFormModal employeeId={trainingFor.employeeId} developmentNeedId={trainingFor.needId} onClose={() => setTrainingFor(null)} />}
+    {adding && <DevelopmentFormModal onClose={() => setAdding(false)} onSaved={(needId) => setSaved({ needId })} />}
+    {statusFor && <DevelopmentStatusModal needId={statusFor} onClose={() => setStatusFor(null)} onSaved={() => setSaved({ needId: statusFor })} />}
+    {editFor && <DevelopmentEditModal needId={editFor} onClose={() => setEditFor(null)} onSaved={() => setSaved({ needId: editFor })} />}
+    {trainingFor && <TrainingFormModal employeeId={trainingFor.employeeId} developmentNeedId={trainingFor.needId} onClose={() => setTrainingFor(null)} onSaved={(trainingId) => setSaved({ needId: trainingFor.needId, trainingId })} />}
   </>;
 }
 

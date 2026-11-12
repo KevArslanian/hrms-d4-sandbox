@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { ArrowRightLeft, Eye, FilePlus2, History, Save } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState, type FormEvent } from "react";
@@ -13,7 +14,7 @@ import { DataTable, PersonCell } from "../../ui/DataTable";
 import { DateField, FilterBar, FormError, FormModal, ModalActions, SearchInput, SearchSelectField, SelectFilter, TextField } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
-import { Button, ButtonLink, Card, cx, InfoGrid, Notice, statusLabel, StatusBadge } from "../../ui/primitives";
+import { Button, ButtonLink, Card, cx, InfoGrid, Notice, SavedNotice, statusLabel, StatusBadge } from "../../ui/primitives";
 import { DevelopmentFormModal } from "../development/DevelopmentModals";
 import { ReassessmentBadge } from "../development/DevelopmentPages";
 import { closingRequirement, competencyOptions, competencyRows, findingLogic, formatDifference, type CompetencyRow as Row } from "./rows";
@@ -46,14 +47,16 @@ export function CompetencyListPage() {
   const snapshot = useSnapshot();
   const writer = canWrite(snapshot);
   const allNeeds = developmentNeeds(snapshot);
-  // K15: dashboard alerts link here with ?q=<name>. The page renders only after the snapshot loads, so window exists.
-  const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get("q") ?? "");
+  // K15: dashboard alerts link here with ?q=<name>. Read from the router: during a client navigation window.location is still the previous page.
+  const params = useSearchParams();
+  const [search, setSearch] = useState(() => params.get("q") ?? "");
   const [position, setPosition] = useState("");
   const [department, setDepartment] = useState("");
   const [status, setStatus] = useState("");
   const [competency, setCompetency] = useState("");
   const [devFor, setDevFor] = useState<string | null>(null);
   const [changing, setChanging] = useState<EmployeeReference | null>(null);
+  const [saved, setSaved] = useState<{ employeeId: string; needId?: string } | null>(null);
   const rows = useMemo(() => competencyRows(snapshot, { search, position, department, status, competency }), [snapshot, search, position, department, status, competency]);
   const filtered = Boolean(search || position || department || status || competency);
   // UAT-11: the list holds only employees in scope; anyone else is reached from their People Dashboard profile, whose
@@ -74,7 +77,9 @@ export function CompetencyListPage() {
       <SelectFilter label="All status" testId="all-gap-status" value={status} onChange={setStatus} options={STATUS_FILTER.map((item) => ({ value: item, label: item }))} />
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All competencies" testId="all-competencies" value={competency} onChange={setCompetency} options={competencyOptions(snapshot)} />}
     </FilterBar>
-    <DataTable<Row> rows={rows} noun="employees" rowKey={(row) => row.employee.id}
+    {saved && <SavedNotice text={saved.needId ? `Development requirement ${employeeById(snapshot, saved.employeeId)?.fullName ?? ""} tersimpan.` : `Penilaian perubahan posisi ${employeeById(snapshot, saved.employeeId)?.fullName ?? ""} tersimpan.`}
+      href={saved.needId ? `/development/${saved.needId}` : `/competency/${saved.employeeId}/history`} />}
+    <DataTable<Row> rows={rows} noun="employees" rowKey={(row) => row.employee.id} highlightKey={saved?.employeeId}
       emptyTitle={filtered || snapshot.role === "EMPLOYEE" ? "Tidak ada pegawai yang cocok" : "Belum ada pegawai dalam cakupan"} emptyText={filtered || snapshot.role === "EMPLOYEE" ? "Ubah kata kunci atau reset filter." : `Daftar ini hanya memuat ${scopeRule}. ${outOfScope}`}
       columns={[
         { key: "employee", header: "Employee", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
@@ -93,13 +98,13 @@ export function CompetencyListPage() {
           hidden: !canAssess(snapshot, row.employee.id) || row.status === "Not Evaluated" || row.findings.filter((item) => item.status === "Gap").every((item) => openNeedFor(allNeeds, row.employee.id, "competency_gap", item.requirementId)) },
         { label: "Assess Position Change", testId: "assess-position-change", icon: <ArrowRightLeft />, onSelect: () => setChanging(row.employee), hidden: !canAssess(snapshot, row.employee.id) },
       ]} />} />
-    {devFor && <DevelopmentFormModal employeeId={devFor} sourceType="competency_gap" onClose={() => setDevFor(null)} />}
-    {changing && <PositionChangeModal employee={changing} onClose={() => setChanging(null)} />}
+    {devFor && <DevelopmentFormModal employeeId={devFor} sourceType="competency_gap" onClose={() => setDevFor(null)} onSaved={(needId) => setSaved({ employeeId: devFor, needId })} />}
+    {changing && <PositionChangeModal employee={changing} onClose={() => setChanging(null)} onSaved={() => setSaved({ employeeId: changing.id })} />}
   </>;
 }
 
 /** Opened for one employee, from the list row menu or the detail page. */
-function PositionChangeModal({ employee, onClose }: { employee: EmployeeReference; onClose: () => void }) {
+function PositionChangeModal({ employee, onClose, onSaved }: { employee: EmployeeReference; onClose: () => void; onSaved?: () => void }) {
   const snapshot = useSnapshot();
   const { run, busy } = useD4();
   const [position, setPosition] = useState("");
@@ -110,7 +115,7 @@ function PositionChangeModal({ employee, onClose }: { employee: EmployeeReferenc
     event.preventDefault();
     if (!position) { setError("Pilih posisi baru."); return; }
     const result = await run((source) => source.saveCompetency({ employeeId: employee.id, positionId: position, effectiveDate: date, assessedWith }), "Penilaian perubahan posisi tersimpan.");
-    if (result.ok) onClose(); else setError(result.error);
+    if (result.ok) { onSaved?.(); onClose(); } else setError(result.error);
   }
   return <FormModal title="Position Change Assessment" description={`${employee.fullName} · ${employee.employeeId}. Riwayat gap untuk posisi lama tetap disimpan.`} onClose={onClose}
     footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Assessment" />}>

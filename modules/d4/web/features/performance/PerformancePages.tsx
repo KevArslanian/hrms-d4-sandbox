@@ -87,7 +87,7 @@ export function PerformanceListPage() {
       <SelectFilter label="All status" testId="all-status" value={progress} onChange={set("status")} options={STATUS_FILTER.map((item) => ({ value: item, label: item }))} />
     </FilterBar>
     <SavedScorecardNotice scorecard={savedScorecard} />
-    <DataTable<Row> rows={rows} noun="employees" rowKey={(row) => row.employee.id}
+    <DataTable<Row> rows={rows} noun="employees" rowKey={(row) => row.employee.id} highlightKey={savedScorecard?.employeeId}
       emptyTitle="Tidak ada pegawai yang cocok" emptyText="Ubah kata kunci atau reset filter untuk melihat semua pegawai."
       columns={[
         { key: "employee", header: "Employee", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },

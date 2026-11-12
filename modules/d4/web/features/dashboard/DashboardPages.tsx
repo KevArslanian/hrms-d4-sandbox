@@ -12,7 +12,7 @@ import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
-import { Card, Notice, slug, statusLabel, StatusBadge } from "../../ui/primitives";
+import { Card, Notice, SavedNotice, slug, statusLabel, StatusBadge } from "../../ui/primitives";
 import { LineComment, targetLabel, weighted } from "../kpi/KpiFormModal";
 import type { DailyCompilation } from "../../../kpi/daily";
 import { HIGH_ABOVE, performanceBand, scaleMaxOf, UNDER_BELOW } from "../../../kpi/scale";
@@ -255,7 +255,9 @@ function AlertsCard({ snapshot, rows, period }: { snapshot: D4LiveSnapshot; rows
   const alerts = dashboardAlerts(snapshot, rows, catalogSet && catalogFor(catalogSet, thisMonth()), period);
   const writer = canWrite(snapshot);
   const [assignFor, setAssignFor] = useState<AssignTarget | null>(null);
+  const [savedNeed, setSavedNeed] = useState<{ needId: string; name: string } | null>(null);
   return <Card title="Alerts" testId="dashboard-alerts">
+    {savedNeed && <div className="mb-3"><SavedNotice text={`Development requirement untuk ${savedNeed.name} tersimpan.`} href={`/development/${savedNeed.needId}`} /></div>}
     {alerts.length ? <ul className="divide-y divide-line">
       {alerts.map((alert) => {
         // W9: nobody assigns training to themselves, so the actor's own row gets no chip.
@@ -278,7 +280,7 @@ function AlertsCard({ snapshot, rows, period }: { snapshot: D4LiveSnapshot; rows
       </li>;
       })}
     </ul> : <p className="text-sm text-ink-3">Tidak ada alert untuk daftar ini.</p>}
-    {assignFor && <DevelopmentFormModal employeeId={assignFor.employeeId} sourceType="performance_context" sourceRef={assignFor.scorecardId} onClose={() => setAssignFor(null)} />}
+    {assignFor && <DevelopmentFormModal employeeId={assignFor.employeeId} sourceType="performance_context" sourceRef={assignFor.scorecardId} onClose={() => setAssignFor(null)} onSaved={(needId) => setSavedNeed({ needId, name: assignFor.name })} />}
   </Card>;
 }
 

@@ -27,7 +27,7 @@ function ResultField({ value, onChange, error, hint = true }: { value: string; o
   </>;
 }
 
-export function TrainingFormModal({ employeeId, developmentNeedId, onClose }: { employeeId?: string; developmentNeedId?: string; onClose: () => void }) {
+export function TrainingFormModal({ employeeId, developmentNeedId, onClose, onSaved }: { employeeId?: string; developmentNeedId?: string; onClose: () => void; onSaved?: (trainingId: string) => void }) {
   const snapshot = useSnapshot();
   const { run, busy } = useD4();
   const [employee, setEmployee] = useState(employeeId ?? "");
@@ -55,7 +55,7 @@ export function TrainingFormModal({ employeeId, developmentNeedId, onClose }: { 
     if (futureDone) { setError("Training yang Completed tidak boleh bertanggal setelah hari ini."); return; }
     setError("");
     const saved = await run((source) => source.createTraining({ employeeId: employee, developmentNeedId: need, activity, date, status, result: status === "Completed" ? result : "", notes }), "Training tersimpan dan terhubung ke development requirement-nya.");
-    if (saved.ok) onClose(); else setError(saved.error);
+    if (saved.ok) { onSaved?.(saved.value); onClose(); } else setError(saved.error);
   }
 
   return <FormModal title="Add Training" description="Training selalu terhubung ke development requirement sebagai sumbernya." onClose={onClose}
@@ -106,7 +106,7 @@ export function LevelLine({ finding, employeeId }: { finding: CompetencyFinding;
  * save, HR's decision: Passed → Meets requirement (closes the requirement), Retraining or Decide later; Not Passed →
  * Retraining or Other follow-up (Q16). A training saved Completed without a decision reopens here from its Next step.
  */
-export function TrainingProgressModal({ trainingId, onClose }: { trainingId: string; onClose: () => void }) {
+export function TrainingProgressModal({ trainingId, onClose, onSaved }: { trainingId: string; onClose: () => void; onSaved?: () => void }) {
   const snapshot = useSnapshot();
   const { run, busy } = useD4();
   const record = trainingById(snapshot, trainingId);
@@ -153,7 +153,7 @@ export function TrainingProgressModal({ trainingId, onClose }: { trainingId: str
     const saved = deciding && !later
       ? await run((source) => source.completeTraining(trainingId, { result: result as TrainingCompletion["result"], decision: decision as TrainingDecision, notes, ...(retraining ? { activity, date } : {}) }), DONE[`${result} · ${decision}`])
       : await run((source) => source.updateTraining(trainingId, status, saveResult, notes), later ? "Training Completed (Passed). Catat hasil reassessment dari Next step di detail training setelah level kompetensinya diperbarui." : "Progres training tersimpan sebagai versi baru.");
-    if (saved.ok) onClose(); else setError(saved.error);
+    if (saved.ok) { onSaved?.(); onClose(); } else setError(saved.error);
   }
 
   return <FormModal title="Update Progress" description={record.activity} onClose={onClose} footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Progress" disabled={unchanged} />}>
