@@ -313,6 +313,9 @@ Tidak dikerjakan karena belum pasti atau bukan milik D4:
   - Migrasi `20261113120000_d4_development_status_from_trainings.sql` menahan aturan yang sama di database untuk penulisan yang melewati aplikasi. Sudah diuji di Postgres 16 lokal (13 kasus), **belum diterapkan**: perlu izin PO.
   - Data live 13 Nov (read-only): 39 requirement, 3 Completed tanpa Meets requirement (ditutup manual dengan aturan lama) dan 4 yang statusnya belum sesuai training. Tidak diubah; yang 4 ikut tersinkron saat training-nya disimpan lagi.
 - **Filter list lebih bersih: search, Period, dan satu tombol Filter.** Di People Dashboard, Performance Review, Competency Gap, Development Requirement, dan Training Tracking, dropdown selain Period pindah ke panel di balik tombol Filter, masing-masing dengan label di atasnya (Departments, Performance, Positions, dan seterusnya) dan pilihan kosong "All". Period tetap di baris sebagai tombol berikon kalender, juga di Daily KPI dan profil pegawai. People Dashboard tetap tanpa "All" pada Period, agar angka dan grafiknya tidak mencampur periode. Saat panel tertutup, filter yang terisi hanya ditandai angka di tombol Filter; Reset filter ada di dalam panel. Filter kategori People Dashboard kini bernama Performance (id Katalon `filter-all-categories` tetap).
+- **Dropdown bisa ditutup dengan menekan tombolnya lagi di Safari dan Firefox (Mac).** Di kedua browser itu tombol yang diklik tidak menerima fokus, sehingga dropdown dengan kotak pencarian (misalnya Period) tertutup lalu langsung terbuka lagi.
+- **People Dashboard pindah ke urutan pertama** di menu HRMS.
+- **Logout dengan konfirmasi.** Tombol tetap berlabel "Logout" (tidak lagi berubah menjadi "Keluar..."). Dialog menanyakan "Apakah Anda yakin ingin logout?"; Iya menampilkan "Logging out..." sampai halaman login terbuka, Tidak menutup dialog.
 
 ## Belum selesai
 
