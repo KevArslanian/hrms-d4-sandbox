@@ -459,6 +459,21 @@ describe("development needs and training", () => {
     expect(res.status).toBe(201);
   });
 
+  // HR (10 Nov 2026): the requirement follows its training, as a revision written after the training's.
+  it("moves the requirement to In Progress when its training starts", async () => {
+    // The sync reads the stored trainings (syncDevelopment reloads the snapshot), so this write is kept like the database does.
+    const stored = vi.spyOn(repository, "updateTraining").mockImplementation(async (...args: unknown[]) => {
+      writes.push({ method: "updateTraining", args });
+      const current = snapshot.trainingVersions.find((item) => item.trainingId === TRAINING)!;
+      snapshot = { ...snapshot, trainingVersions: [...snapshot.trainingVersions, { ...current, id: uuid(12), revision: current.revision + 1, status: "In Progress" }] };
+    });
+    const res = await call(trainingVersions.POST(post({ status: "In Progress", notes: "" }), params(TRAINING)));
+    stored.mockRestore();
+    expect(res.status).toBe(201);
+    expect(writes.map((item) => item.method)).toEqual(["updateTraining", "updateDevelopment"]);
+    expect(writes[1].args).toEqual([NEED, expect.objectContaining({ status: "In Progress", reassessment: null }), expect.objectContaining({ status: "Planned" })]);
+  });
+
   it("requires a reason when training moves back", async () => {
     snapshot = { ...snapshot, trainingVersions: [...snapshot.trainingVersions, { ...snapshot.trainingVersions.find((item) => item.trainingId === TRAINING)!, id: uuid(11), revision: 2, status: "Completed", result: "Lulus" }] };
     const bad = await call(trainingVersions.POST(post({ status: "Planned" }), params(TRAINING)));

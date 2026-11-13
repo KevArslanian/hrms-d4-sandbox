@@ -132,9 +132,9 @@ export function TrainingProgressModal({ trainingId, onClose, onSaved }: { traini
   const retraining = deciding && decision === "Retraining", other = deciding && decision === "Other follow-up";
   const later = deciding && decision === LATER;
   const options = result === "Passed" ? [
-    { value: "Meets requirement", label: "Meets requirement", description: blocked ? "Belum bisa: level kompetensinya di Competency Gap belum memenuhi." : "Gap tertutup. Requirement ditutup (Completed).", testId: "meets-requirement", disabled: Boolean(blocked) },
+    { value: "Meets requirement", label: "Meets requirement", description: blocked ? "Belum bisa: level kompetensinya belum memenuhi. Perbarui dulu di data kompetensi pegawai (modul D3)." : "Gap tertutup. Requirement ditutup (Completed).", testId: "meets-requirement", disabled: Boolean(blocked) },
     { value: "Retraining", label: "Retraining", description: "Gap belum tertutup. Requirement dibuka lagi dan training ulang dibuat (Planned)." },
-    { value: LATER, label: LATER, description: "Hasil Passed disimpan sekarang. Keputusan dicatat nanti dari Next step, setelah level kompetensinya diperbarui.", testId: "decide-later" },
+    { value: LATER, label: LATER, description: "Hasil Passed disimpan sekarang. Keputusan dicatat nanti dari Next step, setelah level di data kompetensi pegawai (modul D3) diperbarui.", testId: "decide-later" },
   ] : FOLLOW_UP_OPTIONS;
   const saveResult = status === "Completed" ? result : "";
   const sameResult = status === record.status && saveResult === record.result;
@@ -152,7 +152,7 @@ export function TrainingProgressModal({ trainingId, onClose, onSaved }: { traini
     setError("");
     const saved = deciding && !later
       ? await run((source) => source.completeTraining(trainingId, { result: result as TrainingCompletion["result"], decision: decision as TrainingDecision, notes, ...(retraining ? { activity, date } : {}) }), DONE[`${result} · ${decision}`])
-      : await run((source) => source.updateTraining(trainingId, status, saveResult, notes), later ? "Training Completed (Passed). Catat hasil reassessment dari Next step di detail training setelah level kompetensinya diperbarui." : "Progres training tersimpan sebagai versi baru.");
+      : await run((source) => source.updateTraining(trainingId, status, saveResult, notes), later ? "Training Completed (Passed). Catat hasil reassessment dari Next step setelah level di data kompetensi pegawai (modul D3) diperbarui." : "Progres training tersimpan sebagai versi baru.");
     if (saved.ok) { onSaved?.(); onClose(); } else setError(saved.error);
   }
 

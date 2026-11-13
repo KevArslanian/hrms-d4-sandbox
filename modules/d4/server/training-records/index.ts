@@ -65,7 +65,8 @@ export async function addTrainingVersion(request: Request, id: string) {
   const status = field.oneOf(body, "status", statuses);
   const result = completedResult(body, status);
   const notes = field.text(body, "notes", { required: false, max: 2000 });
-  const current = latestTraining(await repository.loadSnapshot()).find((item) => item.trainingId === id);
+  const snapshot = await repository.loadSnapshot();
+  const current = latestTraining(snapshot).find((item) => item.trainingId === id);
   if (!current) throw new ApiError("NOT_FOUND", "Training tidak ditemukan.");
   enforce(() => assertNotSelf(access.employeeId, current.employeeId));
   enforce(() => assertTrainingChange(current.status, status, notes));
@@ -99,7 +100,8 @@ export async function recordTrainingFollowUp(request: Request, id: string) {
  * POST /api/d4/training-records/:id/complete — the one save of Training Tracking that finishes a training: the result
  * and HR's decision (Passed: Meets requirement or Retraining; Not Passed: Retraining or Other follow-up). Every rule
  * is checked before the first write. Writes follow this order so the histories read correctly: the training version,
- * a competency snapshot (Passed), the requirement revision (Passed), then the Retraining training. Not one transaction:
+ * a competency snapshot (Passed), the requirement revision (Passed decision, or In Progress after Not Passed), then the
+ * Retraining training (Not Passed: before the requirement revision, inside recordTrainingFollowUp). Not one transaction:
  * a failure part-way keeps the earlier records and the training page shows the step that is still open.
  */
 export async function completeTraining(request: Request, id: string) {
