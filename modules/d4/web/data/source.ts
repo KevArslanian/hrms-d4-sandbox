@@ -43,6 +43,8 @@ export interface D4DataSource {
   saveCompetency(input: { employeeId: string; positionId: string; effectiveDate: string; assessedWith?: string }): Promise<string>;
   createDevelopment(input: DevelopmentDraft): Promise<string>;
   updateDevelopment(needId: string, status: DevelopmentStatus, notes: string, edit?: DevelopmentEdit): Promise<void>;
+  /** Path B (13 Nov 2026): a Competency Gap requirement with no open training closes once the level is met. */
+  closeDevelopment(needId: string): Promise<void>;
   createTraining(input: TrainingDraft): Promise<string>;
   updateTraining(trainingId: string, status: TrainingStatus, result: string, notes: string): Promise<void>;
   /** Result and HR's decision in one save (Training Tracking); returns the new training id for Retraining, else null. */

@@ -292,6 +292,44 @@ export type TrainingCompletion = { result: typeof TRAINING_RESULTS[number]; deci
 
 type LevelFinding = Pick<CompetencyFinding, "competencyName" | "requiredLevel" | "actualLevel" | "status">;
 
+/**
+ * Decision 13 Nov 2026: a requirement's progress has one writer, Training Tracking. Its status follows its activities
+ * (training, coaching, mentoring: anything recorded there) in the current round, i.e. after the last Retraining;
+ * Cancelled ones never count. Completed is never derived: it needs evidence (Meets requirement after a passed
+ * training, or the gap met, see closeGapBlockedReason). supabase/migrations/20261113120000 checks the same table.
+ */
+export function statusFromTrainings(trainings: readonly TrainingOutcome[], needId: string, since?: string): Exclude<DevelopmentStatus, "Completed"> {
+  const round = trainings.filter((item) => item.developmentNeedId === needId && item.status !== "Cancelled" && (!since || item.createdAt > since));
+  if (!round.length) return "Identified";
+  return round.every((item) => item.status === "Planned") ? "Planned" : "In Progress";
+}
+
+/** The revision that brings a requirement in line with its trainings, or null when it already is or is Completed. */
+export function trainingSyncRevision(need: DevelopmentNeedVersion, latestTrainings: readonly TrainingOutcome[], history: readonly DevelopmentNeedVersion[]): DevelopmentRevision | null {
+  if (need.status === "Completed") return null;
+  const status = statusFromTrainings(latestTrainings, need.needId, retrainedAt(history.length ? history : [need]));
+  if (status === need.status) return null;
+  return { status, notes: "Mengikuti Training Tracking.", priority: need.priority, method: need.method ?? "", pic: need.pic ?? "", reassessment: null };
+}
+
+/**
+ * Path B of the decision of 13 Nov 2026: a Competency Gap requirement closes without a training once the live
+ * comparison shows the level met (e.g. after coaching, or the level was updated in D3). "" when it may close.
+ * `finding` is that requirement on the employee's current position; undefined when it is not part of it.
+ */
+export function closeGapBlockedReason(need: Pick<DevelopmentNeedVersion, "sourceType" | "status">, finding: LevelFinding | undefined, openTrainings: number): string {
+  if (need.sourceType !== "competency_gap") return "Hanya requirement dari Competency Gap yang bisa ditutup dengan bukti level; yang lain diselesaikan lewat Training Tracking.";
+  if (need.status === "Completed") return "Requirement sudah Completed.";
+  if (openTrainings > 0) return "Masih ada training Planned atau In Progress; selesaikan lewat Training Tracking.";
+  if (!finding) return "Persyaratan ini bukan bagian dari posisi pegawai saat ini.";
+  if (finding.status !== "Terpenuhi") return `${finding.competencyName}: level saat ini ${finding.actualLevel ?? "belum tercatat"}, required ${finding.requiredLevel}.`;
+  return "";
+}
+
+/** The note a path B closure carries, naming its evidence. */
+export const closeGapNotes = (finding: LevelFinding, day: string) =>
+  `Gap terpenuhi tanpa training: ${finding.competencyName} level ${finding.actualLevel}, required ${finding.requiredLevel} (data kompetensi per ${day}).`;
+
 /** Why Meets requirement is not available yet for a gap-based requirement, or "" when it is. */
 export const meetsBlockedReason = (finding: LevelFinding | undefined) => finding && finding.status !== "Terpenuhi"
   ? `${finding.competencyName}: level saat ini ${finding.actualLevel ?? "belum tercatat"}, required ${finding.requiredLevel}. Meets requirement bisa dipilih setelah level di data kompetensi (D3) memenuhi.`

@@ -24,7 +24,7 @@ const uiWrites: [string, (source: D4DataSource) => Promise<unknown>][] = [
   ["Competency Gap: Save Assessment", (source) => source.saveCompetency({ employeeId: "e1", positionId: "p1", effectiveDate: "2026-11-10" })],
   ["Competency Gap: Assess Position Change → Save Assessment", (source) => source.saveCompetency({ employeeId: "e1", positionId: "p2", effectiveDate: "2026-11-10", assessedWith: "Atasan" })],
   ["Development: Add Requirement → Save Requirement", (source) => source.createDevelopment(development)],
-  ["Development: Update Status → Save Status", (source) => source.updateDevelopment("n1", "Planned", "")],
+  ["Development: Close as Met → Close Requirement", (source) => source.closeDevelopment("n1")],
   ["Development: Edit Requirement → Save Changes", (source) => source.updateDevelopment("n1", "Planned", "", { priority: "High", method: "Coaching", pic: "HR" })],
   ["Training: Create Training → Save Training", (source) => source.createTraining(training)],
   ["Training: Update Progress → Save Progress", (source) => source.updateTraining("t1", "In Progress", "", "")],

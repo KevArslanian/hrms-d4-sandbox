@@ -5,7 +5,7 @@ import { scaleMaxOf } from "../../kpi/scale";
 import { performanceFixtureRecords } from "../../performance/fixtures";
 import { validatePerformanceInput } from "../../performance/validation";
 import { d4ReferenceFixture } from "../../shared/fixtures";
-import { assertDailyDate, assertGapAssessed, assertPicFilled, canFillDaily, localMonth, localToday, assertTrainingDate, assertNeedOpen, assertNoOpenNeed, assertTrainingResult, assertNotFutureDate, assertEvaluationInPeriod, assertNotSelf, assertPeriodRevision, assertTrainingChange, nextDevelopmentRevision, planTrainingCompletion, retrainingNotes } from "../../shared/rules";
+import { assertDailyDate, assertGapAssessed, assertPicFilled, canFillDaily, closeGapBlockedReason, closeGapNotes, openTrainingCount, trainingSyncRevision, localMonth, localToday, assertTrainingDate, assertNeedOpen, assertNoOpenNeed, assertTrainingResult, assertNotFutureDate, assertEvaluationInPeriod, assertNotSelf, assertPeriodRevision, assertTrainingChange, nextDevelopmentRevision, planTrainingCompletion, retrainingNotes } from "../../shared/rules";
 import type { D4LiveSnapshot, KpiAssessment, KpiAssessmentLine, KpiDailyEntry } from "../../supabase/types";
 import { latestDevelopment, latestTraining } from "../../supabase/types";
 import { trainingFixtureVersions } from "../../training/fixtures";
@@ -163,6 +163,12 @@ export function createFixtureSource(): D4DataSource {
   const assertWriter = () => { if (state.role !== "HR" && state.role !== "MANAGER") throw new Error("Hanya HR atau manager yang dapat menyimpan perubahan."); };
   // The evaluator is always the signed-in actor, never a free-text value from the form.
   const actorName = () => state.reference.employees.find((item) => item.id === state.actorEmployeeId)?.fullName ?? "HR";
+  // Mirrors syncDevelopment in server/training-records: Training Tracking is the one writer of a requirement's progress (13 Nov 2026).
+  const syncDevelopment = (needId: string) => {
+    const need = latestDevelopment(state).find((item) => item.needId === needId);
+    const next = need && trainingSyncRevision(need, latestTraining(state), state.developmentVersions.filter((item) => item.needId === needId));
+    if (need && next) update({ developmentVersions: [{ ...need, ...next, id: newId("FIX-D4-DEV-V"), revision: need.revision + 1, createdAt: now(), actor: actorName() }, ...state.developmentVersions] });
+  };
   return {
     mode: "fixture",
     async loadSnapshot() { await delay(); return state.role === "EMPLOYEE" ? ownRecords(state) : state; },
@@ -253,6 +259,7 @@ export function createFixtureSource(): D4DataSource {
       const current = needs.find((item) => item.needId === needId);
       if (!current) throw new Error("Development requirement tidak ditemukan.");
       assertNotSelf(state.actorEmployeeId, current.employeeId);
+      if (status !== current.status || edit?.reassessment) throw new Error("Status requirement mengikuti Training Tracking. Ubah progres di training-nya, atau tutup dengan bukti level lewat Close as Met.");
       assertPicFilled(edit?.pic);
       // The spread carries priority/method/PIC forward; reassessment belongs to the revision that records it.
       const next = nextDevelopmentRevision(current, { ...edit, status, notes }, needs, latestTraining(state), state.developmentVersions.filter((item) => item.needId === needId));
@@ -268,6 +275,7 @@ export function createFixtureSource(): D4DataSource {
       assertTrainingResult(input.status, input.result);
       const trainingId = newId("FIX-D4-TRN");
       update({ trainingVersions: [{ ...input, id: newId("FIX-D4-TRN-V"), trainingId, revision: 1, source: "local-demo", createdAt: now(), actor: actorName() }, ...state.trainingVersions] });
+      syncDevelopment(input.developmentNeedId);
       return trainingId;
     },
     async updateTraining(trainingId, status, result, notes) {
@@ -279,6 +287,7 @@ export function createFixtureSource(): D4DataSource {
       assertTrainingChange(current.status, status, notes);
       // A follow-up belongs to the version that records it (followUpOf reads the history), as in Supabase.
       update({ trainingVersions: [{ ...current, id: newId("FIX-D4-TRN-V"), revision: current.revision + 1, status, result, notes, followUp: null, createdAt: now(), actor: actorName() }, ...state.trainingVersions] });
+      syncDevelopment(current.developmentNeedId);
     },
     // Mirrors POST /api/d4/training-records/:id/complete in one update; the timestamps keep the server's write order.
     async completeTraining(trainingId, input) {
@@ -306,7 +315,23 @@ export function createFixtureSource(): D4DataSource {
       if (retrainingId) trainingVersions.unshift({ ...current, id: newId("FIX-D4-TRN-V"), trainingId: retrainingId, revision: 1, source: "local-demo", activity: (input.activity ?? "").trim(), date: input.date ?? "",
         status: "Planned", result: "", notes: retrainingNotes(current, input.notes, input.result), followUp: null, createdAt: at(3), actor });
       update({ trainingVersions, developmentVersions, competency });
+      syncDevelopment(current.developmentNeedId);
       return retrainingId;
+    },
+    // Mirrors POST /api/d4/development-needs/:id/close (path B, 13 Nov 2026).
+    async closeDevelopment(needId) {
+      assertWriter();
+      const needs = latestDevelopment(state);
+      const need = needs.find((item) => item.needId === needId);
+      if (!need) throw new Error("Development requirement tidak ditemukan.");
+      assertNotSelf(state.actorEmployeeId, need.employeeId);
+      const employee = state.reference.employees.find((item) => item.id === need.employeeId);
+      const finding = employee?.positionId ? compareCompetencies(employee.id, employee.positionId, state.reference).findings.find((item) => item.requirementId === need.sourceRef) : undefined;
+      const blocked = closeGapBlockedReason(need, finding, openTrainingCount(latestTraining(state), needId));
+      if (blocked || !finding) throw new Error(blocked);
+      const next = nextDevelopmentRevision(need, { status: "Completed", notes: closeGapNotes(finding, localToday()), reassessment: "Meets requirement" }, needs, latestTraining(state),
+        state.developmentVersions.filter((item) => item.needId === needId));
+      update({ developmentVersions: [{ ...need, ...next, id: newId("FIX-D4-DEV-V"), revision: need.revision + 1, createdAt: now(), actor: actorName() }, ...state.developmentVersions] });
     },
   };
 }

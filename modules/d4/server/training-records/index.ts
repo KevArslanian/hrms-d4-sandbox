@@ -1,11 +1,24 @@
 import { compareCompetencies } from "../../competency/service";
 import type { TrainingFollowUp, TrainingStatus } from "../../training/types";
-import { assertNeedOpen, assertNotSelf, assertTrainingChange, assertTrainingDate, assertTrainingFollowUp, localToday, planTrainingCompletion, retrainingNotes, TRAINING_DECISIONS, TRAINING_FOLLOW_UPS, TRAINING_RESULTS } from "../../shared/rules";
+import { assertNeedOpen, assertNotSelf, assertTrainingChange, trainingSyncRevision, assertTrainingDate, assertTrainingFollowUp, localToday, planTrainingCompletion, retrainingNotes, TRAINING_DECISIONS, TRAINING_FOLLOW_UPS, TRAINING_RESULTS } from "../../shared/rules";
 import { latestDevelopment, latestTraining } from "../../supabase/types";
 import { ApiError, employeeFilter, enforce, field, readJson } from "../_lib/http";
 import { d4Session, requireWriter } from "../_lib/session";
 
 const statuses: readonly TrainingStatus[] = ["Planned", "In Progress", "Completed", "Cancelled"];
+
+type Repository = Awaited<ReturnType<typeof requireWriter>>["repository"];
+
+/**
+ * Decision 13 Nov 2026: Training Tracking is the one writer of a requirement's progress. After each training write the
+ * requirement takes the status its trainings give it (statusFromTrainings); a Completed requirement is left alone.
+ */
+async function syncDevelopment(repository: Repository, needId: string) {
+  const snapshot = await repository.loadSnapshot();
+  const need = latestDevelopment(snapshot).find((item) => item.needId === needId);
+  const next = need && trainingSyncRevision(need, latestTraining(snapshot), snapshot.developmentVersions.filter((item) => item.needId === needId));
+  if (need && next) await repository.updateDevelopment(needId, next, need);
+}
 
 /** Only a completed training has a result, and it is Passed or Not Passed. */
 const completedResult = (body: Record<string, unknown>, status: TrainingStatus) => status === "Completed" ? field.oneOf(body, "result", TRAINING_RESULTS) : "";
@@ -40,7 +53,9 @@ export async function createTraining(request: Request) {
   const snapshot = await repository.loadSnapshot();
   enforce(() => assertNeedOpen(latestDevelopment(snapshot).find((item) => item.needId === input.developmentNeedId)));
   enforce(() => assertTrainingDate(input.status, input.date));
-  return { id: await repository.createTraining(input, snapshot) };
+  const id = await repository.createTraining(input, snapshot);
+  await syncDevelopment(repository, input.developmentNeedId);
+  return { id };
 }
 
 /** POST /api/d4/training-records/:id/versions — progress update as a new version. Completion never closes a gap. */
@@ -55,6 +70,7 @@ export async function addTrainingVersion(request: Request, id: string) {
   enforce(() => assertNotSelf(access.employeeId, current.employeeId));
   enforce(() => assertTrainingChange(current.status, status, notes));
   await repository.updateTraining(id, status, result, notes);
+  await syncDevelopment(repository, current.developmentNeedId);
   return { trainingId: id, status };
 }
 
@@ -74,7 +90,9 @@ export async function recordTrainingFollowUp(request: Request, id: string) {
   if (!history.length) throw new ApiError("NOT_FOUND", "Training tidak ditemukan.");
   enforce(() => assertNotSelf(access.employeeId, history[0].employeeId));
   enforce(() => assertTrainingFollowUp(history, input, latestDevelopment(snapshot).find((item) => item.needId === history[0].developmentNeedId)));
-  return { trainingId: id, followUp, retrainingId: await repository.recordTrainingFollowUp(id, input, snapshot) };
+  const retrainingId = await repository.recordTrainingFollowUp(id, input, snapshot);
+  await syncDevelopment(repository, history[0].developmentNeedId);
+  return { trainingId: id, followUp, retrainingId };
 }
 
 /**
@@ -106,6 +124,7 @@ export async function completeTraining(request: Request, id: string) {
   });
   if (plan.training === "follow-up") {
     const retrainingId = await repository.recordTrainingFollowUp(id, { followUp: decision as TrainingFollowUp, notes: input.notes, activity: input.activity, date: input.date }, snapshot);
+    await syncDevelopment(repository, record.developmentNeedId);
     return { trainingId: id, result: input.result, decision, retrainingId };
   }
   if (plan.training === "version") await repository.updateTraining(id, "Completed", "Passed", input.notes);
@@ -115,5 +134,7 @@ export async function completeTraining(request: Request, id: string) {
   if (plan.development && need) await repository.updateDevelopment(need.needId, plan.development, need);
   const retrainingId = plan.retraining ? await repository.createTraining({ employeeId: record.employeeId, developmentNeedId: record.developmentNeedId,
     activity: input.activity ?? "", date: input.date ?? "", status: "Planned", result: "", notes: retrainingNotes(record, input.notes, "Passed") }, snapshot) : null;
+  // A decision written above already set the status; this covers a Passed training whose decision is left for later.
+  await syncDevelopment(repository, record.developmentNeedId);
   return { trainingId: id, result: input.result, decision, retrainingId };
 }
