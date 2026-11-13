@@ -5,7 +5,6 @@ import { allTopScores, bandRun, dailyEntriesOf } from "../../../kpi/daily";
 import { HIGH_ABOVE, performanceBand, scaleMaxOf, UNDER_BELOW, type PerformanceBand } from "../../../kpi/scale";
 import { completedAt, followUpOf, isDirectorPosition, localMonth, localToday, retrainedAt } from "../../../shared/rules";
 import type { EmployeeReference } from "../../../shared/types";
-import type { PositionReference } from "../../../shared/types/reference-data";
 import type { KpiAssessment } from "../../../supabase/types";
 import { currentGap, developmentHistory, formatDate, formatPeriod, formatScorecard, needsOf, pendingCompilation, positionById, positionTitle, revisionChanges, scorecardsOf, trainingHistory, trainingsOf, type Snapshot } from "../../data/selectors";
 import type { TimelineEntry } from "../../ui/layout";
@@ -95,22 +94,6 @@ export type DashboardFilters = { band: string; competency: string; training: str
  */
 export const matchesDashboardFilters = (row: DashboardRow & { training?: string }, filters: DashboardFilters) =>
   (!filters.band || bandOf(row) === filters.band) && (!filters.competency || statusLabel(row.gap) === filters.competency) && (!filters.training || row.training === filters.training);
-
-export const JOB_LEVELS = ["Staff", "Manager", "Director"] as const;
-export type JobLevel = (typeof JOB_LEVELS)[number];
-
-/**
- * B20 (interview D4, 14 Oct 2026, 00:59:37): the pages must inform HR staff, HR managers and HR directors. Positions
- * have no level column, so the level follows the code segments the role mapping already uses (DIR-* directors,
- * *-MGR managers), with the title as fallback. An assumption to confirm with the client.
- */
-export function jobLevel(position?: Pick<PositionReference, "code" | "title"> | null): JobLevel | null {
-  if (!position) return null;
-  const segments = position.code.toUpperCase().split("-");
-  if (segments.includes("DIR") || /director|commissioner/i.test(position.title)) return "Director";
-  if (segments.includes("MGR") || /manager/i.test(position.title)) return "Manager";
-  return "Staff";
-}
 
 /** Open gap findings of assessed rows; "Not Evaluated" rows are skipped so the bars match the competency donut. */
 function gapFindings(snapshot: Snapshot, row: DashboardRow) {

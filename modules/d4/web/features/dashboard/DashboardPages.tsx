@@ -16,7 +16,7 @@ import { Card, Notice, SavedNotice, slug, statusLabel, StatusBadge } from "../..
 import { LineComment, targetLabel, weighted } from "../kpi/KpiFormModal";
 import type { DailyCompilation } from "../../../kpi/daily";
 import { HIGH_ABOVE, performanceBand, scaleMaxOf, UNDER_BELOW } from "../../../kpi/scale";
-import { averageScores, BANDS, COMPETENCY_ORDER, competencySlices, dashboardAlerts, defaultPeriod, employeeHistory, gapRanking, JOB_LEVELS, jobLevel, matchesDashboardFilters, openNeedCount, performanceSlices, profilePeriod, reviewCounts, validScorecard, withoutKpiRole, type AssignTarget, type DashboardRow, type Slice } from "./summary";
+import { averageScores, BANDS, COMPETENCY_ORDER, competencySlices, dashboardAlerts, defaultPeriod, employeeHistory, gapRanking, matchesDashboardFilters, openNeedCount, performanceSlices, profilePeriod, reviewCounts, validScorecard, withoutKpiRole, type AssignTarget, type DashboardRow, type Slice } from "./summary";
 import { DevelopmentFormModal } from "../development/DevelopmentModals";
 import { useUrlFilters } from "./url-filters";
 
@@ -46,7 +46,7 @@ export function DashboardPage() {
 function PeopleDashboard() {
   const snapshot = useSnapshot();
   const { catalog: catalogSet } = useD4();
-  const { values: { q: search, position, department, level, period, band, competency, training }, set, reset } = useUrlFilters(["q", "position", "department", "level", "period", "band", "competency", "training"]);
+  const { values: { q: search, position, department, period, band, competency, training }, set, reset } = useUrlFilters(["q", "position", "department", "period", "band", "competency", "training"]);
   const periods = useMemo(() => [...new Set([...(snapshot.kpiAssessments ?? []), ...snapshot.performance, ...(snapshot.kpiDaily ?? [])].map((item) => item.period))].sort().reverse(), [snapshot]);
   const shown = period || defaultPeriod(periods);
   const catalog = useMemo(() => catalogSet && shown ? catalogFor(catalogSet, shown) : null, [catalogSet, shown]);
@@ -67,9 +67,9 @@ function PeopleDashboard() {
       trainingInProgress: employeeTrainings.some((item) => item.status === "In Progress"),
     };
   }).filter((row) => includesText(employeeSearchText(snapshot, row.employee), search) && (!position || row.employee.positionId === position) && (!department || row.employee.departmentId === department)
-    && (!level || jobLevel(positionOf(snapshot, row.employee)) === level) && matchesDashboardFilters(row, { band, competency, training }))
+    && matchesDashboardFilters(row, { band, competency, training }))
     // Compiled (waiting for HR) first, then without a Performance Review for the period, then reviewed.
-    .sort(byProgress((row) => row.compiled ? 0 : row.scorecard ? 2 : 1, (row) => row.employee.fullName)), [snapshot, search, position, department, level, shown, band, competency, training]);
+    .sort(byProgress((row) => row.compiled ? 0 : row.scorecard ? 2 : 1, (row) => row.employee.fullName)), [snapshot, search, position, department, shown, band, competency, training]);
 
   const noKpi = withoutKpiRole(snapshot, rows, catalog).length;
   const profileHref = (row: Row) => `/dashboard/employee/${row.employee.id}${row.period ? `?period=${row.period}` : ""}`;
@@ -77,14 +77,13 @@ function PeopleDashboard() {
   return <>
     <PageHeader title="People Dashboard" subtitle="KPI, performance, gap kompetensi, development, dan training per pegawai untuk periode yang sama." />
     {/* The dashboard always shows one period, so there is no "All" choice (decision 13 Nov 2026); it starts on the latest one that has started. */}
-    <FilterBar canReset={Boolean(search || position || department || level || period || band || competency || training)} onReset={reset}
+    <FilterBar canReset={Boolean(search || position || department || period || band || competency || training)} onReset={reset}
       search={<SearchInput value={search} onChange={set("q")} placeholder="Search name or position" />}
       period={<PeriodFilter label="Period" testId="latest-period" emptyOption={false} value={shown} onChange={set("period")} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />}>
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label="Departments" testId="all-departments" value={department} onChange={set("department")} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />}
       {/* FR-D4-004 B: performance category (1–100 scorecards only); the Katalon id keeps the old "categories" name. */}
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label="Performance" testId="all-categories" value={band} onChange={set("band")} options={BANDS.map((item) => ({ value: item, label: item }))} />}
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label="Positions" testId="all-positions" value={position} onChange={set("position")} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />}
-      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="Levels" testId="all-levels" value={level} onChange={set("level")} options={JOB_LEVELS.map((item) => ({ value: item, label: item }))} />}
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label="Competency status" testId="all-competency-status" value={competency} onChange={set("competency")} options={COMPETENCY_ORDER.map((item) => ({ value: item, label: item }))} />}
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label="Training status" testId="all-training-status" value={training} onChange={set("training")} options={["Planned", "In Progress", "Completed", "Cancelled"].map((item) => ({ value: item, label: statusLabel(item) }))} />}
     </FilterBar>
