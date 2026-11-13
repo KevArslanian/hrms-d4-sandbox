@@ -139,6 +139,21 @@ describe("large tables", () => {
 });
 
 
+describe("recorded-by name", () => {
+  it("names a visible actor, and shows HR/Manager for one RLS hides from an employee instead of an id fragment", async () => {
+    const me = { id: "emp-1", employee_id: "CCR-011", full_name: "Emma Watson", position_id: null, department_id: null };
+    const version = (id: string, actor: string) => ({ id, development_need_id: "n", revision: id === "v2" ? 2 : 1, status: "Planned", notes: "", actor_employee_id: actor, created_at: `2026-10-0${id.slice(1)}T08:00:00.000Z` });
+    const { client } = fakeClient({
+      "d4_user_access:select": { data: { app_role: "EMPLOYEE", employee_id: me.id }, error: null },
+      "d4_employee:select": { data: [me], error: null },
+      "d4_development_needs:select": { data: [{ id: "n", employee_id: me.id, source_type: "competency_gap", position_requirement_id: "r", competency_assessment_id: null, performance_evaluation_id: null, objective: "Uji", priority: "Medium" }], error: null },
+      "d4_development_need_versions:select": { data: [version("v2", "3ac5b219-0000-4000-8000-000000000000"), version("v1", me.id)], error: null },
+    });
+    const versions = (await new SupabaseD4Repository(client).loadSnapshot()).developmentVersions;
+    expect(versions.map((item) => item.actor)).toEqual(["HR/Manager", "Emma Watson"]);
+  });
+});
+
 // Code ships before migration 20261019120000: the new columns are sent only when they carry a value.
 describe("development revision and co-assessor columns", () => {
   const versionTable = { "d4_development_need_versions:select": { data: { revision: 2 }, error: null }, "d4_development_need_versions:insert": { data: { id: "v" }, error: null } };

@@ -21,6 +21,15 @@ export const D4_MENU = [
   { href: "/dashboard", label: "People Dashboard" },
 ] as const;
 
+// An employee only ever sees their own data, so the team lists are left out: /dashboard is their own profile.
+const EMPLOYEE_MENU = [
+  { href: "/dashboard", label: "My Performance" },
+  { href: "/daily-kpi", label: "Daily KPI" },
+] as const;
+
+// No items until the role is known, or an employee briefly sees the HR menu while the snapshot loads.
+const menuFor = (role: string | undefined): readonly { href: string; label: string }[] => !role ? [] : role === "EMPLOYEE" ? EMPLOYEE_MENU : D4_MENU;
+
 const roleLabel: Record<string, string> = { HR: "HR", MANAGER: "Manager", MANAGEMENT: "Management", EMPLOYEE: "Employee" };
 
 const LOGO_URL = "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-ANDIMA-wzx4gpZx20EFE5IYcH3jqabixELIo3.png";
@@ -33,7 +42,7 @@ const OTHER_MODULES = [{ label: "POS", icon: Store }, { label: "CRM", icon: Cont
 function Sidebar({ onNavigate, onClose }: { onNavigate: () => void; onClose: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { mode } = useD4();
+  const { mode, snapshot } = useD4();
   const [hrmsOpen, setHrmsOpen] = useState(true);
   const [signingOut, setSigningOut] = useState(false);
 
@@ -69,7 +78,7 @@ function Sidebar({ onNavigate, onClose }: { onNavigate: () => void; onClose: () 
         <ChevronDown aria-hidden="true" size={16} className={cx("transition-transform", hrmsOpen ? "rotate-0" : "-rotate-90")} />
       </button>
       {hrmsOpen && <div className="ml-5 space-y-1.5 border-l border-[#d9e2fc]/40 py-2 pl-1.5">
-        {D4_MENU.map((item) => {
+        {menuFor(snapshot?.role).map((item) => {
           const active = isActive(item.href);
           return <Link key={item.href} href={item.href} data-testid={`nav-${slug(item.label)}`} onClick={onNavigate} aria-current={active ? "page" : undefined}
             className={cx("flex items-center gap-2 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors",
@@ -185,7 +194,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { snapshot, mode } = useD4();
   const [menuOpen, setMenuOpen] = useState(false);
-  const current = D4_MENU.find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
+  // Detail pages outside the employee menu (opened from "View source") still get their section name.
+  const current = !snapshot ? undefined : [...menuFor(snapshot.role), ...D4_MENU].find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
   const actor = snapshot?.reference.employees.find((item) => item.id === snapshot.actorEmployeeId);
   const name = actor?.fullName ?? "—";
 
