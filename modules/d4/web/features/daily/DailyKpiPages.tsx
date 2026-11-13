@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { compileDaily, dailyEntriesOf, type DailyCompilation } from "../../../kpi/daily";
 import { catalogFor, indicatorsFor, KPI_TARGET, roleForPosition, targetOf } from "../../../kpi/catalog";
-import { performanceBand, scaleMaxOf } from "../../../kpi/scale";
+import { aboveScale, performanceBand, scaleMaxOf } from "../../../kpi/scale";
 import { canFillDaily } from "../../../shared/rules";
 import type { EmployeeReference } from "../../../shared/types";
 import type { KpiAssessment, KpiDailyEntry } from "../../../supabase/types";
@@ -146,7 +146,7 @@ function MyDailyKpi({ team }: { team: boolean }) {
                 {/* Text, not type="number": the browser would read "1e2" as 100 and hide what was typed. */}
                 <input ref={(element) => { scoreInputs.current[index] = element; }} type="text" inputMode="numeric" autoComplete="off" data-testid={`input-daily-score-${row.indicator_order}`} aria-label={`Score ${row.kpi_name}`}
                   aria-invalid={Boolean(problem)} aria-describedby={problem ? `daily-score-error-${row.indicator_order}` : undefined}
-                  value={lines[index].score} onChange={(event) => setLine(index, { score: event.target.value })} className={`mt-1 tabular-nums ${input}`} />
+                  value={lines[index].score} onChange={(event) => { if (!aboveScale(event.target.value, max)) setLine(index, { score: event.target.value }); }} className={`mt-1 tabular-nums ${input}`} />
               </label>
               <p className="text-xs font-semibold text-ink-3">Gap<span data-testid={`daily-gap-${row.indicator_order}`} className="mt-1 block text-sm tabular-nums text-ink-2">{scores[index] !== null ? formatGap(scores[index], catalog.version) : "—"}</span></p>
               <label className="col-span-2 block text-xs font-semibold text-ink-3 sm:col-span-1">Comment
