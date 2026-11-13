@@ -67,3 +67,27 @@ export function finalizeDate(period: string, today = localToday()): string {
   const [year, month] = period.split("-").map(Number);
   return `${period}-${String(new Date(Date.UTC(year, month, 0)).getUTCDate()).padStart(2, "0")}`;
 }
+
+/** One saved row of the daily history: its revision for that day, the row it replaced, and how many rows the day has. */
+export interface DailyHistoryItem {
+  readonly entry: KpiDailyEntry;
+  readonly revision: number;
+  readonly previous?: KpiDailyEntry;
+  readonly versions: number;
+}
+
+/**
+ * Every saved row of one employee and period, corrections included, newest day first and newest save first within a
+ * day (R1, lecturer review 10 Nov 2026). `dailyEntriesOf` keeps only the newest row of a day; this keeps all of them.
+ */
+export function dailyHistoryOf(entries: readonly KpiDailyEntry[], employeeId: string, period: string): DailyHistoryItem[] {
+  const own = entries.filter((entry) => entry.employeeId === employeeId && entry.period === period)
+    .sort((a, b) => a.entryDate.localeCompare(b.entryDate) || a.createdAt.localeCompare(b.createdAt));
+  const byDay = new Map<string, KpiDailyEntry[]>();
+  for (const entry of own) byDay.set(entry.entryDate, [...(byDay.get(entry.entryDate) ?? []), entry]);
+  return own.map((entry) => {
+    const day = byDay.get(entry.entryDate)!;
+    const at = day.indexOf(entry);
+    return { entry, revision: at + 1, previous: at ? day[at - 1] : undefined, versions: day.length };
+  }).sort((a, b) => b.entry.entryDate.localeCompare(a.entry.entryDate) || b.entry.createdAt.localeCompare(a.entry.createdAt));
+}

@@ -79,7 +79,7 @@ export function periodChange(catalogSet: KpiCatalogSet | null, from: string, to:
 const FUTURE_PERIOD = "Period belum dimulai. Performance Review hanya untuk periode yang sudah berjalan.";
 
 /** The saved score under an Actual field: "Saved: 78", or "78 → 80" once it differs, in words and not only in colour. */
-function SavedScore({ before, now, testId }: { before: number | null; now: number | null; testId: string }) {
+export function SavedScore({ before, now, testId }: { before: number | null; now: number | null; testId: string }) {
   const changed = before !== now;
   return <span data-testid={testId} data-changed={changed || undefined} className={cx("mt-1 block text-xs tabular-nums", changed ? "font-semibold text-ink" : "text-ink-3")}>
     {changed ? `${before ?? "—"} → ${now ?? "—"}` : `Saved: ${before ?? "—"}`}
