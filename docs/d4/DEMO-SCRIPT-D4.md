@@ -120,7 +120,7 @@ Catatan: seed live tidak membuat competency assessment, jadi "Last saved" kosong
 | --- | --- | --- | --- | --- |
 | 1 | Menu **Development Requirement** | Filter: All departments, All sources, All status, All periods. Fixture: Alfa "Raise administrative accuracy…" (High, Planned, sumber Competency Gap); Charlie (Medium, In Progress). Live: seed "Perkuat ketelitian dokumen operasional" (Performance Evaluation, Identified; isi data seed tetap bahasa Indonesia) | "Setiap kebutuhan development wajib punya sumber: gap kompetensi, perubahan posisi, atau hasil evaluasi." | Tabel kosong: buat satu lewat **Add Requirement** (Source type Performance Evaluation, Source reference = evaluasi dari langkah 4.1.3) |
 | 2 | Buka requirement Alfa / employee demo | Kartu "Source (traceability)" yang tertaut ke sumbernya, dan "Linked training" | "Klik sumbernya dan kita kembali ke gap atau evaluasi asalnya. Inilah jejak kenapa training ini ada." | – |
-| 3 | **Update Status** → status berikutnya (fixture Alfa: Planned → **In Progress**; live seed: Identified → **Planned**) → **Save Status** | Status berubah. "Revision history" bertambah satu | "Status berubah lewat revisi, bukan menimpa data." | Gagal: lanjut, revisi bukan inti cerita |
+| 3 | **Update progress in Training** → Update Progress ke **In Progress** → Save, lalu kembali ke requirement | Status requirement ikut menjadi In Progress dengan catatan "Mengikuti Training Tracking."; "Revision history" bertambah satu | "Progres hanya ditulis di Training Tracking. Requirement mengikutinya, jadi tidak ada dua status yang bisa bertentangan." | Belum ada training: **Create Training** dulu (requirement menjadi Planned) |
 
 ### 4.5 Training Tracking (HR, 1:15)
 
