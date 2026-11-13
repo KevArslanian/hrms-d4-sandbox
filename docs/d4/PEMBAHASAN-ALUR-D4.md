@@ -114,7 +114,7 @@ Aturan yang dipakai: sebuah keputusan tidak boleh hanya bersandar pada selera pe
 **Kenapa begini.**
 - Dashboard tidak punya data sendiri. P1. Semua angka dihitung dari baris tabel yang sedang tampil.
 - Satu periode, tanpa pilihan "All". [Keputusan] 13 Nov 2026. Menggabungkan periode membuat angka seperti "Performance review complete" mencampur Oktober milik satu pegawai dengan November milik pegawai lain.
-- Informasi untuk HR staff, HR manager, dan HR director. [Klien] B20, 00:59:37. Filter Levels diambil dari kode posisi. [Asumsi]: isi tiap level tidak dijelaskan klien.
+- Informasi untuk HR staff, HR manager, dan HR director. [Klien] B20, 00:59:37. Dibaca sebagai **siapa yang melihat**, dan dipenuhi lewat peran HR, Manager, dan Management. Filter Levels yang sempat dibuat dari tafsiran lain (pegawai disaring per level yang ditebak dari kode posisi) dihapus pada 13 Nov 2026 (PR #56), karena dasarnya hanya asumsi dan Positions sudah mencakupnya. [Keputusan]
 
 ### Langkah 8 · History
 
