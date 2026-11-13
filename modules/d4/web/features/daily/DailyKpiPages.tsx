@@ -13,7 +13,7 @@ import type { KpiAssessment, KpiDailyEntry } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
 import { byProgress, canAssess, departmentOf, employeeById, employeeMeta, employeeSearchText, formatDate, formatGap, formatPeriod, formatScore, includesText, positionOf, scorecardsOf, thisMonth, today, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
-import { DateField, FilterBar, FormError, ReadOnlyField, SearchInput, SelectFilter } from "../../ui/forms";
+import { DateField, FilterBar, FormError, PeriodFilter, ReadOnlyField, SearchInput } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
 import { Button, Card, InfoGrid, Notice, SavedNotice, StatusBadge } from "../../ui/primitives";
@@ -265,10 +265,9 @@ function TeamDailyKpi() {
       <h2 className="font-display text-lg font-semibold text-ink">Team · {formatPeriod(period)}</h2>
       <p data-testid="team-daily-rule" className="mt-1 text-xs leading-5 text-ink-3">Hari kerja dihitung Senin sampai Jumat{running ? " hingga hari ini" : ""}; hari libur belum diperhitungkan. {COMPILED_RULE}</p>
     </div>
-    <FilterBar canReset={Boolean(search || period !== thisMonth())} onReset={() => { setSearch(""); setPeriod(thisMonth()); }}>
-      <SearchInput value={search} onChange={setSearch} placeholder="Search name or position" />
-      <SelectFilter label="Period" testId="daily-period" value={period} onChange={(value) => setPeriod(value || thisMonth())} emptyOption={false} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
-    </FilterBar>
+    <FilterBar canReset={Boolean(search || period !== thisMonth())} onReset={() => { setSearch(""); setPeriod(thisMonth()); }}
+      search={<SearchInput value={search} onChange={setSearch} placeholder="Search name or position" />}
+      period={<PeriodFilter label="Period" testId="daily-period" value={period} onChange={(value) => setPeriod(value || thisMonth())} emptyOption={false} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />} />
     {saved && <SavedNotice text={`Performance Review ${employeeById(snapshot, saved.employeeId)?.fullName ?? ""} · ${formatPeriod(period)} difinalisasi dari Daily KPI.`} href={`/performance/scorecard/${saved.scorecardId}`} />}
     <DataTable<TeamRow> rows={rows} noun="employees" rowKey={(row) => row.employee.id} highlightKey={saved?.employeeId}
       emptyTitle="Tidak ada pegawai yang cocok" emptyText="Ubah kata kunci atau periode. Hanya pegawai dengan KPI di katalog yang tampil."
@@ -308,7 +307,7 @@ export function DailyKpiEmployeePage({ employeeId }: { employeeId: string }) {
     <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Daily KPI", href: "/daily-kpi" }, { label: "Entries" }]} backHref="/daily-kpi"
       name={employee.fullName} meta={[...employeeMeta(snapshot, employee), `Period ${formatPeriod(period)}`]} />
     {!snapshot.kpiDaily ? <Notice tone="warning">{NOT_READY}</Notice> : <Card title="Daily entries" testId="daily-entries"
-      actions={<div className="w-48"><SelectFilter label="Period" testId="daily-period" value={period} onChange={(value) => setPeriod(value || periods[0])} emptyOption={false} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} /></div>}>
+      actions={<div className="w-48"><PeriodFilter label="Period" testId="daily-period" value={period} onChange={(value) => setPeriod(value || periods[0])} emptyOption={false} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} /></div>}>
       <DailySummary compiled={compileDaily(snapshot.kpiDaily, employeeId, period)} />
       <div className="mt-5"><DailyEntriesTable entries={entries} corrections={correctionsByDay(snapshot.kpiDaily, employeeId, period)} /></div>
     </Card>}

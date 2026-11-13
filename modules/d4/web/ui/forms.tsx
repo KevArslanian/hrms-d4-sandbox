@@ -1,7 +1,7 @@
 "use client";
 
-import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
-import { Children, createContext, isValidElement, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type InputHTMLAttributes, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, type TextareaHTMLAttributes } from "react";
+import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Search, SlidersHorizontal, X } from "lucide-react";
+import { Children, createContext, isValidElement, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type InputHTMLAttributes, type KeyboardEvent as ReactKeyboardEvent, type ReactElement, type ReactNode, type TextareaHTMLAttributes } from "react";
 import { createPortal } from "react-dom";
 import { localToday } from "../../shared/rules";
 import { Button, cx, slug } from "./primitives";
@@ -10,20 +10,56 @@ const control = "h-10 w-full rounded-2xl border border-ink-3 bg-surface px-3 tex
 
 /* ---------- Filter bar ---------- */
 
-export function FilterBar({ children, onReset, canReset }: { children: ReactNode; onReset?: () => void; canReset?: boolean }) {
-  return <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-surface p-3 shadow-card">
-    {children}
-    {/* D3 button variants (Figma PISD node 247:7): solid blue pill once a filter is set, the light "Disable" pill otherwise,
-        so it is obvious the button can be pressed after filtering. Figma's #3b6ff5 is a shade darker here so white text reaches 4.5:1. */}
-    {onReset && <button type="button" data-testid="btn-filter-reset" onClick={onReset} disabled={!canReset}
-      className="ml-auto inline-flex h-10 items-center gap-1.5 rounded-[20px] bg-[#346af5] px-4 text-sm font-semibold text-white shadow-sm transition hover:shadow-[0_0_15px_2px_rgba(59,111,245,0.45)] disabled:cursor-not-allowed disabled:bg-[#d9e2ec] disabled:text-[#adbed1] disabled:shadow-none">
-      <X aria-hidden="true" className="size-4" />Reset filter
-    </button>}
+type FilterProps = Parameters<typeof SelectFilter>[0];
+
+// Inside the Filter panel each dropdown carries its field name above it, so its empty choice can read just "All".
+const FilterPanelContext = createContext(false);
+
+/**
+ * Search, the period, and one Filter button (decisions 13 Nov 2026). The other dropdowns wait in a panel under the row;
+ * how many of them are set shows on the Filter button, read from the SelectFilter children, which must be direct
+ * children (no fragment). A bar with a single dropdown keeps it in the row: a button for one choice is a wasted click.
+ */
+export function FilterBar({ search, period, children, onReset, canReset }: { search?: ReactNode; period?: ReactNode; children?: ReactNode; onReset?: () => void; canReset?: boolean }) {
+  const [open, setOpen] = useState(false);
+  const panelId = useId();
+  const button = useRef<HTMLButtonElement>(null);
+  const filters = Children.toArray(children).filter((child): child is ReactElement<FilterProps> => isValidElement(child) && child.type === SelectFilter);
+  const folded = filters.length > 1;
+  const active = filters.filter(({ props }) => props.value && props.emptyOption !== false).length;
+  // D3 button (Figma PISD node 247:7), shown only once a filter is set: an always-present disabled pill was clutter.
+  // Figma's #3b6ff5 is a shade darker here so white text reaches 4.5:1.
+  const reset = onReset && canReset && <button type="button" data-testid="btn-filter-reset" onClick={onReset}
+    className="ml-auto inline-flex h-10 items-center gap-1.5 rounded-[20px] bg-[#346af5] px-4 text-sm font-semibold text-white shadow-sm transition hover:shadow-[0_0_15px_2px_rgba(59,111,245,0.45)]">
+    <X aria-hidden="true" className="size-4" />Reset filter
+  </button>;
+  return <div className="rounded-2xl border border-line bg-surface p-3 shadow-card">
+    <div className="flex flex-wrap items-center gap-3">
+      {search}
+      {period}
+      {folded ? <button ref={button} type="button" data-testid="btn-filter" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen(!open)}
+        className={cx("inline-flex h-10 shrink-0 items-center gap-2 rounded-2xl border bg-surface px-3 text-sm font-semibold text-ink hover:border-primary-500 focus-visible:outline-2 focus-visible:outline-primary-500", open ? "border-primary-500" : "border-ink-3")}>
+        <SlidersHorizontal aria-hidden="true" className="size-4" />Filter
+        {active > 0 && <span data-testid="filter-count" className="min-w-5 rounded-full bg-primary-600 px-1.5 text-center text-[11px] leading-5 text-white">{active}<span className="sr-only"> active</span></span>}
+      </button> : <>{children}{reset}</>}
+    </div>
+    {/* Reset sits in the panel, never beside the Filter button: appearing there it pushed Filter aside, and a second click
+        meant to close the panel landed on Reset and wiped the filters just chosen. */}
+    {folded && open && <div id={panelId} data-testid="filter-panel" className="mt-3 flex flex-wrap items-end gap-3 border-t border-line pt-3"
+      onKeyDown={(event) => { if (event.key === "Escape") { setOpen(false); button.current?.focus(); } }}>
+      <FilterPanelContext.Provider value>{children}</FilterPanelContext.Provider>{reset}
+    </div>}
   </div>;
 }
 
+/** The period stays beside search, out of the Filter panel (decision 13 Nov 2026): it sets what the page shows and changes often. */
+export function PeriodFilter(props: Omit<FilterProps, "icon">) {
+  return <SelectFilter {...props} icon={<CalendarDays aria-hidden="true" className="size-4 shrink-0 text-ink-3" />} />;
+}
+
 export function SearchInput({ value, onChange, placeholder }: { value: string; onChange: (value: string) => void; placeholder: string }) {
-  return <label className="relative min-w-[200px] flex-[2_1_200px]">
+  // Takes the room the Filter button leaves, so its placeholder is not cut off; on a phone it shares the row with it.
+  return <label className="relative min-w-0 flex-1 basis-[180px]">
     <span className="sr-only">{placeholder}</span>
     <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-3 size-4 text-ink-3" />
     <input type="search" data-testid="input-search" value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className={cx(control, "bg-app pl-9")} />
@@ -64,9 +100,9 @@ const SEARCH_FROM = 8;
  * it lists the options, typing narrows them. Only FILTER_VISIBLE options are rendered at once (load test:
  * 1000 departments/employees); the rest are reached by typing. `emptyLabel` adds a "no value" choice.
  */
-function SearchableSelect({ label, value, onChange, options, emptyLabel, testId, triggerId, invalid, describedBy, className, wrapperClassName, highlightActive, disabled }: {
+function SearchableSelect({ label, value, onChange, options, emptyLabel, testId, triggerId, invalid, describedBy, className, wrapperClassName, highlightActive, disabled, icon }: {
   label: string; value: string; onChange: (value: string) => void; options: readonly Option[]; emptyLabel?: string; testId: string;
-  triggerId?: string; invalid?: boolean; describedBy?: string; className?: string; wrapperClassName?: string; highlightActive?: boolean; disabled?: boolean;
+  triggerId?: string; invalid?: boolean; describedBy?: string; className?: string; wrapperClassName?: string; highlightActive?: boolean; disabled?: boolean; icon?: ReactNode;
 }) {
   const listId = useId(), ownId = useId();
   const buttonId = triggerId ?? ownId;
@@ -113,7 +149,8 @@ function SearchableSelect({ label, value, onChange, options, emptyLabel, testId,
       data-active={active || undefined} title={selected ? `${label}: ${selected.label}` : undefined}
       onClick={() => open ? close() : setOpen(true)} className={cx(control, "flex items-center justify-between gap-2 text-left", !selected && "text-ink-2",
         active && "border-primary-500 bg-primary-50 font-semibold text-primary-700", invalid && "border-danger", className)}>
-      <span className="truncate">{selected?.label ?? emptyLabel ?? label}</span>
+      {icon ? <span className="flex min-w-0 items-center gap-2">{icon}<span className="truncate">{selected?.label ?? emptyLabel ?? label}</span></span>
+        : <span className="truncate">{selected?.label ?? emptyLabel ?? label}</span>}
       <ChevronDown aria-hidden="true" className={cx("size-4 shrink-0 transition-transform", active ? "text-primary-600" : "text-ink-3", open && "rotate-180")} />
     </button>
     {open && <div ref={panel} className="fixed z-30 flex flex-col rounded-2xl border border-line bg-surface p-1.5 shadow-card">
@@ -137,10 +174,20 @@ function SearchableSelect({ label, value, onChange, options, emptyLabel, testId,
   </div>;
 }
 
-/** List filter. `emptyOption={false}` drops the "All …" choice for filters that always show one value (the dashboard period). */
-export function SelectFilter({ label, testId, value, onChange, options, emptyOption = true }: { label: string; testId?: string; value: string; onChange: (value: string) => void; options: Option[]; emptyOption?: boolean }) {
-  return <SearchableSelect label={label} value={value} onChange={onChange} options={options} emptyLabel={emptyOption ? label : undefined}
-    testId={`filter-${testId ?? slug(label)}`} wrapperClassName="min-w-[150px] flex-[1_1_150px]" highlightActive={emptyOption} />;
+/**
+ * List filter; `label` names the field ("Departments"). In the Filter panel the name stands above the dropdown and the
+ * empty choice reads "All"; alone in a row there is nothing above it, so the empty choice reads "All departments".
+ * `emptyOption={false}` drops that choice for filters that always show one value (the dashboard period).
+ */
+export function SelectFilter({ label, testId, value, onChange, options, emptyOption = true, icon }: { label: string; testId?: string; value: string; onChange: (value: string) => void; options: Option[]; emptyOption?: boolean; icon?: ReactNode }) {
+  const inPanel = useContext(FilterPanelContext);
+  const id = useId();
+  // A fixed width keeps a lone filter on a second row from stretching across the bar; two per row on a phone.
+  const width = "w-[calc(50%-6px)] sm:w-[180px]";
+  const select = <SearchableSelect label={label} value={value} onChange={onChange} options={options} triggerId={inPanel ? id : undefined}
+    emptyLabel={emptyOption ? (inPanel ? "All" : `All ${label.toLowerCase()}`) : undefined}
+    testId={`filter-${testId ?? slug(label)}`} wrapperClassName={inPanel ? undefined : width} highlightActive={emptyOption} icon={icon} />;
+  return inPanel ? <div className={width}><label htmlFor={id} className="mb-1.5 block text-xs font-semibold text-ink-2">{label}</label>{select}</div> : select;
 }
 
 /* ---------- Form fields ---------- */
