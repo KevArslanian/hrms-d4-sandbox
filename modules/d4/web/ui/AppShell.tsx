@@ -4,20 +4,22 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Bell, ChevronDown, Contact, Menu, SquareTerminal, Store, Users, X } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { catalogFor, roleForPosition } from "../../kpi/catalog";
 import { canFillDaily } from "../../shared/rules";
 import { createD4BrowserClient } from "../../supabase/client";
 import { useD4 } from "../data/D4DataProvider";
 import { thisMonth, today } from "../data/selectors";
-import { cx, slug } from "./primitives";
+import { Button, cx, slug } from "./primitives";
 
+// People Dashboard first: it is the HR landing page and the summary the other five pages feed (decision 13 Nov 2026).
 export const D4_MENU = [
+  { href: "/dashboard", label: "People Dashboard" },
   { href: "/performance", label: "Performance Review" },
   { href: "/daily-kpi", label: "Daily KPI" },
   { href: "/competency", label: "Competency Gap" },
   { href: "/development", label: "Development Requirement" },
   { href: "/training", label: "Training Tracking" },
-  { href: "/dashboard", label: "People Dashboard" },
 ] as const;
 
 // An employee only ever sees their own data, so the team lists are left out: /dashboard is their own profile.
@@ -37,23 +39,67 @@ const OTHER_MODULES = [{ label: "POS", icon: Store }, { label: "CRM", icon: Cont
 // Matches Figma PISD D3 sidebar (file L5k46NNy2gX6xOq8e1dczQ, node 1582:458): POS, CRM, HRMS (expanded) and MID,
 // active HRMS item on #b0c6d4 Logout outlined at the bottom. Menu text is darker/brighter than in Figma (#606f8c active,
 // #d9e2fc at 40% inactive: 2.9-3.1:1) so it reaches 4.5:1; hues unchanged.
-function Sidebar({ onNavigate, onClose }: { onNavigate: () => void; onClose: () => void }) {
-  const pathname = usePathname();
+/**
+ * Logout asks first (decision 13 Nov 2026). "Iya" turns the dialog into "Logging out..." until the login page replaces
+ * the app; "Tidak", Esc or the overlay closes it. Focus starts on "Tidak" and returns to where it was.
+ */
+function LogoutConfirm({ onCancel }: { onCancel: () => void }) {
   const router = useRouter();
-  const { mode, snapshot } = useD4();
-  const [hrmsOpen, setHrmsOpen] = useState(true);
+  const dialog = useRef<HTMLDivElement>(null);
   const [signingOut, setSigningOut] = useState(false);
+  const cancel = () => { if (!signingOut) onCancel(); };
 
   async function signOut() {
     setSigningOut(true);
+    dialog.current?.focus();
     try {
       await createD4BrowserClient().auth.signOut({ scope: "local" });
       router.replace("/login");
       router.refresh();
-    } finally {
+    } catch {
+      // Back to the question, so the user can try again instead of waiting on a message that never ends.
       setSigningOut(false);
     }
   }
+
+  useEffect(() => {
+    // Read before moving focus in: an autoFocus would already have taken it, and focus could not go back on close.
+    const previous = document.activeElement as HTMLElement | null;
+    dialog.current?.querySelector<HTMLElement>("[data-testid=btn-logout-cancel]")?.focus();
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; previous?.focus(); };
+  }, []);
+
+  return createPortal(<div className="fixed inset-0 z-[60] flex items-center justify-center bg-ink/40 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) cancel(); }}>
+    <div ref={dialog} role="alertdialog" aria-modal="true" aria-labelledby="logout-title" aria-describedby={signingOut ? undefined : "logout-text"} tabIndex={-1} data-testid="logout-confirm"
+      onKeyDown={(event) => {
+        if (event.key === "Escape") cancel();
+        if (event.key !== "Tab") return;
+        // Two buttons: Tab moves between them and never leaves the dialog.
+        const buttons = [...event.currentTarget.querySelectorAll<HTMLButtonElement>("button")];
+        const next = buttons[(buttons.indexOf(document.activeElement as HTMLButtonElement) + (event.shiftKey ? buttons.length - 1 : 1)) % buttons.length];
+        event.preventDefault(); next?.focus();
+      }}
+      className="w-full max-w-sm rounded-2xl bg-surface p-6 shadow-modal outline-none">
+      {signingOut
+        ? <p id="logout-title" role="status" data-testid="logout-progress" className="text-center font-display text-base font-semibold text-ink">Logging out...</p>
+        : <>
+          <h2 id="logout-title" className="font-display text-base font-semibold text-ink">Logout</h2>
+          <p id="logout-text" className="mt-1.5 text-sm text-ink-2">Apakah Anda yakin ingin logout?</p>
+          <div className="mt-5 flex justify-end gap-3">
+            <Button variant="secondary" data-testid="btn-logout-cancel" onClick={onCancel}>Tidak</Button>
+            <Button variant="danger" data-testid="btn-logout-confirm" onClick={() => void signOut()}>Iya</Button>
+          </div>
+        </>}
+    </div>
+  </div>, document.body);
+}
+
+function Sidebar({ onNavigate, onClose }: { onNavigate: () => void; onClose: () => void }) {
+  const pathname = usePathname();
+  const { mode, snapshot } = useD4();
+  const [hrmsOpen, setHrmsOpen] = useState(true);
+  const [confirmLogout, setConfirmLogout] = useState(false);
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
   const moduleItem = "flex h-10 w-full items-center gap-3 rounded-lg px-3 text-sm font-semibold tracking-[0.07px] text-[#d9e2fc]";
@@ -89,12 +135,14 @@ function Sidebar({ onNavigate, onClose }: { onNavigate: () => void; onClose: () 
     </nav>
 
     {/* The text is a lighter shade of the #d9364f border, which reaches only 3.4:1 on the dark sidebar; this one clears 4.5:1 also on hover. */}
+    {/* On a phone the drawer traps focus and closes on Esc, so it closes first and the dialog has the keyboard to itself. */}
     {mode === "live"
-      ? <button type="button" data-testid="btn-logout" onClick={() => void signOut()} disabled={signingOut}
-          className="mt-4 h-10 w-full rounded-[20px] border-[3px] border-[#d9364f] text-xl font-semibold text-[#e3697b] transition hover:bg-[#d9364f]/10 disabled:cursor-not-allowed disabled:opacity-50">
-          {signingOut ? "Keluar..." : "Logout"}
+      ? <button type="button" data-testid="btn-logout" onClick={() => { onClose(); setConfirmLogout(true); }}
+          className="mt-4 h-10 w-full rounded-[20px] border-[3px] border-[#d9364f] text-xl font-semibold text-[#e3697b] transition hover:bg-[#d9364f]/10">
+          Logout
         </button>
       : <p className="mt-4 rounded-lg border border-[#d9e2fc]/20 px-3 py-1.5 text-center text-[11px] text-[#d9e2fc]/80">Mode pratinjau · data contoh</p>}
+    {confirmLogout && <LogoutConfirm onCancel={() => setConfirmLogout(false)} />}
   </div>;
 }
 

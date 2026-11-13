@@ -147,7 +147,10 @@ function SearchableSelect({ label, value, onChange, options, emptyLabel, testId,
     onKeyDown={(event) => { if (event.key === "Escape" && open) { event.stopPropagation(); closeToTrigger(); } else if (open) moveFocus(event); else if (event.key === "ArrowDown") { event.preventDefault(); setOpen(true); } }}>
     <button type="button" id={buttonId} data-testid={testId} aria-label={triggerId ? undefined : label} aria-haspopup="listbox" aria-expanded={open} aria-describedby={describedBy} disabled={disabled}
       data-active={active || undefined} title={selected ? `${label}: ${selected.label}` : undefined}
-      onClick={() => open ? close() : setOpen(true)} className={cx(control, "flex items-center justify-between gap-2 text-left", !selected && "text-ink-2",
+      // Safari and Firefox on macOS do not focus a clicked button, so pressing it again blurred the search box, the blur
+      // closed the list and the click reopened it. Keeping focus where it is lets the click close the list.
+      onMouseDown={(event) => { if (open) event.preventDefault(); }}
+      onClick={() => open ? closeToTrigger() : setOpen(true)} className={cx(control, "flex items-center justify-between gap-2 text-left", !selected && "text-ink-2",
         active && "border-primary-500 bg-primary-50 font-semibold text-primary-700", invalid && "border-danger", className)}>
       {icon ? <span className="flex min-w-0 items-center gap-2">{icon}<span className="truncate">{selected?.label ?? emptyLabel ?? label}</span></span>
         : <span className="truncate">{selected?.label ?? emptyLabel ?? label}</span>}
