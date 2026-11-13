@@ -9,6 +9,7 @@ import { catalogFor, roleForPosition } from "../../kpi/catalog";
 import { canFillDaily } from "../../shared/rules";
 import { createD4BrowserClient } from "../../supabase/client";
 import { useD4 } from "../data/D4DataProvider";
+import { endPreviewSession } from "../data/preview-session";
 import { thisMonth, today } from "../data/selectors";
 import { Button, cx, slug } from "./primitives";
 
@@ -45,6 +46,7 @@ const OTHER_MODULES = [{ label: "POS", icon: Store }, { label: "CRM", icon: Cont
  */
 function LogoutConfirm({ onCancel }: { onCancel: () => void }) {
   const router = useRouter();
+  const { mode } = useD4();
   const dialog = useRef<HTMLDivElement>(null);
   const [signingOut, setSigningOut] = useState(false);
   const cancel = () => { if (!signingOut) onCancel(); };
@@ -53,7 +55,9 @@ function LogoutConfirm({ onCancel }: { onCancel: () => void }) {
     setSigningOut(true);
     dialog.current?.focus();
     try {
-      await createD4BrowserClient().auth.signOut({ scope: "local" });
+      // The local preview signs out by dropping its own cookie; only the live app has a Supabase session to end.
+      if (mode === "fixture") endPreviewSession();
+      else await createD4BrowserClient().auth.signOut({ scope: "local" });
       router.replace("/login");
       router.refresh();
     } catch {
@@ -134,14 +138,15 @@ function Sidebar({ onNavigate, onClose }: { onNavigate: () => void; onClose: () 
       {disabledModule("MID", SquareTerminal)}
     </nav>
 
-    {/* The text is a lighter shade of the #d9364f border, which reaches only 3.4:1 on the dark sidebar; this one clears 4.5:1 also on hover. */}
-    {/* On a phone the drawer traps focus and closes on Esc, so it closes first and the dialog has the keyboard to itself. */}
-    {mode === "live"
-      ? <button type="button" data-testid="btn-logout" onClick={() => { onClose(); setConfirmLogout(true); }}
-          className="mt-4 h-10 w-full rounded-[20px] border-[3px] border-[#d9364f] text-xl font-semibold text-[#e3697b] transition hover:bg-[#d9364f]/10">
-          Logout
-        </button>
-      : <p className="mt-4 rounded-lg border border-[#d9e2fc]/20 px-3 py-1.5 text-center text-[11px] text-[#d9e2fc]/80">Mode pratinjau · data contoh</p>}
+    {/* On a phone the header badge is hidden, so the sidebar is where the preview says it shows sample data. */}
+    {mode === "fixture" && <p className="mt-4 rounded-lg border border-[#d9e2fc]/20 px-3 py-1.5 text-center text-[11px] text-[#d9e2fc]/80">Mode pratinjau · data contoh</p>}
+    {/* Shown in the preview as well, where it ends the preview sign-in (preview-session.ts) without contacting a server.
+        The text is a lighter shade of the #d9364f border, which reaches only 3.4:1 on the dark sidebar; this one clears 4.5:1 also on hover.
+        On a phone the drawer traps focus and closes on Esc, so it closes first and the dialog has the keyboard to itself. */}
+    <button type="button" data-testid="btn-logout" onClick={() => { onClose(); setConfirmLogout(true); }}
+      className="mt-4 h-10 w-full rounded-[20px] border-[3px] border-[#d9364f] text-xl font-semibold text-[#e3697b] transition hover:bg-[#d9364f]/10">
+      Logout
+    </button>
     {confirmLogout && <LogoutConfirm onCancel={() => setConfirmLogout(false)} />}
   </div>;
 }

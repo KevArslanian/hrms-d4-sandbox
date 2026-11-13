@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { useGreeting } from '@/lib/useGreeting';
 import { loginErrorMessage } from '@/lib/loginErrorMessage';
+import { d4DataMode } from '@/modules/d4/web/data/mode';
+import { startPreviewSession } from '@/modules/d4/web/data/preview-session';
 
 // B2 (PISD-B) tidak memuat webfont, jadi var font jatuh ke system stack. Samakan.
 const B2_FONT_STACK = "-apple-system, system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', 'Noto Sans', Arial, sans-serif";
@@ -52,6 +54,14 @@ export default function LoginPage() {
       setErrorMessage(
         'Password minimal 10 karakter dan harus berisi huruf, angka, dan karakter khusus.'
       );
+      return;
+    }
+
+    // Local preview: no account check and no request to Supabase; the app then shows the sample data.
+    if (d4DataMode === 'fixture') {
+      startPreviewSession();
+      setSuccessMessage('Login berhasil! Mengalihkan ke dashboard...');
+      window.setTimeout(() => { router.push('/dashboard'); }, 1200);
       return;
     }
 
@@ -179,6 +189,12 @@ export default function LoginPage() {
                   </button>
                 </div>
               </div>
+
+              {d4DataMode === 'fixture' && (
+                <p data-testid="login-preview-note" className="p-4 rounded-xl bg-[#D97706]/10 border border-[#D97706]/30 text-[#92400E] text-xs sm:text-sm font-semibold">
+                  Mode pratinjau: email dan password apa pun dengan format yang valid bisa dipakai. Login dan logout tidak mengirim atau membaca data dari server.
+                </p>
+              )}
 
               {errorMessage && (
                 <div id="login-error" data-testid="login-error" role="alert" className="p-4 rounded-xl bg-[#DC2626]/10 border border-[#DC2626]/30 text-[#DC2626] text-xs sm:text-sm flex items-center gap-2.5 font-semibold backdrop-blur-md">

@@ -53,7 +53,7 @@ Isi `.env.local` dengan URL dan **publishable key** project Supabase. Jangan per
 
 `--legacy-peer-deps` diperlukan karena lockfile repo resmi mengunci `@supabase/supabase-js` 2.109.0, sedangkan `@supabase/ssr` 0.12.7 meminta minimal 2.114.0. Konflik ini perlu diselesaikan bersama saat integrasi.
 
-### Mode preview tanpa login
+### Mode preview dengan login lokal
 
 Untuk melihat UI dengan data fiktif (hanya di `next dev`, tidak aktif di build produksi):
 
@@ -62,7 +62,7 @@ echo "NEXT_PUBLIC_D4_DATA_MODE=fixture" > .env.development.local
 npm run dev
 ```
 
-Tambahkan `NEXT_PUBLIC_D4_FIXTURE_ROLE=EMPLOYEE` atau `MANAGER` untuk melihat tampilan per peran. Topbar selalu menampilkan badge "Preview · data fiktif" di mode ini.
+Tambahkan `NEXT_PUBLIC_D4_FIXTURE_ROLE=EMPLOYEE` atau `MANAGER` untuk melihat tampilan per peran. Topbar selalu menampilkan badge "Preview · data fiktif" di mode ini. Halaman login di mode ini menerima email dan password apa pun yang formatnya valid, tanpa mengirim atau membaca data dari server: sesinya hanya cookie lokal `d4-preview-session`. Logout menghapus cookie itu dan kembali ke halaman login.
 
 ## API
 
