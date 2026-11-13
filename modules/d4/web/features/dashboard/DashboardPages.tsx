@@ -9,7 +9,7 @@ import { useD4, useSnapshot } from "../../data/D4DataProvider";
 import { catalogFor, KPI_TARGET, type KpiCatalog } from "../../../kpi/catalog";
 import { byProgress, canAssess, canWrite, currentCompetencyStatus, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, employeeSearchText, evaluationsOf, formatDate, formatGap, formatPeriod, formatScore, formatScorecard, includesText, pendingCompilation, positionOf, scorecardsOf, thisMonth, trainingHistory, trainings, trainingsOf, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
-import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
+import { FilterBar, PeriodFilter, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
 import { Card, Notice, SavedNotice, slug, statusLabel, StatusBadge } from "../../ui/primitives";
@@ -76,19 +76,17 @@ function PeopleDashboard() {
 
   return <>
     <PageHeader title="People Dashboard" subtitle="KPI, performance, gap kompetensi, development, dan training per pegawai untuk periode yang sama." />
-    <FilterBar canReset={Boolean(search || position || department || level || period || band || competency || training)} onReset={reset}>
-      <SearchInput value={search} onChange={set("q")} placeholder="Search name or position" />
-      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All positions" testId="all-positions" value={position} onChange={set("position")} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />}
-      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All departments" testId="all-departments" value={department} onChange={set("department")} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />}
-      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All levels" testId="all-levels" value={level} onChange={set("level")} options={JOB_LEVELS.map((item) => ({ value: item, label: item }))} />}
-      {/* The dashboard always shows one period, so there is no "All periods" choice; it starts on the latest one that has started. */}
-      <SelectFilter label="Period" testId="latest-period" emptyOption={false} value={shown} onChange={set("period")} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
-      {/* FR-D4-004 B: performance category (1–100 scorecards only), competency status and latest training status. */}
-      {snapshot.role !== "EMPLOYEE" && <>
-        <SelectFilter label="All categories" testId="all-categories" value={band} onChange={set("band")} options={BANDS.map((item) => ({ value: item, label: item }))} />
-        <SelectFilter label="All competency status" testId="all-competency-status" value={competency} onChange={set("competency")} options={COMPETENCY_ORDER.map((item) => ({ value: item, label: item }))} />
-        <SelectFilter label="All training status" testId="all-training-status" value={training} onChange={set("training")} options={["Planned", "In Progress", "Completed", "Cancelled"].map((item) => ({ value: item, label: statusLabel(item) }))} />
-      </>}
+    {/* The dashboard always shows one period, so there is no "All" choice (decision 13 Nov 2026); it starts on the latest one that has started. */}
+    <FilterBar canReset={Boolean(search || position || department || level || period || band || competency || training)} onReset={reset}
+      search={<SearchInput value={search} onChange={set("q")} placeholder="Search name or position" />}
+      period={<PeriodFilter label="Period" testId="latest-period" emptyOption={false} value={shown} onChange={set("period")} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />}>
+      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="Departments" testId="all-departments" value={department} onChange={set("department")} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />}
+      {/* FR-D4-004 B: performance category (1–100 scorecards only); the Katalon id keeps the old "categories" name. */}
+      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="Performance" testId="all-categories" value={band} onChange={set("band")} options={BANDS.map((item) => ({ value: item, label: item }))} />}
+      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="Positions" testId="all-positions" value={position} onChange={set("position")} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />}
+      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="Levels" testId="all-levels" value={level} onChange={set("level")} options={JOB_LEVELS.map((item) => ({ value: item, label: item }))} />}
+      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="Competency status" testId="all-competency-status" value={competency} onChange={set("competency")} options={COMPETENCY_ORDER.map((item) => ({ value: item, label: item }))} />}
+      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="Training status" testId="all-training-status" value={training} onChange={set("training")} options={["Planned", "In Progress", "Completed", "Cancelled"].map((item) => ({ value: item, label: statusLabel(item) }))} />}
     </FilterBar>
     <SummaryStrip rows={rows} period={shown} noKpi={noKpi} />
     {snapshot.role !== "EMPLOYEE" && rows.length > 0 && <>
@@ -318,7 +316,7 @@ export function EmployeeProfilePage({ employeeId, initialPeriod = "", own = fals
     <DetailHeader crumbs={self ? [{ label: "HRMS" }, { label: "My Performance" }] : [{ label: "HRMS" }, { label: "People Dashboard", href: "/dashboard" }, { label: "Employee" }]} backHref={self ? undefined : "/dashboard"}
       name={employee.fullName} meta={employeeMeta(snapshot, employee)} />
     <FilterBar>
-      <SelectFilter label="Period" testId="latest-period" emptyOption={false} value={shown ?? ""} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
+      <PeriodFilter label="Period" testId="latest-period" emptyOption={false} value={shown ?? ""} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
       <p className="text-sm text-ink-3">Menampilkan periode <strong className="text-ink">{formatPeriod(shown)}</strong> untuk KPI dan performance.</p>
     </FilterBar>
     {scorecard && !validScorecard(scorecard) && <Notice tone="warning">Scorecard periode ini tidak memiliki lima KPI dengan total bobot 100%.{canWrite(snapshot) ? " Periksa datanya di halaman Performance Review sebelum digunakan." : ""}</Notice>}

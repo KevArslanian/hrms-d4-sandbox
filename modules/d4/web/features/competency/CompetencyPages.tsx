@@ -70,12 +70,12 @@ export function CompetencyListPage() {
     <PageHeader title="Competency Gap" subtitle="Bandingkan kemampuan pegawai dengan persyaratan posisinya." />
     {/* N2: the list is scoped, so its count differs from the People Dashboard; say who is listed and why. */}
     {snapshot.role !== "EMPLOYEE" && <div data-testid="competency-scope"><Notice>Daftar ini memuat {inScope} dari {all.length} pegawai: {scopeRule}. {outOfScope}</Notice></div>}
-    <FilterBar canReset={filtered} onReset={() => { setSearch(""); setPosition(""); setDepartment(""); setStatus(""); setCompetency(""); }}>
-      <SearchInput value={search} onChange={setSearch} placeholder="Search name or position" />
-      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All positions" testId="all-positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />}
-      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All departments" testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />}
-      <SelectFilter label="All status" testId="all-gap-status" value={status} onChange={setStatus} options={STATUS_FILTER.map((item) => ({ value: item, label: item }))} />
-      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All competencies" testId="all-competencies" value={competency} onChange={setCompetency} options={competencyOptions(snapshot)} />}
+    <FilterBar canReset={filtered} onReset={() => { setSearch(""); setPosition(""); setDepartment(""); setStatus(""); setCompetency(""); }}
+      search={<SearchInput value={search} onChange={setSearch} placeholder="Search name or position" />}>
+      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="Departments" testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />}
+      <SelectFilter label="Status" testId="all-gap-status" value={status} onChange={setStatus} options={STATUS_FILTER.map((item) => ({ value: item, label: item }))} />
+      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="Competencies" testId="all-competencies" value={competency} onChange={setCompetency} options={competencyOptions(snapshot)} />}
+      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="Positions" testId="all-positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />}
     </FilterBar>
     {saved && <SavedNotice text={saved.needId ? `Development requirement ${employeeById(snapshot, saved.employeeId)?.fullName ?? ""} tersimpan.` : `Penilaian perubahan posisi ${employeeById(snapshot, saved.employeeId)?.fullName ?? ""} tersimpan.`}
       href={saved.needId ? `/development/${saved.needId}` : `/competency/${saved.employeeId}/history`} />}
