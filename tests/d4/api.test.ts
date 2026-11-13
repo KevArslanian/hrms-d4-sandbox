@@ -657,11 +657,12 @@ describe("POST /kpi-daily (self-service, not HR-only)", () => {
     expect(saved.lines.map((line) => line.raw_score)).toEqual([4, 4, 4, 4, 4]);
   });
 
-  it("lets MANAGEMENT (a director) score their own day; the rest stays read-only (interview 14 Oct, 00:33:23)", async () => {
+  it("refuses MANAGEMENT (a director) with 403: directors only read, their own Daily KPI included (decision 13 Nov 2026)", async () => {
     signIn("MANAGEMENT", ALFA);
-    const res = await call(daily.POST(post(dailyBody({ employeeId: MERCURY }))));
-    expect(res.status).toBe(201);
-    expect((writes[0].args[0] as { employeeId: string }).employeeId).toBe(ALFA);
+    const res = await call(daily.POST(post(dailyBody())));
+    expect(res.status).toBe(403);
+    expect(res.body.error?.message).toMatch(/Direktur tidak mengisi Daily KPI/);
+    expect(writes).toHaveLength(0);
   });
 
   it("refuses an account without an employee record with 403", async () => {

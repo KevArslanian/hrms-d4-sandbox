@@ -17,11 +17,15 @@ export function localToday(now = new Date()): string {
 export const localMonth = (now = new Date()) => localToday(now).slice(0, 7);
 
 /**
- * Daily KPI is self-service: every account linked to an employee scores its own day, directors (MANAGEMENT) too.
- * Interview D4 (14 Oct 2026, 00:33:23): the example is a director scoring her own Director KPI. MANAGEMENT stays
- * read-only for everyone else's data (B17). The position must also have a KPI role, which is checked separately.
+ * Daily KPI is self-service: every account linked to an employee scores its own day, HR and managers included, except
+ * directors (MANAGEMENT). Product decision 13 Nov 2026: directors only read D4, also for their own KPI, although the
+ * interview of 14 Oct (00:33:23, X-07) had a director scoring her own day. The position must also have a KPI role,
+ * which is checked separately.
  */
-export const canFillDaily = (_role: string, employeeId: string | null | undefined) => Boolean(employeeId);
+export const canFillDaily = (role: string, employeeId: string | null | undefined) => role !== "MANAGEMENT" && Boolean(employeeId);
+
+/** Directors hold DIR-* positions (the same rule d4_current_role() uses to give them the MANAGEMENT role). */
+export const isDirectorPosition = (code: string | null | undefined) => Boolean(code?.startsWith("DIR-"));
 
 /** Interview D4 (14 Oct 2026, B13): a development requirement must have a PIC so it can be followed up. */
 export function assertPicFilled(pic: string | undefined) {
