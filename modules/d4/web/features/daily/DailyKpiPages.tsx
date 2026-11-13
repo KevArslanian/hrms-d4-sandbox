@@ -1,10 +1,10 @@
 "use client";
 
-import { CheckCircle2, Eye } from "lucide-react";
+import { CheckCircle2, Eye, History } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { compileDaily, dailyEntriesOf, type DailyCompilation } from "../../../kpi/daily";
+import { compileDaily, dailyEntriesOf, dailyHistoryOf, type DailyCompilation } from "../../../kpi/daily";
 import { catalogFor, indicatorsFor, KPI_TARGET, roleForPosition, targetOf } from "../../../kpi/catalog";
 import { aboveScale, performanceBand, scaleMaxOf } from "../../../kpi/scale";
 import { canFillDaily } from "../../../shared/rules";
@@ -14,11 +14,11 @@ import { useD4, useSnapshot } from "../../data/D4DataProvider";
 import { byProgress, canAssess, departmentOf, employeeById, employeeMeta, employeeSearchText, formatDate, formatGap, formatPeriod, formatScore, includesText, positionOf, scorecardsOf, thisMonth, today, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { DateField, FilterBar, FormError, PeriodFilter, ReadOnlyField, SearchInput } from "../../ui/forms";
-import { DetailHeader, NotFound, PageHeader } from "../../ui/layout";
+import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
-import { Button, Card, InfoGrid, Notice, SavedNotice, StatusBadge } from "../../ui/primitives";
+import { Button, ButtonLink, Card, InfoGrid, Notice, SavedNotice, StatusBadge } from "../../ui/primitives";
 import { FinalizeDailyModal } from "../kpi/FinalizeDailyModal";
-import { noKpiText, scorecardTotal } from "../kpi/KpiFormModal";
+import { noKpiText, SavedScore, scorecardTotal, totalComparison } from "../kpi/KpiFormModal";
 import { COMPILED_RULE, correctionsByDay, isDirty, scoreProblem, workingDaysSoFar } from "./entry";
 
 const NOT_READY = "Daily KPI belum tersedia karena database belum diperbarui (migrasi 20261108130000). Menu lain tetap bisa dipakai.";
@@ -92,6 +92,12 @@ function MyDailyKpi({ team }: { team: boolean }) {
   function openDate(value: string) { setDate(value); setLines(linesOf(savedFor(value))); setTouched(false); setError(""); }
   const dateTrigger = () => document.querySelector<HTMLElement>("[data-testid='input-daily-date']");
   function chooseDate(value: string) { if (dirty && value !== date) setDiscarding({ date: value, back: dateTrigger() }); else openDate(value); }
+  // Correct on a saved day opens that day in the form above, the same way Revise opens a saved Performance Review.
+  function correct(day: string, back: HTMLElement) {
+    if (dirty && day !== date) { setDiscarding({ date: day, back }); return; }
+    openDate(day);
+    requestAnimationFrame(() => { const first = scoreInputs.current[0]; first?.focus({ preventScroll: true }); first?.scrollIntoView({ block: "center" }); });
+  }
   function discard() {
     if (!discarding) return;
     if ("date" in discarding) openDate(discarding.date); else router.push(discarding.href);
@@ -126,13 +132,13 @@ function MyDailyKpi({ team }: { team: boolean }) {
     <Card title="My KPI today" testId="my-daily-kpi">
       <form onSubmit={submit} noValidate className="space-y-5">
         {/* B5 (interview D4, 14 Oct 2026): everyone scores their KPI every day before going home. */}
-        {!savedFor(today()) && <div data-testid="daily-reminder"><Notice tone="warning">Daily KPI hari ini belum diisi. Isi sebelum pulang.</Notice></div>}
+        {date === today() && !savedFor(today()) && <div data-testid="daily-reminder"><Notice tone="warning">Daily KPI hari ini belum diisi. Isi sebelum pulang.</Notice></div>}
         <div className="grid gap-4 sm:grid-cols-3">
           <DateField label="Date" testId="daily-date" required min={`${period}-01`} max={today()} value={date} onChange={(event) => chooseDate(event.target.value)} />
           <ReadOnlyField label="Position KPI" testId="daily-role" value={indicators[0].role_name} />
           <ReadOnlyField label="Catalog" testId="daily-catalog" value={`KPI Scorecard ${catalog.version} · skala 1–${max}`} />
         </div>
-        {existing && <Notice>Tanggal ini sudah diisi (total {formatScore(existing.overallScore, max)}). Menyimpan lagi mencatat koreksi; entri terbaru yang dipakai.</Notice>}
+        {existing && <div data-testid="daily-correction-rule"><Notice>Anda sedang mengoreksi entri {formatDate(date)}. Entri bulan ini bisa Anda koreksi sampai akhir {formatPeriod(period)}; nilai sebelumnya tetap tercatat di History.</Notice></div>}
         <ol className="divide-y divide-line rounded-2xl border border-line">
           {indicators.map((row, index) => {
             const problem = touched ? problems[index] : "";
@@ -147,6 +153,7 @@ function MyDailyKpi({ team }: { team: boolean }) {
                 <input ref={(element) => { scoreInputs.current[index] = element; }} type="text" inputMode="numeric" autoComplete="off" data-testid={`input-daily-score-${row.indicator_order}`} aria-label={`Score ${row.kpi_name}`}
                   aria-invalid={Boolean(problem)} aria-describedby={problem ? `daily-score-error-${row.indicator_order}` : undefined}
                   value={lines[index].score} onChange={(event) => { if (!aboveScale(event.target.value, max)) setLine(index, { score: event.target.value }); }} className={`mt-1 tabular-nums ${input}`} />
+                {existing && <SavedScore before={existing.lines[index]?.raw_score ?? null} now={scores[index]} testId={`daily-saved-${row.indicator_order}`} />}
               </label>
               <p className="text-xs font-semibold text-ink-3">Gap<span data-testid={`daily-gap-${row.indicator_order}`} className="mt-1 block text-sm tabular-nums text-ink-2">{scores[index] !== null ? formatGap(scores[index], catalog.version) : "—"}</span></p>
               <label className="col-span-2 block text-xs font-semibold text-ink-3 sm:col-span-1">Comment
@@ -162,14 +169,16 @@ function MyDailyKpi({ team }: { team: boolean }) {
         <FormError message={error} />
         <div className="flex flex-wrap items-center justify-between gap-4">
           <p data-testid="daily-total" className="text-sm text-ink-2">Total <strong className="font-display text-lg font-semibold tabular-nums text-ink">{formatScore(total, max)}</strong>
-            {total !== null && max === 100 && <span className="ml-2 tabular-nums">gap {formatGap(total, catalog.version)} dari target {KPI_TARGET}</span>}</p>
+            {total !== null && max === 100 && <span className="ml-2 tabular-nums">gap {formatGap(total, catalog.version)} dari target {KPI_TARGET}</span>}
+            {existing?.overallScore != null && <span data-testid="daily-total-compare" className="mt-1 block text-xs tabular-nums text-ink-3">{totalComparison(existing.overallScore, total)}</span>}</p>
           <Button type="submit" disabled={busy} data-testid="btn-save-daily">{existing ? "Save correction" : "Save"}</Button>
         </div>
       </form>
     </Card>
-    <Card title={`This period · ${formatPeriod(period)}`} testId="my-daily-period">
+    <Card title={`This period · ${formatPeriod(period)}`} testId="my-daily-period"
+      actions={<ButtonLink href={`/daily-kpi/${snapshot.actorEmployeeId}/history`} icon={<History className="size-4" />} testId="view-history">View History</ButtonLink>}>
       <DailySummary compiled={compiled} />
-      <div className="mt-5"><DailyEntriesTable entries={[...days].reverse()} corrections={correctionsByDay(snapshot.kpiDaily ?? [], snapshot.actorEmployeeId, period)} /></div>
+      <div className="mt-5"><DailyEntriesTable entries={[...days].reverse()} corrections={correctionsByDay(snapshot.kpiDaily ?? [], snapshot.actorEmployeeId, period)} editing={date} onCorrect={correct} /></div>
     </Card>
     {discarding && <DiscardDialog what={"date" in discarding ? `Pindah ke ${formatDate(discarding.date)}?` : "Tinggalkan halaman ini?"} back={discarding.back} onKeep={() => setDiscarding(null)} onDiscard={discard} />}
   </>;
@@ -209,7 +218,7 @@ function DailySummary({ compiled }: { compiled: DailyCompilation | null }) {
   </>;
 }
 
-function DailyEntriesTable({ entries, corrections }: { entries: KpiDailyEntry[]; corrections: ReadonlyMap<string, number> }) {
+function DailyEntriesTable({ entries, corrections, editing, onCorrect }: { entries: KpiDailyEntry[]; corrections: ReadonlyMap<string, number>; editing?: string; onCorrect?: (day: string, back: HTMLElement) => void }) {
   return <DataTable<KpiDailyEntry> rows={entries} noun="days" rowKey={(entry) => entry.id}
     emptyTitle="Belum ada entri" emptyText="Belum ada skor harian di periode ini."
     columns={[
@@ -228,6 +237,10 @@ function DailyEntriesTable({ entries, corrections }: { entries: KpiDailyEntry[];
           <ul className="space-y-1">{notes.map((note) => <li key={note.kpi}><span className="font-semibold">KPI {note.kpi}:</span> {note.text}</li>)}</ul>
         </div> : "—";
       } },
+      // Only on the employee's own entries: the period is the running month, the only one that can still be corrected.
+      ...(onCorrect ? [{ key: "correct", header: "", cell: (entry: KpiDailyEntry) => entry.entryDate === editing
+        ? <span data-testid="daily-editing" className="text-xs font-semibold text-ink-3">In the form</span>
+        : <Button variant="secondary" data-testid="btn-correct-daily" aria-label={`Correct ${formatDate(entry.entryDate)}`} onClick={(event) => onCorrect(entry.entryDate, event.currentTarget)}>Correct</Button> }] : []),
     ]} />;
 }
 
@@ -287,7 +300,8 @@ function TeamDailyKpi() {
           {row.scorecard && <Link href={`/performance/scorecard/${row.scorecard.id}`} data-testid="daily-finalized" className="mt-1 block text-xs font-semibold text-primary-600 hover:underline">Finalized</Link>}</> },
       ]}
       actions={(row) => <RowActionMenu label={`Actions for ${row.employee.fullName}`} actions={[
-        { label: "View entries", testId: "view-entries", icon: <Eye />, href: `/daily-kpi/${row.employee.id}` },
+        { label: "View Detail", testId: "view-entries", icon: <Eye />, href: `/daily-kpi/${row.employee.id}` },
+        { label: "View History", testId: "view-history", icon: <History />, href: `/daily-kpi/${row.employee.id}/history` },
         // W8: the same Finalize as on Performance Review, so HR does not have to switch screens.
         { label: "Finalize from Daily KPI", testId: "finalize-daily", icon: <CheckCircle2 />, onSelect: () => setFinalizing(row), hidden: !row.compiled || Boolean(row.scorecard) || !canAssess(snapshot, row.employee.id) },
       ]} />} />
@@ -305,11 +319,44 @@ export function DailyKpiEmployeePage({ employeeId }: { employeeId: string }) {
   const entries = dailyEntriesOf(snapshot.kpiDaily ?? [], employeeId, period).reverse();
   return <>
     <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Daily KPI", href: "/daily-kpi" }, { label: "Entries" }]} backHref="/daily-kpi"
-      name={employee.fullName} meta={[...employeeMeta(snapshot, employee), `Period ${formatPeriod(period)}`]} />
+      name={employee.fullName} meta={[...employeeMeta(snapshot, employee), `Period ${formatPeriod(period)}`]}
+      actions={<ButtonLink href={`/daily-kpi/${employeeId}/history`} icon={<History className="size-4" />} testId="view-history">View History</ButtonLink>} />
     {!snapshot.kpiDaily ? <Notice tone="warning">{NOT_READY}</Notice> : <Card title="Daily entries" testId="daily-entries"
       actions={<div className="w-48"><PeriodFilter label="Period" testId="daily-period" value={period} onChange={(value) => setPeriod(value || periods[0])} emptyOption={false} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} /></div>}>
       <DailySummary compiled={compileDaily(snapshot.kpiDaily, employeeId, period)} />
       <div className="mt-5"><DailyEntriesTable entries={entries} corrections={correctionsByDay(snapshot.kpiDaily, employeeId, period)} /></div>
+    </Card>}
+  </>;
+}
+
+/** Every saved daily entry of one employee, corrections included, newest first: what each correction changed stays readable (R2). */
+export function DailyKpiHistoryPage({ employeeId }: { employeeId: string }) {
+  const snapshot = useSnapshot();
+  const employee = employeeById(snapshot, employeeId);
+  const periods = [...new Set([thisMonth(), ...(snapshot.kpiDaily ?? []).filter((entry) => entry.employeeId === employeeId).map((entry) => entry.period)])].sort().reverse();
+  const [period, setPeriod] = useState(periods[0]);
+  if (!employee || !visibleEmployees(snapshot).some((item) => item.id === employeeId)) return <NotFound what="Employee" backHref="/daily-kpi" backLabel="Back to Daily KPI" />;
+  const items = dailyHistoryOf(snapshot.kpiDaily ?? [], employeeId, period);
+  return <>
+    <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Daily KPI", href: "/daily-kpi" }, { label: "History" }]} backHref={`/daily-kpi/${employeeId}`}
+      name={employee.fullName} meta={[...employeeMeta(snapshot, employee), `Period ${formatPeriod(period)}`]} />
+    {!snapshot.kpiDaily ? <Notice tone="warning">{NOT_READY}</Notice> : <Card title="History" testId="daily-history"
+      actions={<div className="w-48"><PeriodFilter label="Period" testId="daily-period" value={period} onChange={(value) => setPeriod(value || periods[0])} emptyOption={false} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} /></div>}>
+      <Timeline empty="Belum ada entri harian di periode ini." entries={items.map(({ entry, revision, previous, versions }) => {
+        const max = scaleMaxOf(entry.definitionVersion);
+        const current = revision === versions;
+        const changes = previous ? entry.lines.flatMap((line, index) => line.raw_score === previous.lines[index]?.raw_score ? [] : [`KPI ${line.indicator_order}: ${previous.lines[index]?.raw_score ?? "—"} → ${line.raw_score ?? "—"}`]) : [];
+        return {
+          id: entry.id,
+          date: formatDate(entry.createdAt),
+          title: `${previous ? `Correction ${formatDate(entry.entryDate)} · Revision ${revision}` : `Daily entry ${formatDate(entry.entryDate)}`}${versions > 1 ? (current ? " · Current" : " · Superseded") : ""}`,
+          status: performanceBand(entry.overallScore, entry.definitionVersion) ?? undefined,
+          body: previous
+            ? <p data-testid="history-changes" className="tabular-nums">{changes.length ? changes.join(" · ") : "Skor tidak berubah, hanya komentar."} · Total {formatScore(previous.overallScore, max)} → {formatScore(entry.overallScore, max)}</p>
+            : <p className="tabular-nums">Total {formatScore(entry.overallScore, max)} · {entry.lines.map((line) => `KPI ${line.indicator_order} ${line.raw_score ?? "—"}`).join(" · ")}</p>,
+          actor: employee.fullName,
+        };
+      })} />
     </Card>}
   </>;
 }
