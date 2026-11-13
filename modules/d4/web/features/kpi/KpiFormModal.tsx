@@ -4,7 +4,7 @@ import { CheckCircle2, CircleAlert } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { catalogFor, indicatorsFor, KPI_TARGET, roleForPosition, targetOf, type KpiCatalog, type KpiCatalogSet } from "../../../kpi/catalog";
 import { compileDaily, type DailyCompilation } from "../../../kpi/daily";
-import { HIGH_ABOVE, performanceBand, scaleMaxOf, UNDER_BELOW } from "../../../kpi/scale";
+import { aboveScale, HIGH_ABOVE, performanceBand, scaleMaxOf, UNDER_BELOW } from "../../../kpi/scale";
 import type { KpiAssessmentLine } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
 import { latestForPeriod, periodDateError } from "../../../shared/rules";
@@ -187,7 +187,7 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
               <td data-label="No" className={cx("px-3 pt-2.5 text-ink-3", mobileLabel)}>{line.indicator_order}</td>
               <td data-label="Core KPI" className={cx("px-3 pt-2", mobileLabel, "max-md:col-span-2")}><input data-testid={`input-core-kpi-${line.indicator_order}`} aria-label={`Core KPI ${line.indicator_order}`} aria-invalid={touched && !line.kpi_name.trim()} maxLength={200} value={line.kpi_name} onChange={(event) => setLine(index, { kpi_name: event.target.value })} className={cx(inputStyle, "font-semibold aria-[invalid=true]:border-danger")} /></td>
               <td data-label="Weight" className={cx("px-3 pt-2.5 tabular-nums", mobileLabel)}>{line.weight_percent}%</td>
-              <td data-label={`Actual 1–${max}`} className={cx("px-3 pt-2", mobileLabel)}><input type="number" inputMode="numeric" min={1} max={max} step={1} data-testid={`input-realisasi-${line.indicator_order}`} aria-label={`Actual ${line.kpi_name}`} aria-invalid={touched && !validScore(line.raw_score, max)} value={line.raw_score ?? ""} onChange={(event) => setLine(index, actualInput(event.target.value))} className={cx(inputStyle, "tabular-nums aria-[invalid=true]:border-danger")} /></td>
+              <td data-label={`Actual 1–${max}`} className={cx("px-3 pt-2", mobileLabel)}><input type="number" inputMode="numeric" min={1} max={max} step={1} data-testid={`input-realisasi-${line.indicator_order}`} aria-label={`Actual ${line.kpi_name}`} aria-invalid={touched && !validScore(line.raw_score, max)} value={line.raw_score ?? ""} onChange={(event) => { if (!aboveScale(event.target.value, max)) setLine(index, actualInput(event.target.value)); }} className={cx(inputStyle, "tabular-nums aria-[invalid=true]:border-danger")} /></td>
               {max === 100 && <td data-label={`Gap vs ${KPI_TARGET}`} data-testid={`kpi-gap-${line.indicator_order}`} className={cx("px-3 pt-2.5 tabular-nums text-ink-2", mobileLabel)}>{validScore(line.raw_score, max) ? formatGap(line.raw_score, catalog?.version) : "—"}</td>}
               <td data-label="Weighted" className={cx("px-3 pt-2.5 text-right font-semibold tabular-nums", mobileLabel, "max-md:text-left")}>{weighted(line, max)?.toFixed(2) ?? "—"}</td>
             </tr>

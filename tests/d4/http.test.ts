@@ -45,6 +45,10 @@ describe("field.score", () => {
     expect(() => field.score(value, "Skor")).toThrow(ApiError);
     expect(() => field.score(value, "Skor")).toThrow(/bilangan bulat 1 sampai 5/);
   });
+
+  it.each([101, 999, 1000])("rejects %d on the 1–100 scale", (value) => {
+    expect(() => field.score(value, "Skor", { max: 100 })).toThrow(/bilangan bulat 1 sampai 100/);
+  });
 });
 
 describe("unsupported methods", () => {

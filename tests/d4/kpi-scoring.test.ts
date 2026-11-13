@@ -5,7 +5,7 @@ import { catalogFor, indicatorsFor, KPI_TARGET, KPI_V51_CATALOG, roleForPosition
 import { d4ReferenceFixture } from "@/modules/d4/shared/fixtures";
 import { createFixtureSource } from "@/modules/d4/web/data/fixture-source";
 import type { D4DataSource } from "@/modules/d4/web/data/source";
-import { HIGH_ABOVE, performanceBand, scaleMaxOf, UNDER_BELOW } from "@/modules/d4/kpi/scale";
+import { aboveScale, HIGH_ABOVE, performanceBand, scaleMaxOf, UNDER_BELOW } from "@/modules/d4/kpi/scale";
 import { actualInput, legacyRealisation, periodChange, scorecardTotal, weighted } from "@/modules/d4/web/features/kpi/KpiFormModal";
 
 const catalog = { rows: KPI_V51_CATALOG };
@@ -77,6 +77,13 @@ describe("KPI score scale per catalog version", () => {
   it("weights a 1–100 raw score with the same formula (weight × score / 100)", () => {
     expect(weighted({ weight_percent: 25, raw_score: 80 }, 100)).toBe(20);
     expect(weighted({ weight_percent: 25, raw_score: 80 })).toBeNull(); // 80 is not a valid 1–5 score
+  });
+
+  it("flags typed text above the scale so the score fields can refuse it", () => {
+    for (const typed of ["101", "999", "1000", " 1000 ", "1e3", "100.5"]) expect(aboveScale(typed, 100), typed).toBe(true);
+    expect(aboveScale("6", 5)).toBe(true);
+    // Within the scale, empty, or not a number at all: left to the field's own error message, not refused.
+    for (const typed of ["", "1", "85", "100", "0", "-5", "abc", "85.5"]) expect(aboveScale(typed, 100), typed).toBe(false);
   });
 });
 
