@@ -105,7 +105,6 @@ export function TrainingDetailPage({ trainingId }: { trainingId: string }) {
         <div className="mt-6"><InfoGrid columns={3} items={[
           { label: "Date", testId: "date", value: formatDate(record.date) },
           { label: "Status", value: <StatusBadge status={record.status} /> },
-          { label: "Version", testId: "version", value: String(record.revision) },
           { label: "Result", testId: "result", value: record.result || "Not recorded yet" },
           { label: "Last updated", testId: "last-updated", value: `${formatDate(record.createdAt)} · ${record.actor}` },
         ]} /></div>

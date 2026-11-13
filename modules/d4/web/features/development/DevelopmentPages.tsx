@@ -204,7 +204,7 @@ export function DevelopmentDetailPage({ needId }: { needId: string }) {
   const history = developmentHistory(snapshot, need.needId);
   return <>
     <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Development Requirement", href: "/development" }, { label: "Detail" }]} backHref="/development"
-      name={employee.fullName} meta={[...employeeMeta(snapshot, employee), `Revision ${need.revision}`]} status={need.status}
+      name={employee.fullName} meta={employeeMeta(snapshot, employee)} status={need.status}
       actions={<>
         <ButtonLink href={`/development/${need.needId}/history`} icon={<History className="size-4" />} testId="view-history">View History</ButtonLink>
         {writer && <Button icon={<Pencil className="size-4" />} onClick={() => setEditOpen(true)} data-testid="btn-edit-requirement">Edit Requirement</Button>}
@@ -224,7 +224,6 @@ export function DevelopmentDetailPage({ needId }: { needId: string }) {
           { label: "Reassessment", testId: "reassessment", value: reassessmentFor(snapshot, need.needId) ? <ReassessmentBadge snapshot={snapshot} needId={need.needId} /> : "—" },
           { label: "Last updated", testId: "last-updated", value: `${formatDate(need.createdAt)} · ${need.actor}` },
           { label: "Created", testId: "created", value: formatDate(history[history.length - 1]?.createdAt) },
-          { label: "Revisions", testId: "revisions", value: String(history.length) },
         ]} /></div>
         <h3 className="mb-2 mt-8 text-sm font-semibold text-ink-2">Notes</h3>
         <p className="whitespace-pre-wrap break-words text-sm text-ink-2">{need.notes || "—"}</p>
