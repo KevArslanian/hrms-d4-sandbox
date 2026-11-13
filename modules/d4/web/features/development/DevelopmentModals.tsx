@@ -1,10 +1,10 @@
 "use client";
 
 import { useMemo, useState, type FormEvent } from "react";
-import type { DevelopmentPriority, DevelopmentSourceType, DevelopmentStatus } from "../../../development/types";
+import type { DevelopmentNeedVersion, DevelopmentPriority, DevelopmentSourceType } from "../../../development/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { isDevelopmentRollback, openNeedFor, passedTrainingCount, retrainedAt } from "../../../shared/rules";
-import { assessableEmployees, currentGap, DEFAULT_SOURCE_TYPE, developmentById, developmentHistory, developmentNeeds, employeeById, formatDate, formatPeriod, latestCurrentPositionAssessment, objectiveFromFinding, objectiveWithMethod, positionOf, scorecardsOf, sourceTypeLabel, today, trainings } from "../../data/selectors";
+import { closeGapBlockedReason, closeGapNotes, openNeedFor, openTrainingCount } from "../../../shared/rules";
+import { assessableEmployees, currentGap, DEFAULT_SOURCE_TYPE, developmentById, developmentNeeds, employeeById, formatDate, formatPeriod, latestCurrentPositionAssessment, objectiveFromFinding, objectiveWithMethod, positionOf, scorecardsOf, sourceFinding, sourceTypeLabel, today, trainings, type Snapshot } from "../../data/selectors";
 import { FormError, FormModal, ModalActions, ReadOnlyField, SearchSelectField, SelectField, SuggestField, TextAreaField, TextField } from "../../ui/forms";
 import { Notice, statusLabel } from "../../ui/primitives";
 import { picOptions } from "./rows";
@@ -137,40 +137,35 @@ export function DevelopmentFormModal({ employeeId, sourceType, sourceRef, onClos
   </FormModal>;
 }
 
-export function DevelopmentStatusModal({ needId, onClose, onSaved }: { needId: string; onClose: () => void; onSaved?: () => void }) {
+/** The open activity a requirement's progress is updated in (13 Nov 2026: Training Tracking is the one writer). */
+export const openTrainingOf = (snapshot: Snapshot, needId: string) => trainings(snapshot)
+  .filter((item) => item.developmentNeedId === needId && (item.status === "Planned" || item.status === "In Progress"))
+  .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))[0];
+
+/** Path B: whether a requirement may close on the level evidence alone ("" when it may), and the finding that proves it. */
+export function closeEvidence(snapshot: Snapshot, need: DevelopmentNeedVersion) {
+  const finding = sourceFinding(snapshot, need);
+  return { finding, blocked: closeGapBlockedReason(need, finding, openTrainingCount(trainings(snapshot), need.needId)) };
+}
+
+/** Closes a Competency Gap requirement whose level is already met, without a training (e.g. after coaching). */
+export function CloseAsMetModal({ needId, onClose, onSaved }: { needId: string; onClose: () => void; onSaved?: () => void }) {
   const snapshot = useSnapshot();
   const { run, busy } = useD4();
-  const current = snapshot.developmentVersions.filter((item) => item.needId === needId).sort((a, b) => b.revision - a.revision)[0];
-  const [status, setStatus] = useState<DevelopmentStatus>(current?.status ?? "Identified");
-  const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
-  const openTrainings = trainings(snapshot).filter((item) => item.developmentNeedId === needId && (item.status === "Planned" || item.status === "In Progress"));
-  // After a Retraining only trainings passed since then count, as on the server.
-  const since = retrainedAt(developmentHistory(snapshot, needId));
-  const passed = passedTrainingCount(trainings(snapshot), needId, since);
-  const rollback = current ? isDevelopmentRollback(current.status, status) : false;
-  // Same rules as the server: completing while training still runs, or without a passed training, needs a reason.
-  const completingOpen = status === "Completed" && openTrainings.length > 0;
-  const completingUnpassed = status === "Completed" && passed === 0;
-  const needsReason = rollback || completingOpen || completingUnpassed;
+  const need = developmentById(snapshot, needId);
+  const evidence = need && closeEvidence(snapshot, need);
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (rollback && !notes.trim()) { setError(`Alasan wajib diisi saat status mundur dari ${statusLabel(current?.status ?? "")} ke ${statusLabel(status)}.`); return; }
-    if (completingOpen && !notes.trim()) { setError("Training untuk requirement ini masih Planned atau In Progress. Selesaikan atau batalkan dulu, atau jelaskan alasannya di Notes."); return; }
-    if (completingUnpassed && !notes.trim()) { setError("Belum ada training berhasil Passed untuk requirement ini. Jelaskan di Notes mengapa requirement tetap diselesaikan."); return; }
-    const result = await run((source) => source.updateDevelopment(needId, status, notes), "Status development diperbarui sebagai revisi baru.");
+    const result = await run((source) => source.closeDevelopment(needId), "Requirement ditutup: gap terpenuhi.");
     if (result.ok) { onSaved?.(); onClose(); } else setError(result.error);
   }
-  return <FormModal title="Update Status" description={current?.objective} onClose={onClose} footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Status" disabled={status === current?.status} />}>
+  return <FormModal title="Close as Met" description={need?.objective} onClose={onClose} footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Close Requirement" disabled={!evidence || Boolean(evidence.blocked)} />}>
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />
-      <SelectField label="Status" required value={status} onChange={(event) => setStatus(event.target.value as DevelopmentStatus)}>
-        {(["Identified", "Planned", "In Progress", "Completed"] as const).map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}
-      </SelectField>
-      {status === "Completed" && openTrainings.length > 0 && <Notice tone="warning">Masih ada {openTrainings.length} training berstatus Planned/In Progress untuk requirement ini ({openTrainings.map((item) => item.activity).join(", ")}). Selesaikan atau batalkan terlebih dahulu, atau jelaskan alasannya di Notes.</Notice>}
-      {completingUnpassed && <Notice tone="warning">Belum ada training dengan hasil Passed untuk requirement ini{since ? " sejak Retraining terakhir" : ""}. Jika gap ditutup dengan cara lain (misalnya coaching), jelaskan di Notes.</Notice>}
-      <TextAreaField label="Notes" testId="notes" required={needsReason} value={notes} onChange={(event) => setNotes(event.target.value)} helper={`${status === current?.status ? `Status sudah ${status}. Pilih status lain untuk menyimpan. ` : rollback ? "Wajib: status mundur ke tahap sebelumnya. " : completingOpen ? "Wajib: jelaskan mengapa requirement diselesaikan saat training masih berjalan. " : completingUnpassed ? "Wajib: belum ada training yang Passed. " : ""}${notes.length}/${NOTES_MAX}`} />
-      <Notice>Perubahan disimpan sebagai revisi baru; riwayat sebelumnya tetap tersedia. Status Completed tidak otomatis menutup gap kompetensi.</Notice>
+      {evidence?.finding && !evidence.blocked
+        ? <Notice>{closeGapNotes(evidence.finding, today())} Requirement disimpan sebagai Completed dengan reassessment Meets requirement.</Notice>
+        : <Notice tone="warning">{evidence?.blocked}</Notice>}
     </form>
   </FormModal>;
 }

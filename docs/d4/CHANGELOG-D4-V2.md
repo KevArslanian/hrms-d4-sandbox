@@ -304,6 +304,14 @@ Tidak dikerjakan karena belum pasti atau bukan milik D4:
 - **Dihapus: Simulasi Employee.** Tombol, banner "Keluar simulasi", dan logika pratinjau di `D4DataProvider` (`asEmployee`, `d4-view-as`). Tampilan Employee hanya dilihat lewat login Employee sungguhan.
 - **Data contoh:** HR Manager kini punya KPI Finance & Administration seperti di live (`d4_position_kpi_roles`, role 10 di V5.1 dan V6), sehingga "My KPI today" milik HR terlihat di pratinjau.
 - **Data yang baru disimpan tetap terlihat.** Setelah simpan, baris itu tampil paling atas dengan label "Just saved" dan notice View Detail, sampai halaman ditinggalkan.
+- **Progres requirement punya satu penulis: Training Tracking.** Tombol "Update Status" di Development Requirement dihapus, karena progres yang sama juga ditulis lewat Update Progress di training dan keduanya bisa bertentangan.
+  - Status requirement kini dihitung dari training-nya di putaran berjalan (setelah Retraining terakhir, tanpa yang Cancelled): tanpa training menjadi Identified, semua Planned menjadi Planned, selain itu In Progress. Server menuliskannya otomatis setelah setiap simpan training, dengan catatan "Mengikuti Training Tracking."
+  - Completed hanya dengan bukti: training Passed dengan Meets requirement (sudah ada), atau **Close as Met** (baru) untuk requirement Competency Gap tanpa training terbuka saat level di data kompetensi sudah memenuhi, misalnya setelah coaching. Bukti dihitung ulang di server.
+  - Development Requirement menampilkan "Update progress in Training" yang langsung membuka training aktifnya. Edit Requirement (Priority, Method, PIC) tetap ada.
+  - API `development-needs/:id/versions` menolak perubahan status (422). Endpoint baru `development-needs/:id/close`.
+  - Requirement Competency Gap yang syaratnya bukan lagi bagian dari posisi pegawai diberi tanda "Not in current position" (tampilan saja).
+  - Migrasi `20261113120000_d4_development_status_from_trainings.sql` menahan aturan yang sama di database untuk penulisan yang melewati aplikasi. Sudah diuji di Postgres 16 lokal (13 kasus), **belum diterapkan**: perlu izin PO.
+  - Data live 13 Nov (read-only): 39 requirement, 3 Completed tanpa Meets requirement (ditutup manual dengan aturan lama) dan 4 yang statusnya belum sesuai training. Tidak diubah; yang 4 ikut tersinkron saat training-nya disimpan lagi.
 
 ## Belum selesai
 

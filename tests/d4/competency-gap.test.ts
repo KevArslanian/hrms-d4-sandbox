@@ -37,16 +37,17 @@ describe("competency gap is not resolved automatically", () => {
     expect(latestDevelopment(snapshot).find((item) => item.needId === "FIX-D4-DEV-001")).toMatchObject({ sourceType: "competency_gap", sourceRef: ALFA_GAP });
   });
 
-  it("stays Gap after training and the requirement are Completed and good scores are saved, and a new snapshot still shows Gap", async () => {
+  it("stays Gap after the training is Completed and good scores are saved, and a new snapshot still shows Gap", async () => {
     await source.updateTraining("FIX-D4-TRN-001", "Completed", "Passed", "Lulus workshop");
-    await source.updateDevelopment("FIX-D4-DEV-001", "Completed", "Training selesai");
+    // 13 Nov 2026: the requirement completes only with evidence; with the level still below the minimum it cannot close.
+    await expect(source.closeDevelopment("FIX-D4-DEV-001")).rejects.toThrow(/level saat ini 2/);
     await source.createEvaluation({ employeeId: ALFA, period: "2026-10", evaluationDate: "2026-10-01", evaluator: "x", status: "completed", reviewStatus: "Needs Review", overallScore: 5, aspects: [], generalNotes: "Sangat baik.", evidenceReference: null });
     const lines = indicatorsFor({ rows: KPI_V51_CATALOG }, 10).map((row) => ({ indicator_order: row.indicator_order, kpi_name: row.kpi_name, weight_percent: row.weight_percent, target: "", actual: "", raw_score: 5, comment: "" }));
     await source.createKpiAssessment({ employeeId: ALFA, roleOrder: 10, period: "2026-10", evaluationDate: "2026-10-01", evaluatorName: "x", status: "completed", lines, generalNotes: "Catatan uji.", evidenceReference: "DOC-1" });
 
     const snapshot = await source.loadSnapshot();
     expect(latestTraining(snapshot).find((item) => item.trainingId === "FIX-D4-TRN-001")?.status).toBe("Completed");
-    expect(latestDevelopment(snapshot).find((item) => item.needId === "FIX-D4-DEV-001")?.status).toBe("Completed");
+    expect(latestDevelopment(snapshot).find((item) => item.needId === "FIX-D4-DEV-001")?.status).toBe("In Progress");
     const before = await latestIsmiAssessment();
     expect(gapFinding(before.findings)).toBe("Gap");
     expect(before.overallStatus).toBe("Gap");

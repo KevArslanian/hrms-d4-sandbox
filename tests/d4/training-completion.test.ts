@@ -86,10 +86,10 @@ describe("planTrainingCompletion", () => {
   });
 });
 
-describe("a requirement closed without a passed training waits for nothing", () => {
-  it("shows no Needs reassessment after a manual close", async () => {
+describe("a requirement cannot be closed by hand (13 Nov 2026)", () => {
+  it("refuses a manual Completed and leaves the reassessment untouched", async () => {
     const source = await hrSource();
-    await source.updateDevelopment("FIX-D4-DEV-001", "Completed", "Ditutup lewat coaching langsung oleh atasan");
+    await expect(source.updateDevelopment("FIX-D4-DEV-001", "Completed", "Ditutup lewat coaching langsung oleh atasan")).rejects.toThrow(/mengikuti Training Tracking/);
     expect(reassessmentFor(await source.loadSnapshot(), "FIX-D4-DEV-001")).toBeNull();
   });
 });
