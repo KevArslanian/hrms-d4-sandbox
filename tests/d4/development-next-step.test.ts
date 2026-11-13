@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { needFollowsTraining } from "@/modules/d4/shared/rules";
 import { latestDevelopment, latestTraining } from "@/modules/d4/supabase/types";
 import type { D4DataSource } from "@/modules/d4/web/data/source";
 import { nextStep, type Snapshot } from "@/modules/d4/web/data/selectors";
@@ -22,34 +21,13 @@ const needOf = (snapshot: Snapshot, needId: string) => latestDevelopment(snapsho
 const step = (snapshot: Snapshot, needId: string) => nextStep(snapshot, needOf(snapshot, needId));
 
 describe("the requirement status follows its training", () => {
-  const need = { status: "Identified" as const, priority: "High" as const, method: "Coaching", pic: "Bu Maya" };
-
-  it.each([
-    ["Identified", "Planned", "Planned"],
-    ["Identified", "In Progress", "In Progress"],
-    ["Planned", "In Progress", "In Progress"],
-    ["Planned", "Completed", "In Progress"],
-    ["In Progress", "Planned", null],
-    ["In Progress", "Completed", null],
-    ["Completed", "In Progress", null],
-    ["Identified", "Cancelled", null],
-  ] as const)("%s requirement, training %s → %s", (from, training, to) => {
-    expect(needFollowsTraining({ ...need, status: from }, { activity: "Coretax", status: training })?.status ?? null).toBe(to);
-  });
-
-  it("keeps priority, method and PIC, and says why in the notes", () => {
-    expect(needFollowsTraining(need, { activity: " Coretax ", status: "Planned" })).toEqual({
-      status: "Planned", notes: 'Otomatis mengikuti training "Coretax" (Planned).', priority: "High", method: "Coaching", pic: "Bu Maya", reassessment: null,
-    });
-  });
-
   it("moves a new requirement to Planned on its first training and to In Progress when it starts, as new revisions", async () => {
     const source = await hrSource();
     const needId = await source.createDevelopment({ employeeId: ALFA, sourceType: "performance_context", sourceRef: "KPI-ALFA", objective: "Naikkan ketepatan laporan", priority: "Medium", notes: "", method: "Coaching", pic: "Bu Maya" });
     expect(step(await source.loadSnapshot(), needId)).toEqual({ kind: "create", retraining: false });
     const trainingId = await source.createTraining({ employeeId: ALFA, developmentNeedId: needId, activity: "Coaching laporan", date: "2026-11-20", status: "Planned", result: "", notes: "" });
     let snapshot = await source.loadSnapshot();
-    expect(needOf(snapshot, needId)).toMatchObject({ status: "Planned", revision: 2, notes: 'Otomatis mengikuti training "Coaching laporan" (Planned).' });
+    expect(needOf(snapshot, needId)).toMatchObject({ status: "Planned", revision: 2, notes: "Mengikuti Training Tracking." });
     expect(step(snapshot, needId)).toMatchObject({ kind: "running", retraining: false });
     await source.updateTraining(trainingId, "In Progress", "", "");
     snapshot = await source.loadSnapshot();

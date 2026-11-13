@@ -1,18 +1,19 @@
 "use client";
 
-import { Eye, GraduationCap, History, ListChecks, Pencil, Plus, RefreshCw, Scale } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { CircleCheck, Eye, GraduationCap, History, ListChecks, Pencil, Plus, RefreshCw, Scale } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { DevelopmentNeedVersion, DevelopmentSourceType } from "../../../development/types";
 import { useSnapshot } from "../../data/D4DataProvider";
-import { canWrite, describeSource, developmentById, developmentHistory, developmentNeeds, employeeById, employeeMeta, formatDate, formatPeriod, nextStep, REASSESSMENT_PENDING, reassessmentFor, revisionChanges, sourceFinding, sourceTypeLabel, trainings, visibleEmployees, type NeedStep, type Snapshot } from "../../data/selectors";
+import { canAssess, canWrite, describeSource, developmentById, developmentHistory, developmentNeeds, employeeById, employeeMeta, formatDate, formatPeriod, nextStep, REASSESSMENT_PENDING, reassessmentFor, revisionChanges, sourceFinding, sourceTypeLabel, trainings, visibleEmployees, type NeedStep, type Snapshot } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
-import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
+import { FilterBar, PeriodFilter, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
-import { Button, ButtonLink, Card, InfoGrid, Notice, SourceChip, statusLabel, StatusBadge } from "../../ui/primitives";
+import { Button, ButtonLink, Card, InfoGrid, Notice, SavedNotice, SourceChip, statusLabel, StatusBadge } from "../../ui/primitives";
 import { LevelLine, TrainingFormModal, TrainingProgressModal } from "../training/TrainingModals";
-import { DevelopmentEditModal, DevelopmentFormModal, DevelopmentStatusModal } from "./DevelopmentModals";
+import { closeEvidence, CloseAsMetModal, DevelopmentEditModal, DevelopmentFormModal, openTrainingOf } from "./DevelopmentModals";
 import { competencyOptions } from "../competency/rows";
 import { developmentRows } from "./rows";
 
@@ -104,7 +105,9 @@ function NextStepCard({ snapshot, need, writer, ...handlers }: { snapshot: Snaps
 export function DevelopmentListPage() {
   const snapshot = useSnapshot();
   const writer = canWrite(snapshot);
-  const [search, setSearch] = useState("");
+  // K15: dashboard alerts link here with ?q=<name>. Read from the router: during a client navigation window.location is still the previous page.
+  const params = useSearchParams();
+  const [search, setSearch] = useState(() => params.get("q") ?? "");
   const [department, setDepartment] = useState("");
   const [sourceType, setSourceType] = useState("");
   const [status, setStatus] = useState("");
@@ -112,29 +115,37 @@ export function DevelopmentListPage() {
   const [competency, setCompetency] = useState("");
   const [priority, setPriority] = useState("");
   const [adding, setAdding] = useState(false);
-  const [statusFor, setStatusFor] = useState<string | null>(null);
+  const [closingFor, setClosingFor] = useState<string | null>(null);
   const [editFor, setEditFor] = useState<string | null>(null);
   const [trainingFor, setTrainingFor] = useState<DevelopmentNeedVersion | null>(null);
   const [progressFor, setProgressFor] = useState<string | null>(null);
+  const [saved, setSaved] = useState<{ needId: string; trainingId?: string } | null>(null);
   // FR-04.8: filter by employee, source, period (month the requirement was last recorded) and status; FR-D4-002 B adds competency and priority.
   const periods = useMemo(() => [...new Set(developmentNeeds(snapshot).map((need) => need.createdAt.slice(0, 7)))].sort().reverse(), [snapshot]);
   const rows = useMemo(() => developmentRows(snapshot, { search, department, sourceType, status, period, competency, priority }), [snapshot, search, department, sourceType, status, period, competency, priority]);
+  const filtered = Boolean(search || department || sourceType || status || period || competency || priority);
+  const savedNeed = saved && developmentNeeds(snapshot).find((need) => need.needId === saved.needId);
+  const savedTraining = saved?.trainingId && trainings(snapshot).find((item) => item.trainingId === saved.trainingId);
+  const savedName = savedNeed ? employeeById(snapshot, savedNeed.employeeId)?.fullName : "";
 
   return <>
     <PageHeader title="Development Requirement" subtitle="Kebutuhan development dan training dengan alasan dan sumber yang dapat ditelusuri."
       actions={writer && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)} data-testid="btn-add-requirement">Add Requirement</Button>} />
-    <FilterBar canReset={Boolean(search || department || sourceType || status || period || competency || priority)} onReset={() => { setSearch(""); setDepartment(""); setSourceType(""); setStatus(""); setPeriod(""); setCompetency(""); setPriority(""); }}>
-      <SearchInput value={search} onChange={setSearch} placeholder="Search name or position" />
-      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All departments" testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />}
-      <SelectFilter label="All sources" testId="all-sources" value={sourceType} onChange={setSourceType} options={(Object.keys(sourceTypeLabel) as DevelopmentSourceType[]).map((key) => ({ value: key, label: sourceTypeLabel[key] }))} />
-      <SelectFilter label="All periods" testId="all-periods" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
-      <SelectFilter label="All status" testId="all-status" value={status} onChange={setStatus} options={["Identified", "Planned", "In Progress", "Completed"].map((item) => ({ value: item, label: statusLabel(item) }))} />
-      <SelectFilter label="All competencies" testId="all-competencies" value={competency} onChange={setCompetency} options={competencyOptions(snapshot)} />
-      <SelectFilter label="All priorities" testId="all-priorities" value={priority} onChange={setPriority} options={["High", "Medium", "Low"].map((item) => ({ value: item, label: statusLabel(item) }))} />
+    <FilterBar canReset={filtered} onReset={() => { setSearch(""); setDepartment(""); setSourceType(""); setStatus(""); setPeriod(""); setCompetency(""); setPriority(""); }}
+      search={<SearchInput value={search} onChange={setSearch} placeholder="Search name or position" />}
+      period={<PeriodFilter label="Periods" testId="all-periods" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />}>
+      <SelectFilter label="Sources" testId="all-sources" value={sourceType} onChange={setSourceType} options={(Object.keys(sourceTypeLabel) as DevelopmentSourceType[]).map((key) => ({ value: key, label: sourceTypeLabel[key] }))} />
+      <SelectFilter label="Status" testId="all-status" value={status} onChange={setStatus} options={["Identified", "Planned", "In Progress", "Completed"].map((item) => ({ value: item, label: statusLabel(item) }))} />
+      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="Departments" testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />}
+      <SelectFilter label="Competencies" testId="all-competencies" value={competency} onChange={setCompetency} options={competencyOptions(snapshot)} />
+      <SelectFilter label="Priorities" testId="all-priorities" value={priority} onChange={setPriority} options={["High", "Medium", "Low"].map((item) => ({ value: item, label: statusLabel(item) }))} />
     </FilterBar>
     <StatusLegend />
-    <DataTable<DevelopmentNeedVersion> rows={rows} noun="requirements" rowKey={(row) => row.needId}
-      emptyTitle="Belum ada development requirement" emptyText="Buat dari gap kompetensi, perubahan posisi, atau evaluasi performance."
+    {savedTraining ? <SavedNotice text={`Training "${savedTraining.activity}" untuk ${savedName} tersimpan.`} href={`/training/${savedTraining.trainingId}`} />
+      : savedNeed && <SavedNotice text={`Development requirement ${savedName} tersimpan (${statusLabel(savedNeed.status)}).`} href={`/development/${savedNeed.needId}`} />}
+    <DataTable<DevelopmentNeedVersion> rows={rows} noun="requirements" rowKey={(row) => row.needId} highlightKey={savedNeed ? savedNeed.needId : undefined}
+      emptyTitle={filtered ? "Tidak ada requirement yang cocok" : "Belum ada development requirement"}
+      emptyText={filtered ? "Ubah kata kunci atau reset filter." : writer ? "Buat dari gap kompetensi, perubahan posisi, atau evaluasi performance dengan Add Requirement." : "Belum ada development requirement yang tercatat."}
       columns={[
         { key: "employee", header: "Employee", cell: (row) => { const employee = employeeById(snapshot, row.employeeId); return <PersonCell name={employee?.fullName ?? "—"} code={employee?.employeeId ?? ""} />; } },
         // The source sits under the objective it explains, so the Action column fits 1280 px without scrolling (Q10).
@@ -148,8 +159,10 @@ export function DevelopmentListPage() {
           <span data-testid="cell-method" className="block">{row.method || "—"}</span>
           <span data-testid="cell-pic" className="block text-xs text-ink-3">{row.pic || "—"}</span>
         </> },
-        { key: "status", header: "Status", cell: (row) => <StatusBadge status={row.status} /> },
-        { key: "next-step", header: "Next step", wrap: true, className: "max-w-[200px]", cell: (row) => <NextStepCell snapshot={snapshot} need={row} writer={writer} onDecide={setProgressFor} onCreate={() => setTrainingFor(row)} /> },
+        // Display only: a gap requirement of a former position stays open until HR closes it, so the list says why it looks stuck.
+        { key: "status", header: "Status", cell: (row) => <><StatusBadge status={row.status} />{row.sourceType === "competency_gap" && row.status !== "Completed" && !sourceFinding(snapshot, row)
+          && <span data-testid="not-in-position" className="mt-1 block text-xs text-ink-2">Not in current position</span>}</> },
+        { key: "next-step", header: "Next step", wrap: true, className: "max-w-[200px]", cell: (row) => <NextStepCell snapshot={snapshot} need={row} writer={canAssess(snapshot, row.employeeId)} onDecide={setProgressFor} onCreate={() => setTrainingFor(row)} /> },
         // Below 1400 px the date gives way (it is also on the detail page), so Method / PIC stays visible for the "Tanpa PIC" alert.
         { key: "updated", header: "Updated", secondary: true, cell: (row) => formatDate(row.createdAt) },
       ]}
@@ -158,32 +171,36 @@ export function DevelopmentListPage() {
         { label: "View History", testId: "view-history", icon: <History />, href: `/development/${row.needId}/history` },
         // The decision HR still owes on a training (Retraining included), the same form as Training Tracking.
         ...(step.kind === "decide" ? [step.decision === "follow-up"
-          ? { label: "Retraining / Follow-up", testId: "record-follow-up", icon: <ListChecks />, onSelect: () => setProgressFor(step.training.trainingId), hidden: !writer }
-          : { label: "Record Reassessment", testId: "record-reassessment", icon: <Scale />, onSelect: () => setProgressFor(step.training.trainingId), hidden: !writer }] : []),
-        { label: "Create Training", testId: "create-training", icon: <GraduationCap />, onSelect: () => setTrainingFor(row), hidden: !writer || row.status === "Completed" },
-        { label: "Update Status", testId: "update-status", icon: <RefreshCw />, onSelect: () => setStatusFor(row.needId), hidden: !writer },
-        { label: "Edit Requirement", testId: "edit-requirement", icon: <Pencil />, onSelect: () => setEditFor(row.needId), hidden: !writer },
+          ? { label: "Retraining / Follow-up", testId: "record-follow-up", icon: <ListChecks />, onSelect: () => setProgressFor(step.training.trainingId), hidden: !canAssess(snapshot, row.employeeId) }
+          : { label: "Record Reassessment", testId: "record-reassessment", icon: <Scale />, onSelect: () => setProgressFor(step.training.trainingId), hidden: !canAssess(snapshot, row.employeeId) }] : []),
+        { label: "Create Training", testId: "create-training", icon: <GraduationCap />, onSelect: () => setTrainingFor(row), hidden: !canAssess(snapshot, row.employeeId) || row.status === "Completed" },
+        // 13 Nov 2026: progress is written once, in Training Tracking; this only takes HR there.
+        { label: "Update progress in Training", testId: "update-progress-in-training", icon: <RefreshCw />, href: `/training/${openTrainingOf(snapshot, row.needId)?.trainingId}`, hidden: !canAssess(snapshot, row.employeeId) || !openTrainingOf(snapshot, row.needId) },
+        { label: "Close as Met", testId: "close-as-met", icon: <CircleCheck />, onSelect: () => setClosingFor(row.needId), hidden: !canAssess(snapshot, row.employeeId) || Boolean(closeEvidence(snapshot, row).blocked) },
+        { label: "Edit Requirement", testId: "edit-requirement", icon: <Pencil />, onSelect: () => setEditFor(row.needId), hidden: !canAssess(snapshot, row.employeeId) },
       ]} />; }} />
-    {adding && <DevelopmentFormModal onClose={() => setAdding(false)} />}
-    {statusFor && <DevelopmentStatusModal needId={statusFor} onClose={() => setStatusFor(null)} />}
-    {editFor && <DevelopmentEditModal needId={editFor} onClose={() => setEditFor(null)} />}
-    {trainingFor && <TrainingFormModal employeeId={trainingFor.employeeId} developmentNeedId={trainingFor.needId} onClose={() => setTrainingFor(null)} />}
+    {adding && <DevelopmentFormModal onClose={() => setAdding(false)} onSaved={(needId) => setSaved({ needId })} />}
+    {closingFor && <CloseAsMetModal needId={closingFor} onClose={() => setClosingFor(null)} onSaved={() => setSaved({ needId: closingFor })} />}
+    {editFor && <DevelopmentEditModal needId={editFor} onClose={() => setEditFor(null)} onSaved={() => setSaved({ needId: editFor })} />}
+    {trainingFor && <TrainingFormModal employeeId={trainingFor.employeeId} developmentNeedId={trainingFor.needId} onClose={() => setTrainingFor(null)} onSaved={(trainingId) => setSaved({ needId: trainingFor.needId, trainingId })} />}
     {progressFor && <TrainingProgressModal trainingId={progressFor} onClose={() => setProgressFor(null)} />}
   </>;
 }
 
 export function DevelopmentDetailPage({ needId }: { needId: string }) {
   const snapshot = useSnapshot();
-  const writer = canWrite(snapshot);
-  const [statusOpen, setStatusOpen] = useState(false);
+  const [closing, setClosing] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [trainingOpen, setTrainingOpen] = useState(false);
   const [progressFor, setProgressFor] = useState<string | null>(null);
   const need = developmentById(snapshot, needId);
   const employee = need && employeeById(snapshot, need.employeeId);
   if (!need || !employee || !visibleEmployees(snapshot).some((item) => item.id === employee.id)) return <NotFound what="Development requirement" backHref="/development" backLabel="Back to Development Requirement" />;
+  // Nobody follows up their own requirement (SR-D4-EMP-23).
+  const writer = canAssess(snapshot, need.employeeId);
   const source = describeSource(snapshot, need);
   const linked = trainings(snapshot).filter((item) => item.developmentNeedId === need.needId);
+  const open = openTrainingOf(snapshot, need.needId);
   const history = developmentHistory(snapshot, need.needId);
   return <>
     <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Development Requirement", href: "/development" }, { label: "Detail" }]} backHref="/development"
@@ -191,9 +208,10 @@ export function DevelopmentDetailPage({ needId }: { needId: string }) {
       actions={<>
         <ButtonLink href={`/development/${need.needId}/history`} icon={<History className="size-4" />} testId="view-history">View History</ButtonLink>
         {writer && <Button icon={<Pencil className="size-4" />} onClick={() => setEditOpen(true)} data-testid="btn-edit-requirement">Edit Requirement</Button>}
-        {writer && <Button icon={<RefreshCw className="size-4" />} onClick={() => setStatusOpen(true)} data-testid="btn-update-status">Update Status</Button>}
-        {/* A completed requirement cannot take new training (assertNeedOpen). */}
+        {/* 13 Nov 2026: progress is written once, in Training Tracking. A completed requirement takes no new training (assertNeedOpen). */}
+        {writer && open && <ButtonLink href={`/training/${open.trainingId}`} icon={<RefreshCw className="size-4" />} testId="btn-update-progress-in-training">Update progress in Training</ButtonLink>}
         {writer && need.status !== "Completed" && <Button icon={<GraduationCap className="size-4" />} onClick={() => setTrainingOpen(true)} data-testid="btn-create-training">Create Training</Button>}
+        {writer && !closeEvidence(snapshot, need).blocked && <Button icon={<CircleCheck className="size-4" />} onClick={() => setClosing(true)} data-testid="btn-close-as-met">Close as Met</Button>}
       </>} />
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
       <Card title="Requirement">
@@ -224,8 +242,8 @@ export function DevelopmentDetailPage({ needId }: { needId: string }) {
         </Card>
       </div>
     </div>
-    <Notice>Status development atau training yang selesai tidak otomatis menutup gap kompetensi; gap tetap harus dinilai ulang.</Notice>
-    {statusOpen && <DevelopmentStatusModal needId={need.needId} onClose={() => setStatusOpen(false)} />}
+    <Notice>Status requirement mengikuti Training Tracking: training dibuat menjadi Planned, training berjalan menjadi In Progress. Completed hanya lewat training Passed dengan Meets requirement, atau Close as Met saat level di data kompetensi sudah memenuhi. Training yang selesai tidak otomatis menutup gap; gap tetap harus dinilai ulang.</Notice>
+    {closing && <CloseAsMetModal needId={need.needId} onClose={() => setClosing(false)} />}
     {editOpen && <DevelopmentEditModal needId={need.needId} onClose={() => setEditOpen(false)} />}
     {trainingOpen && <TrainingFormModal employeeId={need.employeeId} developmentNeedId={need.needId} onClose={() => setTrainingOpen(false)} />}
     {progressFor && <TrainingProgressModal trainingId={progressFor} onClose={() => setProgressFor(null)} />}

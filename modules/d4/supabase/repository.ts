@@ -62,8 +62,10 @@ const missingTable = (error: { code?: string } | null) => error?.code === "PGRST
 
 export const FOLLOW_UP_NOT_READY = "Tindak lanjut training belum bisa disimpan karena database belum diperbarui (migrasi 20261020130000). Hubungi admin HRMS; data lain tetap bisa disimpan.";
 
+// RLS shows an employee only their own d4_employee row, so the HR or manager who recorded their data is not in the list.
+// Every route that records an actor requires HR or MANAGER (requireWriter), so that is who it was.
 function actorName(reference: ReferenceDataSnapshot, employeeId: string): string {
-  return reference.employees.find((item) => item.id === employeeId)?.fullName ?? `Employee ${employeeId.slice(0, 8)}`;
+  return reference.employees.find((item) => item.id === employeeId)?.fullName ?? "HR/Manager";
 }
 
 export class SupabaseD4Repository implements ReferenceDataRepository {

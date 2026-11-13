@@ -250,7 +250,8 @@ describe("roleForPositionTitle (FR-02.11)", () => {
 
   it("maps every fixture position; only the positions without a V5.1 KPI return 0", () => {
     const withoutKpi = d4ReferenceFixture.positions.filter((position) => roleForPositionTitle(catalog, position.title) === 0).map((position) => position.title);
-    expect(withoutKpi.sort()).toEqual(["Commissioner", "HR Manager"]);
+    // HR Manager has Finance & Administration, as in live d4_position_kpi_roles (checked 13 Nov 2026).
+    expect(withoutKpi.sort()).toEqual(["Commissioner"]);
   });
 
   // BUG-D4-005 regression: keywords match whole words, so "edi" inside "Credit"/"Media" no longer maps to Implant Staff.

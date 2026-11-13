@@ -49,6 +49,12 @@ describe("performance evaluation (fixture)", () => {
     await expect(source.createEvaluation(evaluation({ employeeId: MERCURY, period: "2026-12" }))).rejects.toThrow(/diri sendiri/);
   });
 
+  it("rejects a competency assessment, requirement or training for the actor themselves (SR-D4-EMP-23)", async () => {
+    await expect(source.saveCompetency({ employeeId: MERCURY, positionId: ALFA, effectiveDate: "2026-10-01" })).rejects.toThrow(/diri sendiri/);
+    await expect(source.createDevelopment({ employeeId: MERCURY, sourceType: "role_change", sourceRef: ALFA, objective: "Uji", priority: "High", pic: "Mrs. Maya", notes: "" })).rejects.toThrow(/diri sendiri/);
+    await expect(source.createTraining({ employeeId: MERCURY, developmentNeedId: "FIX-D4-DEV-001", activity: "Uji", date: "2026-10-01", status: "Planned", result: "", notes: "" })).rejects.toThrow(/diri sendiri/);
+  });
+
   it.each([
     ["empty notes", { generalNotes: "  " }],
     ["bad period", { period: "2026-13" }],
@@ -96,21 +102,25 @@ describe("KPI scorecard (fixture)", () => {
 });
 
 describe("development and training (fixture)", () => {
-  it("allows one open requirement per competency gap and a new one after completion", async () => {
+  it("allows one open requirement per competency gap", async () => {
     const draft = { employeeId: ALFA, sourceType: "competency_gap" as const, sourceRef: ALFA_GAP, objective: "Uji", priority: "High" as const, notes: "", pic: "Budi" };
     await expect(source.createDevelopment(draft)).rejects.toThrow(/belum selesai/);
-    await source.updateDevelopment("FIX-D4-DEV-001", "Completed", "Selesai");
-    const needId = await source.createDevelopment({ ...draft, method: "Coaching", pic: "Budi" });
-    await source.updateDevelopment(needId, "Planned", "");
-    expect(latestDevelopment(await source.loadSnapshot()).find((item) => item.needId === needId)).toMatchObject({ status: "Planned", method: "Coaching", pic: "Budi" });
   });
 
-  it("rejects new training for a completed requirement", async () => {
-    // DEV-001 still has a Planned training, so completing it needs a reason.
-    await expect(source.updateDevelopment("FIX-D4-DEV-001", "Completed", "")).rejects.toThrow(/masih Planned atau In Progress/);
-    await source.updateDevelopment("FIX-D4-DEV-001", "Completed", "Workshop dibatalkan, diganti coaching");
-    await expect(source.createTraining({ employeeId: ALFA, developmentNeedId: "FIX-D4-DEV-001", activity: "X", date: "2026-10-01", status: "Planned", result: "", notes: "" }))
-      .rejects.toThrow(/Completed/);
+  it("moves the requirement with its trainings and refuses a manual status (13 Nov 2026)", async () => {
+    const status = async () => latestDevelopment(await source.loadSnapshot()).find((item) => item.needId === "FIX-D4-DEV-001")!.status;
+    expect(await status()).toBe("Planned"); // FIX-D4-TRN-001 is Planned
+    await source.updateTraining("FIX-D4-TRN-001", "In Progress", "", "");
+    expect(await status()).toBe("In Progress");
+    await source.updateTraining("FIX-D4-TRN-001", "Cancelled", "", "Jadwal batal");
+    expect(await status()).toBe("Identified");
+    await source.createTraining({ employeeId: ALFA, developmentNeedId: "FIX-D4-DEV-001", activity: "Coaching dengan atasan", date: "2026-10-01", status: "Planned", result: "", notes: "" });
+    expect(await status()).toBe("Planned");
+    for (const next of ["In Progress", "Completed"] as const) {
+      await expect(source.updateDevelopment("FIX-D4-DEV-001", next, "Coaching")).rejects.toThrow(/mengikuti Training Tracking/);
+    }
+    // The gap is still open (level 2 of min. 4), so it cannot close on evidence either.
+    await expect(source.closeDevelopment("FIX-D4-DEV-001")).rejects.toThrow(/Training Tracking/);
   });
 
   it("rejects training that points to another employee's requirement", async () => {
@@ -130,10 +140,11 @@ describe("development and training (fixture)", () => {
   });
 
   it("keeps history append-only across status changes", async () => {
-    await source.updateDevelopment("FIX-D4-DEV-001", "In Progress", "a");
-    await source.updateDevelopment("FIX-D4-DEV-001", "Completed", "b");
+    await source.updateTraining("FIX-D4-TRN-001", "In Progress", "", "");
+    await source.updateTraining("FIX-D4-TRN-001", "Cancelled", "", "Jadwal batal");
     const versions = (await source.loadSnapshot()).developmentVersions.filter((item) => item.needId === "FIX-D4-DEV-001");
-    expect(versions.map((item) => item.status)).toEqual(expect.arrayContaining(["Planned", "In Progress", "Completed"]));
+    expect(versions.map((item) => item.status)).toEqual(expect.arrayContaining(["Planned", "In Progress", "Identified"]));
+    expect(versions.map((item) => item.revision).sort()).toEqual(versions.map((_, index) => index + 1));
   });
 
   it("rejects an unknown training or requirement", async () => {
@@ -146,23 +157,22 @@ describe("development edit and reassessment (fixture)", () => {
   afterEach(() => { vi.unstubAllEnvs(); });
   const latest = async (needId: string) => latestDevelopment(await source.loadSnapshot()).find((item) => item.needId === needId)!;
 
-  it("edits priority, method and PIC as a new revision and keeps them on later status changes", async () => {
-    await source.updateDevelopment("FIX-D4-DEV-002", "In Progress", "Kebijakan pajak berubah", { priority: "High", method: "Coaching", pic: "Bu Maya" });
-    expect(await latest("FIX-D4-DEV-002")).toMatchObject({ revision: 2, status: "In Progress", priority: "High", method: "Coaching", pic: "Bu Maya" });
-    await source.updateDevelopment("FIX-D4-DEV-002", "Completed", "Briefing selesai, dinilai ulang");
-    expect(await latest("FIX-D4-DEV-002")).toMatchObject({ revision: 3, status: "Completed", priority: "High", pic: "Bu Maya" });
-    await expect(source.updateDevelopment("FIX-D4-DEV-002", "Completed", "", { priority: "High" })).rejects.toThrow(/Tidak ada perubahan/);
+  it("edits priority, method and PIC as a new revision and keeps them when a training moves the status", async () => {
+    const before = await latest("FIX-D4-DEV-002");
+    await source.updateDevelopment("FIX-D4-DEV-002", before.status, "Kebijakan pajak berubah", { priority: "High", method: "Coaching", pic: "Bu Maya" });
+    expect(await latest("FIX-D4-DEV-002")).toMatchObject({ revision: before.revision + 1, status: before.status, priority: "High", method: "Coaching", pic: "Bu Maya" });
+    await expect(source.updateDevelopment("FIX-D4-DEV-002", before.status, "", { priority: "High" })).rejects.toThrow(/Tidak ada perubahan/);
+    await source.updateTraining("FIX-D4-TRN-002", "Cancelled", "", "Diganti coaching");
+    expect(await latest("FIX-D4-DEV-002")).toMatchObject({ status: "Identified", priority: "High", method: "Coaching", pic: "Bu Maya" });
   });
 
-  it("Retraining reopens the requirement for a new training; the next completion asks for a new decision", async () => {
-    await source.updateDevelopment("FIX-D4-DEV-001", "Completed", "Workshop dibatalkan, diganti coaching");
-    await source.updateDevelopment("FIX-D4-DEV-001", "Planned", "", { reassessment: "Retraining" });
+  it("Retraining reopens the requirement for a new training; the next training moves it without the old decision", async () => {
+    const retrainingId = await source.completeTraining("FIX-D4-TRN-001", { result: "Passed", decision: "Retraining", notes: "Perlu diulang", activity: "Workshop ulang", date: "2026-10-01" });
     expect(await latest("FIX-D4-DEV-001")).toMatchObject({ status: "Planned", reassessment: "Retraining" });
-    await source.createTraining({ employeeId: ALFA, developmentNeedId: "FIX-D4-DEV-001", activity: "Workshop ulang", date: "2026-10-01", status: "Planned", result: "", notes: "" });
     // The decision belongs to the revision that recorded it, not to the ones after it.
-    await source.updateDevelopment("FIX-D4-DEV-001", "In Progress", "");
-    expect((await latest("FIX-D4-DEV-001")).reassessment).toBeNull();
-    await expect(source.updateDevelopment("FIX-D4-DEV-001", "In Progress", "", { reassessment: "Meets requirement" })).rejects.toThrow(/berarti requirement Completed/);
+    await source.updateTraining(retrainingId!, "In Progress", "", "");
+    expect(await latest("FIX-D4-DEV-001")).toMatchObject({ status: "In Progress", reassessment: null });
+    await expect(source.updateDevelopment("FIX-D4-DEV-001", "In Progress", "", { reassessment: "Meets requirement" })).rejects.toThrow(/mengikuti Training Tracking/);
   });
 
   it("stores who the competency was assessed with", async () => {

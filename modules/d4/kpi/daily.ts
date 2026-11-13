@@ -1,7 +1,7 @@
 import { localToday } from "../shared/rules";
 import type { KpiAssessmentLine, KpiDailyEntry } from "../supabase/types";
 import { indicatorsFor, targetOf, type KpiCatalog } from "./catalog";
-import { scaleMaxOf } from "./scale";
+import { performanceBand, scaleMaxOf, type PerformanceBand } from "./scale";
 
 /** Newest entry of each day for one employee and period, oldest day first. A correction is a new row for the same day. */
 export function dailyEntriesOf(entries: readonly KpiDailyEntry[], employeeId: string, period: string): KpiDailyEntry[] {
@@ -36,15 +36,22 @@ export function compileDaily(entries: readonly KpiDailyEntry[], employeeId: stri
   return { definitionVersion: latest.definitionVersion, roleOrder: latest.roleOrder, days, scores, total };
 }
 
-/** Run of the most recent entries scored under the target; only 1–100 entries have a target (85). */
-export function daysBelowTarget(days: readonly KpiDailyEntry[], target: number): number {
+/**
+ * Run of the most recent entries in one band. Interview D4 (14 Oct 2026): three Under or three High Performance days
+ * in a row make HR call the employee. Only 1–100 entries have a band.
+ */
+export function bandRun(days: readonly KpiDailyEntry[], band: PerformanceBand): number {
   let run = 0;
   for (const entry of [...days].reverse()) {
-    if (scaleMaxOf(entry.definitionVersion) !== 100 || entry.overallScore === null || entry.overallScore >= target) break;
+    if (performanceBand(entry.overallScore, entry.definitionVersion) !== band) break;
     run += 1;
   }
   return run;
 }
+
+/** Interview D4 (14 Oct 2026): 100 on every KPI is a trigger of its own for HR to check the entry. */
+export const allTopScores = (entry: KpiDailyEntry) =>
+  scaleMaxOf(entry.definitionVersion) === 100 && entry.lines.length > 0 && entry.lines.every((line) => line.raw_score === 100);
 
 /** Scorecard lines from a compilation: the catalog's indicators with the compiled scores as Actual (Q4). */
 export function scorecardLinesFromDaily(catalog: KpiCatalog, compiled: DailyCompilation): KpiAssessmentLine[] {

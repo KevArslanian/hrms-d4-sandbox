@@ -52,6 +52,7 @@ export const apiSource: D4DataSource = {
   saveCompetency: async (input) => (await post<{ id: string }>("/api/d4/competency-assessments", input)).id,
   createDevelopment: async (input) => (await post<{ id: string }>("/api/d4/development-needs", input)).id,
   updateDevelopment: async (needId, status, notes, edit) => { await post(`/api/d4/development-needs/${encodeURIComponent(needId)}/versions`, { status, notes, ...edit }); },
+  closeDevelopment: async (needId) => { await post(`/api/d4/development-needs/${encodeURIComponent(needId)}/close`, {}); },
   createTraining: async (input) => (await post<{ id: string }>("/api/d4/training-records", input)).id,
   updateTraining: async (trainingId, status, result, notes) => { await post(`/api/d4/training-records/${encodeURIComponent(trainingId)}/versions`, { status, result, notes }); },
   completeTraining: async (trainingId, input) => (await post<{ retrainingId: string | null }>(`/api/d4/training-records/${encodeURIComponent(trainingId)}/complete`, input)).retrainingId,

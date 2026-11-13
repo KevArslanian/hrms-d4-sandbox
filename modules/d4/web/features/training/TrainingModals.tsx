@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import type { CompetencyFinding } from "../../../competency/types";
 import type { TrainingStatus } from "../../../training/types";
@@ -26,7 +27,7 @@ function ResultField({ value, onChange, error, hint = true }: { value: string; o
   </>;
 }
 
-export function TrainingFormModal({ employeeId, developmentNeedId, onClose }: { employeeId?: string; developmentNeedId?: string; onClose: () => void }) {
+export function TrainingFormModal({ employeeId, developmentNeedId, onClose, onSaved }: { employeeId?: string; developmentNeedId?: string; onClose: () => void; onSaved?: (trainingId: string) => void }) {
   const snapshot = useSnapshot();
   const { run, busy } = useD4();
   const [employee, setEmployee] = useState(employeeId ?? "");
@@ -54,7 +55,7 @@ export function TrainingFormModal({ employeeId, developmentNeedId, onClose }: { 
     if (futureDone) { setError("Training yang Completed tidak boleh bertanggal setelah hari ini."); return; }
     setError("");
     const saved = await run((source) => source.createTraining({ employeeId: employee, developmentNeedId: need, activity, date, status, result: status === "Completed" ? result : "", notes }), "Training tersimpan dan terhubung ke development requirement-nya.");
-    if (saved.ok) onClose(); else setError(saved.error);
+    if (saved.ok) { onSaved?.(saved.value); onClose(); } else setError(saved.error);
   }
 
   return <FormModal title="Add Training" description="Training selalu terhubung ke development requirement sebagai sumbernya." onClose={onClose}
@@ -76,7 +77,7 @@ export function TrainingFormModal({ employeeId, developmentNeedId, onClose }: { 
         <SelectField label="Status" required value={status} onChange={(event) => setStatus(event.target.value as TrainingStatus)}>{STATUSES.map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}</SelectField>
         {status === "Completed" && <ResultField value={result} onChange={setResult} error={touched && !result ? "Result wajib dipilih bila status Completed." : undefined} />}
       </div>
-      <TextAreaField label="Notes" testId="notes" value={notes} onChange={(event) => setNotes(event.target.value)} />
+      <TextAreaField label="Notes" testId="notes" value={notes} onChange={(event) => setNotes(event.target.value)} helper={`${notes.length}/${NOTES_MAX}`} />
     </form>
   </FormModal>;
 }
@@ -86,11 +87,17 @@ const FOLLOW_UP_OPTIONS = [
   { value: "Other follow-up", label: "Other follow-up", description: "Coaching, rotasi, atau eskalasi ke atasan. Catatan wajib." },
 ];
 const LATER = "Decide later";
+// TextAreaField's default limit, the server limit of notes.
+const NOTES_MAX = 2000;
 
-/** The line under a gap-based decision: the live level of the requirement the training was for. */
-export function LevelLine({ finding }: { finding: CompetencyFinding }) {
+/**
+ * The line under a gap-based decision: the live level of the requirement the training was for. `employeeId` adds a
+ * link to that employee's Competency Gap; the modal leaves it out, so a click does not drop what was typed.
+ */
+export function LevelLine({ finding, employeeId }: { finding: CompetencyFinding; employeeId?: string }) {
   return <Notice tone={finding.status === "Terpenuhi" ? "info" : "warning"}>
     <span data-testid="level-now">Competency Gap sekarang · {finding.competencyName}: required {finding.requiredLevel}, current {finding.actualLevel ?? "belum tercatat"} ({statusLabel(finding.status)}).</span>
+    {employeeId && <> <Link href={`/competency/${employeeId}`} data-testid="link-level-competency" className="font-semibold underline">Open Competency Gap</Link></>}
   </Notice>;
 }
 
@@ -99,7 +106,7 @@ export function LevelLine({ finding }: { finding: CompetencyFinding }) {
  * save, HR's decision: Passed → Meets requirement (closes the requirement), Retraining or Decide later; Not Passed →
  * Retraining or Other follow-up (Q16). A training saved Completed without a decision reopens here from its Next step.
  */
-export function TrainingProgressModal({ trainingId, onClose }: { trainingId: string; onClose: () => void }) {
+export function TrainingProgressModal({ trainingId, onClose, onSaved }: { trainingId: string; onClose: () => void; onSaved?: () => void }) {
   const snapshot = useSnapshot();
   const { run, busy } = useD4();
   const record = trainingById(snapshot, trainingId);
@@ -138,14 +145,15 @@ export function TrainingProgressModal({ trainingId, onClose }: { trainingId: str
     setTouched(true);
     if (status === "Completed" && !result) { setError("Result wajib dipilih bila status Completed: Passed atau Not Passed."); return; }
     if (rollback && !notes.trim()) { setError(`Alasan wajib diisi saat status mundur dari ${statusLabel(record!.status)} ke ${statusLabel(status)}.`); return; }
-    if (deciding && !decision) { setError(result === "Passed" ? "Pilih hasil reassessment: Meets requirement, Retraining, atau Decide later." : "Pilih tindak lanjut: Retraining atau Other follow-up."); return; }
+    // R3: only the choices that can be picked are named.
+    if (deciding && !decision) { setError(`${result === "Passed" ? "Pilih hasil reassessment" : "Pilih tindak lanjut"}: ${orList(options.filter((item) => !("disabled" in item && item.disabled)).map((item) => item.label))}.`); return; }
     const missing = [retraining && !activity.trim() && "training/activity", retraining && !date && "date", other && !notes.trim() && "notes"].filter(Boolean);
     if (missing.length) { setError(`Lengkapi ${missing.join(", ")} sebelum menyimpan.`); return; }
     setError("");
     const saved = deciding && !later
       ? await run((source) => source.completeTraining(trainingId, { result: result as TrainingCompletion["result"], decision: decision as TrainingDecision, notes, ...(retraining ? { activity, date } : {}) }), DONE[`${result} · ${decision}`])
       : await run((source) => source.updateTraining(trainingId, status, saveResult, notes), later ? "Training Completed (Passed). Catat hasil reassessment dari Next step setelah level di data kompetensi pegawai (modul D3) diperbarui." : "Progres training tersimpan sebagai versi baru.");
-    if (saved.ok) onClose(); else setError(saved.error);
+    if (saved.ok) { onSaved?.(); onClose(); } else setError(saved.error);
   }
 
   return <FormModal title="Update Progress" description={record.activity} onClose={onClose} footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Progress" disabled={unchanged} />}>
@@ -157,7 +165,7 @@ export function TrainingProgressModal({ trainingId, onClose }: { trainingId: str
             <ReadOnlyField label="Result" testId="result" value={record.result} />
             <ReadOnlyField label="Decision" testId="decision" value={followUpOf(trainingHistory(snapshot, record.trainingId)) ?? reassessmentFor(snapshot, record.developmentNeedId) ?? "—"} />
           </div>
-        : <ResultField value={result} onChange={(value) => { setResult(value); setDecision(""); }} error={touched && !result ? "Result wajib dipilih." : undefined} hint={false} />)}
+        : <ResultField value={result} onChange={(value) => { setResult(value); setDecision(""); setError(""); }} error={touched && !result ? "Result wajib dipilih." : undefined} hint={false} />)}
       {deciding && <>
         {result === "Passed" && finding && <LevelLine finding={finding} />}
         <RadioField label={result === "Passed" ? "Reassessment result" : "Follow-up"} testId={result === "Passed" ? "reassessment" : "follow-up"} required value={decision}
@@ -173,10 +181,12 @@ export function TrainingProgressModal({ trainingId, onClose }: { trainingId: str
       </>}
       <TextAreaField label={rollback ? "Reason for change" : "Update notes"} testId={rollback ? "alasan-perubahan" : "update-notes"} required={rollback || other} value={notes} onChange={(event) => setNotes(event.target.value)}
         error={touched && (rollback || other) && !notes.trim() ? "Catatan wajib diisi." : undefined}
-        helper={rollback ? `Status mundur dari ${statusLabel(record.status)}; alasannya disimpan di riwayat versi.` : other ? "Tulis langkahnya (coaching, rotasi, atau eskalasi ke atasan), siapa, dan kapan." : retraining ? "Disalin juga ke catatan training ulang." : undefined} />
+        helper={`${rollback ? `Status mundur dari ${statusLabel(record.status)}; alasannya disimpan di riwayat versi. ` : other ? "Tulis langkahnya (coaching, rotasi, atau eskalasi ke atasan), siapa, dan kapan. " : retraining ? "Disalin juga ke catatan training ulang. " : ""}${notes.length}/${NOTES_MAX}`} />
     </form>
   </FormModal>;
 }
+
+const orList = (items: readonly string[]) => items.length > 1 ? `${items.slice(0, -1).join(", ")} atau ${items.at(-1)}` : items[0] ?? "";
 
 const DONE: Record<string, string> = {
   "Passed · Meets requirement": "Training Completed. Requirement ditutup: Meets requirement.",
