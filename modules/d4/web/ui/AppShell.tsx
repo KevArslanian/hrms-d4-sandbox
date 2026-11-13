@@ -2,23 +2,25 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, ChevronDown, Contact, Eye, Menu, SquareTerminal, Store, Users, X } from "lucide-react";
+import { Bell, ChevronDown, Contact, Menu, SquareTerminal, Store, Users, X } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { catalogFor, roleForPosition } from "../../kpi/catalog";
 import { canFillDaily } from "../../shared/rules";
 import { createD4BrowserClient } from "../../supabase/client";
 import { useD4 } from "../data/D4DataProvider";
+import { endPreviewSession } from "../data/preview-session";
 import { thisMonth, today } from "../data/selectors";
-import { FormModal, SearchSelectField } from "./forms";
 import { Button, cx, slug } from "./primitives";
 
+// People Dashboard first: it is the HR landing page and the summary the other five pages feed (decision 13 Nov 2026).
 export const D4_MENU = [
+  { href: "/dashboard", label: "People Dashboard" },
   { href: "/performance", label: "Performance Review" },
   { href: "/daily-kpi", label: "Daily KPI" },
   { href: "/competency", label: "Competency Gap" },
   { href: "/development", label: "Development Requirement" },
   { href: "/training", label: "Training Tracking" },
-  { href: "/dashboard", label: "People Dashboard" },
 ] as const;
 
 // An employee only ever sees their own data, so the team lists are left out: /dashboard is their own profile.
@@ -32,40 +34,86 @@ const menuFor = (role: string | undefined): readonly { href: string; label: stri
 
 const roleLabel: Record<string, string> = { HR: "HR", MANAGER: "Manager", MANAGEMENT: "Management", EMPLOYEE: "Employee" };
 
-const LOGO_URL = "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Logo-ANDIMA-wzx4gpZx20EFE5IYcH3jqabixELIo3.png";
-
 // Other teams' modules: shown as in the shared sidebar, not clickable from D4 yet.
 const OTHER_MODULES = [{ label: "POS", icon: Store }, { label: "CRM", icon: Contact }] as const;
 
 // Matches Figma PISD D3 sidebar (file L5k46NNy2gX6xOq8e1dczQ, node 1582:458): POS, CRM, HRMS (expanded) and MID,
-// active HRMS item on #b0c6d4 Logout outlined at the bottom.
-function Sidebar({ onNavigate, onClose }: { onNavigate: () => void; onClose: () => void }) {
-  const pathname = usePathname();
+// active HRMS item on #b0c6d4 Logout outlined at the bottom. Menu text is darker/brighter than in Figma (#606f8c active,
+// #d9e2fc at 40% inactive: 2.9-3.1:1) so it reaches 4.5:1; hues unchanged.
+/**
+ * Logout asks first (decision 13 Nov 2026). "Iya" turns the dialog into "Logging out..." until the login page replaces
+ * the app; "Tidak", Esc or the overlay closes it. Focus starts on "Tidak" and returns to where it was.
+ */
+function LogoutConfirm({ onCancel }: { onCancel: () => void }) {
   const router = useRouter();
-  const { mode, snapshot } = useD4();
-  const [hrmsOpen, setHrmsOpen] = useState(true);
+  const { mode } = useD4();
+  const dialog = useRef<HTMLDivElement>(null);
   const [signingOut, setSigningOut] = useState(false);
+  const cancel = () => { if (!signingOut) onCancel(); };
 
   async function signOut() {
     setSigningOut(true);
+    dialog.current?.focus();
     try {
-      await createD4BrowserClient().auth.signOut({ scope: "local" });
+      // The local preview signs out by dropping its own cookie; only the live app has a Supabase session to end.
+      if (mode === "fixture") endPreviewSession();
+      else await createD4BrowserClient().auth.signOut({ scope: "local" });
       router.replace("/login");
       router.refresh();
-    } finally {
+    } catch {
+      // Back to the question, so the user can try again instead of waiting on a message that never ends.
       setSigningOut(false);
     }
   }
 
+  useEffect(() => {
+    // Read before moving focus in: an autoFocus would already have taken it, and focus could not go back on close.
+    const previous = document.activeElement as HTMLElement | null;
+    dialog.current?.querySelector<HTMLElement>("[data-testid=btn-logout-cancel]")?.focus();
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; previous?.focus(); };
+  }, []);
+
+  return createPortal(<div className="fixed inset-0 z-[60] flex items-center justify-center bg-ink/40 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) cancel(); }}>
+    <div ref={dialog} role="alertdialog" aria-modal="true" aria-labelledby="logout-title" aria-describedby={signingOut ? undefined : "logout-text"} tabIndex={-1} data-testid="logout-confirm"
+      onKeyDown={(event) => {
+        if (event.key === "Escape") cancel();
+        if (event.key !== "Tab") return;
+        // Two buttons: Tab moves between them and never leaves the dialog.
+        const buttons = [...event.currentTarget.querySelectorAll<HTMLButtonElement>("button")];
+        const next = buttons[(buttons.indexOf(document.activeElement as HTMLButtonElement) + (event.shiftKey ? buttons.length - 1 : 1)) % buttons.length];
+        event.preventDefault(); next?.focus();
+      }}
+      className="w-full max-w-sm rounded-2xl bg-surface p-6 shadow-modal outline-none">
+      {signingOut
+        ? <p id="logout-title" role="status" data-testid="logout-progress" className="text-center font-display text-base font-semibold text-ink">Logging out...</p>
+        : <>
+          <h2 id="logout-title" className="font-display text-base font-semibold text-ink">Logout</h2>
+          <p id="logout-text" className="mt-1.5 text-sm text-ink-2">Apakah Anda yakin ingin logout?</p>
+          <div className="mt-5 flex justify-end gap-3">
+            <Button variant="secondary" data-testid="btn-logout-cancel" onClick={onCancel}>Tidak</Button>
+            <Button variant="danger" data-testid="btn-logout-confirm" onClick={() => void signOut()}>Iya</Button>
+          </div>
+        </>}
+    </div>
+  </div>, document.body);
+}
+
+function Sidebar({ onNavigate, onClose }: { onNavigate: () => void; onClose: () => void }) {
+  const pathname = usePathname();
+  const { mode, snapshot } = useD4();
+  const [hrmsOpen, setHrmsOpen] = useState(true);
+  const [confirmLogout, setConfirmLogout] = useState(false);
+
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
   const moduleItem = "flex h-10 w-full items-center gap-3 rounded-lg px-3 text-sm font-semibold tracking-[0.07px] text-[#d9e2fc]";
-  const disabledModule = (label: string, Icon: typeof Store) => <span key={label} role="link" aria-disabled="true" title={`${label} — not available in module D4`} data-testid={`nav-${slug(label)}`}
+  const disabledModule = (label: string, Icon: typeof Store) => <span key={label} role="link" aria-disabled="true" title={`${label}: not available in module D4`} data-testid={`nav-${slug(label)}`}
     className={cx(moduleItem, "cursor-not-allowed opacity-70")}><Icon aria-hidden="true" className="size-[17px]" />{label}</span>;
 
   return <div className="flex h-full flex-col bg-[#0f2342] px-4 pb-5 pt-4 text-white">
     <div className="flex h-12 items-center gap-3 px-2 pt-1">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={LOGO_URL} alt="Logo ANDIMA" width={400} height={246} data-testid="sidebar-logo" className="h-9 w-auto rounded-lg bg-white object-contain p-0.5" />
+      <img src="/andima-logo.png" alt="Logo ANDIMA" width={400} height={246} data-testid="sidebar-logo" className="h-9 w-auto rounded-lg bg-white object-contain p-0.5" />
       <div><p className="text-xl font-bold leading-7 tracking-[-0.5px]">ANDIMA</p><p className="text-xs leading-4 text-[#d9e2fc]/80">Logistics Suite</p></div>
       <button type="button" onClick={onClose} data-testid="btn-sidebar-close" className="ml-auto rounded p-1 text-[#d9e2fc] lg:hidden" aria-label="Close navigation"><X size={18} /></button>
     </div>
@@ -82,7 +130,7 @@ function Sidebar({ onNavigate, onClose }: { onNavigate: () => void; onClose: () 
           const active = isActive(item.href);
           return <Link key={item.href} href={item.href} data-testid={`nav-${slug(item.label)}`} onClick={onNavigate} aria-current={active ? "page" : undefined}
             className={cx("flex items-center gap-2 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors",
-              active ? "bg-[#b0c6d4] text-[#606f8c]" : "text-[#d9e2fc]/40 hover:text-[#d9e2fc]")}>
+              active ? "bg-[#b0c6d4] text-[#454f64]" : "text-[#d9e2fc]/55 hover:text-[#d9e2fc]")}>
             {item.label}
           </Link>;
         })}
@@ -90,37 +138,17 @@ function Sidebar({ onNavigate, onClose }: { onNavigate: () => void; onClose: () 
       {disabledModule("MID", SquareTerminal)}
     </nav>
 
-    {mode === "live"
-      ? <button type="button" data-testid="btn-logout" onClick={() => void signOut()} disabled={signingOut}
-          className="mt-4 h-10 w-full rounded-[20px] border-[3px] border-[#d9364f] text-xl font-semibold text-[#d9364f] transition hover:bg-[#d9364f]/10 disabled:cursor-not-allowed disabled:opacity-50">
-          {signingOut ? "Keluar..." : "Logout"}
-        </button>
-      : <p className="mt-4 rounded-lg border border-[#d9e2fc]/20 px-3 py-1.5 text-center text-[11px] text-[#d9e2fc]/80">Mode pratinjau · data contoh</p>}
+    {/* On a phone the header badge is hidden, so the sidebar is where the preview says it shows sample data. */}
+    {mode === "fixture" && <p className="mt-4 rounded-lg border border-[#d9e2fc]/20 px-3 py-1.5 text-center text-[11px] text-[#d9e2fc]/80">Mode pratinjau · data contoh</p>}
+    {/* Shown in the preview as well, where it ends the preview sign-in (preview-session.ts) without contacting a server.
+        The text is a lighter shade of the #d9364f border, which reaches only 3.4:1 on the dark sidebar; this one clears 4.5:1 also on hover.
+        On a phone the drawer traps focus and closes on Esc, so it closes first and the dialog has the keyboard to itself. */}
+    <button type="button" data-testid="btn-logout" onClick={() => { onClose(); setConfirmLogout(true); }}
+      className="mt-4 h-10 w-full rounded-[20px] border-[3px] border-[#d9364f] text-xl font-semibold text-[#e3697b] transition hover:bg-[#d9364f]/10">
+      Logout
+    </button>
+    {confirmLogout && <LogoutConfirm onCancel={() => setConfirmLogout(false)} />}
   </div>;
-}
-
-/** HR/manager backup for demos: preview the app as one employee without that employee's login. Read-only. */
-function SimulateEmployee() {
-  const router = useRouter();
-  const { snapshot, canSimulate, viewAs, setViewAs } = useD4();
-  const [open, setOpen] = useState(false);
-  const [choice, setChoice] = useState("");
-  if (!snapshot || !canSimulate || viewAs) return null;
-  const options = [...snapshot.reference.employees]
-    .sort((a, b) => a.fullName.localeCompare(b.fullName))
-    .map((item) => ({ value: item.id, label: `${item.fullName.slice(0, 60)} · ${item.employeeId}` }));
-  return <>
-    <Button variant="secondary" data-testid="btn-simulate-employee" icon={<Eye aria-hidden="true" className="size-4" />} className="h-9 px-3 text-xs" onClick={() => setOpen(true)}>
-      <span className="hidden md:inline">Simulasi Employee</span><span className="sr-only md:hidden">Simulasi Employee</span>
-    </Button>
-    {open && <FormModal title="Simulasi Employee" description="Lihat aplikasi persis seperti yang dilihat satu pegawai. Hanya tampilan; tidak ada data yang disimpan." onClose={() => setOpen(false)}
-      footer={<>
-        <Button variant="secondary" data-testid="btn-simulate-cancel" onClick={() => setOpen(false)}>Cancel</Button>
-        <Button data-testid="btn-simulate-start" disabled={!choice} onClick={() => { setViewAs(choice); setOpen(false); router.push("/daily-kpi"); }}>Lihat sebagai Employee</Button>
-      </>}>
-      <SearchSelectField label="Pegawai" testId="simulate-employee" value={choice} onChange={setChoice} options={options} placeholder="Pilih pegawai" />
-    </FormModal>}
-  </>;
 }
 
 type Notification = { id: string; title: string; text: string; href: string };
@@ -169,7 +197,8 @@ function NotificationBell() {
       <Bell aria-hidden="true" className="size-5" />
       {items.length > 0 && <span data-testid="notification-badge" className="absolute right-1 top-1 flex size-4 items-center justify-center rounded-full bg-danger text-[10px] font-semibold text-white">{items.length}</span>}
     </button>
-    {shown && <div role="dialog" aria-label="Notifications" data-testid="notification-panel" className="absolute right-0 top-full z-50 mt-2 w-[min(320px,calc(100vw-2rem))] rounded-2xl border border-line bg-surface p-2 shadow-modal">
+    {/* On a phone the bell is not at the right edge, so a panel anchored to it would run off the left side: pin it to the viewport. */}
+    {shown && <div role="dialog" aria-label="Notifications" data-testid="notification-panel" className="absolute right-0 top-full z-50 mt-2 w-[min(320px,calc(100vw-2rem))] max-sm:fixed max-sm:inset-x-4 max-sm:top-16 max-sm:w-auto rounded-2xl border border-line bg-surface p-2 shadow-modal">
       {items.length ? items.map((item) => <Link key={item.id} href={item.href} onClick={close} data-testid="notification-item" className="block rounded-xl px-3 py-2.5 hover:bg-muted">
         <span className="flex items-center gap-2 text-sm font-semibold text-ink"><span aria-hidden="true" className="size-2 shrink-0 rounded-full bg-danger" />{item.title}</span>
         <span className="mt-0.5 block text-xs text-ink-2">{item.text}</span>
@@ -179,49 +208,73 @@ function NotificationBell() {
   </div>;
 }
 
-function SimulationBanner() {
-  const { snapshot, viewAs, setViewAs } = useD4();
-  if (!snapshot || !viewAs) return null;
-  const who = snapshot.reference.employees.find((item) => item.id === viewAs);
-  return <div role="status" data-testid="simulation-banner" className="flex flex-wrap items-center gap-3 border-b border-line bg-warning-bg px-4 py-2.5 text-xs text-warning sm:px-8">
-    <Eye aria-hidden="true" className="size-4 shrink-0" />
-    <span className="min-w-0 flex-1"><strong>Mode simulasi Employee:</strong> melihat sebagai {who?.fullName.slice(0, 60) ?? "—"}. Hanya tampilan, penyimpanan dinonaktifkan.</span>
-    <Button variant="secondary" data-testid="btn-simulate-exit" className="h-8 px-3 text-xs" onClick={() => setViewAs(null)}>Keluar simulasi</Button>
-  </div>;
-}
-
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { snapshot, mode } = useD4();
   const [menuOpen, setMenuOpen] = useState(false);
-  // Detail pages outside the employee menu (opened from "View source") still get their section name.
-  const current = !snapshot ? undefined : [...menuFor(snapshot.role), ...D4_MENU].find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
+  const menuButton = useRef<HTMLButtonElement>(null);
+  const drawer = useRef<HTMLElement>(null);
+  const matches = (item: { href: string }) => pathname === item.href || pathname.startsWith(`${item.href}/`);
+  // An employee opens every other page from their own profile (View source), so it sits under My Performance, not a team menu.
+  const current = !snapshot ? undefined : snapshot.role === "EMPLOYEE" ? EMPLOYEE_MENU.find(matches) ?? EMPLOYEE_MENU[0] : D4_MENU.find(matches);
   const actor = snapshot?.reference.employees.find((item) => item.id === snapshot.actorEmployeeId);
-  const name = actor?.fullName ?? "—";
+  const name = actor?.fullName ?? "-";
+
+  // One title per section (WCAG 2.4.2), set only once the role is known so an employee never sees an HR menu name.
+  useEffect(() => {
+    if (!snapshot) return;
+    const title = `${current?.label ?? "Performance & Training"} · HRMS D4`;
+    const apply = () => { if (document.title !== title) document.title = title; };
+    apply();
+    // Next.js writes the root layout's metadata title again after a client-side navigation.
+    const observer = new MutationObserver(apply);
+    observer.observe(document.head, { childList: true, subtree: true, characterData: true });
+    return () => observer.disconnect();
+  }, [snapshot, current]);
+
+  const closeMenu = () => { setMenuOpen(false); menuButton.current?.focus(); };
+  // The open drawer is modal on a phone: focus starts in it and stays in it, Esc closes it.
+  useEffect(() => {
+    if (!menuOpen || !drawer.current) return;
+    const panel = drawer.current;
+    const focusable = () => [...panel.querySelectorAll<HTMLElement>("a[href], button:not([disabled])")];
+    focusable()[0]?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { setMenuOpen(false); menuButton.current?.focus(); }
+      if (event.key !== "Tab") return;
+      const items = focusable(), first = items[0], last = items[items.length - 1];
+      if (!panel.contains(document.activeElement)) { event.preventDefault(); (event.shiftKey ? last : first)?.focus(); }
+      else if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [menuOpen]);
 
   return <div className="min-h-screen bg-app">
     <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[90] focus:rounded-lg focus:bg-surface focus:px-4 focus:py-2">Skip to content</a>
-    {menuOpen && <button type="button" aria-label="Close menu" className="fixed inset-0 z-30 bg-ink/40 lg:hidden" onClick={() => setMenuOpen(false)} />}
-    <aside className={cx("fixed inset-y-0 left-0 z-40 w-[260px] transition-transform lg:translate-x-0", menuOpen ? "translate-x-0" : "-translate-x-full")}>
-      <Sidebar onNavigate={() => setMenuOpen(false)} onClose={() => setMenuOpen(false)} />
+    {menuOpen && <button type="button" aria-label="Close menu" tabIndex={-1} className="fixed inset-0 z-30 bg-ink/40 lg:hidden" onClick={closeMenu} />}
+    {/* Closed on a phone it is also invisible, so Tab does not walk through links that are off screen. Visibility is part of
+        the transition only when closing: it hides after the slide-out, and shows at once on opening so focus can move in. */}
+    <aside ref={drawer} className={cx("fixed inset-y-0 left-0 z-40 w-[260px] lg:visible lg:translate-x-0", menuOpen ? "translate-x-0 transition-transform" : "invisible -translate-x-full transition-[transform,visibility]")}>
+      <Sidebar onNavigate={closeMenu} onClose={closeMenu} />
     </aside>
     <div className="lg:pl-[260px]">
-      <header className="sticky top-0 z-20 flex h-16 items-center gap-4 border-b border-line bg-surface px-4 sm:px-8">
-        <button type="button" data-testid="btn-mobile-menu" aria-label={menuOpen ? "Close menu" : "Open menu"} className="rounded-lg p-2 text-ink-2 hover:bg-muted lg:hidden" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}</button>
+      {/* Tighter gaps on a phone: at 320 px the header (menu, bell, avatar) otherwise pushes the avatar off screen. */}
+      <header className="sticky top-0 z-20 flex h-16 items-center gap-2 border-b border-line bg-surface px-4 sm:gap-4 sm:px-8">
+        <button ref={menuButton} type="button" data-testid="btn-mobile-menu" aria-label={menuOpen ? "Close menu" : "Open menu"} className="rounded-lg p-2 text-ink-2 hover:bg-muted lg:hidden" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}</button>
         <strong className="text-sm font-semibold text-ink">ANDIMA HRMS</strong>
         <span aria-hidden="true" className="hidden h-5 w-px bg-line-strong sm:block" />
         <p data-testid="header-breadcrumb" className="hidden flex-1 truncate text-xs text-ink-2 sm:block">HRMS / {current?.label ?? "Performance & Training"}</p>
         <span className="flex-1 sm:hidden" />
         {mode === "fixture" && <span className="hidden rounded-full bg-warning-bg px-2.5 py-1 text-[11px] font-semibold text-warning md:inline">Pratinjau · data contoh</span>}
-        <SimulateEmployee />
         <NotificationBell />
         <span aria-hidden="true" className="h-8 w-px bg-line" />
         <div className="flex items-center gap-2.5">
           <span aria-hidden="true" className="flex size-9 items-center justify-center rounded-full bg-avatar-me-bg text-xs font-semibold text-avatar-me">{name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("")}</span>
-          <span className="hidden sm:block"><strong data-testid="header-user-name" className="block text-sm font-semibold leading-5 text-ink">{name}</strong><span data-testid="header-user-role" className="block text-xs text-ink-2">{roleLabel[snapshot?.role ?? ""] ?? "—"}</span></span>
+          <span className="hidden sm:block"><strong data-testid="header-user-name" className="block text-sm font-semibold leading-5 text-ink">{name}</strong><span data-testid="header-user-role" className="block text-xs text-ink-2">{roleLabel[snapshot?.role ?? ""] ?? "-"}</span></span>
         </div>
       </header>
-      <SimulationBanner />
       <main id="main" className="mx-auto w-full max-w-[1600px] space-y-6 px-4 py-8 sm:px-8">{children}</main>
     </div>
   </div>;
