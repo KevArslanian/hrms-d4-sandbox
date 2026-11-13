@@ -21,6 +21,7 @@ export async function listDailyEntries(request: Request) {
 export async function createDailyEntry(request: Request) {
   const session = await d4Session();
   const access = await d4Access(session);
+  if (access.role === "MANAGEMENT") throw new ApiError("FORBIDDEN", "Direktur tidak mengisi Daily KPI; peran Management hanya membaca.");
   if (!canFillDaily(access.role, access.employeeId)) throw new ApiError("FORBIDDEN", "Akun ini belum terhubung ke data pegawai.");
   const body = await readJson(request);
   const entryDate = field.date(body, "entryDate");

@@ -1,9 +1,9 @@
 import type { CompetencyAssessment } from "../../../competency/types";
 import type { DevelopmentNeedVersion } from "../../../development/types";
-import { KPI_TARGET, roleForPosition, type KpiCatalog } from "../../../kpi/catalog";
-import { dailyEntriesOf, daysBelowTarget } from "../../../kpi/daily";
-import { performanceBand, scaleMaxOf, type PerformanceBand } from "../../../kpi/scale";
-import { completedAt, followUpOf, localMonth, localToday, retrainedAt } from "../../../shared/rules";
+import { roleForPosition, type KpiCatalog } from "../../../kpi/catalog";
+import { allTopScores, bandRun, dailyEntriesOf } from "../../../kpi/daily";
+import { HIGH_ABOVE, performanceBand, scaleMaxOf, UNDER_BELOW, type PerformanceBand } from "../../../kpi/scale";
+import { completedAt, followUpOf, isDirectorPosition, localMonth, localToday, retrainedAt } from "../../../shared/rules";
 import type { EmployeeReference } from "../../../shared/types";
 import type { PositionReference } from "../../../shared/types/reference-data";
 import type { KpiAssessment } from "../../../supabase/types";
@@ -187,7 +187,7 @@ export const unfinalizedPeriods = (snapshot: Snapshot, employeeId: string, today
  * An alert about one person links to the list narrowed to them (`?q=<name>`, K15).
  */
 export function dashboardAlerts(snapshot: Snapshot, rows: readonly DashboardRow[], dailyCatalog: KpiCatalog | null = null, period = "", today = localMonth()): DashboardAlert[] {
-  const found = { under: [] as string[], unfinalized: [] as string[], completedGap: [] as string[], notPassed: [] as string[], noPlan: [] as string[], noPic: [] as string[], dailyBelow: [] as string[], noDaily: [] as string[] };
+  const found = { under: [] as string[], unfinalized: [] as string[], completedGap: [] as string[], notPassed: [] as string[], noPlan: [] as string[], noPic: [] as string[], dailyUnder: [] as string[], dailyHigh: [] as string[], dailyAllTop: [] as string[], noDaily: [] as string[] };
   const assign: AssignTarget[] = [];
   let unfinalizedPeriod = "";
   for (const row of rows) {
@@ -215,9 +215,11 @@ export function dashboardAlerts(snapshot: Snapshot, rows: readonly DashboardRow[
     }
     if (snapshot.kpiDaily) {
       const days = dailyEntriesOf(snapshot.kpiDaily, row.employee.id, today);
-      // Interview D4 (14 Oct 2026): three daily scores in a row under the target is the trigger HR follows up.
-      if (daysBelowTarget(days, Number(KPI_TARGET)) >= 3) found.dailyBelow.push(name);
-      if (!days.length && dailyCatalog && roleForPosition(dailyCatalog, row.employee.positionId)) found.noDaily.push(name);
+      if (bandRun(days, "Under Performance") >= 3) found.dailyUnder.push(name);
+      if (bandRun(days, "High Performance") >= 3) found.dailyHigh.push(name);
+      if (days.some(allTopScores)) found.dailyAllTop.push(name);
+      // Directors have a KPI role for their Performance Review but do not fill Daily KPI (decision 13 Nov 2026).
+      if (!days.length && dailyCatalog && roleForPosition(dailyCatalog, row.employee.positionId) && !isDirectorPosition(positionById(snapshot, row.employee.positionId)?.code)) found.noDaily.push(name);
     }
     const trainings = trainingsOf(snapshot, row.employee.id);
     for (const need of needs) {
@@ -235,7 +237,9 @@ export function dashboardAlerts(snapshot: Snapshot, rows: readonly DashboardRow[
     { key: "completed-gap-open", list: found.completedGap, title: "Completed, gap masih terbuka", href: "/training", detail: "development requirement Completed atau training Passed, tetapi belum ada penilaian kompetensi baru yang menunjukkan level terpenuhi.", action: "Catat hasil reassessment di detail training." },
     { key: "training-not-passed", list: found.notPassed, title: "Training Not Passed", label: "Awaiting follow-up", href: "/training", detail: "development requirement dengan training terakhir Not Passed dan belum ada tindak lanjut.", action: "Catat Retraining atau Other follow-up di detail training." },
     { key: "gap-no-requirement", list: found.noPlan, title: "Gap tanpa development requirement", href: "/competency", detail: "gap kompetensi belum dibuatkan development requirement." },
-    { key: "daily-below-target", list: found.dailyBelow, title: "Daily KPI di bawah target", href: "/daily-kpi", detail: `pegawai dengan total Daily KPI di bawah ${KPI_TARGET} pada tiga entri terakhir berturut-turut di ${formatPeriod(today)}.` },
+    { key: "daily-under", list: found.dailyUnder, title: "Daily KPI Under Performance 3 hari", href: "/daily-kpi", detail: `pegawai dengan total Daily KPI di bawah ${UNDER_BELOW} pada tiga entri terakhir berturut-turut di ${formatPeriod(today)}.`, action: "Panggil pegawai ini untuk ditindaklanjuti." },
+    { key: "daily-high", list: found.dailyHigh, title: "Daily KPI High Performance 3 hari", href: "/daily-kpi", detail: `pegawai dengan total Daily KPI di atas ${HIGH_ABOVE} pada tiga entri terakhir berturut-turut di ${formatPeriod(today)}.`, action: "Panggil pegawai ini untuk mengonfirmasi capaiannya." },
+    { key: "daily-all-top", list: found.dailyAllTop, title: "Daily KPI terisi 100 semua", href: "/daily-kpi", detail: `pegawai mengisi 100 untuk kelima KPI pada entri Daily KPI di ${formatPeriod(today)}.`, action: "Periksa kewajaran skor itu bersama pegawai." },
     { key: "daily-missing", list: found.noDaily, title: "Belum mengisi Daily KPI", href: "/daily-kpi", detail: `pegawai dengan KPI di katalog belum punya entri Daily KPI di ${formatPeriod(today)}.` },
     { key: "requirement-no-pic", list: found.noPic, title: "Tanpa PIC", href: "/development", detail: "development requirement terbuka belum punya PIC." },
   ];

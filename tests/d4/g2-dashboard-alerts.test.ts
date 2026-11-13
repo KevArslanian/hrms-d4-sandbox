@@ -28,7 +28,7 @@ describe("People Dashboard alerts (audit round 2, G2)", () => {
     const alerts = dashboardAlerts(snapshotWith(), [{ employee: first, gap: "", scorecard: under(first.id) }], null, "2026-10", "2026-11");
     expect(find(alerts, "under-performance")?.detail).toContain("Oct 2026");
     const below = [1, 2, 3].map((n) => ({ ...day(first.id, "2026-11", n), overallScore: 70 }));
-    expect(find(dashboardAlerts(snapshotWith(below), [{ employee: first, gap: "" }], null, "2026-10", "2026-11"), "daily-below-target")?.detail).toContain("Nov 2026");
+    expect(find(dashboardAlerts(snapshotWith(below), [{ employee: first, gap: "" }], null, "2026-10", "2026-11"), "daily-under")?.detail).toContain("Nov 2026");
   });
 
   it("K9: the follow-up instruction is a separate sentence the page shows to writers only", () => {

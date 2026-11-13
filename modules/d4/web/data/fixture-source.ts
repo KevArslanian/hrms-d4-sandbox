@@ -205,6 +205,7 @@ export function createFixtureSource(): D4DataSource {
     },
     // Mirrors POST /api/d4/kpi-daily: self-service, so the employee and KPI set come from the session, not the draft.
     async createDailyKpi(draft) {
+      if (state.role === "MANAGEMENT") throw new Error("Direktur tidak mengisi Daily KPI; peran Management hanya membaca.");
       if (!canFillDaily(state.role, state.actorEmployeeId)) throw new Error("Akun ini belum terhubung ke data pegawai.");
       assertDailyDate(draft.entryDate);
       const period = draft.entryDate.slice(0, 7);

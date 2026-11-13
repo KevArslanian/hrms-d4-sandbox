@@ -297,6 +297,14 @@ Tidak dikerjakan karena belum pasti atau bukan milik D4:
   - Semua kolom catatan kini dibatasi 2000 karakter di form, sama dengan server. Notes Performance Review dibatasi 4000, dan Training / activity 200.
   - Teks panjang tanpa spasi kini terbungkus di halaman detail, riwayat, dan profil dashboard. Sebelumnya teks seperti itu membuat halaman riwayat melebar ke samping.
 
+## Daily KPI per peran, alert X-24, dan tanpa simulasi · 13 Nov 2026
+
+- **Direktur tidak mengisi Daily KPI.** Keputusan 13 Nov 2026: peran Management (posisi `DIR-*`) hanya membaca D4, termasuk KPI-nya sendiri. Form "My KPI today" dan pengingatnya tidak tampil, server menjawab 403 "Direktur tidak mengisi Daily KPI", dan direktur tidak dihitung di alert "Belum mengisi Daily KPI". HR, Manager, dan Employee tetap mengisi Daily KPI-nya sendiri. Ini berbeda dengan contoh di wawancara 14 Okt (00:33:23, X-07). Policy insert di database (`d4_kpi_daily_entries`) belum diubah, karena perubahan itu butuh migrasi dan izin PO.
+- **Alert Daily KPI mengikuti X-24 (wawancara 14 Okt, 01:16:41).** Under Performance (< 80) atau High Performance (> 85) tiga entri berturut-turut, dan entri yang mengisi 100 untuk kelima KPI, masing-masing jadi alert untuk dipanggil HR. Alert lama "di bawah target 85" dihapus, karena skor 80–85 adalah Average.
+- **Dihapus: Simulasi Employee.** Tombol, banner "Keluar simulasi", dan logika pratinjau di `D4DataProvider` (`asEmployee`, `d4-view-as`). Tampilan Employee hanya dilihat lewat login Employee sungguhan.
+- **Data contoh:** HR Manager kini punya KPI Finance & Administration seperti di live (`d4_position_kpi_roles`, role 10 di V5.1 dan V6), sehingga "My KPI today" milik HR terlihat di pratinjau.
+- **Data yang baru disimpan tetap terlihat.** Setelah simpan, baris itu tampil paling atas dengan label "Just saved" dan notice View Detail, sampai halaman ditinggalkan.
+
 ## Belum selesai
 
 | Item | Alasan | Langkah berikut |

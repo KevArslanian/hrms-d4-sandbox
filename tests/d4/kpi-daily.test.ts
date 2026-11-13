@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { compileDaily, dailyEntriesOf, daysBelowTarget } from "@/modules/d4/kpi/daily";
+import { allTopScores, bandRun, compileDaily, dailyEntriesOf } from "@/modules/d4/kpi/daily";
 import { assertDailyDate, canFillDaily, localToday } from "@/modules/d4/shared/rules";
 import type { KpiDailyEntry } from "@/modules/d4/supabase/types";
 
@@ -41,24 +41,35 @@ describe("compileDaily", () => {
   });
 });
 
-describe("daysBelowTarget", () => {
-  it("counts the run of most recent entries under the target", () => {
-    const days = [entry("02", [70, 70, 70, 70, 70]), entry("03", [90, 90, 90, 90, 90]), entry("04", [80, 80, 80, 80, 80]), entry("05", [84, 84, 84, 84, 84])];
-    expect(daysBelowTarget(days, 85)).toBe(2);
+describe("bandRun and allTopScores (interview D4, 14 Oct 2026: X-24)", () => {
+  it("counts the run of most recent entries in one band: Under below 80, High above 85", () => {
+    const days = [entry("02", [70, 70, 70, 70, 70]), entry("03", [90, 90, 90, 90, 90]), entry("04", [79, 79, 79, 79, 79]), entry("05", [60, 60, 60, 60, 60])];
+    expect(bandRun(days, "Under Performance")).toBe(2);
+    expect(bandRun(days, "High Performance")).toBe(0);
+    // 80 and 85 are Average, so they end a run of either band.
+    expect(bandRun([entry("02", [86, 86, 86, 86, 86]), entry("03", [85, 85, 85, 85, 85])], "High Performance")).toBe(0);
+    expect(bandRun([entry("02", [86, 86, 86, 86, 86]), entry("03", [90, 90, 90, 90, 90])], "High Performance")).toBe(2);
   });
 
-  it("is 0 for 1–5 entries, which have no target", () => {
-    expect(daysBelowTarget([entry("02", [3, 3, 3, 3, 3], { definitionVersion: "V5.1" })], 85)).toBe(0);
+  it("is 0 for 1–5 entries, which have no band", () => {
+    expect(bandRun([entry("02", [3, 3, 3, 3, 3], { definitionVersion: "V5.1" })], "Under Performance")).toBe(0);
+  });
+
+  it("flags an entry only when every KPI is 100 on the 1–100 scale", () => {
+    expect(allTopScores(entry("02", [100, 100, 100, 100, 100]))).toBe(true);
+    expect(allTopScores(entry("02", [100, 100, 100, 100, 99]))).toBe(false);
+    expect(allTopScores(entry("02", [5, 5, 5, 5, 5], { definitionVersion: "V5.1" }))).toBe(false);
   });
 });
 
 describe("daily rules", () => {
   afterEach(() => { vi.useRealTimers(); });
 
-  it("lets every linked account fill its own day, directors (MANAGEMENT) included", () => {
+  it("lets every linked account fill its own day except directors (MANAGEMENT, decision 13 Nov 2026)", () => {
     expect(canFillDaily("EMPLOYEE", "e1")).toBe(true);
     expect(canFillDaily("HR", "e1")).toBe(true);
-    expect(canFillDaily("MANAGEMENT", "e1")).toBe(true);
+    expect(canFillDaily("MANAGER", "e1")).toBe(true);
+    expect(canFillDaily("MANAGEMENT", "e1")).toBe(false);
     expect(canFillDaily("EMPLOYEE", null)).toBe(false);
   });
 
@@ -90,16 +101,24 @@ describe("Daily KPI on the People Dashboard and in the Performance Review form",
     return Object.fromEntries(dashboardAlerts(snapshot, rows, catalog).map((alert) => [alert.key, alert.people]));
   };
 
-  it("raises 'below target' after three entries in a row under 85 and 'missing' for an employee without entries", () => {
-    const result = alerts([day(1, 90), day(2, 84), day(3, 80), day(4, 79)]);
-    expect(result["daily-below-target"]).toEqual([low.fullName]);
+  it("raises 'Under' after three entries in a row below 80 and 'missing' for an employee without entries", () => {
+    const result = alerts([day(1, 90), day(2, 79), day(3, 70), day(4, 60)]);
+    expect(result["daily-under"]).toEqual([low.fullName]);
     expect(result["daily-missing"]).toEqual([none.fullName]);
-    expect(alerts([day(1, 84), day(2, 80), day(3, 90)])["daily-below-target"]).toBeUndefined();
+    // Below the target 85 but Average (80–85) is not Under Performance.
+    expect(alerts([day(1, 84), day(2, 80), day(3, 82)])["daily-under"]).toBeUndefined();
+  });
+
+  it("raises 'High' after three entries in a row above 85, and 'all 100' for any entry with 100 on every KPI", () => {
+    const result = alerts([day(1, 86), day(2, 90), day(3, 100)]);
+    expect(result["daily-high"]).toEqual([low.fullName]);
+    expect(result["daily-all-top"]).toEqual([low.fullName]);
+    expect(alerts([day(1, 90), day(2, 85), day(3, 90)])["daily-high"]).toBeUndefined();
   });
 
   it("raises nothing before the daily table exists", () => {
     const result = alerts(undefined);
-    expect(result["daily-below-target"]).toBeUndefined();
+    expect(result["daily-under"]).toBeUndefined();
     expect(result["daily-missing"]).toBeUndefined();
   });
 
