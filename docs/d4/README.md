@@ -3,6 +3,7 @@
 | Dokumen | Isi |
 |---|---|
 | [PROMPT-D4-REDESIGN.md](PROMPT-D4-REDESIGN.md) | Brief redesign: kritik asistensi K1–K9, arah visual, pola, rencana Figma, DoD, dan penyesuaian saat eksekusi (§13) |
+| [ALUR-PENGGUNAAN-D4.md](ALUR-PENGGUNAAN-D4.md) | Panduan alur penggunaan: siapa mengisi apa di layar mana, apa yang otomatis, dan satu tempat menulis untuk setiap data |
 | [UI-D4-001.md](UI-D4-001.md) | Interaction & Component Guideline: token, tipografi, pola wajib, menu ⋮ per fitur, navigasi, responsif, aksesibilitas |
 | [API-D4-001.md](API-D4-001.md) | Endpoint Contract: struktur, izin, format error, 14 endpoint, aturan body, seeder |
 | [CHANGELOG-D4-V2.md](CHANGELOG-D4-V2.md) | Perubahan V1 → V2 dan pemetaan ke kritik K1–K9 |
