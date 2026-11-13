@@ -1,10 +1,12 @@
 import { catalogFor, indicatorsFor, roleForPosition, targetOf } from "../../kpi/catalog";
 import { scaleMaxOf } from "../../kpi/scale";
 import type { KpiAssessmentLine } from "../../supabase/types";
-import { assertEvaluationInPeriod, assertNotFutureDate, assertNotSelf, assertPeriodRevision } from "../../shared/rules";
+import { assertEvaluationInPeriod, assertNotFutureDate, assertNotSelf, assertPeriodRevision, localMonth } from "../../shared/rules";
 import { ApiError, employeeFilter, enforce, field, optionalUuid, readJson } from "../_lib/http";
 import { loadCatalogSet } from "../kpi-catalog";
 import { d4Session, requireWriter } from "../_lib/session";
+
+export const FUTURE_PERIOD = "Period belum dimulai. Performance Review hanya untuk periode yang sudah berjalan.";
 
 /** GET /api/d4/kpi-assessments?employee_id= — KPI scorecards, newest first. */
 export async function listAssessments(request: Request) {
@@ -68,6 +70,8 @@ export async function createAssessment(request: Request) {
   const evidenceReference = field.text(body, "evidenceReference", { required: false, max: 500 }).trim();
   if (!evidenceReference) throw new ApiError("VALIDATION_FAILED", "Reference wajib diisi.");
   const evaluationDate = field.date(body, "evaluationDate", { required: status === "completed" });
+  // K7: checked before the date rule, whose "before the start of the period" message misleads for a future period.
+  if (period > localMonth()) throw new ApiError("VALIDATION_FAILED", FUTURE_PERIOD);
   enforce(() => assertNotFutureDate(evaluationDate));
   enforce(() => assertEvaluationInPeriod(period, evaluationDate));
   const id = await repository.saveKpiAssessment({

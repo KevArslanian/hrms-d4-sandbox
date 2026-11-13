@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { ArrowRightLeft, Eye, FilePlus2, History, Save } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState, type FormEvent } from "react";
@@ -8,12 +9,12 @@ import type { DevelopmentNeedVersion } from "../../../development/types";
 import type { EmployeeReference } from "../../../shared/types";
 import { openNeedFor } from "../../../shared/rules";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { canWrite, currentCompetencyStatus, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, formatDate, latestCurrentPositionAssessment, positionTitle, today, trainingsOf, visibleEmployees, type Snapshot } from "../../data/selectors";
+import { canAssess, canWrite, currentCompetencyStatus, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, formatDate, inTrainingOrPositionChange, latestCurrentPositionAssessment, POSITION_CHANGE_SCOPE_MONTHS, positionTitle, today, trainingsOf, visibleEmployees, type Snapshot } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { DateField, FilterBar, FormError, FormModal, ModalActions, SearchInput, SearchSelectField, SelectFilter, TextField } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
-import { Button, ButtonLink, Card, cx, InfoGrid, Notice, statusLabel, StatusBadge } from "../../ui/primitives";
+import { Button, ButtonLink, Card, cx, InfoGrid, Notice, SavedNotice, statusLabel, StatusBadge } from "../../ui/primitives";
 import { DevelopmentFormModal } from "../development/DevelopmentModals";
 import { ReassessmentBadge } from "../development/DevelopmentPages";
 import { closingRequirement, competencyOptions, competencyRows, findingLogic, formatDifference, type CompetencyRow as Row } from "./rows";
@@ -24,7 +25,7 @@ const STATUS_FILTER = ["Not Evaluated", "Met", "Gap", "Insufficient Data"];
 /** Optional "Dinilai bersama" (interview D4: after training HR evaluates with the department that raised the need). */
 function AssessedWithField({ value, onChange, className }: { value: string; onChange: (value: string) => void; className?: string }) {
   return <TextField label="Assessed with" testId="assessed-with" maxLength={200} value={value} onChange={(event) => onChange(event.target.value)} className={className}
-    placeholder="Contoh: Rina, Finance Manager" helper="Opsional. Dinilai bersama atasan atau departemen yang mengajukan kebutuhan pegawai (nama/jabatan)." />;
+    placeholder="Contoh: Rina, Finance Manager" helper={`Opsional. Dinilai bersama atasan atau departemen yang mengajukan kebutuhan pegawai (nama/jabatan). ${value.length}/200`} />;
 }
 
 // Below md each competency becomes a stacked block and every cell shows its column name (same pattern as the KPI lines table).
@@ -46,35 +47,47 @@ export function CompetencyListPage() {
   const snapshot = useSnapshot();
   const writer = canWrite(snapshot);
   const allNeeds = developmentNeeds(snapshot);
-  const [search, setSearch] = useState("");
+  // K15: dashboard alerts link here with ?q=<name>. Read from the router: during a client navigation window.location is still the previous page.
+  const params = useSearchParams();
+  const [search, setSearch] = useState(() => params.get("q") ?? "");
   const [position, setPosition] = useState("");
   const [department, setDepartment] = useState("");
   const [status, setStatus] = useState("");
   const [competency, setCompetency] = useState("");
   const [devFor, setDevFor] = useState<string | null>(null);
   const [changing, setChanging] = useState<EmployeeReference | null>(null);
+  const [saved, setSaved] = useState<{ employeeId: string; needId?: string } | null>(null);
   const rows = useMemo(() => competencyRows(snapshot, { search, position, department, status, competency }), [snapshot, search, position, department, status, competency]);
   const filtered = Boolean(search || position || department || status || competency);
-  // UAT-11: the list holds only employees in scope; anyone else is reached from People Dashboard, whose employee detail links here.
-  const outOfScope = writer ? "Untuk pegawai lain, buka detailnya dari People Dashboard lalu klik Assess Position Change." : "Penilaian perubahan posisi untuk pegawai lain dimulai oleh HR.";
+  // UAT-11: the list holds only employees in scope; anyone else is reached from their People Dashboard profile, whose
+  // Competency Gap card links to the detail page that has Assess Position Change.
+  const outOfScope = writer ? "Pegawai lain: buka profilnya di People Dashboard, klik View source pada kartu Competency Gap, lalu Assess Position Change." : "Penilaian perubahan posisi untuk pegawai lain dimulai oleh HR atau manager.";
+  const all = visibleEmployees(snapshot);
+  const inScope = all.filter((employee) => inTrainingOrPositionChange(snapshot, employee.id)).length;
+  const scopeRule = `pegawai probation atau intern, yang punya development requirement terbuka, atau yang perubahan posisinya dinilai dalam ${POSITION_CHANGE_SCOPE_MONTHS} bulan terakhir`;
 
   return <>
     <PageHeader title="Competency Gap" subtitle="Bandingkan kemampuan pegawai dengan persyaratan posisinya." />
-    <FilterBar canReset={filtered} onReset={() => { setSearch(""); setPosition(""); setDepartment(""); setStatus(""); setCompetency(""); }}>
-      <SearchInput value={search} onChange={setSearch} placeholder="Search name or position" />
-      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All positions" testId="all-positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />}
-      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All departments" testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />}
-      <SelectFilter label="All status" testId="all-gap-status" value={status} onChange={setStatus} options={STATUS_FILTER.map((item) => ({ value: item, label: item }))} />
-      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All competencies" testId="all-competencies" value={competency} onChange={setCompetency} options={competencyOptions(snapshot)} />}
+    {/* N2: the list is scoped, so its count differs from the People Dashboard; say who is listed and why. */}
+    {snapshot.role !== "EMPLOYEE" && <div data-testid="competency-scope"><Notice>Daftar ini memuat {inScope} dari {all.length} pegawai: {scopeRule}. {outOfScope}</Notice></div>}
+    <FilterBar canReset={filtered} onReset={() => { setSearch(""); setPosition(""); setDepartment(""); setStatus(""); setCompetency(""); }}
+      search={<SearchInput value={search} onChange={setSearch} placeholder="Search name or position" />}>
+      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="Departments" testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />}
+      <SelectFilter label="Status" testId="all-gap-status" value={status} onChange={setStatus} options={STATUS_FILTER.map((item) => ({ value: item, label: item }))} />
+      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="Competencies" testId="all-competencies" value={competency} onChange={setCompetency} options={competencyOptions(snapshot)} />}
+      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="Positions" testId="all-positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />}
     </FilterBar>
-    <DataTable<Row> rows={rows} noun="employees" rowKey={(row) => row.employee.id}
-      emptyTitle="Tidak ada pegawai yang cocok" emptyText={snapshot.role === "EMPLOYEE" ? "Ubah kata kunci atau reset filter." : filtered ? `Ubah kata kunci atau reset filter. ${outOfScope}` : `Belum ada pegawai yang sedang training atau naik jabatan. ${outOfScope}`}
+    {saved && <SavedNotice text={saved.needId ? `Development requirement ${employeeById(snapshot, saved.employeeId)?.fullName ?? ""} tersimpan.` : `Penilaian perubahan posisi ${employeeById(snapshot, saved.employeeId)?.fullName ?? ""} tersimpan.`}
+      href={saved.needId ? `/development/${saved.needId}` : `/competency/${saved.employeeId}/history`} />}
+    <DataTable<Row> rows={rows} noun="employees" rowKey={(row) => row.employee.id} highlightKey={saved?.employeeId}
+      emptyTitle={filtered || snapshot.role === "EMPLOYEE" ? "Tidak ada pegawai yang cocok" : "Belum ada pegawai dalam cakupan"} emptyText={filtered || snapshot.role === "EMPLOYEE" ? "Ubah kata kunci atau reset filter." : `Daftar ini hanya memuat ${scopeRule}. ${outOfScope}`}
       columns={[
         { key: "employee", header: "Employee", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
         { key: "position", header: "Position", wrap: true, cell: (row) => row.position },
         { key: "department", header: "Department", wrap: true, optional: true, cell: (row) => departmentOf(snapshot, row.employee)?.name ?? "—" },
         { key: "requirements", header: "Requirement", className: "tabular-nums", optional: true, cell: (row) => row.findings.length || "—" },
-        { key: "gaps", header: "Gap", className: "tabular-nums", cell: (row) => row.findings.filter((item) => item.status === "Gap").length || "—" },
+        // Before the assessment is saved there is no gap to count yet (K19).
+        { key: "gaps", header: "Gap", className: "tabular-nums", cell: (row) => row.status === "Not Evaluated" ? "—" : row.findings.filter((item) => item.status === "Gap").length || "—" },
         { key: "status", header: "Status", cell: (row) => <StatusBadge status={row.status} /> },
         { key: "assessed", header: "Last saved", optional: true, cell: (row) => formatDate(row.lastAssessed) },
       ]}
@@ -82,16 +95,16 @@ export function CompetencyListPage() {
         { label: "View Detail", testId: "view-detail", icon: <Eye />, href: `/competency/${row.employee.id}` },
         { label: "View History", testId: "view-history", icon: <History />, href: `/competency/${row.employee.id}/history` },
         { label: "Create Development Requirement", testId: "create-development-requirement", icon: <FilePlus2 />, onSelect: () => setDevFor(row.employee.id),
-          hidden: !writer || row.status === "Not Evaluated" || row.findings.filter((item) => item.status === "Gap").every((item) => openNeedFor(allNeeds, row.employee.id, "competency_gap", item.requirementId)) },
-        { label: "Assess Position Change", testId: "assess-position-change", icon: <ArrowRightLeft />, onSelect: () => setChanging(row.employee), hidden: !writer },
+          hidden: !canAssess(snapshot, row.employee.id) || row.status === "Not Evaluated" || row.findings.filter((item) => item.status === "Gap").every((item) => openNeedFor(allNeeds, row.employee.id, "competency_gap", item.requirementId)) },
+        { label: "Assess Position Change", testId: "assess-position-change", icon: <ArrowRightLeft />, onSelect: () => setChanging(row.employee), hidden: !canAssess(snapshot, row.employee.id) },
       ]} />} />
-    {devFor && <DevelopmentFormModal employeeId={devFor} sourceType="competency_gap" onClose={() => setDevFor(null)} />}
-    {changing && <PositionChangeModal employee={changing} onClose={() => setChanging(null)} />}
+    {devFor && <DevelopmentFormModal employeeId={devFor} sourceType="competency_gap" onClose={() => setDevFor(null)} onSaved={(needId) => setSaved({ employeeId: devFor, needId })} />}
+    {changing && <PositionChangeModal employee={changing} onClose={() => setChanging(null)} onSaved={() => setSaved({ employeeId: changing.id })} />}
   </>;
 }
 
 /** Opened for one employee, from the list row menu or the detail page. */
-function PositionChangeModal({ employee, onClose }: { employee: EmployeeReference; onClose: () => void }) {
+function PositionChangeModal({ employee, onClose, onSaved }: { employee: EmployeeReference; onClose: () => void; onSaved?: () => void }) {
   const snapshot = useSnapshot();
   const { run, busy } = useD4();
   const [position, setPosition] = useState("");
@@ -102,7 +115,7 @@ function PositionChangeModal({ employee, onClose }: { employee: EmployeeReferenc
     event.preventDefault();
     if (!position) { setError("Pilih posisi baru."); return; }
     const result = await run((source) => source.saveCompetency({ employeeId: employee.id, positionId: position, effectiveDate: date, assessedWith }), "Penilaian perubahan posisi tersimpan.");
-    if (result.ok) onClose(); else setError(result.error);
+    if (result.ok) { onSaved?.(); onClose(); } else setError(result.error);
   }
   return <FormModal title="Position Change Assessment" description={`${employee.fullName} · ${employee.employeeId}. Riwayat gap untuk posisi lama tetap disimpan.`} onClose={onClose}
     footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Assessment" />}>
@@ -120,7 +133,8 @@ function PositionChangeModal({ employee, onClose }: { employee: EmployeeReferenc
 export function CompetencyDetailPage({ employeeId }: { employeeId: string }) {
   const snapshot = useSnapshot();
   const { run, busy } = useD4();
-  const writer = canWrite(snapshot);
+  // Nobody assesses themselves (SR-D4-EMP-23): their own page is read-only.
+  const writer = canAssess(snapshot, employeeId);
   const [devRef, setDevRef] = useState<string | null>(null);
   const [changing, setChanging] = useState(false);
   const [assessedWith, setAssessedWith] = useState("");
@@ -184,7 +198,7 @@ export function CompetencyDetailPage({ employeeId }: { employeeId: string }) {
                     ? assessed ? <Button variant="ghost" className="h-9" icon={<FilePlus2 className="size-4" />} onClick={() => setDevRef(finding.requirementId)} data-testid="btn-create-development-requirement">Create Development Requirement</Button>
                       : <span className="text-xs text-ink-3">Simpan penilaian dulu</span>
                     : !linked && <span className="text-xs text-ink-3">Belum ada requirement</span>)}
-                  {!linked && finding.status !== "Gap" && <span className="text-xs text-ink-3">{finding.status === "Terpenuhi" ? "Tidak perlu" : "Lengkapi level dan bukti dulu"}</span>}
+                  {!linked && (finding.status === "Terpenuhi" || (finding.status !== "Gap" && writer)) && <span className="text-xs text-ink-3">{finding.status === "Terpenuhi" ? "Tidak perlu" : "Lengkapi level dan bukti dulu"}</span>}
                 </div>
               </td>
             </tr>;
@@ -209,7 +223,7 @@ export function CompetencyHistoryPage({ employeeId }: { employeeId: string }) {
     <Card title="Assessment history" testId="assessment-history">
       <Timeline empty="Belum ada penilaian kompetensi yang tersimpan untuk pegawai ini." entries={saved.map((item) => ({
         id: item.id, date: formatDate(item.effectiveDate), status: item.overallStatus, actor: item.actor,
-        title: `${positionTitle(snapshot, item.positionId)} — ${item.context === "role-change" ? "position change" : "current position"}`,
+        title: `${positionTitle(snapshot, item.positionId)} · ${item.context === "role-change" ? "position change" : "current position"}`,
         body: [`${item.findings.length} requirement · ${item.findings.filter((finding) => finding.status === "Gap").length} gap · ${item.findings.filter((finding) => finding.status === "Bukti Belum Cukup").length} insufficient data`, assessedWithText(item.assessedWith)].filter(Boolean).join(" · "),
       }))} />
     </Card>

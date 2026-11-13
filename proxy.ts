@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { PREVIEW_SESSION_COOKIE } from "@/modules/d4/web/data/preview-session";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "";
@@ -8,7 +9,16 @@ const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "";
 const fixturePreview = process.env.NODE_ENV === "development" && process.env.NEXT_PUBLIC_D4_DATA_MODE === "fixture";
 
 export async function proxy(request: NextRequest) {
-  if (fixturePreview) return NextResponse.next({ request });
+  if (fixturePreview) {
+    // Same gate as below, but the session is the preview cookie set by the login page: no request to Supabase.
+    const path = request.nextUrl.pathname;
+    const signedIn = request.cookies.has(PREVIEW_SESSION_COOKIE);
+    const isLogin = path === "/login" || path === "/register";
+    if (path.startsWith("/api/")) return NextResponse.next({ request });
+    if (!signedIn && !isLogin) return NextResponse.redirect(new URL("/login", request.url));
+    if (signedIn && isLogin) return NextResponse.redirect(new URL("/dashboard", request.url));
+    return NextResponse.next({ request });
+  }
   // Without Supabase configuration only the login page (which explains the problem) and API errors are served.
   if (!supabaseUrl || !publishableKey) {
     if (["/login", "/register"].includes(request.nextUrl.pathname) || request.nextUrl.pathname.startsWith("/api/")) return NextResponse.next({ request });

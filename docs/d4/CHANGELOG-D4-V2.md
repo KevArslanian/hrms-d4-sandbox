@@ -297,6 +297,27 @@ Tidak dikerjakan karena belum pasti atau bukan milik D4:
   - Semua kolom catatan kini dibatasi 2000 karakter di form, sama dengan server. Notes Performance Review dibatasi 4000, dan Training / activity 200.
   - Teks panjang tanpa spasi kini terbungkus di halaman detail, riwayat, dan profil dashboard. Sebelumnya teks seperti itu membuat halaman riwayat melebar ke samping.
 
+## Daily KPI per peran, alert X-24, dan tanpa simulasi · 13 Nov 2026
+
+- **Direktur tidak mengisi Daily KPI.** Keputusan 13 Nov 2026: peran Management (posisi `DIR-*`) hanya membaca D4, termasuk KPI-nya sendiri. Form "My KPI today" dan pengingatnya tidak tampil, server menjawab 403 "Direktur tidak mengisi Daily KPI", dan direktur tidak dihitung di alert "Belum mengisi Daily KPI". HR, Manager, dan Employee tetap mengisi Daily KPI-nya sendiri. Ini berbeda dengan contoh di wawancara 14 Okt (00:33:23, X-07). Policy insert di database (`d4_kpi_daily_entries`) belum diubah, karena perubahan itu butuh migrasi dan izin PO.
+- **Alert Daily KPI mengikuti X-24 (wawancara 14 Okt, 01:16:41).** Under Performance (< 80) atau High Performance (> 85) tiga entri berturut-turut, dan entri yang mengisi 100 untuk kelima KPI, masing-masing jadi alert untuk dipanggil HR. Alert lama "di bawah target 85" dihapus, karena skor 80–85 adalah Average.
+- **Dihapus: Simulasi Employee.** Tombol, banner "Keluar simulasi", dan logika pratinjau di `D4DataProvider` (`asEmployee`, `d4-view-as`). Tampilan Employee hanya dilihat lewat login Employee sungguhan.
+- **Data contoh:** HR Manager kini punya KPI Finance & Administration seperti di live (`d4_position_kpi_roles`, role 10 di V5.1 dan V6), sehingga "My KPI today" milik HR terlihat di pratinjau.
+- **Data yang baru disimpan tetap terlihat.** Setelah simpan, baris itu tampil paling atas dengan label "Just saved" dan notice View Detail, sampai halaman ditinggalkan.
+- **Progres requirement punya satu penulis: Training Tracking.** Tombol "Update Status" di Development Requirement dihapus, karena progres yang sama juga ditulis lewat Update Progress di training dan keduanya bisa bertentangan.
+  - Status requirement kini dihitung dari training-nya di putaran berjalan (setelah Retraining terakhir, tanpa yang Cancelled): tanpa training menjadi Identified, semua Planned menjadi Planned, selain itu In Progress. Server menuliskannya otomatis setelah setiap simpan training, dengan catatan "Mengikuti Training Tracking."
+  - Completed hanya dengan bukti: training Passed dengan Meets requirement (sudah ada), atau **Close as Met** (baru) untuk requirement Competency Gap tanpa training terbuka saat level di data kompetensi sudah memenuhi, misalnya setelah coaching. Bukti dihitung ulang di server.
+  - Development Requirement menampilkan "Update progress in Training" yang langsung membuka training aktifnya. Edit Requirement (Priority, Method, PIC) tetap ada.
+  - API `development-needs/:id/versions` menolak perubahan status (422). Endpoint baru `development-needs/:id/close`.
+  - Requirement Competency Gap yang syaratnya bukan lagi bagian dari posisi pegawai diberi tanda "Not in current position" (tampilan saja).
+  - Migrasi `20261113120000_d4_development_status_from_trainings.sql` menahan aturan yang sama di database untuk penulisan yang melewati aplikasi. Sudah diuji di Postgres 16 lokal (13 kasus), **belum diterapkan**: perlu izin PO.
+  - Data live 13 Nov (read-only): 39 requirement, 3 Completed tanpa Meets requirement (ditutup manual dengan aturan lama) dan 4 yang statusnya belum sesuai training. Tidak diubah; yang 4 ikut tersinkron saat training-nya disimpan lagi.
+- **Filter list lebih bersih: search, Period, dan satu tombol Filter.** Di People Dashboard, Performance Review, Competency Gap, Development Requirement, dan Training Tracking, dropdown selain Period pindah ke panel di balik tombol Filter, masing-masing dengan label di atasnya (Departments, Performance, Positions, dan seterusnya) dan pilihan kosong "All". Period tetap di baris sebagai tombol berikon kalender, juga di Daily KPI dan profil pegawai. People Dashboard tetap tanpa "All" pada Period, agar angka dan grafiknya tidak mencampur periode. Saat panel tertutup, filter yang terisi hanya ditandai angka di tombol Filter; Reset filter ada di dalam panel. Filter kategori People Dashboard kini bernama Performance (id Katalon `filter-all-categories` tetap).
+- **Dropdown bisa ditutup dengan menekan tombolnya lagi di Safari dan Firefox (Mac).** Di kedua browser itu tombol yang diklik tidak menerima fokus, sehingga dropdown dengan kotak pencarian (misalnya Period) tertutup lalu langsung terbuka lagi.
+- **People Dashboard pindah ke urutan pertama** di menu HRMS.
+- **Logout dengan konfirmasi.** Tombol tetap berlabel "Logout" (tidak lagi berubah menjadi "Keluar..."). Dialog menanyakan "Apakah Anda yakin ingin logout?"; Iya menampilkan "Logging out..." sampai halaman login terbuka, Tidak menutup dialog. Tombol Logout kini juga tampil di mode pratinjau lokal.
+- **Login dan logout di mode pratinjau lokal.** Halaman login menerima email dan password apa pun yang formatnya valid dan hanya memasang cookie lokal `d4-preview-session`; logout menghapusnya. Tidak ada permintaan ke Supabase. Seperti di live, halaman D4 mengarah ke login bila belum login, dan halaman login mengarah ke dashboard bila sudah. Hanya aktif di `next dev` dengan `NEXT_PUBLIC_D4_DATA_MODE=fixture`.
+
 ## Belum selesai
 
 | Item | Alasan | Langkah berikut |

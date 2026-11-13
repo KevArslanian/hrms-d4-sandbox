@@ -11,13 +11,14 @@ import type { KpiAssessment } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
 import { canAssess, canWrite, departmentOf, describeSource, developmentNeeds, employeeById, employeeMeta, employeeSearchText, evaluationsOf, formatDate, formatGap, formatPeriod, byProgress, formatScore, formatScorecard, includesText, latestScorecard, pendingCompilation, positionOf, revisionTag, scorecardsOf, thisMonth, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
-import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
+import { FilterBar, PeriodFilter, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
 import { Button, ButtonLink, Card, InfoGrid, Notice, SourceChip, StatusBadge } from "../../ui/primitives";
 import { FinalizeDailyModal } from "../kpi/FinalizeDailyModal";
 import { noKpiText, KpiFormModal } from "../kpi/KpiFormModal";
-import { CatalogNotice, scorecardStatus } from "../kpi/KpiPages";
+import { CatalogNotice, SavedScorecardNotice, scorecardStatus } from "../kpi/KpiPages";
+import { useUrlFilters } from "../dashboard/url-filters";
 
 const evaluationStatus = (evaluation?: PerformanceEvaluation) => !evaluation ? "Not Evaluated" : evaluation.status === "completed" ? "Completed" : "Draft";
 
@@ -26,10 +27,13 @@ const STATUS_FILTER = ["Completed", "Compiled", "Not Evaluated"]; // FR-D4-002 h
 
 type Row = { employee: EmployeeReference; position: string; hasKpi: boolean; scorecard?: KpiAssessment; evaluation?: PerformanceEvaluation; compiled: DailyCompilation | null; period?: string };
 
-/** "Compiled": Daily KPI gave the period a score that HR has not finalized yet (B6). */
-const rowStatus = (row: Row) => row.compiled ? "Compiled" : scorecardStatus(row.scorecard);
+/**
+ * "Compiled": Daily KPI gave the period a score that HR has not finalized yet (B6). An evaluation saved before KPI and
+ * Notes were merged still counts as that period's review (K20), only without a KPI score.
+ */
+const rowStatus = (row: Row) => row.compiled ? "Compiled" : row.scorecard ? scorecardStatus(row.scorecard) : evaluationStatus(row.evaluation);
 // Ready to finalize, then still to assess, then done; a position without KPI cannot be assessed, so it goes last.
-const performanceRank = (row: Row) => row.compiled ? 0 : !row.scorecard ? (row.hasKpi ? 1 : 3) : 2;
+const performanceRank = (row: Row) => row.compiled ? 0 : row.scorecard || row.evaluation ? 2 : row.hasKpi ? 1 : 3;
 
 /**
  * Performance Review (FR-D4-001 v3.1): one row per employee with the Total KPI, evaluation notes and evaluator of one
@@ -39,15 +43,16 @@ export function PerformanceListPage() {
   const snapshot = useSnapshot();
   const { catalog: catalogSet } = useD4();
   const writer = canWrite(snapshot);
-  const [search, setSearch] = useState("");
-  const [position, setPosition] = useState("");
-  const [department, setDepartment] = useState("");
-  const [period, setPeriod] = useState("");
-  const [progress, setProgress] = useState("");
+  // In the URL, so Back from a detail page keeps them and dashboard alerts can link with ?q=<name>&period= (N4, K15, W1).
+  const { values: { q: search, position, department, period, status: progress }, set, reset } = useUrlFilters(["q", "position", "department", "period", "status"]);
   const [adding, setAdding] = useState<{ employeeId?: string } | null>(null);
   const [finalizing, setFinalizing] = useState<Row | null>(null);
+  // R2: what was just saved; a finalized period is looked up in the current snapshot, since the modal returns no id.
+  const [saved, setSaved] = useState<{ id: string } | { employeeId: string; period: string } | null>(null);
+  const savedScorecard = saved ? ("id" in saved ? (snapshot.kpiAssessments ?? []).find((item) => item.id === saved.id) : scorecardsOf(snapshot, saved.employeeId).find((item) => item.period === saved.period)) : undefined;
 
-  const periods = useMemo(() => [...new Set([...(snapshot.kpiAssessments ?? []), ...(snapshot.kpiDaily ?? [])].map((item) => item.period))].sort().reverse(), [snapshot]);
+  // Old evaluations count too, so a period that only has them can still be chosen (K20).
+  const periods = useMemo(() => [...new Set([...(snapshot.kpiAssessments ?? []), ...(snapshot.kpiDaily ?? []), ...snapshot.performance].map((item) => item.period))].sort().reverse(), [snapshot]);
   // KPI role per the catalog in force for the filtered period, or this month when no period is chosen.
   const catalog = useMemo(() => catalogSet && catalogFor(catalogSet, period || thisMonth()), [catalogSet, period]);
   const rows = useMemo<Row[]>(() => visibleEmployees(snapshot).map((employee) => {
@@ -57,11 +62,13 @@ export function PerformanceListPage() {
     const at = period || thisMonth();
     const pending = pendingCompilation(snapshot, employee.id, at);
     const compiled = pending && (!scorecard || scorecard.period < at) ? pending : null;
+    const evaluations = evaluationsOf(snapshot, employee.id).filter((item) => item.status === "completed");
+    // Older records kept the notes in a separate evaluation; show them until the period is assessed again. Without a
+    // scorecard, the period's old evaluation (or, without a period filter, the latest one) is the review (K20).
+    const evaluation = compiled ? undefined : scorecard ? evaluations.find((item) => item.period === scorecard.period) : period ? evaluations.find((item) => item.period === period) : evaluations[0];
     return {
       employee, position: title ?? "—", hasKpi: !catalogSet || !title || Boolean(catalog && roleForPosition(catalog, employee.positionId)),
-      scorecard: compiled ? undefined : scorecard, compiled, period: compiled ? at : scorecard?.period,
-      // Older records kept the notes in a separate evaluation; show them until the period is assessed again.
-      evaluation: scorecard && !compiled ? evaluationsOf(snapshot, employee.id).find((item) => item.period === scorecard.period) : undefined,
+      scorecard: compiled ? undefined : scorecard, compiled, evaluation, period: compiled ? at : scorecard?.period ?? evaluation?.period,
     };
   }).filter((row) => includesText(employeeSearchText(snapshot, row.employee), search)
     && (!position || row.employee.positionId === position) && (!department || row.employee.departmentId === department)
@@ -72,14 +79,15 @@ export function PerformanceListPage() {
     <PageHeader title="Performance Review" subtitle="Lima Core KPI dan Notes per pegawai dan periode, dalam satu penilaian."
       actions={writer && <Button icon={<Plus className="size-4" />} onClick={() => setAdding({})} data-testid="btn-add-penilaian">Add Performance Review</Button>} />
     <CatalogNotice />
-    <FilterBar canReset={Boolean(search || position || department || period || progress)} onReset={() => { setSearch(""); setPosition(""); setDepartment(""); setPeriod(""); setProgress(""); }}>
-      <SearchInput value={search} onChange={setSearch} placeholder="Search name or position" />
-      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All positions" testId="all-positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />}
-      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All departments" testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />}
-      <SelectFilter label="All periods" testId="latest-period" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
-      <SelectFilter label="All status" testId="all-status" value={progress} onChange={setProgress} options={STATUS_FILTER.map((item) => ({ value: item, label: item }))} />
+    <FilterBar canReset={Boolean(search || position || department || period || progress)} onReset={reset}
+      search={<SearchInput value={search} onChange={set("q")} placeholder="Search name or position" />}
+      period={<PeriodFilter label="Periods" testId="latest-period" value={period} onChange={set("period")} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />}>
+      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="Departments" testId="all-departments" value={department} onChange={set("department")} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />}
+      <SelectFilter label="Status" testId="all-status" value={progress} onChange={set("status")} options={STATUS_FILTER.map((item) => ({ value: item, label: item }))} />
+      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="Positions" testId="all-positions" value={position} onChange={set("position")} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />}
     </FilterBar>
-    <DataTable<Row> rows={rows} noun="employees" rowKey={(row) => row.employee.id}
+    <SavedScorecardNotice scorecard={savedScorecard} />
+    <DataTable<Row> rows={rows} noun="employees" rowKey={(row) => row.employee.id} highlightKey={savedScorecard?.employeeId}
       emptyTitle="Tidak ada pegawai yang cocok" emptyText="Ubah kata kunci atau reset filter untuk melihat semua pegawai."
       columns={[
         { key: "employee", header: "Employee", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
@@ -88,26 +96,29 @@ export function PerformanceListPage() {
         { key: "total", header: "Total KPI", className: "tabular-nums", cell: (row) => row.scorecard ? <span className="font-semibold">{formatScorecard(row.scorecard)}</span>
           : row.compiled ? <><span className="block font-semibold">{formatScore(row.compiled.total, scaleMaxOf(row.compiled.definitionVersion))}</span><span data-testid="compiled-days" className="block whitespace-normal text-xs text-ink-3">from {row.compiled.days.length} daily {row.compiled.days.length === 1 ? "entry" : "entries"}</span></>
           // The small lines may wrap (the score stays on one line), so they do not widen the table past the Status badge.
+          : row.evaluation ? <span data-testid="legacy-evaluation" className="whitespace-normal text-xs text-ink-3">Old evaluation, no KPI score</span>
           : row.hasKpi ? "—" : <span className="whitespace-normal text-xs text-ink-3">Not in catalog {catalog?.version} yet</span> },
         { key: "gap", header: "Gap vs 85", className: "tabular-nums", optional: true, cell: (row) => row.scorecard ? formatGap(row.scorecard.overallScore, row.scorecard.definitionVersion)
           : row.compiled ? formatGap(row.compiled.total, row.compiled.definitionVersion) : "—" },
         // The evaluator sits under the notes, as Department sits under Position: as a column of its own it pushed the
         // Status badge under the ⋮ column at 1400–1500 px.
-        { key: "notes", header: "Notes / Penilai", wrap: true, secondary: true, className: "max-w-[280px]", cell: (row) => {
+        { key: "notes", header: "Notes / Evaluator", wrap: true, secondary: true, className: "max-w-[280px]", cell: (row) => {
           const notes = row.scorecard?.generalNotes || row.evaluation?.generalNotes;
-          return <>{notes ? <span className="line-clamp-2">{notes}</span> : "—"}
-            {row.scorecard?.evaluatorName && <span data-testid="cell-evaluator" className="mt-0.5 block text-xs text-ink-3">{row.scorecard.evaluatorName}</span>}</>;
+          const evaluator = row.scorecard ? row.scorecard.evaluatorName : row.evaluation?.evaluator;
+          return <>{notes ? <span className="line-clamp-2 [overflow-wrap:anywhere]">{notes}</span> : "—"}
+            {evaluator && <span data-testid="cell-evaluator" className="mt-0.5 block text-xs text-ink-3">{evaluator}</span>}</>;
         } },
         { key: "status", header: "Status", cell: (row) => <StatusBadge status={rowStatus(row)} /> },
       ]}
       actions={(row) => <RowActionMenu label={`Actions for ${row.employee.fullName}`} actions={[
-        { label: "View Detail", testId: "view-detail", icon: <Eye />, href: row.scorecard && `/performance/scorecard/${row.scorecard.id}`, hidden: !row.scorecard },
+        { label: "View Detail", testId: "view-detail", icon: <Eye />, href: row.scorecard ? `/performance/scorecard/${row.scorecard.id}` : row.evaluation && `/performance/${row.evaluation.id}`, hidden: !row.scorecard && !row.evaluation },
         { label: "View History", testId: "view-history", icon: <History />, href: `/performance/history/${row.employee.id}` },
         { label: "Finalize from Daily KPI", testId: "finalize-daily", icon: <CheckCircle2 />, onSelect: () => setFinalizing(row), hidden: !row.compiled || !canAssess(snapshot, row.employee.id) },
         { label: "Add Performance Review", testId: "add-penilaian", icon: <Plus />, onSelect: () => setAdding({ employeeId: row.employee.id }), hidden: !canAssess(snapshot, row.employee.id) },
       ]} />} />
-    {adding && <KpiFormModal employeeId={adding.employeeId} onClose={() => setAdding(null)} />}
-    {finalizing?.compiled && finalizing.period && <FinalizeDailyModal employeeId={finalizing.employee.id} period={finalizing.period} compiled={finalizing.compiled} onClose={() => setFinalizing(null)} />}
+    {adding && <KpiFormModal employeeId={adding.employeeId} onClose={() => setAdding(null)} onSaved={(id) => setSaved({ id })} />}
+    {finalizing?.compiled && finalizing.period && <FinalizeDailyModal employeeId={finalizing.employee.id} period={finalizing.period} compiled={finalizing.compiled}
+      onClose={() => { setSaved({ employeeId: finalizing.employee.id, period: finalizing.period! }); setFinalizing(null); }} />}
   </>;
 }
 
@@ -138,11 +149,11 @@ export function PerformanceDetailPage({ id }: { id: string }) {
           { label: "Department", testId: "department", value: departmentOf(snapshot, employee)?.name ?? "—" },
         ]} />
         <h3 className="mb-2 mt-8 text-sm font-semibold text-ink-2">Notes</h3>
-        <p className="whitespace-pre-wrap break-words text-sm text-ink-2">{evaluation.generalNotes || "Belum ada notes."}</p>
+        <p className="whitespace-pre-wrap text-sm text-ink-2 [overflow-wrap:anywhere]">{evaluation.generalNotes || "Belum ada notes."}</p>
       </Card>
       <div className="space-y-6">
         <Card title="Reference" testId="evidence">
-          <p className="text-sm text-ink-2">{evaluation.evidenceReference || "Belum ada reference."}</p>
+          <p className="text-sm text-ink-2 [overflow-wrap:anywhere]">{evaluation.evidenceReference || "Belum ada reference."}</p>
           <p className="mt-1 text-xs text-ink-3">Recorded by {evaluation.actor} · {formatDate(evaluation.createdAt)}</p>
         </Card>
         {needs.length > 0 && <Card title="Related records" testId="related-records">
@@ -159,6 +170,7 @@ export function PerformanceHistoryPage({ employeeId }: { employeeId: string }) {
   const snapshot = useSnapshot();
   const { catalog: catalogSet } = useD4();
   const [adding, setAdding] = useState(false);
+  const [savedId, setSavedId] = useState("");
   const employee = employeeById(snapshot, employeeId);
   const catalog = catalogSet && catalogFor(catalogSet, thisMonth());
   if (!employee || !visibleEmployees(snapshot).some((item) => item.id === employeeId)) return <NotFound what="Employee" backHref="/performance" backLabel="Back to Performance Review" />;
@@ -170,12 +182,13 @@ export function PerformanceHistoryPage({ employeeId }: { employeeId: string }) {
     <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Performance Review", href: "/performance" }, { label: "History" }]} backHref="/performance"
       name={employee.fullName} meta={[...employeeMeta(snapshot, employee), `${scorecards.length} penilaian`]}
       actions={canAssess(snapshot, employee.id) && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)} data-testid="btn-add-penilaian">Add Performance Review</Button>} />
+    <SavedScorecardNotice scorecard={scorecards.find((item) => item.id === savedId)} />
     {title && catalogSet && !(catalog && roleForPosition(catalog, employee.positionId)) && <Notice tone="warning">{noKpiText(catalog?.version)}</Notice>}
     <Card title="Riwayat Performance Review" testId="scorecard-history">
       <Timeline empty="Pegawai ini belum memiliki Performance Review." entries={scorecards.map((item) => ({
         id: item.id, date: `${formatPeriod(item.period)} · ${formatDate(item.evaluationDate || item.createdAt)}`,
-        title: `${item.roleName} — ${formatScorecard(item)}${revisionTag(scorecards, item)}`, status: scorecardStatus(item), actor: item.actor, href: `/performance/scorecard/${item.id}`,
-        body: `Catalog ${item.definitionVersion} · Penilai ${item.evaluatorName || "—"}${item.generalNotes ? ` · ${item.generalNotes}` : ""}`,
+        title: `${item.roleName} · ${formatScorecard(item)}${revisionTag(scorecards, item)}`, status: scorecardStatus(item), actor: item.actor, href: `/performance/scorecard/${item.id}`,
+        body: `Catalog ${item.definitionVersion} · Evaluator ${item.evaluatorName || "—"}${item.generalNotes ? ` · ${item.generalNotes}` : ""}`,
       }))} />
     </Card>
     {evaluations.length > 0 && <Card title="Evaluasi lama (sebelum digabung)" testId="evaluation-history">
@@ -189,6 +202,6 @@ export function PerformanceHistoryPage({ employeeId }: { employeeId: string }) {
     {linkedNeeds.length > 0 && <Card title="Development dari Performance Review" testId="development-linked-to-evaluations">
       <div className="flex flex-wrap gap-2">{linkedNeeds.map((need) => <SourceChip key={need.needId} label={describeSource(snapshot, need).label} reference={need.objective} href={`/development/${need.needId}`} />)}</div>
     </Card>}
-    {adding && <KpiFormModal employeeId={employee.id} onClose={() => setAdding(false)} />}
+    {adding && <KpiFormModal employeeId={employee.id} onClose={() => setAdding(false)} onSaved={setSavedId} />}
   </>;
 }

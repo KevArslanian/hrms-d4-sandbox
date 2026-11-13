@@ -45,5 +45,7 @@ export async function requireWriter() {
   const session = await d4Session();
   const access = await d4Access(session);
   if (access.role !== "HR" && access.role !== "MANAGER") throw new ApiError("FORBIDDEN", "Hanya HR atau manager yang dapat mengubah data ini.");
+  // Every write is attributed to the actor's employee record and checked against self-assessment (SR-D4-EMP-23).
+  if (!access.employeeId) throw new ApiError("FORBIDDEN", "Akun ini belum terhubung ke data pegawai.");
   return { ...session, access };
 }

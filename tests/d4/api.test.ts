@@ -82,6 +82,7 @@ const perf = await import("@/app/api/d4/performance-evaluations/route");
 const kpi = await import("@/app/api/d4/kpi-assessments/route");
 const dev = await import("@/app/api/d4/development-needs/route");
 const devVersions = await import("@/app/api/d4/development-needs/[id]/versions/route");
+const devClose = await import("@/app/api/d4/development-needs/[id]/close/route");
 const training = await import("@/app/api/d4/training-records/route");
 const trainingVersions = await import("@/app/api/d4/training-records/[id]/versions/route");
 const trainingFollowUp = await import("@/app/api/d4/training-records/[id]/follow-up/route");
@@ -136,7 +137,7 @@ const writeRoutes: [string, () => Promise<Response>][] = [
   ["POST /kpi-assessments", () => kpi.POST(post(kpiBody()))],
   ["POST /competency-assessments", () => competency.POST(post({ employeeId: ALFA, positionId: FINANCE_STAFF, effectiveDate: "2026-10-01" }))],
   ["POST /development-needs", () => dev.POST(post({ employeeId: ALFA, sourceType: "performance_context", sourceRef: KPI_ALFA, objective: "Uji", priority: "High", pic: "Mrs. Maya" }))],
-  ["POST /development-needs/:id/versions", () => devVersions.POST(post({ status: "In Progress", notes: "Uji" }), params(NEED))],
+  ["POST /development-needs/:id/versions", () => devVersions.POST(post({ status: "Planned", notes: "Uji", method: "Mentoring" }), params(NEED))],
   ["POST /development-needs/:id/versions (edit)", () => devVersions.POST(post({ status: "Planned", notes: "", priority: "High", pic: "Bu Maya" }), params(NEED))],
   ["POST /training-records", () => training.POST(post({ employeeId: ALFA, developmentNeedId: NEED, activity: "Uji", date: "2026-10-01", status: "Planned" }))],
   ["POST /training-records/:id/versions", () => trainingVersions.POST(post({ status: "In Progress", notes: "Uji" }), params(TRAINING))],
@@ -188,24 +189,33 @@ describe("session guard: real requireWriter over a mocked Supabase client", () =
       signIn(role, employeeId);
       const res = await call(send());
       expect(res.status).toBe(201);
-      expect(writes).toHaveLength(1);
+      // A training write may add the requirement revision that follows it (13 Nov 2026); the route's own write comes first.
+      expect(writes.length).toBeGreaterThan(0);
     });
 
-  // Current behaviour, documented: requireWriter only checks app_role; it does not require employee_id.
-  // Routes that store the evaluator's name (performance, KPI) then refuse with 403; the other writes succeed.
+  // requireWriter also needs the actor's employee record: writes are attributed to it and checked against self-assessment.
   describe.each(["HR", "MANAGER"] as const)("%s account without employee_id", (role) => {
-    it.each(writeRoutes.slice(0, 2))("%s → 403 'not linked to an employee record'", async (_name, send) => {
+    it.each(writeRoutes)("%s → 403 'not linked to an employee record', nothing written", async (_name, send) => {
       signIn(role, null);
       const res = await call(send());
       expect(res).toMatchObject({ status: 403, body: { error: { code: "FORBIDDEN" } } });
       expect(res.body.error?.message).toMatch(/belum terhubung ke data pegawai/);
       expect(writes).toHaveLength(0);
     });
+  });
 
-    it.each(writeRoutes.slice(2))("%s → passes (201): the guard itself does not require employee_id", async (_name, send) => {
-      signIn(role, null);
-      expect((await call(send())).status).toBe(201);
-    });
+  // SR-D4-EMP-23: a writer may not assess or follow up their own record, on every route, not only performance and KPI.
+  const ownerOf = (name: string) =>
+    name.includes("development-needs/:id") ? snapshot.developmentVersions.find((item) => item.needId === NEED)!.employeeId
+      : name.includes("training-records/:id/versions") ? snapshot.trainingVersions.find((item) => item.trainingId === TRAINING)!.employeeId
+        : name.includes("training-records/:id") ? snapshot.trainingVersions.find((item) => item.trainingId === "FIX-D4-TRN-003")!.employeeId
+          : ALFA;
+  it.each(writeRoutes.slice(2))("%s on the writer's own record → 422, nothing written", async (name, send) => {
+    signIn("MANAGER", ownerOf(name));
+    const res = await call(send());
+    expect(res.status).toBe(422);
+    expect(res.body.error?.message).toMatch(/diri sendiri/);
+    expect(writes).toHaveLength(0);
   });
 
   it("returns a 5xx without leaking details when the Supabase config is missing, before creating a client", async () => {
@@ -258,7 +268,8 @@ describe("POST /performance-evaluations", () => {
 
   it("rejects a period that has not started yet (D4-FN-01)", async () => {
     const res = await call(perf.POST(post(evaluationBody({ period: "2026-12", evaluationDate: "2026-10-01" }))));
-    expect(res).toMatchObject({ status: 422, body: { error: { code: "VALIDATION_FAILED", message: "Tanggal evaluasi tidak boleh sebelum awal periode." } } });
+    // K7 (audit 12 Nov 2026): the message names the future period instead of the misleading evaluation-date rule.
+    expect(res).toMatchObject({ status: 422, body: { error: { code: "VALIDATION_FAILED", message: "Period belum dimulai. Performance Review hanya untuk periode yang sudah berjalan." } } });
     expect(writes).toHaveLength(0);
   });
 
@@ -583,10 +594,13 @@ describe("unknown or malformed ids", () => {
     expect(res.status).toBe(422);
   });
 
-  it("returns 201 for a status update of an existing development need", async () => {
-    const res = await call(devVersions.POST(post({ status: "In Progress", notes: "Dimulai" }), params(NEED)));
-    expect(res.status).toBe(201);
-    expect(writes[0]).toMatchObject({ method: "updateDevelopment", args: [NEED, { status: "In Progress", notes: "Dimulai", priority: "High", reassessment: null }, { status: "Planned" }] });
+  it("refuses a status change on the versions route: progress follows Training Tracking (13 Nov 2026)", async () => {
+    for (const body of [{ status: "In Progress", notes: "Dimulai" }, { status: "Completed", notes: "Coaching" }, { status: "Planned", notes: "", reassessment: "Retraining" }]) {
+      const res = await call(devVersions.POST(post(body), params(NEED)));
+      expect(res.status).toBe(422);
+      expect(res.body.error?.message).toMatch(/mengikuti Training Tracking/);
+    }
+    expect(writes).toHaveLength(0);
   });
 
   it("edits priority, method and PIC of a development need without a status change; null keeps the value", async () => {
@@ -600,7 +614,7 @@ describe("unknown or malformed ids", () => {
   it.each([
     ["unknown priority", { status: "Planned", priority: "Urgent" }, /priority/],
     ["unknown reassessment", { status: "Planned", reassessment: "Maybe" }, /reassessment/],
-    ["Meets requirement without completing the need", { status: "In Progress", reassessment: "Meets requirement" }, /berarti requirement Completed/],
+    ["a reassessment", { status: "Planned", reassessment: "Meets requirement" }, /mengikuti Training Tracking/],
     ["no change", { status: "Planned" }, /Tidak ada perubahan/],
   ])("rejects a development revision with %s (422)", async (_name, body, message) => {
     const res = await call(devVersions.POST(post(body), params(NEED)));
@@ -609,22 +623,53 @@ describe("unknown or malformed ids", () => {
     expect(writes).toHaveLength(0);
   });
 
-  it("records Retraining on a Completed need as a reopened revision", async () => {
-    snapshot = { ...snapshot, developmentVersions: snapshot.developmentVersions.map((item) => item.needId === NEED ? { ...item, status: "Completed" as const } : item) };
-    const res = await call(devVersions.POST(post({ status: "Planned", notes: "", reassessment: "Retraining" }), params(NEED)));
+  it("moves the requirement with its training: a new In Progress training makes it In Progress", async () => {
+    snapshot = { ...snapshot, trainingVersions: snapshot.trainingVersions.map((item) => item.trainingId === TRAINING ? { ...item, status: "In Progress" as const } : item) };
+    const res = await call(trainingVersions.POST(post({ status: "Completed", result: "Not Passed", notes: "Uji" }), params(TRAINING)));
     expect(res.status).toBe(201);
-    expect(writes[0].args[1]).toMatchObject({ status: "Planned", reassessment: "Retraining" });
+    expect(writes.map((item) => item.method)).toEqual(["updateTraining", "updateDevelopment"]);
+    expect(writes[1].args[1]).toMatchObject({ status: "In Progress", reassessment: null, notes: "Mengikuti Training Tracking." });
   });
 
-  it("records Meets requirement on a Completed need once; the same decision again is no change", async () => {
-    snapshot = { ...snapshot, developmentVersions: snapshot.developmentVersions.map((item) => item.needId === NEED ? { ...item, status: "Completed" as const } : item) };
-    const res = await call(devVersions.POST(post({ status: "Completed", notes: "", reassessment: "Meets requirement" }), params(NEED)));
-    expect(res.status).toBe(201);
-    expect(writes[0].args[1]).toMatchObject({ status: "Completed", reassessment: "Meets requirement" });
-    snapshot = { ...snapshot, developmentVersions: snapshot.developmentVersions.map((item) => item.needId === NEED ? { ...item, reassessment: "Meets requirement" as const } : item) };
-    const again = await call(devVersions.POST(post({ status: "Completed", notes: "", reassessment: "Meets requirement" }), params(NEED)));
-    expect(again.status).toBe(422);
-    expect(again.body.error?.message).toMatch(/Tidak ada perubahan/);
+  describe("POST /development-needs/:id/close (path B, 13 Nov 2026)", () => {
+    const requirement = () => snapshot.reference.positionRequirements.find((item) => item.id === ALFA_GAP)!;
+    // Kak Ismi's skill for the gap competency raised to the minimum, as if the level was updated in D3 after coaching.
+    const levelMet = () => {
+      const { competencyId, minProficiencyLevel } = requirement();
+      const others = snapshot.reference.employeeSkills.filter((item) => !(item.employeeId === ALFA && item.competencyId === competencyId));
+      snapshot = { ...snapshot, reference: { ...snapshot.reference, employeeSkills: [...others, { id: "skill-met", employeeId: ALFA, competencyId, proficiencyLevel: minProficiencyLevel, evidenceNotes: "Coaching" }] } };
+    };
+    const noOpenTraining = () => { snapshot = { ...snapshot, trainingVersions: snapshot.trainingVersions.map((item) => item.developmentNeedId === NEED ? { ...item, status: "Cancelled" as const } : item) }; };
+
+    it("closes a gap requirement as Completed with Meets requirement once the level is met and no training is open", async () => {
+      levelMet(); noOpenTraining();
+      const res = await call(devClose.POST(post({}), params(NEED)));
+      expect(res.status).toBe(201);
+      expect(writes[0].method).toBe("updateDevelopment");
+      expect(writes[0].args.slice(0, 2)).toMatchObject([NEED, { status: "Completed", reassessment: "Meets requirement" }]);
+      expect((writes[0].args[1] as { notes: string }).notes).toMatch(/Gap terpenuhi tanpa training/);
+    });
+
+    it.each([
+      ["the level is not met", () => { noOpenTraining(); }, /level saat ini/],
+      ["a training is still open", () => { levelMet(); }, /Training Tracking/],
+    ])("refuses when %s (422), nothing written", async (_name, arrange, message) => {
+      arrange();
+      const res = await call(devClose.POST(post({}), params(NEED)));
+      expect(res.status).toBe(422);
+      expect(res.body.error?.message).toMatch(message);
+      expect(writes).toHaveLength(0);
+    });
+
+    it("refuses a requirement that is not from a competency gap, the writer's own one, and a non-writer", async () => {
+      snapshot = { ...snapshot, developmentVersions: snapshot.developmentVersions.map((item) => item.needId === NEED ? { ...item, sourceType: "performance_context" as const } : item) };
+      expect((await call(devClose.POST(post({}), params(NEED)))).body.error?.message).toMatch(/Hanya requirement dari Competency Gap/);
+      signIn("MANAGER", ALFA);
+      expect((await call(devClose.POST(post({}), params(NEED)))).body.error?.message).toMatch(/diri sendiri/);
+      signIn("MANAGEMENT", BRAVO);
+      expect((await call(devClose.POST(post({}), params(NEED)))).status).toBe(403);
+      expect(writes).toHaveLength(0);
+    });
   });
 
   it("passes the trimmed co-assessor of a competency assessment to the repository", async () => {
@@ -648,11 +693,12 @@ describe("POST /kpi-daily (self-service, not HR-only)", () => {
     expect(saved.lines.map((line) => line.raw_score)).toEqual([4, 4, 4, 4, 4]);
   });
 
-  it("lets MANAGEMENT (a director) score their own day; the rest stays read-only (interview 14 Oct, 00:33:23)", async () => {
+  it("refuses MANAGEMENT (a director) with 403: directors only read, their own Daily KPI included (decision 13 Nov 2026)", async () => {
     signIn("MANAGEMENT", ALFA);
-    const res = await call(daily.POST(post(dailyBody({ employeeId: MERCURY }))));
-    expect(res.status).toBe(201);
-    expect((writes[0].args[0] as { employeeId: string }).employeeId).toBe(ALFA);
+    const res = await call(daily.POST(post(dailyBody())));
+    expect(res.status).toBe(403);
+    expect(res.body.error?.message).toMatch(/Direktur tidak mengisi Daily KPI/);
+    expect(writes).toHaveLength(0);
   });
 
   it("refuses an account without an employee record with 403", async () => {

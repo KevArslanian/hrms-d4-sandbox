@@ -148,6 +148,8 @@ export function roleForPositionTitle(catalog: Rows, title: string | undefined): 
     [/\b(customs|ppjk)\b/, /\bcustoms\b/], [/\b(warehouse|warehousing|logistic|logistics)\b/, /\bwarehous(e|ing)\b/],
     [/\b(air|sea)?freight\b/, /\b(air|sea)?freight\b/], [/\b(implant|edi|manifest)\b/, /\bimplant\b/],
     [/\bbranch\b/, /\bbranch\b/], [/\boperations director\b/, /\boperations director\b/], [/\b(ceo|vice president)\b/, /\bceo\b/], [/^director\b/, /^director\b/],
+    // Live d4_position_kpi_roles gives HR Manager Finance & Administration (role 10, V5.1 and V6); other HR titles have no KPI.
+    [/\bhr manager\b/, /\bfinance\b/],
   ];
   for (const [position, role] of keywords) {
     if (position.test(target)) {

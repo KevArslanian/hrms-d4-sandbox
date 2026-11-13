@@ -1,6 +1,7 @@
+import { compareCompetencies } from "../../competency/service";
 import type { DevelopmentPriority, DevelopmentSourceType, DevelopmentStatus } from "../../development/types";
 import { latestDevelopment, latestTraining } from "../../supabase/types";
-import { assertGapAssessed, assertNoOpenNeed, assertPicFilled, nextDevelopmentRevision, REASSESSMENTS } from "../../shared/rules";
+import { assertGapAssessed, assertNoOpenNeed, assertNotSelf, assertPicFilled, closeGapBlockedReason, closeGapNotes, localToday, nextDevelopmentRevision, openTrainingCount, REASSESSMENTS } from "../../shared/rules";
 import { ApiError, employeeFilter, enforce, field, readJson } from "../_lib/http";
 import { d4Session, requireWriter } from "../_lib/session";
 
@@ -26,7 +27,7 @@ export async function getDevelopment(id: string) {
 
 /** POST /api/d4/development-needs — a need must reference a valid source (gap, role change, or evaluation). */
 export async function createDevelopment(request: Request) {
-  const { repository } = await requireWriter();
+  const { repository, access } = await requireWriter();
   const body = await readJson(request);
   const input = {
     employeeId: field.uuid(body, "employeeId"), sourceType: field.oneOf(body, "sourceType", sourceTypes),
@@ -34,6 +35,7 @@ export async function createDevelopment(request: Request) {
     priority: field.oneOf(body, "priority", priorities), notes: field.text(body, "notes", { required: false, max: 2000 }),
     method: field.text(body, "method", { required: false, max: 120 }), pic: field.text(body, "pic", { required: false, max: 120 }),
   };
+  enforce(() => assertNotSelf(access.employeeId, input.employeeId));
   enforce(() => assertPicFilled(input.pic));
   const snapshot = await repository.loadSnapshot();
   enforce(() => assertNoOpenNeed(latestDevelopment(snapshot), input.employeeId, input.sourceType, input.sourceRef));
@@ -49,7 +51,7 @@ const optional = <T>(body: Record<string, unknown>, key: string, read: () => T):
  * new revision; history is never overwritten.
  */
 export async function addDevelopmentVersion(request: Request, id: string) {
-  const { repository } = await requireWriter();
+  const { repository, access } = await requireWriter();
   const body = await readJson(request);
   const change = {
     status: field.oneOf(body, "status", statuses), notes: field.text(body, "notes", { required: false, max: 2000 }),
@@ -65,7 +67,35 @@ export async function addDevelopmentVersion(request: Request, id: string) {
   const needs = latestDevelopment(snapshot);
   const current = needs.find((item) => item.needId === id);
   if (!current) throw new ApiError("NOT_FOUND", "Development requirement tidak ditemukan.");
+  enforce(() => assertNotSelf(access.employeeId, current.employeeId));
+  // Decision 13 Nov 2026: progress has one writer. The status moves with Training Tracking or closes with evidence (/close).
+  if (change.status !== current.status || change.reassessment) {
+    throw new ApiError("VALIDATION_FAILED", "Status requirement mengikuti Training Tracking. Ubah progres di training-nya, atau tutup dengan bukti level lewat Close as Met.");
+  }
   const next = nextDevelopmentRevision(current, change, needs, latestTraining(snapshot), snapshot.developmentVersions.filter((item) => item.needId === id));
   await repository.updateDevelopment(id, next, current);
+  return { developmentNeedId: id, status: next.status };
+}
+
+/**
+ * POST /api/d4/development-needs/:id/close: path B of the decision of 13 Nov 2026. A Competency Gap requirement with
+ * no open training closes as Completed (Meets requirement) once the comparison of the employee's current skills with
+ * the position shows the level met. The evidence is recomputed here, never taken from the client.
+ */
+export async function closeDevelopment(id: string) {
+  const { repository, access } = await requireWriter();
+  const snapshot = await repository.loadSnapshot();
+  const needs = latestDevelopment(snapshot);
+  const need = needs.find((item) => item.needId === id);
+  if (!need) throw new ApiError("NOT_FOUND", "Development requirement tidak ditemukan.");
+  enforce(() => assertNotSelf(access.employeeId, need.employeeId));
+  const employee = snapshot.reference.employees.find((item) => item.id === need.employeeId);
+  const finding = employee?.positionId ? compareCompetencies(employee.id, employee.positionId, snapshot.reference).findings.find((item) => item.requirementId === need.sourceRef) : undefined;
+  const trainingsNow = latestTraining(snapshot);
+  const blocked = closeGapBlockedReason(need, finding, openTrainingCount(trainingsNow, id));
+  if (blocked || !finding) throw new ApiError("VALIDATION_FAILED", blocked);
+  const next = nextDevelopmentRevision(need, { status: "Completed", notes: closeGapNotes(finding, localToday()), reassessment: "Meets requirement" }, needs, trainingsNow,
+    snapshot.developmentVersions.filter((item) => item.needId === id));
+  await repository.updateDevelopment(id, next, need);
   return { developmentNeedId: id, status: next.status };
 }

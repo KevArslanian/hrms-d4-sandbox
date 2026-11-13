@@ -3,7 +3,7 @@ import type { CompetencyAssessment } from "@/modules/d4/competency/types";
 import type { DevelopmentNeedVersion } from "@/modules/d4/development/types";
 import { assertDevelopmentChange, assertTrainingResult, passedTrainingCount, assertGapAssessed, assertNotFutureDate, assertEvaluationInPeriod, assertTrainingDate, nextDevelopmentRevision, openTrainingCount, isTrainingRollback, localMonth, localToday, reassessmentOf, retrainedAt, revisionNumber } from "@/modules/d4/shared/rules";
 import type { EmployeeReference } from "@/modules/d4/shared/types";
-import { asEmployee, assessableEmployees, inTrainingOrPositionChange, canWrite, currentCompetencyStatus, currentGap, latestCurrentPositionAssessment, objectiveFromFinding, objectiveWithMethod, revisionChanges, revisionTag, visibleEmployees, type Snapshot } from "@/modules/d4/web/data/selectors";
+import { assessableEmployees, inTrainingOrPositionChange, canWrite, currentCompetencyStatus, currentGap, latestCurrentPositionAssessment, objectiveFromFinding, objectiveWithMethod, revisionChanges, revisionTag, visibleEmployees, type Snapshot } from "@/modules/d4/web/data/selectors";
 import type { TrainingStatus } from "@/modules/d4/training/types";
 
 const ALFA = "d4000000-0000-4000-8000-000000000009";
@@ -164,15 +164,6 @@ describe("role views (fixture)", () => {
     expect(records.length).toBeGreaterThan(0);
     expect(records.every((item) => item.employeeId === ALFA)).toBe(true);
     await expect(source.createEvaluation({ employeeId: MERCURY, period: "2026-10", evaluationDate: "2026-10-01", evaluator: "x", status: "completed", reviewStatus: "Needs Review", overallScore: 4, aspects: [], generalNotes: "", evidenceReference: null })).rejects.toThrow(/Hanya HR/);
-  });
-
-  it("HR simulating an employee sees exactly that employee's view, read-only", async () => {
-    const snapshot = asEmployee(await (await fixtureAs("HR")).loadSnapshot(), ALFA);
-    expect(canWrite(snapshot)).toBe(false);
-    expect(visibleEmployees(snapshot).map((item) => item.id)).toEqual([ALFA]);
-    const records = [...snapshot.performance, ...(snapshot.kpiAssessments ?? []), ...(snapshot.kpiDaily ?? []), ...snapshot.competency, ...snapshot.developmentVersions, ...snapshot.trainingVersions];
-    expect(records.length).toBeGreaterThan(0);
-    expect(records.every((item) => item.employeeId === ALFA)).toBe(true);
   });
 
   it("an employee is in scope for competency only with an open requirement or a position change", async () => {
@@ -366,10 +357,9 @@ describe("Daily KPI in the fixture source (mirrors POST /api/d4/kpi-daily)", () 
     expect(snapshot.kpiDaily?.[0]).toMatchObject({ employeeId: ALFA, entryDate: localToday(), overallScore: 90 });
   });
 
-  it("lets MANAGEMENT score their own day while every other write stays refused", async () => {
+  it("refuses MANAGEMENT every write, its own Daily KPI included (decision 13 Nov 2026)", async () => {
     const source = await fixtureAs("MANAGEMENT");
-    // The fixture's MANAGEMENT actor holds a position without a KPI role: refused for that reason, not for the role.
-    await expect(source.createDailyKpi(draft())).rejects.toThrow(/belum memiliki KPI/);
+    await expect(source.createDailyKpi(draft())).rejects.toThrow(/Direktur tidak mengisi Daily KPI/);
     await expect(source.createTraining({ employeeId: ALFA, developmentNeedId: "x", activity: "Uji", date: "2026-10-01", status: "Planned", result: "", notes: "" })).rejects.toThrow(/Hanya HR atau manager/);
   });
 });

@@ -18,7 +18,7 @@ Demo ini menunjukkan alur D4 dari penilaian sampai tindak lanjut pengembangan, d
 | --- | --- |
 | Build yang didemokan | `feature/d4-v2-d2-style` @ `bcb92d8` (lihat CODE-FREEZE-D4) |
 | Mode utama | Live (`NEXT_PUBLIC_D4_DATA_MODE=supabase`) dengan tiga akun dari TEST-ACCOUNTS-D4 |
-| Mode cadangan | Fixture (`NEXT_PUBLIC_D4_DATA_MODE=fixture`, `next dev`), data fiktif tanpa login |
+| Mode cadangan | Fixture (`NEXT_PUBLIC_D4_DATA_MODE=fixture`, `next dev`), data fiktif, login lokal dengan email dan password apa pun yang formatnya valid |
 | Presenter | Implementer D4 (layar), PO D4 (narasi bisnis dan menjawab pertanyaan) |
 | Placeholder orang | Mercury = akun HR, Bravo = akun MANAGER, Alfa = akun EMPLOYEE, Holly = employee yang belum dievaluasi |
 

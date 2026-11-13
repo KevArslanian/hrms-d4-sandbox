@@ -98,7 +98,7 @@ Cara mengambil cookie untuk smoke test: login di browser, buka DevTools → Netw
 
 ## 6. Fallback tanpa akun (fixture)
 
-Jika akun live bermasalah, aplikasi bisa dijalankan dengan data fiktif tanpa login. Mode ini hanya berlaku pada `next dev`.
+Jika akun live bermasalah, aplikasi bisa dijalankan dengan data fiktif tanpa akun. Mode ini hanya berlaku pada `next dev`. Halaman login di mode ini menerima email dan password apa pun yang formatnya valid, tanpa mengirim atau membaca data dari server: sesinya hanya cookie lokal `d4-preview-session`. Logout menghapus cookie itu dan kembali ke halaman login.
 
 ```bash
 NEXT_PUBLIC_D4_DATA_MODE=fixture NEXT_PUBLIC_D4_FIXTURE_ROLE=HR npm run dev        # aktor: Mercury (HR)
