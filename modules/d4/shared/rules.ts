@@ -332,7 +332,7 @@ export const closeGapNotes = (finding: LevelFinding, day: string) =>
 
 /** Why Meets requirement is not available yet for a gap-based requirement, or "" when it is. */
 export const meetsBlockedReason = (finding: LevelFinding | undefined) => finding && finding.status !== "Terpenuhi"
-  ? `${finding.competencyName}: level saat ini ${finding.actualLevel ?? "belum tercatat"}, required ${finding.requiredLevel}. Meets requirement bisa dipilih setelah level di data kompetensi (D3) memenuhi.`
+  ? `${finding.competencyName}: level saat ini ${finding.actualLevel ?? "belum tercatat"}, required ${finding.requiredLevel}. Meets requirement bisa dipilih setelah level di data kompetensi pegawai (modul D3) memenuhi.`
   : "";
 
 /**
