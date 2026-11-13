@@ -43,7 +43,7 @@ Kelima menu tampil untuk semua peran (`modules/d4/web/ui/AppShell.tsx`). Tombol 
 | --- | --- | --- | --- |
 | Performance & KPI `/performance` (KPI Scorecard + Performance Evaluation; `/kpi*` lama diarahkan ke sini) | Semua employee. Tombol Add Scorecard dan Add Evaluation (header, menu baris, halaman riwayat), revisi periode, riwayat gabungan `/performance/history/[employeeId]`, detail scorecard `/performance/scorecard/[id]` | Sama dengan HR | Hanya baris, scorecard, dan evaluasi miliknya. Tanpa tombol Add |
 | Competency Gap `/competency` | Semua employee. Tombol Save Assessment, Assess Position Change, Create Development Requirement | Sama dengan HR | Hanya dirinya. Tanpa tombol simpan |
-| Development Requirement `/development` | Semua. Tombol Add Requirement, Update Status, Create Training | Sama dengan HR | Hanya miliknya. Tanpa tombol aksi |
+| Development Requirement `/development` | Semua. Tombol Add Requirement, Edit Requirement, Create Training, Update progress in Training, Close as Met | Sama dengan HR | Hanya miliknya. Tanpa tombol aksi |
 | Training Tracking `/training` | Semua. Tombol Add Training dan Update Progress | Sama dengan HR | Hanya miliknya. Tanpa Update Progress |
 | People Dashboard `/dashboard` | Semua employee dan halaman profil | Sama dengan HR | Hanya baris dan profilnya sendiri |
 | Detail milik employee lain | Bisa dibuka | Bisa dibuka | Tampil "tidak ditemukan", karena RLS menyaring datanya |

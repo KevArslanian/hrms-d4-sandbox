@@ -71,7 +71,7 @@ export function RowActionMenu({ label, actions }: { label: string; actions: RowA
     items[(index + (event.key === "ArrowDown" ? 1 : -1) + items.length) % items.length]?.focus();
   }
 
-  const item = "flex h-10 w-full items-center gap-2.5 rounded-xl px-3 text-left text-sm text-ink hover:bg-selected focus:bg-selected focus:outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:-outline-offset-2 focus-visible:outline-primary-600 [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-ink-2";
+  const item = "flex h-10 w-full items-center gap-2.5 rounded-xl px-3 text-left text-sm text-ink hover:bg-selected focus-visible:bg-selected focus:outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:-outline-offset-2 focus-visible:outline-primary-600 [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-ink-2";
   return <>
     <button ref={trigger} type="button" data-testid="btn-row-menu" aria-label={label} aria-haspopup="menu" aria-expanded={open} aria-controls={open ? menuId : undefined} onClick={toggle}
       // A bare ⋮ as in the PISD design system, on a 36 px target so it stays easy to hit (WCAG 2.5.8 asks 24 px).
