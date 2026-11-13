@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { allTopScores, bandRun, compileDaily, dailyEntriesOf } from "@/modules/d4/kpi/daily";
+import { allTopScores, bandRun, compileDaily, dailyEntriesOf, dailyHistoryOf } from "@/modules/d4/kpi/daily";
 import { assertDailyDate, canFillDaily, localToday } from "@/modules/d4/shared/rules";
 import type { KpiDailyEntry } from "@/modules/d4/supabase/types";
 
@@ -38,6 +38,29 @@ describe("compileDaily", () => {
     const result = compileDaily([before, after], "e1", "2026-11")!;
     expect(result.days).toEqual([after]);
     expect(result.roleOrder).toBe(5);
+  });
+});
+
+// R1 (lecturer review, 10 Nov 2026): a corrected day keeps its earlier rows, shown in History like Performance Review.
+describe("dailyHistoryOf", () => {
+  const first = entry("06", [78, 80, 80, 80, 80], { createdAt: "2026-11-06T10:00:00Z" });
+  const fixed = entry("06", [78, 90, 80, 80, 80], { createdAt: "2026-11-06T15:00:00Z" });
+  const next = entry("07", [85, 85, 85, 85, 85], { createdAt: "2026-11-07T10:00:00Z" });
+  const other = entry("07", [50, 50, 50, 50, 50], { employeeId: "e2", createdAt: "2026-11-07T11:00:00Z" });
+
+  it("keeps every saved row, newest day and newest save first, with its revision for that day", () => {
+    const history = dailyHistoryOf([first, next, fixed, other], "e1", "2026-11");
+    expect(history.map((item) => [item.entry.id, item.revision, item.versions])).toEqual([[next.id, 1, 1], [fixed.id, 2, 2], [first.id, 1, 2]]);
+  });
+
+  it("points a correction at the row it replaced", () => {
+    const history = dailyHistoryOf([first, fixed], "e1", "2026-11");
+    expect(history[0].previous).toBe(first);
+    expect(history[1].previous).toBeUndefined();
+  });
+
+  it("still counts only the newest row of a day in the compilation", () => {
+    expect(dailyEntriesOf([first, fixed], "e1", "2026-11")).toEqual([fixed]);
   });
 });
 

@@ -169,11 +169,9 @@ export function DevelopmentListPage() {
       actions={(row) => { const step = nextStep(snapshot, row); return <RowActionMenu label={`Actions for ${row.objective}`} actions={[
         { label: "View Detail", testId: "view-detail", icon: <Eye />, href: `/development/${row.needId}` },
         { label: "View History", testId: "view-history", icon: <History />, href: `/development/${row.needId}/history` },
-        // The decision HR still owes on a training (Retraining included), the same form as Training Tracking.
-        ...(step.kind === "decide" ? [step.decision === "follow-up"
-          ? { label: "Retraining / Follow-up", testId: "record-follow-up", icon: <ListChecks />, onSelect: () => setProgressFor(step.training.trainingId), hidden: !canAssess(snapshot, row.employeeId) }
-          : { label: "Record Reassessment", testId: "record-reassessment", icon: <Scale />, onSelect: () => setProgressFor(step.training.trainingId), hidden: !canAssess(snapshot, row.employeeId) }] : []),
-        { label: "Create Training", testId: "create-training", icon: <GraduationCap />, onSelect: () => setTrainingFor(row), hidden: !canAssess(snapshot, row.employeeId) || row.status === "Completed" },
+        // One action, one place (13 Nov 2026): what the Next step column already offers (a decision, or the first training)
+        // is not repeated here; the menu keeps Create Training only for another training next to a running one.
+        { label: "Create Training", testId: "create-training", icon: <GraduationCap />, onSelect: () => setTrainingFor(row), hidden: !canAssess(snapshot, row.employeeId) || row.status === "Completed" || step.kind === "create" },
         // 13 Nov 2026: progress is written once, in Training Tracking; this only takes HR there.
         { label: "Update progress in Training", testId: "update-progress-in-training", icon: <RefreshCw />, href: `/training/${openTrainingOf(snapshot, row.needId)?.trainingId}`, hidden: !canAssess(snapshot, row.employeeId) || !openTrainingOf(snapshot, row.needId) },
         { label: "Close as Met", testId: "close-as-met", icon: <CircleCheck />, onSelect: () => setClosingFor(row.needId), hidden: !canAssess(snapshot, row.employeeId) || Boolean(closeEvidence(snapshot, row).blocked) },
@@ -204,13 +202,14 @@ export function DevelopmentDetailPage({ needId }: { needId: string }) {
   const history = developmentHistory(snapshot, need.needId);
   return <>
     <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Development Requirement", href: "/development" }, { label: "Detail" }]} backHref="/development"
-      name={employee.fullName} meta={[...employeeMeta(snapshot, employee), `Revision ${need.revision}`]} status={need.status}
+      name={employee.fullName} meta={employeeMeta(snapshot, employee)} status={need.status}
       actions={<>
         <ButtonLink href={`/development/${need.needId}/history`} icon={<History className="size-4" />} testId="view-history">View History</ButtonLink>
         {writer && <Button icon={<Pencil className="size-4" />} onClick={() => setEditOpen(true)} data-testid="btn-edit-requirement">Edit Requirement</Button>}
         {/* 13 Nov 2026: progress is written once, in Training Tracking. A completed requirement takes no new training (assertNeedOpen). */}
         {writer && open && <ButtonLink href={`/training/${open.trainingId}`} icon={<RefreshCw className="size-4" />} testId="btn-update-progress-in-training">Update progress in Training</ButtonLink>}
-        {writer && need.status !== "Completed" && <Button icon={<GraduationCap className="size-4" />} onClick={() => setTrainingOpen(true)} data-testid="btn-create-training">Create Training</Button>}
+        {/* Not twice on one screen: with no training yet, the Next step card below holds this button. */}
+        {writer && need.status !== "Completed" && nextStep(snapshot, need).kind !== "create" && <Button icon={<GraduationCap className="size-4" />} onClick={() => setTrainingOpen(true)} data-testid="btn-create-training">Create Training</Button>}
         {writer && !closeEvidence(snapshot, need).blocked && <Button icon={<CircleCheck className="size-4" />} onClick={() => setClosing(true)} data-testid="btn-close-as-met">Close as Met</Button>}
       </>} />
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
@@ -224,7 +223,6 @@ export function DevelopmentDetailPage({ needId }: { needId: string }) {
           { label: "Reassessment", testId: "reassessment", value: reassessmentFor(snapshot, need.needId) ? <ReassessmentBadge snapshot={snapshot} needId={need.needId} /> : "—" },
           { label: "Last updated", testId: "last-updated", value: `${formatDate(need.createdAt)} · ${need.actor}` },
           { label: "Created", testId: "created", value: formatDate(history[history.length - 1]?.createdAt) },
-          { label: "Revisions", testId: "revisions", value: String(history.length) },
         ]} /></div>
         <h3 className="mb-2 mt-8 text-sm font-semibold text-ink-2">Notes</h3>
         <p className="whitespace-pre-wrap break-words text-sm text-ink-2">{need.notes || "—"}</p>

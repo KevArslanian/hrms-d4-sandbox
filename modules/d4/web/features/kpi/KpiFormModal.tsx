@@ -78,6 +78,25 @@ export function periodChange(catalogSet: KpiCatalogSet | null, from: string, to:
 
 const FUTURE_PERIOD = "Period belum dimulai. Performance Review hanya untuk periode yang sudah berjalan.";
 
+/** The saved score under an Actual field: "Saved: 78", or "78 → 80" once it differs, in words and not only in colour. */
+export function SavedScore({ before, now, testId }: { before: number | null; now: number | null; testId: string }) {
+  const changed = before !== now;
+  return <span data-testid={testId} data-changed={changed || undefined} className={cx("mt-1 block text-xs tabular-nums", changed ? "font-semibold text-ink" : "text-ink-3")}>
+    {changed ? `${before ?? "—"} → ${now ?? "—"}` : `Saved: ${before ?? "—"}`}
+  </span>;
+}
+
+/**
+ * Saved total against the new one (R2): the evaluator sees at once whether the revision lowers the score, the worry the
+ * lecturer named ("jangan sampai nilai saya yang baru lebih rendah"). Direction is written out, not shown by colour only.
+ */
+export function totalComparison(saved: number, now: number | null) {
+  if (now === null) return `Saved total ${saved.toFixed(2)}. Isi kelima Actual untuk melihat total baru.`;
+  const diff = Math.round((now - saved) * 100) / 100;
+  if (diff === 0) return `Saved total ${saved.toFixed(2)} · New total ${now.toFixed(2)} · sama dengan yang tersimpan`;
+  return `Saved total ${saved.toFixed(2)} · New total ${now.toFixed(2)} · ${diff < 0 ? `Lower than saved (${diff.toFixed(2)})` : `Higher than saved (+${diff.toFixed(2)})`}`;
+}
+
 // Field label above the value on phones, where each KPI line is a card instead of a table row.
 const mobileLabel = "max-md:p-0 max-md:before:mb-1 max-md:before:block max-md:before:text-[11px] max-md:before:font-semibold max-md:before:uppercase max-md:before:tracking-[0.04em] max-md:before:text-ink-3 max-md:before:content-[attr(data-label)]";
 const inputStyle = "h-9 w-full rounded-2xl border border-ink-3 px-3 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/15 text-sm";
@@ -100,19 +119,31 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
     return compiled && compiled.roleOrder === role && compiled.definitionVersion === version ? compiled : null;
   };
 
+  // R2 (dosen, 10 Nov 2026): a Performance Review that already exists for the period opens with its saved values, so the
+  // evaluator changes only what differs and always sees the value before the change. Only when it used the same KPI set.
+  const savedFor = (id: string, at: string, role: number) => {
+    const saved = id && at ? latestForPeriod(snapshot.kpiAssessments ?? [], id, at) : undefined;
+    const version = catalogSet && at ? catalogFor(catalogSet, at)?.version : undefined;
+    return saved && saved.roleOrder === role && saved.definitionVersion === version && saved.lines.length === 5 ? saved : undefined;
+  };
+  const startSaved = employeeId ? savedFor(employeeId, thisMonth(), suggest(employeeId)) : undefined;
+
   const [employee, setEmployee] = useState(employeeId ?? "");
   const [roleOrder, setRoleOrder] = useState(() => employeeId ? suggest(employeeId) : 0);
-  const [daily, setDaily] = useState(() => employeeId ? compiledFor(employeeId, thisMonth(), suggest(employeeId)) : null);
-  const [lines, setLines] = useState<KpiAssessmentLine[]>(() => withDaily(linesFor(employeeId ? suggest(employeeId) : 0), daily));
+  const [daily, setDaily] = useState(() => employeeId && !startSaved ? compiledFor(employeeId, thisMonth(), suggest(employeeId)) : null);
+  const [lines, setLines] = useState<KpiAssessmentLine[]>(() => startSaved ? startSaved.lines.map((line) => ({ ...line })) : withDaily(linesFor(employeeId ? suggest(employeeId) : 0), daily));
   const [date, setDate] = useState(today());
   // The evaluator is the signed-in user; the server stores that name and ignores the form value.
   const evaluator = actor?.fullName ?? "";
-  const [notes, setNotes] = useState("");
-  const [evidence, setEvidence] = useState("");
+  const [notes, setNotes] = useState(startSaved?.generalNotes ?? "");
+  const [evidence, setEvidence] = useState(startSaved?.evidenceReference ?? "");
   const [error, setError] = useState("");
   const [touched, setTouched] = useState(false);
   const [revise, setRevise] = useState(false);
   const existing = employee && period ? latestForPeriod(snapshot.kpiAssessments ?? [], employee, period) : undefined;
+  // The saved version the form was loaded from; its scores are shown next to the new ones.
+  const basis = savedFor(employee, period, roleOrder);
+  const savedTotal = basis ? basis.overallScore ?? scorecardTotal(basis.lines, max) : null;
 
   const totalWeight = lines.reduce((sum, line) => sum + line.weight_percent, 0);
   const total = scorecardTotal(lines, max);
@@ -122,18 +153,34 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
   const position = positionOf(snapshot, selected);
   const roleName = roleOrder && catalog ? indicatorsFor(catalog, roleOrder)[0]?.role_name : undefined;
 
+  /** Loads the saved version of this employee and period, or clears what an earlier saved version left in the form. */
+  function loadSaved(id: string, at: string, role: number, blank: KpiAssessmentLine[]) {
+    const saved = savedFor(id, at, role);
+    setRevise(false);
+    if (saved) {
+      setDaily(null); setLines(saved.lines.map((line) => ({ ...line })));
+      setNotes(saved.generalNotes ?? ""); setEvidence(saved.evidenceReference ?? "");
+      return true;
+    }
+    if (basis) { setLines(blank); setNotes(""); setEvidence(""); }
+    return false;
+  }
   function chooseEmployee(id: string) {
     setEmployee(id); setError("");
     const role = suggest(id), compiled = compiledFor(id, period, role);
-    setRoleOrder(role); setDaily(compiled); setLines(withDaily(linesFor(role), compiled));
+    setRoleOrder(role);
+    if (loadSaved(id, period, role, linesFor(role))) return;
+    setDaily(compiled); setLines(withDaily(linesFor(role), compiled));
   }
   function choosePeriod(value: string) {
     const change = periodChange(catalogSet, period, value, selected);
     setPeriod(value); setError(change.error);
     const role = change.lines ? change.roleOrder : roleOrder, compiled = compiledFor(employee, value, role);
-    if (change.lines) { setRoleOrder(change.roleOrder); setLines(withDaily(change.lines, compiled)); }
+    if (change.lines) setRoleOrder(change.roleOrder);
+    if (loadSaved(employee, value, role, change.lines ?? linesFor(role))) return;
+    if (change.lines) setLines(withDaily(change.lines, compiled));
     // Replaces a previous pre-fill; scores HR typed without daily data involved stay as they are.
-    else if (daily || compiled) setLines(withDaily(linesFor(role), compiled));
+    else if (daily || compiled || basis) setLines(withDaily(linesFor(role), compiled));
     setDaily(compiled);
   }
   function setLine(index: number, patch: Partial<KpiAssessmentLine>) { setLines((items) => items.map((line, at) => at === index ? { ...line, ...patch } : line)); }
@@ -173,8 +220,6 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
         <ReadOnlyField label="Evaluator" testId="evaluator" value={evaluator || "—"} className="sm:col-span-2" />
       </div>
       {daily && <div data-testid="daily-prefill"><Notice>Actual diisi dari rata-rata {daily.days.length} entri Daily KPI pegawai ini ({formatPeriod(period)}), dibulatkan. Periksa dan ubah bila perlu sebelum menyimpan.</Notice></div>}
-      {existing && <RevisionConfirm what="Performance Review" existing={`${existing.evaluatorName}, ${formatDate(existing.evaluationDate)}`} checked={revise} onChange={setRevise}
-        error={touched && !revise ? "Centang untuk menyimpan sebagai revisi, atau pilih periode lain." : undefined} />}
 
       {employee && !lines.length ? <Notice tone="warning">{position ? noKpiText(catalog?.version) : "Pegawai belum memiliki posisi aktif, jadi KPI-nya belum bisa ditentukan."}</Notice> : <div className="overflow-x-auto rounded-2xl border border-line">
         <table data-testid="kpi-lines-table" className="w-full text-left text-sm max-md:block md:min-w-[640px]">
@@ -187,7 +232,8 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
               <td data-label="No" className={cx("px-3 pt-2.5 text-ink-3", mobileLabel)}>{line.indicator_order}</td>
               <td data-label="Core KPI" className={cx("px-3 pt-2", mobileLabel, "max-md:col-span-2")}><input data-testid={`input-core-kpi-${line.indicator_order}`} aria-label={`Core KPI ${line.indicator_order}`} aria-invalid={touched && !line.kpi_name.trim()} maxLength={200} value={line.kpi_name} onChange={(event) => setLine(index, { kpi_name: event.target.value })} className={cx(inputStyle, "font-semibold aria-[invalid=true]:border-danger")} /></td>
               <td data-label="Weight" className={cx("px-3 pt-2.5 tabular-nums", mobileLabel)}>{line.weight_percent}%</td>
-              <td data-label={`Actual 1–${max}`} className={cx("px-3 pt-2", mobileLabel)}><input type="number" inputMode="numeric" min={1} max={max} step={1} data-testid={`input-realisasi-${line.indicator_order}`} aria-label={`Actual ${line.kpi_name}`} aria-invalid={touched && !validScore(line.raw_score, max)} value={line.raw_score ?? ""} onChange={(event) => { if (!aboveScale(event.target.value, max)) setLine(index, actualInput(event.target.value)); }} className={cx(inputStyle, "tabular-nums aria-[invalid=true]:border-danger")} /></td>
+              <td data-label={`Actual 1–${max}`} className={cx("px-3 pt-2", mobileLabel)}><input type="number" inputMode="numeric" min={1} max={max} step={1} data-testid={`input-realisasi-${line.indicator_order}`} aria-label={`Actual ${line.kpi_name}`} aria-invalid={touched && !validScore(line.raw_score, max)} value={line.raw_score ?? ""} onChange={(event) => { if (!aboveScale(event.target.value, max)) setLine(index, actualInput(event.target.value)); }} className={cx(inputStyle, "tabular-nums aria-[invalid=true]:border-danger")} />
+                {basis?.lines[index] && <SavedScore before={basis.lines[index].raw_score} now={line.raw_score} testId={`saved-score-${line.indicator_order}`} />}</td>
               {max === 100 && <td data-label={`Gap vs ${KPI_TARGET}`} data-testid={`kpi-gap-${line.indicator_order}`} className={cx("px-3 pt-2.5 tabular-nums text-ink-2", mobileLabel)}>{validScore(line.raw_score, max) ? formatGap(line.raw_score, catalog?.version) : "—"}</td>}
               <td data-label="Weighted" className={cx("px-3 pt-2.5 text-right font-semibold tabular-nums", mobileLabel, "max-md:text-left")}>{weighted(line, max)?.toFixed(2) ?? "—"}</td>
             </tr>
@@ -202,6 +248,9 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
               <td className="max-md:hidden" />
               {max === 100 && <td data-testid="kpi-gap-total" className="px-3 py-3 text-xs font-semibold tabular-nums text-ink-2">{total === null ? "" : `Gap ${formatGap(total, catalog?.version)}`}</td>}
               <td className="px-3 py-3 text-right font-display font-semibold text-base tabular-nums">{total === null ? "—" : `${total.toFixed(2)} / ${max}`}{band && <span data-testid="performance-band" className="mt-1 block text-right"><StatusBadge status={band} /></span>}</td></tr>
+            {savedTotal !== null && <tr className="max-md:block"><td colSpan={max === 100 ? 6 : 5} data-testid="total-compare" className="px-3 pb-3 text-right text-xs text-ink-2 max-md:block max-md:text-left">
+              {totalComparison(savedTotal, total)}
+            </td></tr>}
           </tfoot>
         </table>
       </div>}
@@ -211,6 +260,9 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
       <TextAreaField label="Notes" testId="catatan-evaluasi" required maxLength={4000} value={notes} onChange={(event) => setNotes(event.target.value)} error={touched && !notes.trim() ? "Notes wajib diisi." : undefined}
         helper="Kekuatan, hal yang perlu diperbaiki, dan rekomendasi pelatihan. Bisa menjadi dasar Development Requirement." />
       <TextField label="Reference" testId="evidence-reference" required maxLength={500} value={evidence} onChange={(event) => setEvidence(event.target.value)} error={touched && !evidence.trim() ? "Reference wajib diisi." : undefined} helper="Nomor dokumen, tautan laporan, atau lokasi dokumen pencapaian KPI." />
+      {/* Last thing before Save: the evaluator confirms the revision after seeing what changed, not before filling the form. */}
+      {existing && <RevisionConfirm what="Performance Review" existing={`${existing.evaluatorName}, ${formatDate(existing.evaluationDate)}`} checked={revise} onChange={setRevise}
+        error={touched && !revise ? "Centang untuk menyimpan sebagai revisi, atau pilih periode lain." : undefined} />}
     </form>
   </FormModal>;
 }
