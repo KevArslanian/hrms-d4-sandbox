@@ -3,7 +3,7 @@
 | **Document ID** | FLOW-D4-001 |
 | **Squad** | D4 – Performance & Training Development |
 | **Type** | Panduan alur penggunaan |
-| **Status** | Berlaku sejak 13 Nov 2026 (main `9f45da3`) |
+| **Status** | Berlaku sejak 13 Nov 2026 (main `13cb51d`, termasuk PR #51 dan #54) |
 | **Related** | UI-D4-001 (layar dan tombol); API-D4-001 (aturan server); TEST-PLAN-D4 (kasus uji) |
 
 Panduan ini menjelaskan urutan kerja D4 dari awal sampai akhir: siapa mengisi apa, di layar mana, dan apa yang terjadi otomatis. Prinsipnya satu: **setiap data punya satu tempat untuk ditulis**. Layar lain hanya menampilkan atau mengarahkan ke tempat itu, sehingga tidak ada pekerjaan yang diisi dua kali dan tidak ada dua angka yang bisa saling bertentangan.
@@ -44,6 +44,7 @@ People Dashboard: ringkasan semua langkah di atas, tanpa data sendiri.
 - **Di mana:** menu **Performance Review** → **Finalize from Daily KPI** (bila sudah ada skor Compiled) atau **Add Performance Review**.
 - **Isinya:** Actual per KPI sudah terisi dari Daily KPI; HR meninjau, mengisi Notes dan Reference (wajib), lalu menyimpan. Penilaian kedua untuk periode yang sama disimpan sebagai revisi.
 - **Tidak diisi dua kali:** skor harian tidak diketik ulang. Performance Review hanya memvalidasi hasil kompilasi.
+- **Revisi:** bila periode itu sudah punya Performance Review, form dibuka dengan nilai tersimpan. Di bawah tiap Actual tampil "Saved: N" atau "lama → baru", dan di bawah total tampil apakah total baru lebih rendah atau lebih tinggi. Centang **Save as revision** ada di akhir form, tepat di atas Save.
 
 ### 2.3 Competency Gap: dihitung, bukan diketik
 
@@ -59,6 +60,7 @@ People Dashboard: ringkasan semua langkah di atas, tanpa data sendiri.
 - **Isinya:** pegawai, sumber (Competency Gap, perubahan posisi, atau Performance Review), tujuan, prioritas, cara pengembangan, dan **PIC (wajib)**.
 - **Yang bisa diubah di sini:** Priority, Method, dan PIC lewat **Edit Requirement**.
 - **Yang tidak bisa diubah di sini:** status. Status mengikuti training (lihat 2.5). Tombol "Update Status" sudah dihapus pada 13 Nov 2026.
+- **Kolom Next step** menunjukkan langkah berikutnya beserta tombolnya: Create Training, keputusan Retraining atau Meets requirement, atau tautan ke training yang sedang berjalan. Aksi di kolom ini tidak diulang di menu ⋮.
 
 ### 2.5 Training Tracking: satu-satunya penulis progres
 
@@ -110,6 +112,7 @@ Aturan yang sama dijaga di server: API menolak perubahan status requirement manu
 
 ## 5. Yang menyusul
 
-- **Kolom Next step** (PR #51): menggantikan kolom Action di Development Requirement dan menunjukkan langkah berikutnya beserta tombolnya. Aturan status tetap seperti bagian 2.5.
+- **Revisi dosen yang belum dikerjakan:** halaman History Daily KPI, tombol Correct di tabel entri Daily KPI, dan dialog Review changes (lihat PEMBAHASAN-ALUR-D4 bagian 5).
+
 - **Enam posisi tanpa peran KPI** (Sales Executive, Associate Officer, IT, Field Agent, Billing, Tax Associate; 21 pegawai) belum bisa mengisi Daily KPI atau diberi Performance Review sampai PO memetakan perannya.
 - **Data lama:** 3 requirement Completed tanpa Meets requirement dan 4 requirement yang statusnya belum sesuai training. Yang 4 ikut tersinkron saat training-nya disimpan lagi.
