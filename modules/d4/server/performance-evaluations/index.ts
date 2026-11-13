@@ -1,7 +1,8 @@
 import type { EvaluationInput } from "../../performance/types";
-import { assertEvaluationInPeriod, assertNotFutureDate, assertNotSelf, assertPeriodRevision } from "../../shared/rules";
+import { assertEvaluationInPeriod, assertNotFutureDate, assertNotSelf, assertPeriodRevision, localMonth } from "../../shared/rules";
 import { ApiError, employeeFilter, enforce, field, optionalUuid, readJson } from "../_lib/http";
 import { d4Session, requireWriter } from "../_lib/session";
+import { FUTURE_PERIOD } from "../kpi-assessments";
 
 /** GET /api/d4/performance-evaluations?employee_id= — evaluation history, newest first. */
 export async function listEvaluations(request: Request) {
@@ -48,6 +49,7 @@ export async function createEvaluation(request: Request) {
   };
   if (!input.evidenceReference) throw new ApiError("VALIDATION_FAILED", "Reference wajib diisi.");
   enforce(() => assertNotSelf(access.employeeId, input.employeeId));
+  if (input.period > localMonth()) throw new ApiError("VALIDATION_FAILED", FUTURE_PERIOD);
   enforce(() => assertNotFutureDate(input.evaluationDate));
   enforce(() => assertEvaluationInPeriod(input.period, input.evaluationDate));
   enforce(() => assertPeriodRevision(snapshot.performance, input.employeeId, input.period, optionalUuid(body, "revisionOf"), "Evaluation"));

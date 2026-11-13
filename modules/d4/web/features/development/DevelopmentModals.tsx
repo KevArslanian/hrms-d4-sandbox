@@ -1,10 +1,10 @@
 "use client";
 
 import { useMemo, useState, type FormEvent } from "react";
-import type { DevelopmentPriority, DevelopmentSourceType, DevelopmentStatus } from "../../../development/types";
+import type { DevelopmentNeedVersion, DevelopmentPriority, DevelopmentSourceType } from "../../../development/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { isDevelopmentRollback, openNeedFor, passedTrainingCount, retrainedAt } from "../../../shared/rules";
-import { currentGap, DEFAULT_SOURCE_TYPE, developmentById, developmentHistory, developmentNeeds, employeeById, formatDate, formatPeriod, latestCurrentPositionAssessment, objectiveFromFinding, objectiveWithMethod, positionOf, scorecardsOf, sourceTypeLabel, today, trainings, visibleEmployees } from "../../data/selectors";
+import { closeGapBlockedReason, closeGapNotes, openNeedFor, openTrainingCount } from "../../../shared/rules";
+import { assessableEmployees, currentGap, DEFAULT_SOURCE_TYPE, developmentById, developmentNeeds, employeeById, formatDate, formatPeriod, latestCurrentPositionAssessment, objectiveFromFinding, objectiveWithMethod, positionOf, scorecardsOf, sourceFinding, sourceTypeLabel, today, trainings, type Snapshot } from "../../data/selectors";
 import { FormError, FormModal, ModalActions, ReadOnlyField, SearchSelectField, SelectField, SuggestField, TextAreaField, TextField } from "../../ui/forms";
 import { Notice, statusLabel } from "../../ui/primitives";
 import { picOptions } from "./rows";
@@ -34,6 +34,8 @@ export function sourceOptions(snapshot: ReturnType<typeof useSnapshot>, employee
 
 // B12 (interview D4, 14 Oct 2026): internal/external training, certification, coaching. Free text stays allowed.
 const DEVELOPMENT_METHODS = ["Internal training", "External training", "Certification", "Coaching"];
+// TextAreaField's default limit, the server limit of notes.
+const NOTES_MAX = 2000;
 const OBJECTIVE_HINT = "Tulis kompetensi yang kurang, level targetnya, dan cara menutup gap.";
 const OBJECTIVE_EXAMPLE = "Contoh: Naikkan Perencanaan Strategi & Anggaran dari level 3 ke 4 melalui External training";
 
@@ -87,7 +89,13 @@ export function DevelopmentFormModal({ employeeId, sourceType, sourceRef, onClos
     event.preventDefault();
     setTouched(true);
     const chosen = options.find((item) => item.ref === reference && !item.covered);
-    if (!employee || !chosen || !objective.trim() || !pic.trim()) { setError("Lengkapi employee, source reference, development objective, dan PIC sebelum menyimpan."); return; }
+    // PW1: name only the fields that are actually empty, and take the user to the first one.
+    const missing = [!employee && ["employee", "input-employee"], !chosen && ["source reference", "input-source-reference"], !objective.trim() && ["development objective", "input-development-objective"], !pic.trim() && ["PIC", "input-pic"]].filter((item) => item !== false);
+    if (!chosen || missing.length) {
+      setError(`Lengkapi ${missing.map(([field]) => field).join(", ")} sebelum menyimpan.`);
+      document.querySelector<HTMLElement>(`[data-testid="${missing[0][1]}"]`)?.focus();
+      return;
+    }
     setError("");
     // The gap changes as competencies are updated; keep the level seen when the need was raised.
     const snapshotNote = type === "competency_gap" ? `Gap saat dibuat (${formatDate(today())}): ${chosen.label}` : "";
@@ -102,7 +110,7 @@ export function DevelopmentFormModal({ employeeId, sourceType, sourceRef, onClos
       <div className="grid gap-4 sm:grid-cols-2">
         {employeeId ? <ReadOnlyField label="Employee" testId="employee" value={`${selectedEmployee?.fullName ?? "—"} · ${selectedEmployee?.employeeId ?? ""}`} className="sm:col-span-2" />
           : <SearchSelectField label="Employee" testId="employee" required value={employee} onChange={(value) => { setEmployee(value); pickReference(""); setError(""); }} error={touched && !employee ? "Employee wajib diisi." : undefined} className="sm:col-span-2" placeholder="Select employee"
-            options={visibleEmployees(snapshot).map((item) => ({ value: item.id, label: `${item.fullName} · ${item.employeeId}` }))} />}
+            options={assessableEmployees(snapshot).map((item) => ({ value: item.id, label: `${item.fullName} · ${item.employeeId}` }))} />}
         <ReadOnlyField label="Position" testId="position" value={positionOf(snapshot, selectedEmployee)?.title ?? "—"} />
         {sourceType ? <ReadOnlyField label="Source type" testId="source-type" value={sourceTypeLabel[type]} /> : <SelectField label="Source type" testId="source-type" required value={type} onChange={(event) => { setType(event.target.value as DevelopmentSourceType); pickReference(""); }}>
           {(Object.keys(sourceTypeLabel) as DevelopmentSourceType[]).map((key) => <option key={key} value={key}>{sourceTypeLabel[key]}</option>)}
@@ -118,57 +126,52 @@ export function DevelopmentFormModal({ employeeId, sourceType, sourceRef, onClos
           : <>Pegawai ini belum memiliki sumber bertipe {sourceTypeLabel[type]}. Development tidak dibuat hanya karena waktu sudah berlalu.</>}</Notice></div>}
         <TextField label="Development objective" testId="development-objective" required maxLength={500} value={objective} onChange={(event) => setObjective(event.target.value)} placeholder={OBJECTIVE_EXAMPLE}
           error={touched && !objective.trim() ? "Development objective wajib diisi." : undefined} className="sm:col-span-2"
-          helper={suggested && objective === suggestion ? `Diisi dari gap kompetensi${method.trim() ? " dan Method" : ""}; boleh diubah. ${OBJECTIVE_HINT}` : `${OBJECTIVE_HINT} ${OBJECTIVE_EXAMPLE}.`} />
+          helper={`${suggested && objective === suggestion ? `Diisi dari gap kompetensi${method.trim() ? " dan Method" : ""}; boleh diubah. ${OBJECTIVE_HINT}` : `${OBJECTIVE_HINT} ${OBJECTIVE_EXAMPLE}.`} ${objective.length}/500`} />
         <PrioritySelect value={priority} onChange={setPriority} />
         <ReadOnlyField label="Created date" testId="created-date" value={formatDate(today())} />
         <MethodField value={method} onChange={chooseMethod} helper="Opsional, tetapi bila sudah diketahui akan ikut masuk ke objective sebagai cara menutup gap." />
         <PicField value={pic} onChange={setPic} error={touched && !pic.trim() ? "PIC wajib diisi." : undefined} />
       </div>
-      <TextAreaField label="Notes" testId="notes" value={notes} onChange={(event) => setNotes(event.target.value)} helper="HR yang menentukan metode training akhir; gap tidak menentukannya secara otomatis." />
+      <TextAreaField label="Notes" testId="notes" value={notes} onChange={(event) => setNotes(event.target.value)} helper={`HR yang menentukan metode training akhir; gap tidak menentukannya secara otomatis. ${notes.length}/${NOTES_MAX}`} />
     </form>
   </FormModal>;
 }
 
-export function DevelopmentStatusModal({ needId, onClose }: { needId: string; onClose: () => void }) {
+/** The open activity a requirement's progress is updated in (13 Nov 2026: Training Tracking is the one writer). */
+export const openTrainingOf = (snapshot: Snapshot, needId: string) => trainings(snapshot)
+  .filter((item) => item.developmentNeedId === needId && (item.status === "Planned" || item.status === "In Progress"))
+  .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))[0];
+
+/** Path B: whether a requirement may close on the level evidence alone ("" when it may), and the finding that proves it. */
+export function closeEvidence(snapshot: Snapshot, need: DevelopmentNeedVersion) {
+  const finding = sourceFinding(snapshot, need);
+  return { finding, blocked: closeGapBlockedReason(need, finding, openTrainingCount(trainings(snapshot), need.needId)) };
+}
+
+/** Closes a Competency Gap requirement whose level is already met, without a training (e.g. after coaching). */
+export function CloseAsMetModal({ needId, onClose, onSaved }: { needId: string; onClose: () => void; onSaved?: () => void }) {
   const snapshot = useSnapshot();
   const { run, busy } = useD4();
-  const current = snapshot.developmentVersions.filter((item) => item.needId === needId).sort((a, b) => b.revision - a.revision)[0];
-  const [status, setStatus] = useState<DevelopmentStatus>(current?.status ?? "Identified");
-  const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
-  const openTrainings = trainings(snapshot).filter((item) => item.developmentNeedId === needId && (item.status === "Planned" || item.status === "In Progress"));
-  // After a Retraining only trainings passed since then count, as on the server.
-  const since = retrainedAt(developmentHistory(snapshot, needId));
-  const passed = passedTrainingCount(trainings(snapshot), needId, since);
-  const rollback = current ? isDevelopmentRollback(current.status, status) : false;
-  // Same rules as the server: completing while training still runs, or without a passed training, needs a reason.
-  const completingOpen = status === "Completed" && openTrainings.length > 0;
-  const completingUnpassed = status === "Completed" && passed === 0;
-  const needsReason = rollback || completingOpen || completingUnpassed;
+  const need = developmentById(snapshot, needId);
+  const evidence = need && closeEvidence(snapshot, need);
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (rollback && !notes.trim()) { setError(`Alasan wajib diisi saat status mundur dari ${statusLabel(current?.status ?? "")} ke ${statusLabel(status)}.`); return; }
-    if (completingOpen && !notes.trim()) { setError("Training untuk requirement ini masih Planned atau In Progress. Selesaikan atau batalkan dulu, atau jelaskan alasannya di Notes."); return; }
-    if (completingUnpassed && !notes.trim()) { setError("Belum ada training berhasil Passed untuk requirement ini. Jelaskan di Notes mengapa requirement tetap diselesaikan."); return; }
-    const result = await run((source) => source.updateDevelopment(needId, status, notes), "Status development diperbarui sebagai revisi baru.");
-    if (result.ok) onClose(); else setError(result.error);
+    const result = await run((source) => source.closeDevelopment(needId), "Requirement ditutup: gap terpenuhi.");
+    if (result.ok) { onSaved?.(); onClose(); } else setError(result.error);
   }
-  return <FormModal title="Update Status" description={current?.objective} onClose={onClose} footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Status" disabled={status === current?.status} />}>
+  return <FormModal title="Close as Met" description={need?.objective} onClose={onClose} footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Close Requirement" disabled={!evidence || Boolean(evidence.blocked)} />}>
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />
-      <SelectField label="Status" required value={status} onChange={(event) => setStatus(event.target.value as DevelopmentStatus)}>
-        {(["Identified", "Planned", "In Progress", "Completed"] as const).map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}
-      </SelectField>
-      {status === "Completed" && openTrainings.length > 0 && <Notice tone="warning">Masih ada {openTrainings.length} training berstatus Planned/In Progress untuk requirement ini ({openTrainings.map((item) => item.activity).join(", ")}). Selesaikan atau batalkan terlebih dahulu, atau jelaskan alasannya di Notes.</Notice>}
-      {completingUnpassed && <Notice tone="warning">Belum ada training dengan hasil Passed untuk requirement ini{since ? " sejak Retraining terakhir" : ""}. Jika gap ditutup dengan cara lain (misalnya coaching), jelaskan di Notes.</Notice>}
-      <TextAreaField label="Notes" testId="notes" required={needsReason} value={notes} onChange={(event) => setNotes(event.target.value)} helper={status === current?.status ? `Status sudah ${status}. Pilih status lain untuk menyimpan.` : rollback ? "Wajib: status mundur ke tahap sebelumnya." : completingOpen ? "Wajib: jelaskan mengapa requirement diselesaikan saat training masih berjalan." : completingUnpassed ? "Wajib: belum ada training yang Passed." : undefined} />
-      <Notice>Perubahan disimpan sebagai revisi baru; riwayat sebelumnya tetap tersedia. Status Completed tidak otomatis menutup gap kompetensi.</Notice>
+      {evidence?.finding && !evidence.blocked
+        ? <Notice>{closeGapNotes(evidence.finding, today())} Requirement disimpan sebagai Completed dengan reassessment Meets requirement.</Notice>
+        : <Notice tone="warning">{evidence?.blocked}</Notice>}
     </form>
   </FormModal>;
 }
 
 /** Priority, method and PIC change after creation (interview D4: priority follows context, e.g. a tax policy change). */
-export function DevelopmentEditModal({ needId, onClose }: { needId: string; onClose: () => void }) {
+export function DevelopmentEditModal({ needId, onClose, onSaved }: { needId: string; onClose: () => void; onSaved?: () => void }) {
   const snapshot = useSnapshot();
   const { run, busy } = useD4();
   const current = developmentById(snapshot, needId);
@@ -184,7 +187,7 @@ export function DevelopmentEditModal({ needId, onClose }: { needId: string; onCl
     if (!current || unchanged) return;
     if (!pic.trim()) { setError("PIC wajib diisi."); return; }
     const result = await run((source) => source.updateDevelopment(needId, current.status, notes, { priority, method, pic }), "Requirement diperbarui sebagai revisi baru.");
-    if (result.ok) onClose(); else setError(result.error);
+    if (result.ok) { onSaved?.(); onClose(); } else setError(result.error);
   }
   return <FormModal title="Edit Requirement" description={current.objective} onClose={onClose} footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Changes" disabled={unchanged} />}>
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
@@ -196,7 +199,7 @@ export function DevelopmentEditModal({ needId, onClose }: { needId: string; onCl
         <PicField value={pic} onChange={setPic} current={current.pic} />
       </div>
       <TextAreaField label="Reason for change" testId="alasan-perubahan" value={notes} onChange={(event) => setNotes(event.target.value)}
-        helper={unchanged ? "Belum ada perubahan. Ubah Priority, Method, atau PIC untuk menyimpan." : "Opsional. Contoh: kebijakan pajak berubah, sertifikasi pajak dinaikkan ke High."} />
+        helper={`${unchanged ? "Belum ada perubahan. Ubah Priority, Method, atau PIC untuk menyimpan." : "Opsional. Contoh: kebijakan pajak berubah, sertifikasi pajak dinaikkan ke High."} ${notes.length}/${NOTES_MAX}`} />
       <Notice>Perubahan disimpan sebagai revisi baru; nilai sebelumnya tetap ada di riwayat.</Notice>
     </form>
   </FormModal>;

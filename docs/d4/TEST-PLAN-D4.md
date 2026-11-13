@@ -28,9 +28,9 @@ Di luar cakupan: sertifikasi/renewal, trigger performance-gap formal, dan reasse
 | FR-D4-007 / TR-D4-001 Keterhubungan data | TC-D4-007 | 9 | [QA] Pengujian Integration, Security, Validation & UI Quality |
 | Daily KPI (wawancara D4, 14 Okt 2026) | TC-D4-008 | 18 (baru) | [QA] Pengujian Phase 1 |
 | TR-D4-002 Security & audit | TC-D4-SEC | 9 | idem |
-| TR-D4-002 Validation & UI quality | TC-D4-UIQ | 13 | idem |
+| TR-D4-002 Validation & UI quality | TC-D4-UIQ | 14 (1 baru: pola filter) | idem |
 | Skenario lintas fitur | TS-D4-001 s.d. 003 | 3 | [QA] TS-D4-00x (list To Do List QA) |
-| **Total** | | **146** | |
+| **Total** | | **147** | |
 
 Semua FR dan TR yang dapat diuji punya minimal satu TC positif dan satu TC negatif.
 
@@ -197,7 +197,7 @@ Kartu Planka: **[QA] Pengujian Phase 3**
 | TC-D4-006-13 | Test progress training | Positif | Not Run | Staging |
 | TC-D4-006-14 | Test pencarian employee | Positif | Not Run | Staging |
 | TC-D4-006-15 | Test filter position | Positif | Not Run | Staging |
-| TC-D4-006-16 | Test filter periode | Positif | Not Run | Staging |
+| TC-D4-006-16 | Test filter periode: tombol Period ada di samping search (bukan di panel Filter), default periode terbaru yang sudah berjalan, tanpa pilihan "All" agar ringkasan dan grafik tidak mencampur periode | Positif | Not Run | Staging |
 | TC-D4-006-17 | Test drill-down ke detail sumber | Positif | Not Run | Staging |
 | TC-D4-006-18 | Test dashboard tidak membentuk data bisnis terpisah | Negatif | Not Run | Staging |
 | TC-D4-006-19 | Test dashboard tidak membuat status achieved/not achieved tanpa threshold resmi | Negatif | Not Run | Staging |
@@ -205,7 +205,7 @@ Kartu Planka: **[QA] Pengujian Phase 3**
 | TC-D4-006-21 | Test empty state | Positif | Not Run | Staging |
 | TC-D4-006-22 | Test validation state | Positif | Not Run | Staging |
 | TC-D4-006-23 | Test error state | Positif | Not Run | Staging |
-| TC-D4-006-24 | Test filter "All levels" (B20, asumsi): Staff, Manager, atau Director menyaring tabel, ringkasan, dan grafik; level dari kode posisi (`DIR-*` Director, `*-MGR` Manager, sisanya Staff); tidak tampil untuk Employee | Positif | Not Run | Staging |
+| TC-D4-006-24 | Test filter Levels di panel Filter (B20, asumsi): Staff, Manager, atau Director menyaring tabel, ringkasan, dan grafik; level dari kode posisi (`DIR-*` Director, `*-MGR` Manager, sisanya Staff); tidak tampil untuk Employee | Positif | Not Run | Staging |
 
 ### TC-D4-007 · FR-D4-007 / TR-D4-001 Keterhubungan data
 
@@ -283,6 +283,7 @@ Kartu Planka: **[QA] Pengujian Integration, Security, Validation & UI Quality**
 | TC-D4-UIQ-11 | Test status indicator konsisten | Positif | Not Run | Staging |
 | TC-D4-UIQ-12 | Test action pattern konsisten | Positif | Not Run | Staging |
 | TC-D4-UIQ-13 | Test demo/fixture data dapat dibedakan dari baseline data | Positif | Not Run | Staging |
+| TC-D4-UIQ-14 | Test pola filter list (keputusan 13 Nov 2026): satu baris berisi search, tombol Period, dan tombol Filter (`btn-filter`); dropdown lain baru ada setelah `btn-filter` diklik, masing-masing berlabel di atas dengan pilihan kosong "All"; jumlah filter terisi tampil di tombol Filter (`filter-count`) dan tidak ada tag saat panel tertutup; Reset filter ada di dalam panel dan mengosongkan semua filter; Esc menutup daftar dropdown dulu, lalu panel, dan fokus kembali ke tombol Filter | Positif | Not Run | Staging, di People Dashboard, Performance Review, Competency Gap, Development Requirement, Training Tracking |
 
 ### TS-D4 · Skenario lintas fitur
 

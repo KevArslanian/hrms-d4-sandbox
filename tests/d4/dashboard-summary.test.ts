@@ -57,10 +57,10 @@ describe("People Dashboard audit (21 Oct 2026)", () => {
     const catalog = catalogFor(seedCatalogSet(base.reference.positions), "2026-10");
     const rows = rowsOf(base);
     const titles = (list: readonly DashboardRow[]) => [...new Set(list.map((row) => positionOf(base, row.employee)?.title))].sort();
-    // Commissioner and HR Manager have no KPI in V5.1 by design (kpi-scoring.test.ts).
-    expect(titles(withoutKpiRole(base, rows, catalog))).toEqual(["Commissioner", "HR Manager"]);
-    const reviewed = rows.map((row) => positionOf(base, row.employee)?.title === "HR Manager" ? { ...row, scorecard: scorecard(4, "V5.1") } : row);
-    expect(titles(withoutKpiRole(base, reviewed, catalog))).toEqual(["Commissioner"]);
+    // Commissioner has no KPI by design (kpi-scoring.test.ts).
+    expect(titles(withoutKpiRole(base, rows, catalog))).toEqual(["Commissioner"]);
+    const reviewed = rows.map((row) => positionOf(base, row.employee)?.title === "Commissioner" ? { ...row, scorecard: scorecard(4, "V5.1") } : row);
+    expect(titles(withoutKpiRole(base, reviewed, catalog))).toEqual([]);
     expect(withoutKpiRole(base, rows, null)).toEqual([]);
     // Information in the Performance card, not an alert HR cannot act on.
     expect(dashboardAlerts(base, rows).some((alert) => alert.key === "kpi-not-in-catalog")).toBe(false);

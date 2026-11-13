@@ -98,3 +98,8 @@ export function Avatar({ name, size = "md" }: { name: string; size?: "md" | "lg"
 export function Notice({ tone = "info", children }: { tone?: "info" | "warning"; children: ReactNode }) {
   return <p className={cx("rounded-xl px-4 py-3 text-xs leading-5", tone === "warning" ? "bg-warning-bg text-warning" : "bg-info-bg text-primary-700")}>{children}</p>;
 }
+
+/** Lists sort by what still needs work, so a record just saved can move pages away; this points back to it. */
+export function SavedNotice({ text, href }: { text: string; href: string }) {
+  return <div data-testid="saved-notice"><Notice>{text} <Link href={href} className="font-semibold underline">View Detail</Link></Notice></div>;
+}

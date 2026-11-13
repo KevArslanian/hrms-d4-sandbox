@@ -3,22 +3,25 @@
 import Link from "next/link";
 import { AlertTriangle, ArrowUpRight, Eye, Target } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
+import { followUpOf } from "../../../shared/rules";
 import type { D4LiveSnapshot, KpiAssessment } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { catalogFor, type KpiCatalog } from "../../../kpi/catalog";
-import { byProgress, canWrite, currentCompetencyStatus, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, employeeSearchText, evaluationsOf, formatDate, formatGap, formatPeriod, formatScore, formatScorecard, includesText, pendingCompilation, positionOf, scorecardsOf, thisMonth, trainings, trainingsOf, visibleEmployees } from "../../data/selectors";
+import { catalogFor, KPI_TARGET, type KpiCatalog } from "../../../kpi/catalog";
+import { byProgress, canAssess, canWrite, currentCompetencyStatus, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, employeeSearchText, evaluationsOf, formatDate, formatGap, formatPeriod, formatScore, formatScorecard, includesText, pendingCompilation, positionOf, scorecardsOf, thisMonth, trainingHistory, trainings, trainingsOf, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
-import { FilterBar, SearchInput, SelectFilter } from "../../ui/forms";
+import { FilterBar, PeriodFilter, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
-import { Card, Notice, slug, statusLabel, StatusBadge } from "../../ui/primitives";
-import { LineComment, weighted } from "../kpi/KpiFormModal";
+import { Card, Notice, SavedNotice, slug, statusLabel, StatusBadge } from "../../ui/primitives";
+import { LineComment, targetLabel, weighted } from "../kpi/KpiFormModal";
 import type { DailyCompilation } from "../../../kpi/daily";
 import { HIGH_ABOVE, performanceBand, scaleMaxOf, UNDER_BELOW } from "../../../kpi/scale";
 import { averageScores, BANDS, COMPETENCY_ORDER, competencySlices, dashboardAlerts, defaultPeriod, employeeHistory, gapRanking, JOB_LEVELS, jobLevel, matchesDashboardFilters, openNeedCount, performanceSlices, profilePeriod, reviewCounts, validScorecard, withoutKpiRole, type AssignTarget, type DashboardRow, type Slice } from "./summary";
 import { DevelopmentFormModal } from "../development/DevelopmentModals";
+import { useUrlFilters } from "./url-filters";
 
-type Row = DashboardRow & { position: string; period?: string; openNeeds: number; training?: string; compiled: DailyCompilation | null };
+/** `notPassed`: the latest training is Completed but Not Passed, "awaiting" until HR records a follow-up (K2). */
+type Row = DashboardRow & { position: string; period?: string; openNeeds: number; training?: string; notPassed?: "awaiting" | "followed"; trainingInProgress: boolean; compiled: DailyCompilation | null };
 
 /** One period per employee: the selected period, else the latest started scorecard, else the latest started evaluation (FR-06.1). */
 function periodData(snapshot: D4LiveSnapshot, employeeId: string, period: string) {
@@ -36,15 +39,14 @@ function periodData(snapshot: D4LiveSnapshot, employeeId: string, period: string
  */
 export function DashboardPage() {
   const snapshot = useSnapshot();
+  // An employee's list would only ever hold themselves, so their home is their own profile.
+  return snapshot.role === "EMPLOYEE" ? <EmployeeProfilePage employeeId={snapshot.actorEmployeeId} own /> : <PeopleDashboard />;
+}
+
+function PeopleDashboard() {
+  const snapshot = useSnapshot();
   const { catalog: catalogSet } = useD4();
-  const [search, setSearch] = useState("");
-  const [position, setPosition] = useState("");
-  const [department, setDepartment] = useState("");
-  const [level, setLevel] = useState("");
-  const [period, setPeriod] = useState("");
-  const [band, setBand] = useState("");
-  const [competency, setCompetency] = useState("");
-  const [training, setTraining] = useState("");
+  const { values: { q: search, position, department, level, period, band, competency, training }, set, reset } = useUrlFilters(["q", "position", "department", "level", "period", "band", "competency", "training"]);
   const periods = useMemo(() => [...new Set([...(snapshot.kpiAssessments ?? []), ...snapshot.performance, ...(snapshot.kpiDaily ?? [])].map((item) => item.period))].sort().reverse(), [snapshot]);
   const shown = period || defaultPeriod(periods);
   const catalog = useMemo(() => catalogSet && shown ? catalogFor(catalogSet, shown) : null, [catalogSet, shown]);
@@ -52,45 +54,48 @@ export function DashboardPage() {
   const rows = useMemo<Row[]>(() => visibleEmployees(snapshot).map((employee) => {
     // Every row shows the same period: the chosen one, else the latest period that has started (bug 20).
     const data = periodData(snapshot, employee.id, shown);
+    const employeeTrainings = trainingsOf(snapshot, employee.id);
+    const latest = employeeTrainings[0];
     return {
       employee, position: positionOf(snapshot, employee)?.title ?? "—", period: data.period, scorecard: data.scorecard,
       // Shown in the table until HR finalizes it; the charts and counts use finalized scorecards only.
       compiled: data.period ? pendingCompilation(snapshot, employee.id, data.period) : null,
       gap: currentCompetencyStatus(snapshot, employee),
       openNeeds: openNeedCount(snapshot, employee.id),
-      training: trainingsOf(snapshot, employee.id)[0]?.status,
+      training: latest?.status,
+      notPassed: latest?.status === "Completed" && latest.result === "Not Passed" ? (followUpOf(trainingHistory(snapshot, latest.trainingId)) ? "followed" as const : "awaiting" as const) : undefined,
+      trainingInProgress: employeeTrainings.some((item) => item.status === "In Progress"),
     };
   }).filter((row) => includesText(employeeSearchText(snapshot, row.employee), search) && (!position || row.employee.positionId === position) && (!department || row.employee.departmentId === department)
     && (!level || jobLevel(positionOf(snapshot, row.employee)) === level) && matchesDashboardFilters(row, { band, competency, training }))
     // Compiled (waiting for HR) first, then without a Performance Review for the period, then reviewed.
     .sort(byProgress((row) => row.compiled ? 0 : row.scorecard ? 2 : 1, (row) => row.employee.fullName)), [snapshot, search, position, department, level, shown, band, competency, training]);
 
+  const noKpi = withoutKpiRole(snapshot, rows, catalog).length;
   const profileHref = (row: Row) => `/dashboard/employee/${row.employee.id}${row.period ? `?period=${row.period}` : ""}`;
 
   return <>
     <PageHeader title="People Dashboard" subtitle="KPI, performance, gap kompetensi, development, dan training per pegawai untuk periode yang sama." />
-    <FilterBar canReset={Boolean(search || position || department || level || period || band || competency || training)} onReset={() => { setSearch(""); setPosition(""); setDepartment(""); setLevel(""); setPeriod(""); setBand(""); setCompetency(""); setTraining(""); }}>
-      <SearchInput value={search} onChange={setSearch} placeholder="Search name or position" />
-      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All positions" testId="all-positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />}
-      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All departments" testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />}
-      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="All levels" testId="all-levels" value={level} onChange={setLevel} options={JOB_LEVELS.map((item) => ({ value: item, label: item }))} />}
-      {/* The dashboard always shows one period, so there is no "All periods" choice; it starts on the latest one that has started. */}
-      <SelectFilter label="Period" testId="latest-period" emptyOption={false} value={shown} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
-      {/* FR-D4-004 B: performance category (1–100 scorecards only), competency status and latest training status. */}
-      {snapshot.role !== "EMPLOYEE" && <>
-        <SelectFilter label="All categories" testId="all-categories" value={band} onChange={setBand} options={BANDS.map((item) => ({ value: item, label: item }))} />
-        <SelectFilter label="All competency status" testId="all-competency-status" value={competency} onChange={setCompetency} options={COMPETENCY_ORDER.map((item) => ({ value: item, label: item }))} />
-        <SelectFilter label="All training status" testId="all-training-status" value={training} onChange={setTraining} options={["Planned", "In Progress", "Completed", "Cancelled"].map((item) => ({ value: item, label: statusLabel(item) }))} />
-      </>}
+    {/* The dashboard always shows one period, so there is no "All" choice (decision 13 Nov 2026); it starts on the latest one that has started. */}
+    <FilterBar canReset={Boolean(search || position || department || level || period || band || competency || training)} onReset={reset}
+      search={<SearchInput value={search} onChange={set("q")} placeholder="Search name or position" />}
+      period={<PeriodFilter label="Period" testId="latest-period" emptyOption={false} value={shown} onChange={set("period")} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />}>
+      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="Departments" testId="all-departments" value={department} onChange={set("department")} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />}
+      {/* FR-D4-004 B: performance category (1–100 scorecards only); the Katalon id keeps the old "categories" name. */}
+      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="Performance" testId="all-categories" value={band} onChange={set("band")} options={BANDS.map((item) => ({ value: item, label: item }))} />}
+      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="Positions" testId="all-positions" value={position} onChange={set("position")} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />}
+      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="Levels" testId="all-levels" value={level} onChange={set("level")} options={JOB_LEVELS.map((item) => ({ value: item, label: item }))} />}
+      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="Competency status" testId="all-competency-status" value={competency} onChange={set("competency")} options={COMPETENCY_ORDER.map((item) => ({ value: item, label: item }))} />}
+      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="Training status" testId="all-training-status" value={training} onChange={set("training")} options={["Planned", "In Progress", "Completed", "Cancelled"].map((item) => ({ value: item, label: statusLabel(item) }))} />}
     </FilterBar>
-    <SummaryStrip rows={rows} period={shown} />
+    <SummaryStrip rows={rows} period={shown} noKpi={noKpi} />
     {snapshot.role !== "EMPLOYEE" && rows.length > 0 && <>
       <div className="grid gap-6 xl:grid-cols-3">
-        <PerformanceCard snapshot={snapshot} rows={rows} catalog={catalog} />
+        <PerformanceCard rows={rows} catalog={catalog} noKpi={noKpi} />
         <CompetencyCard rows={rows} />
         <GapRankingCard snapshot={snapshot} rows={rows} />
       </div>
-      <AlertsCard snapshot={snapshot} rows={rows} />
+      <AlertsCard snapshot={snapshot} rows={rows} period={shown} />
     </>}
     <DataTable<Row> rows={rows} noun="employees" rowKey={(row) => row.employee.id}
       emptyTitle="Tidak ada pegawai yang cocok" emptyText={snapshot.role === "EMPLOYEE" ? "Ubah kata kunci atau periode, lalu coba lagi." : "Ubah kata kunci, filter, atau periode, lalu coba lagi."}
@@ -103,7 +108,9 @@ export function DashboardPage() {
         { key: "kpi", header: "Total KPI", className: "tabular-nums", cell: (row) => <ScoreCell scorecard={row.scorecard} compiled={row.compiled} /> },
         { key: "gap", header: "Competency", cell: (row) => <StatusBadge status={row.gap} /> },
         { key: "needs", header: "Open dev.", className: "tabular-nums", secondary: true, cell: (row) => row.openNeeds || "—" },
-        { key: "training", header: "Training", cell: (row) => row.training ? <StatusBadge status={row.training} /> : "—" },
+        { key: "training", header: "Training", cell: (row) => row.notPassed ? <><span data-testid="training-not-passed" className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-warning-bg px-2.5 py-1 text-[11px] font-semibold leading-none text-warning"><span aria-hidden="true" className="size-1.5 rounded-full bg-current" />Not Passed</span>
+          {/* The stored status stays visible, since the training status filter matches on it. */}
+          <span className="mt-1 block text-xs text-ink-3">Completed{row.notPassed === "awaiting" ? ", awaiting follow-up" : ""}</span></> : row.training ? <StatusBadge status={row.training} /> : "—" },
       ]}
       actions={(row) => <RowActionMenu label={`Actions for ${row.employee.fullName}`} actions={[
         { label: "View Detail", testId: "view-detail", icon: <Eye />, href: profileHref(row) },
@@ -113,15 +120,18 @@ export function DashboardPage() {
 }
 
 /** Headline counts over the rows currently listed (mentor review, 14 Oct 2026). */
-function SummaryStrip({ rows, period }: { rows: readonly Row[]; period: string }) {
+function SummaryStrip({ rows, period, noKpi }: { rows: readonly Row[]; period: string; noKpi: number }) {
   const reviewed = rows.filter((row) => row.scorecard && validScorecard(row.scorecard)).length;
+  // K4: employees whose position has no KPI can never be reviewed, so they are not part of the share HR can complete.
+  const reviewable = rows.length - noKpi;
+  const compiled = rows.filter((row) => row.compiled).length;
   // Completion of the period's reviews is the share HR acts on; the count stays a plain integer for Katalon.
   const tiles = [
     { key: "total", label: "Employees", value: rows.length, hint: "sesuai filter" },
-    { key: "kpi", label: "Performance Review complete", value: reviewed, hint: `dari ${rows.length} pegawai (${rows.length ? Math.round((reviewed / rows.length) * 100) : 0}%) · ${formatPeriod(period)}` },
+    { key: "kpi", label: "Performance Review complete", value: reviewed, hint: `dari ${reviewable} pegawai yang bisa direview (${reviewable ? Math.round((reviewed / reviewable) * 100) : 0}%) · ${formatPeriod(period)}${compiled ? ` · ${compiled} Compiled, menunggu finalisasi` : ""}` },
     // UAT-19: the partner asked for "jumlah karyawan yang butuh training"; testId summary-dev stays for Katalon.
     { key: "dev", label: "Need training", hint: "punya development requirement yang belum selesai", value: rows.filter((row) => row.openNeeds > 0).length },
-    { key: "training", label: "Training in progress", value: rows.filter((row) => row.training === "In Progress").length, hint: "training terakhirnya In Progress" },
+    { key: "training", label: "Training in progress", value: rows.filter((row) => row.trainingInProgress).length, hint: "punya training In Progress" },
   ];
   return <section aria-label="Summary" data-testid="dashboard-summary" className="grid grid-cols-2 gap-4 xl:grid-cols-4">
     {tiles.map((tile) => <div key={tile.key} data-testid={`summary-${tile.key}`} className="rounded-2xl border border-line bg-surface p-5 shadow-card">
@@ -182,13 +192,15 @@ function Donut({ name, slices, colors, center, centerLabel }: { name: string; sl
 }
 
 /** Under / Average / High from the total of the five Core KPI, for the period listed (Interview D4, 14 Oct 2026). */
-function PerformanceCard({ snapshot, rows, catalog }: { snapshot: D4LiveSnapshot; rows: readonly Row[]; catalog: KpiCatalog | null }) {
+function PerformanceCard({ rows, catalog, noKpi }: { rows: readonly Row[]; catalog: KpiCatalog | null; noKpi: number }) {
   const { slices, rated, total } = performanceSlices(rows);
   const averages = averageScores(rows);
   const { missing, unscored } = reviewCounts(rows);
-  const noKpi = withoutKpiRole(snapshot, rows, catalog).length;
+  const compiled = rows.filter((row) => row.compiled).length;
   // Information, not an alert: some positions have no KPI by design and only a catalog migration adds one.
   const noKpiNote = noKpi > 0 && <p data-testid="kpi-no-role" className="mt-2 text-sm text-ink-2">{noKpi} pegawai tidak bisa diberi Performance Review karena posisinya tidak punya KPI di katalog {catalog?.version}.</p>;
+  // R6: mid-month every score is still Compiled, which is progress, not an empty period.
+  const compiledNote = compiled > 0 && <p data-testid="kpi-compiled-count" className="mt-2 text-sm text-ink-2">{compiled} pegawai sudah punya skor Compiled dari Daily KPI, menunggu finalisasi menjadi Performance Review.</p>;
   if (rated) return <Card title="Performance category" testId="performance-pie">
     <Donut name="Performance category" slices={slices} colors={BAND_COLORS} center={rated} centerLabel={`dari ${total} pegawai`} />
     {noKpiNote}
@@ -203,6 +215,7 @@ function PerformanceCard({ snapshot, rows, catalog }: { snapshot: D4LiveSnapshot
       </p>)}
       <p className="mt-2 text-sm text-ink-2">{missing} dari {total} pegawai belum punya Performance Review pada periode ini.{unscored ? ` ${unscored} scorecard tidak dihitung dalam rata-rata karena datanya tidak valid.` : ""}</p>
     </div> : <p className="text-sm text-ink-3">Belum ada Performance Review pada periode ini. <Link href="/performance" className="font-semibold text-primary-600 hover:underline">Buka Performance Review</Link></p>}
+    {compiledNote}
     {noKpiNote}
     <p className="mt-4 text-xs leading-5 text-ink-3">Kategori Under / Average / High berlaku mulai scorecard skala 1–100 (V6, Nov 2026).</p>
   </Card>;
@@ -235,19 +248,25 @@ function GapRankingCard({ snapshot, rows }: { snapshot: D4LiveSnapshot; rows: re
   </Card>;
 }
 
-function AlertsCard({ snapshot, rows }: { snapshot: D4LiveSnapshot; rows: readonly Row[] }) {
+function AlertsCard({ snapshot, rows, period }: { snapshot: D4LiveSnapshot; rows: readonly Row[]; period: string }) {
   const { catalog: catalogSet } = useD4();
-  const alerts = dashboardAlerts(snapshot, rows, catalogSet && catalogFor(catalogSet, thisMonth()));
+  const alerts = dashboardAlerts(snapshot, rows, catalogSet && catalogFor(catalogSet, thisMonth()), period);
+  const writer = canWrite(snapshot);
   const [assignFor, setAssignFor] = useState<AssignTarget | null>(null);
+  const [savedNeed, setSavedNeed] = useState<{ needId: string; name: string } | null>(null);
   return <Card title="Alerts" testId="dashboard-alerts">
+    {savedNeed && <div className="mb-3"><SavedNotice text={`Development requirement untuk ${savedNeed.name} tersimpan.`} href={`/development/${savedNeed.needId}`} /></div>}
     {alerts.length ? <ul className="divide-y divide-line">
-      {alerts.map((alert) => <li key={alert.key} data-testid={`alert-${alert.key}`} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
+      {alerts.map((alert) => {
+        // W9: nobody assigns training to themselves, so the actor's own row gets no chip.
+        const assign = writer ? alert.assign?.filter((item) => canAssess(snapshot, item.employeeId)) : undefined;
+        return <li key={alert.key} data-testid={`alert-${alert.key}`} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
         <AlertTriangle aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-warning" />
         <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-ink">{alert.title}{alert.label && <span data-testid={`alert-label-${alert.key}`} className="rounded-full bg-warning-bg px-2 py-0.5 text-[11px] font-semibold text-warning">{alert.label}</span>}</p>
-          <p className="mt-0.5 text-sm text-ink-2"><span className="font-semibold tabular-nums">{alert.count}</span> {alert.detail}</p>
+          <p className="mt-0.5 text-sm text-ink-2"><span className="font-semibold tabular-nums">{alert.count}</span> {alert.detail}{writer && alert.action ? ` ${alert.action}` : ""}</p>
           {/* Q16: each Under Performance employee can be assigned training straight from here. */}
-          {alert.assign?.length && canWrite(snapshot) ? <ul className="mt-2 flex flex-wrap gap-2">{alert.assign.map((item) => <li key={item.employeeId} className="min-w-0 max-w-full">
+          {assign?.length ? <ul className="mt-2 flex flex-wrap gap-2">{assign.map((item) => <li key={item.employeeId} className="min-w-0 max-w-full">
             <button type="button" data-testid={`btn-assign-training-${item.employeeId}`} onClick={() => setAssignFor(item)}
               className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-line px-2.5 py-1 text-xs hover:border-primary-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/15">
               <span className="truncate text-ink-2">{item.name}</span><span className="shrink-0 font-semibold text-primary-600">Assign training</span>
@@ -256,9 +275,10 @@ function AlertsCard({ snapshot, rows }: { snapshot: D4LiveSnapshot; rows: readon
             : <p className="mt-1 truncate text-xs text-ink-3">{alert.people.slice(0, 3).join(", ")}{alert.people.length > 3 ? ` dan ${alert.people.length - 3} lainnya` : ""}</p>}
         </div>
         <SourceLink href={alert.href}>Buka</SourceLink>
-      </li>)}
+      </li>;
+      })}
     </ul> : <p className="text-sm text-ink-3">Tidak ada alert untuk daftar ini.</p>}
-    {assignFor && <DevelopmentFormModal employeeId={assignFor.employeeId} sourceType="performance_context" sourceRef={assignFor.scorecardId} onClose={() => setAssignFor(null)} />}
+    {assignFor && <DevelopmentFormModal employeeId={assignFor.employeeId} sourceType="performance_context" sourceRef={assignFor.scorecardId} onClose={() => setAssignFor(null)} onSaved={(needId) => setSavedNeed({ needId, name: assignFor.name })} />}
   </Card>;
 }
 
@@ -274,7 +294,7 @@ function SourceLink({ href, children = "View source" }: { href: string; children
   return <Link href={href} data-testid="link-view-source" className="inline-flex items-center gap-1 text-sm font-semibold text-primary-600 hover:underline">{children}<ArrowUpRight aria-hidden="true" className="size-4" /></Link>;
 }
 
-export function EmployeeProfilePage({ employeeId, initialPeriod = "" }: { employeeId: string; initialPeriod?: string }) {
+export function EmployeeProfilePage({ employeeId, initialPeriod = "", own = false }: { employeeId: string; initialPeriod?: string; own?: boolean }) {
   const snapshot = useSnapshot();
   const [period, setPeriod] = useState(initialPeriod);
   const employee = employeeById(snapshot, employeeId);
@@ -288,33 +308,40 @@ export function EmployeeProfilePage({ employeeId, initialPeriod = "" }: { employ
   const competencyStatus = currentCompetencyStatus(snapshot, employee);
   const needs = developmentNeeds(snapshot).filter((item) => item.employeeId === employee.id);
   const employeeTraining = trainings(snapshot).filter((item) => item.employeeId === employee.id);
+  // K10: an employee only ever sees their own profile, whatever URL opened it, so it is always "My Performance".
+  const self = own || snapshot.role === "EMPLOYEE";
+  const target = (definitionVersion?: string | null) => scaleMaxOf(definitionVersion) === 100 ? `Target ${KPI_TARGET} · ` : "";
 
   return <>
-    <DetailHeader crumbs={[{ label: "HRMS" }, { label: "People Dashboard", href: "/dashboard" }, { label: "Employee" }]} backHref="/dashboard"
+    <DetailHeader crumbs={self ? [{ label: "HRMS" }, { label: "My Performance" }] : [{ label: "HRMS" }, { label: "People Dashboard", href: "/dashboard" }, { label: "Employee" }]} backHref={self ? undefined : "/dashboard"}
       name={employee.fullName} meta={employeeMeta(snapshot, employee)} />
     <FilterBar>
-      <SelectFilter label="Period" testId="latest-period" emptyOption={false} value={shown ?? ""} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
+      <PeriodFilter label="Period" testId="latest-period" emptyOption={false} value={shown ?? ""} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />
       <p className="text-sm text-ink-3">Menampilkan periode <strong className="text-ink">{formatPeriod(shown)}</strong> untuk KPI dan performance.</p>
     </FilterBar>
-    {scorecard && !validScorecard(scorecard) && <Notice tone="warning">Scorecard periode ini tidak memiliki lima KPI dengan total bobot 100%. Periksa datanya di halaman Performance Review sebelum digunakan.</Notice>}
+    {scorecard && !validScorecard(scorecard) && <Notice tone="warning">Scorecard periode ini tidak memiliki lima KPI dengan total bobot 100%.{canWrite(snapshot) ? " Periksa datanya di halaman Performance Review sebelum digunakan." : ""}</Notice>}
     <div className="grid gap-6 xl:grid-cols-2">
       {/* Full width on xl: five KPI rows with six columns do not fit half a 1440 px layout. */}
-      <Card title="Performance Review" className="xl:col-span-2" actions={<SourceLink href={scorecard ? `/performance/scorecard/${scorecard.id}` : `/performance/history/${employee.id}`} />} padded={false}>
+      {/* An employee's compiled score comes from their own Daily KPI; the performance history has no entry for it yet (K10). */}
+      <Card title="Performance Review" className="xl:col-span-2" actions={<SourceLink href={scorecard ? `/performance/scorecard/${scorecard.id}` : compiled && self ? "/daily-kpi" : evaluation ? `/performance/${evaluation.id}` : `/performance/history/${employee.id}`} />} padded={false}>
         {scorecard ? <div className="overflow-x-auto"><table data-testid="dashboard-kpi-table" className="w-full min-w-[480px] text-left text-sm">
           <thead className="bg-app text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3"><tr><th className="py-2.5 pl-5 pr-2.5">Core KPI</th><th className="px-2.5 py-2.5">Weight</th><th className="px-2.5 py-2.5">Target</th><th className="px-2.5 py-2.5">Actual</th><th className="px-2.5 py-2.5 text-right">Weighted</th><th className="py-2.5 pl-2.5 pr-5">Comment</th></tr></thead>
-          <tbody>{scorecard.lines.map((line) => <tr key={line.indicator_order} data-testid={`kpi-line-${line.indicator_order}`} className="border-t border-line"><td className="py-2.5 pl-5 pr-2.5 font-semibold">{line.kpi_name}</td><td className="px-2.5 py-2.5 tabular-nums">{line.weight_percent}%</td><td className="px-2.5 py-2.5">{line.target || "—"}</td><td className="px-2.5 py-2.5 tabular-nums">{line.raw_score ?? "—"}</td><td className="px-2.5 py-2.5 text-right tabular-nums">{weighted(line, scaleMaxOf(scorecard.definitionVersion))?.toFixed(2) ?? "—"}</td><td data-testid={`dashboard-kpi-comment-${line.indicator_order}`} className="py-2.5 pl-2.5 pr-5 text-ink-2"><LineComment line={line} /></td></tr>)}</tbody>
-          <tfoot className="border-t border-line bg-app"><tr><td colSpan={4} className="py-2.5 pl-5 pr-2.5 font-semibold">Total ({formatPeriod(scorecard.period)})</td><td className="whitespace-nowrap px-2.5 py-2.5 text-right font-display font-semibold tabular-nums">{formatScorecard(scorecard)}<span data-testid="dashboard-kpi-gap" className="block font-sans text-xs font-normal text-ink-3">Gap {formatGap(scorecard.overallScore, scorecard.definitionVersion)}</span></td><td /></tr></tfoot>
+          <tbody>{scorecard.lines.map((line) => <tr key={line.indicator_order} data-testid={`kpi-line-${line.indicator_order}`} className="border-t border-line"><td className="py-2.5 pl-5 pr-2.5 font-semibold">{line.kpi_name}</td><td className="px-2.5 py-2.5 tabular-nums">{line.weight_percent}%</td><td className="px-2.5 py-2.5">{targetLabel(line.target, scorecard.definitionVersion)}</td><td className="px-2.5 py-2.5 tabular-nums">{line.raw_score ?? "—"}</td><td className="px-2.5 py-2.5 text-right tabular-nums">{weighted(line, scaleMaxOf(scorecard.definitionVersion))?.toFixed(2) ?? "—"}</td><td data-testid={`dashboard-kpi-comment-${line.indicator_order}`} className="py-2.5 pl-2.5 pr-5 text-ink-2"><LineComment line={line} /></td></tr>)}</tbody>
+          <tfoot className="border-t border-line bg-app"><tr><td colSpan={4} className="py-2.5 pl-5 pr-2.5 font-semibold">Total ({formatPeriod(scorecard.period)})</td><td className="whitespace-nowrap px-2.5 py-2.5 text-right font-display font-semibold tabular-nums">{formatScorecard(scorecard)}<span data-testid="dashboard-kpi-gap" className="block font-sans text-xs font-normal text-ink-3">{target(scorecard.definitionVersion)}Gap {formatGap(scorecard.overallScore, scorecard.definitionVersion)}</span></td><td /></tr></tfoot>
         </table></div> : compiled ? <div data-testid="dashboard-kpi-compiled" className="px-6 pb-6">
           {/* Same number and badge as the dashboard row; not final, so the charts and the completion count leave it out. */}
           <p className="font-display text-lg font-semibold tabular-nums text-ink">{formatScore(compiled.total, scaleMaxOf(compiled.definitionVersion))}</p>
           <div className="mt-1"><StatusBadge status="Compiled" /></div>
-          <p className="mt-2 text-sm text-ink-3">Rata-rata {compiled.days.length} entri Daily KPI. Belum difinalisasi HR/Manager, jadi belum dihitung di grafik dan Performance Review complete.</p>
-        </div> : <p className="px-6 pb-6 text-sm text-ink-3">Belum ada Performance Review untuk periode ini.</p>}
+          {/* R5: the employee sees the target and how far the score is from it. */}
+          {target(compiled.definitionVersion) && <p data-testid="dashboard-kpi-compiled-gap" className="mt-2 text-sm text-ink-2">{target(compiled.definitionVersion)}Gap {formatGap(compiled.total, compiled.definitionVersion)}</p>}
+          <p className="mt-2 text-sm text-ink-3">Dikompilasi dari {compiled.days.length} entri Daily KPI: rata-rata tiap KPI dibulatkan, lalu dibobot. Belum difinalisasi HR/Manager{self ? "." : ", jadi belum dihitung di grafik dan Performance Review complete."}</p>
+        </div> : evaluation ? <p data-testid="dashboard-kpi-legacy" className="px-6 pb-6 text-sm text-ink-3">Periode ini punya evaluasi lama, dicatat sebelum KPI dan Notes digabung, jadi tanpa skor KPI. Isinya ada di kartu Notes.</p>
+          : <p className="px-6 pb-6 text-sm text-ink-3">Belum ada Performance Review untuk periode ini.</p>}
       </Card>
       {/* FR-04.3: the evaluation card shows the notes of the Performance Review (older records: the separate evaluation). */}
       <Card title="Notes" testId="performance-evaluation" actions={<SourceLink href={scorecard ? `/performance/scorecard/${scorecard.id}` : evaluation ? `/performance/${evaluation.id}` : `/performance/history/${employee.id}`} />}>
-        {scorecard?.generalNotes ? <><p className="text-sm text-ink-2">{formatPeriod(scorecard.period)} · {formatDate(scorecard.evaluationDate)} · Penilai {scorecard.evaluatorName || "—"}</p><p className="mt-3 line-clamp-6 whitespace-pre-wrap break-words text-sm text-ink">{scorecard.generalNotes}</p></>
-          : evaluation ? <><p className="text-sm text-ink-2">{formatPeriod(evaluation.period)} · {formatDate(evaluation.evaluationDate)} · Penilai {evaluation.evaluator || "—"}</p><p className="mt-3 line-clamp-6 whitespace-pre-wrap break-words text-sm text-ink">{evaluation.generalNotes || "—"}</p></>
+        {scorecard?.generalNotes ? <><p className="text-sm text-ink-2">{formatPeriod(scorecard.period)} · {formatDate(scorecard.evaluationDate)} · Evaluator {scorecard.evaluatorName || "—"}</p><p className="mt-3 line-clamp-6 whitespace-pre-wrap break-words text-sm text-ink">{scorecard.generalNotes}</p></>
+          : evaluation ? <><p className="text-sm text-ink-2">{formatPeriod(evaluation.period)} · {formatDate(evaluation.evaluationDate)} · Evaluator {evaluation.evaluator || "—"}</p><p className="mt-3 line-clamp-6 whitespace-pre-wrap break-words text-sm text-ink">{evaluation.generalNotes || "—"}</p></>
           : <p className="text-sm text-ink-3">Belum ada notes untuk periode ini.</p>}
       </Card>
       <Card title="Competency Gap" testId="competency-gap" actions={<SourceLink href={`/competency/${employee.id}`} />}>
@@ -335,7 +362,7 @@ export function EmployeeProfilePage({ employeeId, initialPeriod = "" }: { employ
       </Card>
       <Card title="History" testId="employee-history" className="xl:col-span-2">
         <Timeline empty="Belum ada riwayat penilaian, development, atau training untuk pegawai ini." entries={employeeHistory(snapshot, employee.id)} />
-        <p className="mt-4 text-xs leading-5 text-ink-3">Gabungan riwayat Competency Gap, Performance Review, Development Requirement, dan Training, terbaru di atas. Riwayat posisi hanya dari penilaian perubahan posisi; D4 tidak menyimpan riwayat jabatan.</p>
+        <p className="mt-4 text-xs leading-5 text-ink-3">Gabungan riwayat Competency Gap, Performance Review, Development Requirement, dan Training, terbaru di atas. Riwayat posisi hanya dari penilaian perubahan posisi; aplikasi ini tidak menyimpan riwayat jabatan.</p>
       </Card>
     </div>
   </>;

@@ -19,6 +19,14 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
 
 export type Crumb = { label: string; href?: string };
 
+// An employee has no team lists (their menu is My Performance and Daily KPI): a link to one leads to their own profile.
+const employeeHref = (href: string) => href === "/daily-kpi" || href.startsWith("/daily-kpi/") ? href : "/dashboard";
+
+// NotFound also renders on the app-wide 404 page, outside D4DataProvider, where useD4 throws.
+function useIsEmployee() {
+  try { return useD4().snapshot?.role === "EMPLOYEE"; } catch { return false; }
+}
+
 export function Breadcrumb({ items }: { items: Crumb[] }) {
   return <nav aria-label="Breadcrumb" data-testid="breadcrumb" className="flex flex-wrap items-center gap-1 text-xs text-ink-3">
     {items.map((item, index) => <span key={`${item.label}-${index}`} className="inline-flex items-center gap-1">
@@ -30,15 +38,20 @@ export function Breadcrumb({ items }: { items: Crumb[] }) {
 
 export function DetailHeader({ crumbs, backHref, name, meta, status, actions }: {
   crumbs: Crumb[];
-  backHref: string;
+  /** Left out on a page that is itself a menu destination, where there is nothing to go back to. */
+  backHref?: string;
   name: string;
   meta: string[];
   status?: string;
   actions?: ReactNode;
 }) {
+  if (useIsEmployee()) {
+    crumbs = crumbs.map((crumb) => crumb.href && employeeHref(crumb.href) === "/dashboard" ? { label: "My Performance", href: "/dashboard" } : crumb);
+    backHref = backHref && employeeHref(backHref);
+  }
   return <div className="space-y-4">
     <div className="flex flex-wrap items-center gap-3">
-      <Link href={backHref} data-testid="btn-back" className="inline-flex h-9 items-center gap-1.5 rounded-[10px] border border-line bg-surface px-3 text-sm font-semibold text-ink hover:border-primary-500"><ArrowLeft aria-hidden="true" className="size-4" />Back</Link>
+      {backHref && <Link href={backHref} data-testid="btn-back" className="inline-flex h-9 items-center gap-1.5 rounded-[10px] border border-line bg-surface px-3 text-sm font-semibold text-ink hover:border-primary-500"><ArrowLeft aria-hidden="true" className="size-4" />Back</Link>}
       <Breadcrumb items={crumbs} />
     </div>
     <section className="overflow-hidden rounded-2xl border border-line bg-surface shadow-card">
@@ -103,6 +116,7 @@ export function LoadingView() {
 }
 
 export function NotFound({ what, backHref, backLabel }: { what: string; backHref: string; backLabel: string }) {
+  if (useIsEmployee() && employeeHref(backHref) === "/dashboard") { backHref = "/dashboard"; backLabel = "Back to My Performance"; }
   return <StateView kind="not-found" title={`${what} not found`} text="Data mungkin sudah tidak ada, atau akun ini tidak memiliki akses ke data tersebut." action={<Link href={backHref} className="text-sm font-semibold text-primary-600 hover:underline">{backLabel}</Link>} />;
 }
 
