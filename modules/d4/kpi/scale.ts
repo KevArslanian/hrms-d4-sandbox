@@ -13,6 +13,12 @@ const FIVE_POINT_VERSIONS: readonly string[] = ["V3.1", "V5.1"];
 export const scaleMaxOf = (definitionVersion?: string | null): 5 | 100 =>
   !definitionVersion || FIVE_POINT_VERSIONS.includes(definitionVersion) ? 5 : 100;
 
+/**
+ * Typed text that reads as a number above the scale (999 or 1000 on 1–100). The score fields refuse such a keystroke
+ * or paste, so the field never shows it; the API and the database check the same bound.
+ */
+export const aboveScale = (typed: string, max: number) => Number(typed.trim()) > max;
+
 /** Interview D4 (14 Oct 2026): below 80 is Under Performance, 80–85 is Average Performance, above 85 is High Performance. */
 export const UNDER_BELOW = 80;
 export const HIGH_ABOVE = 85;

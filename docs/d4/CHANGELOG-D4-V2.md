@@ -317,6 +317,7 @@ Tidak dikerjakan karena belum pasti atau bukan milik D4:
 - **People Dashboard pindah ke urutan pertama** di menu HRMS.
 - **Logout dengan konfirmasi.** Tombol tetap berlabel "Logout" (tidak lagi berubah menjadi "Keluar..."). Dialog menanyakan "Apakah Anda yakin ingin logout?"; Iya menampilkan "Logging out..." sampai halaman login terbuka, Tidak menutup dialog. Tombol Logout kini juga tampil di mode pratinjau lokal.
 - **Login dan logout di mode pratinjau lokal.** Halaman login menerima email dan password apa pun yang formatnya valid dan hanya memasang cookie lokal `d4-preview-session`; logout menghapusnya. Tidak ada permintaan ke Supabase. Seperti di live, halaman D4 mengarah ke login bila belum login, dan halaman login mengarah ke dashboard bila sudah. Hanya aktif di `next dev` dengan `NEXT_PUBLIC_D4_DATA_MODE=fixture`.
+- **Kolom skor tidak bisa diisi di atas skala.** Score di Daily KPI dan Actual di Performance Review menolak ketikan atau tempelan yang membuat angka melewati skala katalog (100, atau 5 untuk V3.1/V5.1): mengetik 999 berhenti di 99, 1000 berhenti di 100, dan menempel "1000" tidak mengubah isi kolom. API dan database sudah menolak nilai itu sebelumnya; ini menutup celah di tampilan.
 
 ## Belum selesai
 
