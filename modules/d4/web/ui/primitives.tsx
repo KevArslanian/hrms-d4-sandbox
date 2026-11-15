@@ -71,6 +71,12 @@ export function StatusBadge({ status }: { status: string }) {
   </span>;
 }
 
+/** New / Updated for a row changed in the last day (see recentLabel); nothing otherwise. */
+export function RecentBadge({ label, testId = "label-recent", className = "mt-1 block" }: { label: "New" | "Updated" | null; testId?: string; className?: string }) {
+  if (!label) return null;
+  return <span data-testid={testId} title="Changed in the last 24 hours" className={className}><StatusBadge status={label} /></span>;
+}
+
 export function SourceChip({ label, reference, href }: { label: string; reference?: string; href?: string | null }) {
   const content = <><Link2 aria-hidden="true" className="size-3 shrink-0" /><span className="font-semibold">{label}</span>{reference && <span className="truncate text-ink-2">{reference}</span>}</>;
   const style = "inline-flex max-w-full items-center gap-1.5 rounded-lg border border-line bg-primary-50 px-2.5 py-1 text-[11px] text-primary-600";

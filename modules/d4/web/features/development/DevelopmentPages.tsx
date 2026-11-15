@@ -6,17 +6,17 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { DevelopmentNeedVersion, DevelopmentSourceType } from "../../../development/types";
 import { useSnapshot } from "../../data/D4DataProvider";
-import { canAssess, canWrite, describeSource, developmentById, developmentHistory, developmentNeeds, employeeById, employeeMeta, formatDate, formatDateTime, formatPeriod, nextStep, REASSESSMENT_PENDING, reassessmentFor, revisionChanges, sourceFinding, sourceTypeLabel, trainings, visibleEmployees, type NeedStep, type Snapshot } from "../../data/selectors";
+import { canAssess, canWrite, describeSource, developmentById, developmentHistory, developmentNeeds, employeeById, employeeMeta, formatDate, formatDateTime, formatPeriod, nextStep, recentLabel, REASSESSMENT_PENDING, reassessmentFor, revisionChanges, sourceFinding, sourceTypeLabel, trainings, visibleEmployees, type NeedStep, type Snapshot } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, PeriodFilter, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
-import { Button, ButtonLink, Card, InfoGrid, Notice, SavedNotice, SourceChip, statusLabel, StatusBadge } from "../../ui/primitives";
+import { Button, ButtonLink, Card, InfoGrid, Notice, RecentBadge, SavedNotice, SourceChip, statusLabel, StatusBadge } from "../../ui/primitives";
 import { BulkTrainingModal } from "../training/BulkModals";
 import { LevelLine, TrainingFormModal, TrainingProgressModal } from "../training/TrainingModals";
 import { closeEvidence, CloseAsMetModal, DevelopmentEditModal, DevelopmentFormModal, openTrainingOf } from "./DevelopmentModals";
 import { competencyOptions } from "../competency/rows";
-import { archivedCount, developmentRows, recentLabel, withJustSaved } from "./rows";
+import { archivedCount, developmentRows, withJustSaved } from "./rows";
 
 /**
  * High priority as a badge, Medium and Low as text, so the requirements a manager must act on first stand out
@@ -27,13 +27,6 @@ function PriorityCell({ priority, compact }: { priority: DevelopmentNeedVersion[
   return <span data-testid={compact ? "cell-priority-compact" : "priority-high"} className={compact ? "mt-1.5 block min-[1280px]:hidden" : undefined}><StatusBadge status="High" /></span>;
 }
 
-/** New / Updated within a day. `compact`: under the objective while Last updated is hidden (below 1400 px). */
-function RecentLabel({ need, now, compact }: { need: DevelopmentNeedVersion; now: number; compact?: boolean }) {
-  const label = recentLabel(need, now);
-  if (!label) return null;
-  return <span data-testid={compact ? "label-recent-compact" : "label-recent"} title="Changed in the last 24 hours"
-    className={compact ? "mt-1.5 block min-[1400px]:hidden" : "mt-1 block"}><StatusBadge status={label} /></span>;
-}
 
 /**
  * Reassessment result of a need, or nothing while it is still open.
@@ -171,7 +164,8 @@ export function DevelopmentListPage() {
           <span data-testid="cell-objective" className="line-clamp-2">{row.objective}</span>
           <span data-testid="cell-source" className="mt-1.5 block"><SourceChip label={sourceTypeLabel[row.sourceType]} /></span>
           <PriorityCell priority={row.priority} compact />
-          <RecentLabel need={row} now={now} compact />
+          {/* Under the objective while Last updated is hidden (below 1400 px), as the High badge. */}
+          <RecentBadge label={recentLabel(row, now)} testId="label-recent-compact" className="mt-1.5 block min-[1400px]:hidden" />
         </> },
         { key: "priority", header: "Priority", optional: true, cell: (row) => <PriorityCell priority={row.priority} /> },
         // One column, as Position / Department on the People Dashboard, so the table fits a laptop screen.
@@ -189,7 +183,7 @@ export function DevelopmentListPage() {
           <span className="block">{formatDateTime(row.createdAt)}</span>
           <span data-testid="cell-updated-by" className="block text-xs text-ink-3">{row.actor}</span>
           {/* Its own line: beside the time it widened the column and the table scrolled at 1440 px. */}
-          <RecentLabel need={row} now={now} />
+          <RecentBadge label={recentLabel(row, now)} />
         </> },
       ]}
       actions={(row) => { const step = nextStep(snapshot, row); return <RowActionMenu label={`Actions for ${row.objective}`} actions={[
