@@ -124,13 +124,14 @@ function SummaryStrip({ rows, period, noKpi }: { rows: readonly Row[]; period: s
   // K4: employees whose position has no KPI can never be reviewed, so they are not part of the share HR can complete.
   const reviewable = rows.length - noKpi;
   const compiled = rows.filter((row) => row.compiled).length;
-  // Completion of the period's reviews is the share HR acts on; the count stays a plain integer for Katalon.
+  // Order set by the client (interview 13 Nov 2026, 0:32:14): Employees, Need training, Training in progress, and
+  // Performance Review complete last. Completion of the period's reviews stays a plain integer for Katalon.
   const tiles = [
     { key: "total", label: "Employees", value: rows.length, hint: "sesuai filter" },
-    { key: "kpi", label: "Performance Review complete", value: reviewed, hint: `dari ${reviewable} pegawai yang bisa direview (${reviewable ? Math.round((reviewed / reviewable) * 100) : 0}%) · ${formatPeriod(period)}${compiled ? ` · ${compiled} Compiled, menunggu finalisasi` : ""}` },
     // UAT-19: the partner asked for "jumlah karyawan yang butuh training"; testId summary-dev stays for Katalon.
     { key: "dev", label: "Need training", hint: "punya development requirement yang belum selesai", value: rows.filter((row) => row.openNeeds > 0).length },
     { key: "training", label: "Training in progress", value: rows.filter((row) => row.trainingInProgress).length, hint: "punya training In Progress" },
+    { key: "kpi", label: "Performance Review complete", value: reviewed, hint: `dari ${reviewable} pegawai yang bisa direview (${reviewable ? Math.round((reviewed / reviewable) * 100) : 0}%) · ${formatPeriod(period)}${compiled ? ` · ${compiled} Compiled, menunggu finalisasi` : ""}` },
   ];
   return <section aria-label="Summary" data-testid="dashboard-summary" className="grid grid-cols-2 gap-4 xl:grid-cols-4">
     {tiles.map((tile) => <div key={tile.key} data-testid={`summary-${tile.key}`} className="rounded-2xl border border-line bg-surface p-5 shadow-card">

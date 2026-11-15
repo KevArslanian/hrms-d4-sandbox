@@ -42,7 +42,7 @@ People Dashboard: ringkasan semua langkah di atas, tanpa data sendiri.
 
 - **Siapa:** HR atau Manager, untuk pegawai lain.
 - **Di mana:** menu **Performance Review** → **Finalize from Daily KPI** (bila sudah ada skor Compiled) atau **Add Performance Review**.
-- **Isinya:** Actual per KPI sudah terisi dari Daily KPI; HR meninjau, mengisi Notes dan Reference (wajib), lalu menyimpan. Penilaian kedua untuk periode yang sama disimpan sebagai revisi.
+- **Isinya:** Actual per KPI sudah terisi dari Daily KPI; HR meninjau, mengisi Notes dan Reference (wajib), lalu menyimpan. Penilaian kedua untuk periode yang sama disimpan sebagai revisi, dan revisinya hanya sekali per periode (wawancara 13 Nov 2026). Setelah itu form menampilkan peringatan dan Save tidak aktif.
 - **Tidak diisi dua kali:** skor harian tidak diketik ulang. Performance Review hanya memvalidasi hasil kompilasi.
 - **Revisi:** bila periode itu sudah punya Performance Review, form dibuka dengan nilai tersimpan. Di bawah tiap Actual tampil "Saved: N" atau "lama → baru", dan di bawah total tampil apakah total baru lebih rendah atau lebih tinggi. Centang **Save as revision** ada di akhir form, tepat di atas Save.
 
@@ -61,11 +61,13 @@ People Dashboard: ringkasan semua langkah di atas, tanpa data sendiri.
 - **Yang bisa diubah di sini:** Priority, Method, dan PIC lewat **Edit Requirement**.
 - **Yang tidak bisa diubah di sini:** status. Status mengikuti training (lihat 2.5). Tombol "Update Status" sudah dihapus pada 13 Nov 2026.
 - **Kolom Next step** menunjukkan langkah berikutnya beserta tombolnya: Create Training, keputusan Retraining atau Meets requirement, atau tautan ke training yang sedang berjalan. Aksi di kolom ini tidak diulang di menu ⋮.
+- **Urutan daftar:** High dulu, lalu Medium dan Low; di dalam satu prioritas yang paling baru di-update di atas. Requirement yang sudah Completed dan diputuskan tidak tampil sampai **Show Completed** atau Status Completed dipilih (wawancara 13 Nov 2026).
+- **Banyak requirement sekaligus:** centang beberapa baris (atau select all) → **Add Training** membuat satu training yang sama untuk setiap requirement terpilih.
 
 ### 2.5 Training Tracking: satu-satunya penulis progres
 
 - **Membuat training:** dari requirement → **Create Training**. Training Tracking tidak punya tombol Add sendiri, jadi setiap training selalu punya alasan.
-- **Memperbarui progres:** menu **Training Tracking** → **Update Progress**. Dari Development Requirement, tombol **Update progress in Training** langsung membuka training aktifnya.
+- **Memperbarui progres:** menu **Training Tracking** → **Update Progress**. Dari Development Requirement, tombol **Update progress in Training** langsung membuka training aktifnya. Untuk banyak training sekaligus (misalnya satu angkatan field agent), centang barisnya lalu **Update Progress** di atas tabel: In Progress, atau Completed dengan satu Result dan satu keputusan. Baris yang ditolak aturan satu-barisnya tampil dengan alasannya dan tetap terpilih.
 - **Status requirement otomatis:**
 
 | Keadaan training di putaran berjalan | Status requirement |

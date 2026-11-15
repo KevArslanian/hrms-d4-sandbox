@@ -37,8 +37,9 @@ describe("performance evaluation (fixture)", () => {
     await expect(source.createEvaluation(evaluation({ revisionOf: "FIX-OTHER" }))).rejects.toThrow(/lebih baru/);
     const second = await source.createEvaluation(evaluation({ revisionOf: first, overallScore: 3 }));
     await expect(source.createEvaluation(evaluation({ revisionOf: first }))).rejects.toThrow(/lebih baru/); // stale revision
-    await source.createEvaluation(evaluation({ revisionOf: second }));
-    expect((await source.loadSnapshot()).performance.filter((item) => item.employeeId === HOLLY)).toHaveLength(3);
+    // Interview 13 Nov 2026: one revision per period, so a revision of the revision is refused.
+    await expect(source.createEvaluation(evaluation({ revisionOf: second }))).rejects.toThrow(/satu revisi per periode/);
+    expect((await source.loadSnapshot()).performance.filter((item) => item.employeeId === HOLLY)).toHaveLength(2);
   });
 
   it("rejects revisionOf when nothing exists for the period", async () => {

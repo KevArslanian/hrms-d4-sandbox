@@ -70,6 +70,7 @@ Aturan yang dipakai: sebuah keputusan tidak boleh hanya bersandar pada selera pe
   - Kotak "Save as revision" berada di akhir form, tepat di atas tombol Save.
   - Justifikasi: [Dosen] R2 (lihat P3). Konfirmasi diletakkan di akhir karena penilai baru bisa memutuskan setelah melihat apa yang berubah; konfirmasi di awal meminta persetujuan sebelum ada yang ditinjau. [Standar] [GOVUK-CHECK]: tinjau jawaban tepat sebelum mengirim.
 - Revisi tidak menimpa versi lama. P2.
+- Revisi hanya sekali per periode. [Klien] wawancara 13 Nov 2026, 0:52:35. Ditegakkan di `rules.ts` (API dan pratinjau); migrasi `20261115120000` menahan aturan yang sama di database, belum diterapkan.
 
 ### Langkah 3 · Competency Gap
 

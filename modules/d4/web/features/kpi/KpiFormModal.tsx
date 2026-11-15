@@ -7,7 +7,7 @@ import { compileDaily, type DailyCompilation } from "../../../kpi/daily";
 import { aboveScale, HIGH_ABOVE, performanceBand, scaleMaxOf, UNDER_BELOW } from "../../../kpi/scale";
 import type { KpiAssessmentLine } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { latestForPeriod, periodDateError } from "../../../shared/rules";
+import { latestForPeriod, periodDateError, revisionsLeft } from "../../../shared/rules";
 import { assessableEmployees, departmentOf, employeeById, formatDate, formatGap, formatPeriod, positionOf, SCORE_LABELS, thisMonth, today } from "../../data/selectors";
 import { DateField, FormError, FormModal, ModalActions, ReadOnlyField, RevisionConfirm, SearchSelectField, TextAreaField, TextField } from "../../ui/forms";
 import { cx, Notice, StatusBadge } from "../../ui/primitives";
@@ -141,6 +141,8 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
   const [touched, setTouched] = useState(false);
   const [revise, setRevise] = useState(false);
   const existing = employee && period ? latestForPeriod(snapshot.kpiAssessments ?? [], employee, period) : undefined;
+  // One revision per period (interview 13 Nov 2026); after it the period is final.
+  const revisionUsed = Boolean(existing) && !revisionsLeft(snapshot.kpiAssessments ?? [], employee, period);
   // The saved version the form was loaded from; its scores are shown next to the new ones.
   const basis = savedFor(employee, period, roleOrder);
   const savedTotal = basis ? basis.overallScore ?? scorecardTotal(basis.lines, max) : null;
@@ -198,6 +200,7 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
     if (!evidence.trim()) { setError("Reference wajib diisi."); return; }
     if (date > today()) { setError("Tanggal evaluasi tidak boleh lebih dari hari ini."); return; }
     if (periodDateError(period, date)) { setError(periodDateError(period, date)); return; }
+    if (revisionUsed) { setError("Performance Review periode ini sudah pernah direvisi; batasnya satu revisi per periode."); return; }
     if (existing && !revise) { setError("Performance Review untuk periode ini sudah ada. Centang “Save as revision” atau pilih periode lain."); return; }
     setError("");
     const result = await run((source) => source.createKpiAssessment({ employeeId: employee, roleOrder, period, evaluationDate: date, evaluatorName: evaluator, status: "completed", lines, generalNotes: notes, evidenceReference: evidence.trim() || null, revisionOf: existing?.id ?? null }),
@@ -206,7 +209,7 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
   }
 
   return <FormModal size="lg" title="Performance Review" description={`Lima Core KPI dari katalog ${catalog?.version ?? ""} sesuai posisi pegawai (nama bisa diubah, bobot dan target tetap), lalu Notes dan Reference, disimpan sekaligus dengan Save.`} onClose={onClose}
-    footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save" disabled={Boolean(employee) && !lines.length} />}>
+    footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save" disabled={(Boolean(employee) && !lines.length) || revisionUsed} />}>
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />
       <div className="grid gap-4 sm:grid-cols-3">
@@ -220,6 +223,8 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
         <ReadOnlyField label="Evaluator" testId="evaluator" value={evaluator || "—"} className="sm:col-span-2" />
       </div>
       {daily && <div data-testid="daily-prefill"><Notice>Actual diisi dari rata-rata {daily.days.length} entri Daily KPI pegawai ini ({formatPeriod(period)}), dibulatkan. Periksa dan ubah bila perlu sebelum menyimpan.</Notice></div>}
+      {/* Up front, so the evaluator does not fill the whole form before learning it cannot be saved. */}
+      {revisionUsed && existing && <div data-testid="revision-limit"><Notice tone="warning">Performance Review {formatPeriod(period)} untuk pegawai ini sudah pernah direvisi (terakhir {existing.evaluatorName}, {formatDate(existing.evaluationDate)}). Batasnya satu revisi per periode, jadi periode ini tidak bisa disimpan lagi. Riwayatnya ada di halaman Performance Review pegawai.</Notice></div>}
 
       {employee && !lines.length ? <Notice tone="warning">{position ? noKpiText(catalog?.version) : "Pegawai belum memiliki posisi aktif, jadi KPI-nya belum bisa ditentukan."}</Notice> : <div className="overflow-x-auto rounded-2xl border border-line">
         <table data-testid="kpi-lines-table" className="w-full text-left text-sm max-md:block md:min-w-[640px]">
@@ -261,7 +266,7 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
         helper="Kekuatan, hal yang perlu diperbaiki, dan rekomendasi pelatihan. Bisa menjadi dasar Development Requirement." />
       <TextField label="Reference" testId="evidence-reference" required maxLength={500} value={evidence} onChange={(event) => setEvidence(event.target.value)} error={touched && !evidence.trim() ? "Reference wajib diisi." : undefined} helper="Nomor dokumen, tautan laporan, atau lokasi dokumen pencapaian KPI." />
       {/* Last thing before Save: the evaluator confirms the revision after seeing what changed, not before filling the form. */}
-      {existing && <RevisionConfirm what="Performance Review" existing={`${existing.evaluatorName}, ${formatDate(existing.evaluationDate)}`} checked={revise} onChange={setRevise}
+      {existing && !revisionUsed && <RevisionConfirm what="Performance Review" existing={`${existing.evaluatorName}, ${formatDate(existing.evaluationDate)}`} checked={revise} onChange={setRevise}
         error={touched && !revise ? "Centang untuk menyimpan sebagai revisi, atau pilih periode lain." : undefined} />}
     </form>
   </FormModal>;

@@ -13,6 +13,7 @@ import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
 import { Button, ButtonLink, Card, InfoGrid, Notice, SavedNotice, SourceChip, statusLabel, StatusBadge } from "../../ui/primitives";
 import { ReassessmentBadge } from "../development/DevelopmentPages";
+import { BulkProgressModal } from "./BulkModals";
 import { LevelLine, TrainingProgressModal } from "./TrainingModals";
 
 // A result still waiting for HR's decision first (Q16 follow-up, Passed reassessment), then planned and running trainings; finished and cancelled last.
@@ -28,6 +29,8 @@ export function TrainingListPage() {
   const [status, setStatus] = useState("");
   const [progressFor, setProgressFor] = useState<string | null>(null);
   const [savedId, setSavedId] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkOpen, setBulkOpen] = useState(false);
   const all = useMemo(() => {
     const visible = new Set(visibleEmployees(snapshot).map((item) => item.id));
     return trainings(snapshot).filter((item) => visible.has(item.employeeId));
@@ -42,6 +45,10 @@ export function TrainingListPage() {
   }).sort(byProgress((item) => trainingDecision(snapshot, item) ? 0 : TRAINING_RANK[item.status] ?? 3,
     (item) => employeeById(snapshot, item.employeeId)?.fullName ?? ""));
   const filtered = Boolean(search || department || period || status);
+  // Bulk progress is for trainings still running; a finished one takes its decision per person from its Next step.
+  const selectable = (item: TrainingVersion) => (item.status === "Planned" || item.status === "In Progress") && canAssess(snapshot, item.employeeId);
+  const rowLabel = (item: TrainingVersion) => `${employeeById(snapshot, item.employeeId)?.fullName ?? "—"} · ${item.activity}`;
+  const bulkTrainings = rows.filter((item) => selected.has(item.trainingId) && selectable(item)).map((item) => ({ key: item.trainingId, label: rowLabel(item), status: item.status }));
 
   return <>
     <PageHeader title="Training Tracking" subtitle="Pantau training dan development dari requirement sumber sampai hasilnya." />
@@ -55,6 +62,8 @@ export function TrainingListPage() {
     <DataTable<TrainingVersion> rows={rows} noun="trainings" rowKey={(row) => row.trainingId} highlightKey={saved ? saved.trainingId : undefined}
       emptyTitle={filtered ? "Tidak ada training yang cocok" : "Belum ada training"}
       emptyText={filtered ? "Ubah kata kunci atau reset filter." : canWrite(snapshot) ? "Training dibuat dari development requirement (Create Training) di Development Requirement." : "Belum ada training yang tercatat."}
+      selection={canWrite(snapshot) ? { selected, onChange: setSelected, selectable, rowLabel,
+        actions: <Button variant="primary" icon={<RefreshCw className="size-4" />} onClick={() => setBulkOpen(true)} data-testid="btn-bulk-update-progress">Update Progress</Button> } : undefined}
       columns={[
         { key: "employee", header: "Employee", cell: (row) => { const employee = employeeById(snapshot, row.employeeId); return <PersonCell name={employee?.fullName ?? "—"} code={employee?.employeeId ?? ""} />; } },
         { key: "activity", header: "Training", wrap: true, cell: (row) => <span className="font-semibold">{row.activity}</span> },
@@ -69,6 +78,8 @@ export function TrainingListPage() {
         { label: "Open Source Requirement", testId: "open-source-requirement", icon: <FileSearch />, href: `/development/${row.developmentNeedId}` },
       ]} />} />
     {progressFor && <TrainingProgressModal trainingId={progressFor} onClose={() => setProgressFor(null)} onSaved={() => setSavedId(progressFor)} />}
+    {bulkOpen && <BulkProgressModal trainings={bulkTrainings} onClose={() => setBulkOpen(false)}
+      onDone={(outcome) => setSelected((current) => new Set([...current].filter((key) => !outcome.done.includes(key))))} />}
   </>;
 }
 
