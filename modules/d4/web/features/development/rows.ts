@@ -27,15 +27,6 @@ export function needCompetencyIds(snapshot: Snapshot, need: Pick<DevelopmentNeed
  */
 export const isArchived = (snapshot: Snapshot, need: DevelopmentNeedVersion) => need.status === "Completed" && reassessmentFor(snapshot, need.needId) !== "pending";
 
-/** How long a change is labelled in the list. One day for every viewer: D4 keeps no per-user "last seen" time. */
-export const RECENT_MS = 24 * 60 * 60 * 1000;
-
-/** "New" for a requirement created in the last day, "Updated" for one changed in it, otherwise nothing. */
-export function recentLabel(need: Pick<DevelopmentNeedVersion, "createdAt" | "revision">, now: number): "New" | "Updated" | null {
-  if (!(now - new Date(need.createdAt).getTime() < RECENT_MS)) return null;
-  return need.revision <= 1 ? "New" : "Updated";
-}
-
 /** The latest revision of each visible need that every filter keeps, archived ones included (FR-04.8). */
 function matchingNeeds(snapshot: Snapshot, filters: DevelopmentFilters): DevelopmentNeedVersion[] {
   const visible = new Set(visibleEmployees(snapshot).map((item) => item.id));

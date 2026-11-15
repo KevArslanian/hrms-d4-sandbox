@@ -2,9 +2,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DevelopmentNeedVersion } from "@/modules/d4/development/types";
 import { assertPeriodRevision, MAX_PERIOD_REVISIONS, revisionsLeft } from "@/modules/d4/shared/rules";
 import { addTrainingToNeeds, bulkSummary, DECIDE_LATER, progressTargets, requireSome, updateTrainings } from "@/modules/d4/web/data/bulk";
-import { developmentNeeds, formatDate, formatDateTime, trainingById, trainings, type Snapshot } from "@/modules/d4/web/data/selectors";
+import { developmentNeeds, formatDate, formatDateTime, RECENT_MS, recentLabel, trainingById, trainings, type Snapshot } from "@/modules/d4/web/data/selectors";
 import type { D4DataSource } from "@/modules/d4/web/data/source";
-import { archivedCount, developmentRows, RECENT_MS, recentLabel, withJustSaved, type DevelopmentFilters } from "@/modules/d4/web/features/development/rows";
+import { archivedCount, developmentRows, withJustSaved, type DevelopmentFilters } from "@/modules/d4/web/features/development/rows";
 
 // Client feedback of 13 Nov 2026 (Mas Bram). Rows are picked by rule, not by name: the fixture names change.
 async function hrSource(): Promise<D4DataSource> {
@@ -152,6 +152,14 @@ describe("Recent change label (follow-up 15 Nov 2026)", () => {
     expect(recentLabel(at(new Date(now - RECENT_MS).toISOString(), 2), now)).toBeNull();
     expect(recentLabel(at("2026-10-01T09:00:00.000Z", 1), now)).toBeNull();
     expect(recentLabel(at("not a date", 1), now)).toBeNull();
+  });
+
+  it("labels a training Updated right after its progress is saved", async () => {
+    const source = await hrSource();
+    const planned = trainings(await source.loadSnapshot()).find((item) => item.status === "Planned")!;
+    expect(recentLabel(planned, Date.now())).toBeNull();
+    await updateTrainings(source, [{ key: planned.trainingId, label: planned.activity, status: planned.status }], { status: "In Progress", notes: "" });
+    expect(recentLabel(trainingById(await source.loadSnapshot(), planned.trainingId)!, Date.now())).toBe("Updated");
   });
 
   it("shows the time of a save and keeps a plain date a date", () => {

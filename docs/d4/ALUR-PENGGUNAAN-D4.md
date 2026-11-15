@@ -67,7 +67,7 @@ People Dashboard: ringkasan semua langkah di atas, tanpa data sendiri.
 ### 2.5 Training Tracking: satu-satunya penulis progres
 
 - **Membuat training:** dari requirement → **Create Training**. Training Tracking tidak punya tombol Add sendiri, jadi setiap training selalu punya alasan.
-- **Memperbarui progres:** menu **Training Tracking** → **Update Progress**. Dari Development Requirement, tombol **Update progress in Training** langsung membuka training aktifnya. Untuk banyak training sekaligus (misalnya satu angkatan field agent), centang barisnya lalu **Update Progress** di atas tabel: In Progress, atau Completed dengan satu Result dan satu keputusan. Baris yang ditolak aturan satu-barisnya tampil dengan alasannya dan tetap terpilih.
+- **Memperbarui progres:** menu **Training Tracking** → **Update Progress**. Dari Development Requirement, tombol **Update progress in Training** langsung membuka training aktifnya. Untuk banyak training sekaligus (misalnya satu angkatan field agent), centang barisnya lalu **Update Progress** di atas tabel: In Progress, atau Completed dengan satu Result dan satu keputusan. Baris yang ditolak aturan satu-barisnya tampil dengan alasannya dan tetap terpilih. Daftar tetap diurutkan per tahap; training yang dibuat atau diubah dalam 24 jam terakhir diberi label New atau Updated, dan kolom Last updated (layar 1400 px ke atas) menunjukkan jam serta siapa yang mengubah.
 - **Status requirement otomatis:**
 
 | Keadaan training di putaran berjalan | Status requirement |
