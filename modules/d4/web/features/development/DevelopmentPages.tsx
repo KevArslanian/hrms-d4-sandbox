@@ -40,19 +40,6 @@ export function ReassessmentBadge({ snapshot, needId, compact }: { snapshot: Sna
     : <span data-testid="reassessment-result"><StatusBadge status={status} /></span>;
 }
 
-const STATUS_MEANING: [string, string][] = [
-  ["Identified", "dicatat, belum ada training"], ["Planned", "training dijadwalkan"],
-  ["In Progress", "training berjalan atau menunggu keputusan HR"], ["Completed", "ditutup oleh keputusan HR"],
-];
-
-/** What each requirement status means; HR asked (10 Nov 2026) because the status words alone were unclear. */
-function StatusLegend() {
-  return <div data-testid="status-legend" className="flex flex-wrap items-center gap-x-4 gap-y-2 px-1 text-xs text-ink-2">
-    {STATUS_MEANING.map(([status, meaning]) => <span key={status} className="inline-flex items-center gap-1.5"><StatusBadge status={status} />{meaning}</span>)}
-    <span className="text-ink-3">Status mengikuti training secara otomatis.</span>
-  </div>;
-}
-
 type StepHandlers = { onDecide: (trainingId: string) => void; onCreate: () => void };
 
 /** The button of a step, or null when the step needs none. `row`: the small button of the list. */
@@ -157,9 +144,8 @@ export function DevelopmentListPage() {
       <SelectFilter label="Competencies" testId="all-competencies" value={competency} onChange={setCompetency} options={competencyOptions(snapshot)} />
       <SelectFilter label="Priorities" testId="all-priorities" value={priority} onChange={setPriority} options={["High", "Medium", "Low"].map((item) => ({ value: item, label: statusLabel(item) }))} />
     </FilterBar>
-    <StatusLegend />
     {archived > 0 && <p data-testid="archived-hint" className="px-1 text-xs text-ink-2">
-      {archived} requirement Completed tidak ditampilkan; riwayatnya tetap ada di Training Tracking dan profil pegawai.{" "}
+      {archived} requirement Completed sudah masuk riwayat.{" "}
       <button type="button" data-testid="btn-show-completed" onClick={() => setStatus("Completed")} className="rounded font-semibold text-primary-600 underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500">Show Completed</button>
     </p>}
     {savedTraining ? <SavedNotice text={`Training "${savedTraining.activity}" untuk ${savedName} tersimpan.`} href={`/training/${savedTraining.trainingId}`} />
