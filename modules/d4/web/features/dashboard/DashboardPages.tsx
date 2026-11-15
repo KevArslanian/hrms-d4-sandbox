@@ -107,7 +107,8 @@ function PeopleDashboard() {
         { key: "kpi", header: "Total KPI", className: "tabular-nums", cell: (row) => <ScoreCell scorecard={row.scorecard} compiled={row.compiled} /> },
         { key: "gap", header: "Competency", cell: (row) => <StatusBadge status={row.gap} /> },
         { key: "needs", header: "Open dev.", className: "tabular-nums", secondary: true, cell: (row) => row.openNeeds || "—" },
-        { key: "training", header: "Training", cell: (row) => row.notPassed ? <><span data-testid="training-not-passed" className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-warning-bg px-2.5 py-1 text-[11px] font-semibold leading-none text-warning"><span aria-hidden="true" className="size-1.5 rounded-full bg-current" />Not Passed</span>
+        // Wraps so "Completed, awaiting follow-up" takes two lines; on one line the table scrolled sideways at 1024 and 768 px.
+        { key: "training", header: "Training", wrap: true, cell: (row) => row.notPassed ? <><span data-testid="training-not-passed" className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-warning-bg px-2.5 py-1 text-[11px] font-semibold leading-none text-warning"><span aria-hidden="true" className="size-1.5 rounded-full bg-current" />Not Passed</span>
           {/* The stored status stays visible, since the training status filter matches on it. */}
           <span className="mt-1 block text-xs text-ink-3">Completed{row.notPassed === "awaiting" ? ", awaiting follow-up" : ""}</span></> : row.training ? <StatusBadge status={row.training} /> : "—" },
       ]}

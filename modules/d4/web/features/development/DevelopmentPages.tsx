@@ -174,7 +174,8 @@ export function DevelopmentListPage() {
           <span data-testid="cell-pic" className="block text-xs text-ink-3">{row.pic || "—"}</span>
         </> },
         // Display only: a gap requirement of a former position stays open until HR closes it, so the list says why it looks stuck.
-        { key: "status", header: "Status", cell: (row) => <><StatusBadge status={row.status} />{row.sourceType === "competency_gap" && row.status !== "Completed" && !sourceFinding(snapshot, row)
+        // Wraps so that note does not widen the column (the badge itself stays on one line).
+        { key: "status", header: "Status", wrap: true, cell: (row) => <><StatusBadge status={row.status} />{row.sourceType === "competency_gap" && row.status !== "Completed" && !sourceFinding(snapshot, row)
           && <span data-testid="not-in-position" className="mt-1 block text-xs text-ink-2">Not in current position</span>}</> },
         { key: "next-step", header: "Next step", wrap: true, className: "max-w-[200px]", cell: (row) => <NextStepCell snapshot={snapshot} need={row} writer={canAssess(snapshot, row.employeeId)} onDecide={setProgressFor} onCreate={() => setTrainingFor(row)} /> },
         // The list is sorted by this date (interview 13 Nov 2026, 1:21:38). Below 1400 px it gives way (it is also on the
