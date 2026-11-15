@@ -45,6 +45,8 @@ const statusTone: Record<string, Tone> = {
   Gap: "danger", Cancelled: "danger", "Needs Attention": "danger",
   // KPI score bands (1–100 scorecards): below 80 yellow, 80–85 average, above 85 high.
   "Under Performance": "warning", "Average Performance": "info", "High Performance": "success",
+  // Development priority: only High is drawn as a badge, so it stands out in the list (interview 13 Nov 2026).
+  High: "danger",
   // Reassessment after a Completed development requirement.
   Retraining: "warning", "Meets requirement": "success", "Needs reassessment": "neutral",
   "Data Belum Cukup": "neutral", "Bukti Belum Cukup": "neutral", "Not Evaluated": "neutral", "Belum Ada Persyaratan": "neutral", "Belum Ada Posisi": "neutral",

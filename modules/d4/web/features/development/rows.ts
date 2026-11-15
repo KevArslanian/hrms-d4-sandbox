@@ -1,5 +1,5 @@
 import type { DevelopmentNeedVersion } from "../../../development/types";
-import { byProgress, developmentNeeds, employeeById, employeeSearchText, includesText, positionOf, reassessmentFor, visibleEmployees, type Snapshot } from "../../data/selectors";
+import { developmentNeeds, employeeById, employeeSearchText, includesText, positionOf, reassessmentFor, visibleEmployees, type Snapshot } from "../../data/selectors";
 
 /** Empty string = no filter. `period` is the month the requirement was last recorded (YYYY-MM). */
 export type DevelopmentFilters = { search: string; department: string; sourceType: string; status: string; period: string; competency: string; priority: string };
@@ -21,8 +21,14 @@ export function needCompetencyIds(snapshot: Snapshot, need: Pick<DevelopmentNeed
   return [];
 }
 
-/** Rows of the Development Requirement list: the latest revision of each visible need, every filter combined (FR-04.8). */
-export function developmentRows(snapshot: Snapshot, filters: DevelopmentFilters): DevelopmentNeedVersion[] {
+/**
+ * Interview 13 Nov 2026 (1:08:36): a requirement that is Completed and decided leaves the list; its record stays in the
+ * employee's history and in Training Tracking. One still waiting for HR's reassessment stays, since HR must act on it.
+ */
+export const isArchived = (snapshot: Snapshot, need: DevelopmentNeedVersion) => need.status === "Completed" && reassessmentFor(snapshot, need.needId) !== "pending";
+
+/** The latest revision of each visible need that every filter keeps, archived ones included (FR-04.8). */
+function matchingNeeds(snapshot: Snapshot, filters: DevelopmentFilters): DevelopmentNeedVersion[] {
   const visible = new Set(visibleEmployees(snapshot).map((item) => item.id));
   return developmentNeeds(snapshot).filter((need) => {
     const employee = employeeById(snapshot, need.employeeId);
@@ -30,12 +36,31 @@ export function developmentRows(snapshot: Snapshot, filters: DevelopmentFilters)
       && (!filters.department || employee?.departmentId === filters.department)
       && (!filters.sourceType || need.sourceType === filters.sourceType) && (!filters.status || need.status === filters.status) && (!filters.period || need.createdAt.startsWith(filters.period))
       && (!filters.priority || need.priority === filters.priority) && (!filters.competency || needCompetencyIds(snapshot, need).includes(filters.competency));
-  }).sort(byProgress((need) => need.status !== "Completed" ? DEVELOPMENT_RANK[need.status] : reassessmentFor(snapshot, need.needId) === "pending" ? 3 : 4,
-    (need) => employeeById(snapshot, need.employeeId)?.fullName ?? ""));
+  });
 }
 
-// Open requirements by stage, then Completed still waiting for HR's reassessment, then Completed and decided.
-const DEVELOPMENT_RANK: Record<string, number> = { Identified: 0, Planned: 1, "In Progress": 2 };
+/**
+ * Rows of the Development Requirement list. Archived requirements show only when the Status filter asks for them.
+ * Order (interview 13 Nov 2026, 1:06:52 and 1:21:38): open requirements first, then Completed ones still waiting for
+ * reassessment, then decided ones; within each, High before Medium before Low, and the most recently updated first.
+ */
+export function developmentRows(snapshot: Snapshot, filters: DevelopmentFilters): DevelopmentNeedVersion[] {
+  const group = (need: DevelopmentNeedVersion) => need.status !== "Completed" ? 0 : reassessmentFor(snapshot, need.needId) === "pending" ? 1 : 2;
+  const name = (need: DevelopmentNeedVersion) => employeeById(snapshot, need.employeeId)?.fullName ?? "";
+  return matchingNeeds(snapshot, filters).filter((need) => filters.status || !isArchived(snapshot, need))
+    .sort((a, b) => group(a) - group(b) || PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority]
+      || b.createdAt.localeCompare(a.createdAt) || name(a).localeCompare(name(b)));
+}
+
+/** A requirement just saved stays listed until the page is left (13 Nov 2026), also when the save archived it. */
+export const withJustSaved = (rows: DevelopmentNeedVersion[], saved?: DevelopmentNeedVersion) =>
+  saved && !rows.some((need) => need.needId === saved.needId) ? [saved, ...rows] : rows;
+
+/** Archived requirements the other filters keep but the default list hides; 0 once a Status is picked. */
+export const archivedCount = (snapshot: Snapshot, filters: DevelopmentFilters) =>
+  filters.status ? 0 : matchingNeeds(snapshot, filters).filter((need) => isArchived(snapshot, need)).length;
+
+const PRIORITY_RANK: Record<DevelopmentNeedVersion["priority"], number> = { High: 0, Medium: 1, Low: 2 };
 
 /**
  * PIC choices (Q13): employees by name, labelled with their position; the name is what is stored (pic, text <= 120).
