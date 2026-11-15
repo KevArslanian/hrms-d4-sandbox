@@ -292,6 +292,15 @@ export function formatDate(value: string | undefined): string {
   return Number.isNaN(date.getTime()) ? value : `${date.getDate()} ${MONTH_LOCAL.format(date)} ${date.getFullYear()}`;
 }
 
+const TIME_LOCAL = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit" });
+
+/** Date and local time of a save, so changes on the same day can be told apart. A plain date stays a date. */
+export function formatDateTime(value: string | undefined): string {
+  if (!value || value.length === 10) return formatDate(value);
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : `${formatDate(value)}, ${TIME_LOCAL.format(date)}`;
+}
+
 export function formatScore(value: number | null | undefined, scale = 5): string {
   return value === null || value === undefined ? "—" : `${value.toFixed(2)} / ${scale}`;
 }

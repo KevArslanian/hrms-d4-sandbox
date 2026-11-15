@@ -6,7 +6,7 @@ import { useMemo, useState } from "react";
 import type { TrainingVersion } from "../../../training/types";
 import { completedAt, followUpOf } from "../../../shared/rules";
 import { useSnapshot } from "../../data/D4DataProvider";
-import { byProgress, canAssess, canWrite, employeeById, employeeMeta, employeeSearchText, formatDate, formatPeriod, includesText, sourceFinding, trainingById, trainingDecision, trainingHistory, trainings, trainingSource, visibleEmployees } from "../../data/selectors";
+import { byProgress, canAssess, canWrite, employeeById, employeeMeta, employeeSearchText, formatDate, formatDateTime, formatPeriod, includesText, sourceFinding, trainingById, trainingDecision, trainingHistory, trainings, trainingSource, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, PeriodFilter, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
@@ -117,7 +117,7 @@ export function TrainingDetailPage({ trainingId }: { trainingId: string }) {
           { label: "Date", testId: "date", value: formatDate(record.date) },
           { label: "Status", value: <StatusBadge status={record.status} /> },
           { label: "Result", testId: "result", value: record.result || "Not recorded yet" },
-          { label: "Last updated", testId: "last-updated", value: `${formatDate(record.createdAt)} · ${record.actor}` },
+          { label: "Last updated", testId: "last-updated", value: `${formatDateTime(record.createdAt)} · ${record.actor}` },
         ]} /></div>
         <h3 className="mb-2 mt-8 text-sm font-semibold text-ink-2">Notes</h3>
         <p className="whitespace-pre-wrap break-words text-sm text-ink-2">{record.notes || "—"}</p>

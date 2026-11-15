@@ -47,6 +47,8 @@ const statusTone: Record<string, Tone> = {
   "Under Performance": "warning", "Average Performance": "info", "High Performance": "success",
   // Development priority: only High is drawn as a badge, so it stands out in the list (interview 13 Nov 2026).
   High: "danger",
+  // A row created or changed in the last day (Development Requirement list, 15 Nov 2026).
+  New: "info", Updated: "info",
   // Reassessment after a Completed development requirement.
   Retraining: "warning", "Meets requirement": "success", "Needs reassessment": "neutral",
   "Data Belum Cukup": "neutral", "Bukti Belum Cukup": "neutral", "Not Evaluated": "neutral", "Belum Ada Persyaratan": "neutral", "Belum Ada Posisi": "neutral",

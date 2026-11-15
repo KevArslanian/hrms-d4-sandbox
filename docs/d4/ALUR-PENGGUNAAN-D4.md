@@ -61,7 +61,7 @@ People Dashboard: ringkasan semua langkah di atas, tanpa data sendiri.
 - **Yang bisa diubah di sini:** Priority, Method, dan PIC lewat **Edit Requirement**.
 - **Yang tidak bisa diubah di sini:** status. Status mengikuti training (lihat 2.5). Tombol "Update Status" sudah dihapus pada 13 Nov 2026.
 - **Kolom Next step** menunjukkan langkah berikutnya beserta tombolnya: Create Training, keputusan Retraining atau Meets requirement, atau tautan ke training yang sedang berjalan. Aksi di kolom ini tidak diulang di menu ⋮.
-- **Urutan daftar:** High dulu, lalu Medium dan Low; di dalam satu prioritas yang paling baru di-update di atas. Requirement yang sudah Completed dan diputuskan tidak tampil sampai **Show Completed** atau Status Completed dipilih (wawancara 13 Nov 2026).
+- **Urutan daftar:** High dulu, lalu Medium dan Low; di dalam satu prioritas yang paling baru di-update di atas. Kolom Last updated menunjukkan jam dan siapa yang mengubah; yang dibuat atau diubah dalam 24 jam terakhir diberi label New atau Updated. Requirement yang sudah Completed dan diputuskan tidak tampil sampai **Show Completed** atau Status Completed dipilih (wawancara 13 Nov 2026).
 - **Banyak requirement sekaligus:** centang beberapa baris (atau select all) → **Add Training** membuat satu training yang sama untuk setiap requirement terpilih.
 
 ### 2.5 Training Tracking: satu-satunya penulis progres
