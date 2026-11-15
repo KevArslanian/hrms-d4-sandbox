@@ -41,6 +41,9 @@ const PAGE_SIZES = [10, 20, 50, 100] as const;
 const stickyAction = "sticky right-0 z-[1] transition-shadow group-data-[covered=true]:shadow-[-8px_0_8px_-8px_rgba(15,35,66,0.18)]";
 // The first (name) column stays pinned on the left for the same reason: on a phone a scrolled row still says whose it is.
 const stickyFirst = "sticky left-0 z-[1] transition-shadow group-data-[scrolled=true]:shadow-[8px_0_8px_-8px_rgba(15,35,66,0.18)]";
+// Below 1400 px the sidebar leaves 700-1080 px for the table; 16 px cell padding keeps Development (1024 px) and
+// Competency Gap (1280 px) from scrolling sideways. 20 px from 1400 px, as in the Figma frames (1440 px).
+const cellX = "px-4 min-[1400px]:px-5";
 
 /**
  * Page buttons to show: first, last, and the current page ±1, with gaps (load test: 1000 rows = 100 pages).
@@ -119,22 +122,22 @@ export function DataTable<T>({ rows: sorted, columns, rowKey, actions, emptyTitl
   };
 
   return <section className="min-w-0 overflow-hidden rounded-2xl border border-line bg-surface shadow-card">
-    {selection && chosen.length > 0 && <div data-testid="selection-bar" className="flex flex-wrap items-center gap-3 border-b border-line bg-primary-50 px-5 py-3">
+    {selection && chosen.length > 0 && <div data-testid="selection-bar" className={cx("flex flex-wrap items-center gap-3 border-b border-line bg-primary-50 py-3", cellX)}>
       <span data-testid="selection-count" className="text-sm font-semibold text-ink">{chosen.length} {noun} selected</span>
       {selection.actions}
       <button type="button" data-testid="btn-clear-selection" onClick={() => selection.onChange(new Set())}
         className="ml-auto rounded-lg px-2 py-1.5 text-xs font-semibold text-primary-600 hover:underline focus-visible:outline-2 focus-visible:outline-primary-500">Clear selection</button>
     </div>}
     {/* Stays while the table is wider than the screen, so it does not jump away as the user scrolls. */}
-    {wide && <p data-testid="table-scroll-hint" className="flex items-center gap-1.5 border-b border-line px-5 py-2 text-xs text-ink-2"><MoveHorizontal aria-hidden="true" className="size-4 shrink-0" />Scroll sideways to see all columns</p>}
+    {wide && <p data-testid="table-scroll-hint" className={cx("flex items-center gap-1.5 border-b border-line py-2 text-xs text-ink-2", cellX)}><MoveHorizontal aria-hidden="true" className="size-4 shrink-0" />Scroll sideways to see all columns</p>}
     <div ref={scroller} onScroll={measure} data-covered={covered} data-scrolled={scrolled} className="group overflow-x-auto">
       <table data-testid="data-table" aria-label={label ?? noun.charAt(0).toUpperCase() + noun.slice(1)} className="w-full min-w-[640px] text-left text-sm">
         <thead className="bg-app">
-          <tr>{columns.map((column, index) => <th key={column.key} scope="col" className={cx("px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3", index === 0 && cx(stickyFirst, "bg-app"), secondaryCell(column), column.className)}>
+          <tr>{columns.map((column, index) => <th key={column.key} scope="col" className={cx(cellX, "py-3 text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3", index === 0 && cx(stickyFirst, "bg-app"), secondaryCell(column), column.className)}>
             {index === 0 && selection ? <span className="flex items-center gap-3">
               <SelectBox testId="checkbox-select-all" label={`Select all ${noun}`} checked={allChosen} indeterminate={chosen.length > 0 && !allChosen} disabled={!selectableKeys.length} onChange={toggleAll} />{column.header}
             </span> : column.header}</th>)}
-            {actions && <th scope="col" className={cx(stickyAction, "w-16 bg-app px-5 py-3 text-right text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3")}>Actions</th>}</tr>
+            {actions && <th scope="col" className={cx(stickyAction, cellX, "w-16 bg-app py-3 text-right text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3")}>Actions</th>}</tr>
         </thead>
         <tbody>
           {visible.map((row) => {
@@ -144,7 +147,7 @@ export function DataTable<T>({ rows: sorted, columns, rowKey, actions, emptyTitl
             return <tr key={rowKey(row)} data-testid={`row-${rowKey(row)}`} data-highlighted={marked || undefined} className={cx("h-14 border-t border-line", marked ? "bg-primary-50 [&_.text-ink-3]:text-ink-2" : "hover:bg-primary-50/40")}>
               {columns.map((column, index) => {
                 const content = <>{column.cell(row)}{marked && index === 0 && <span data-testid="row-just-saved" className="mt-1 inline-block rounded-full bg-primary-600 px-2 py-0.5 text-[11px] font-semibold text-white">Just saved</span>}</>;
-                return <td key={column.key} data-testid={`cell-${column.key}`} className={cx("px-5 py-3 align-middle text-ink", index === 0 && cx(stickyFirst, cellBg), !column.wrap && "whitespace-nowrap", secondaryCell(column), column.className)}>
+                return <td key={column.key} data-testid={`cell-${column.key}`} className={cx(cellX, "py-3 align-middle text-ink", index === 0 && cx(stickyFirst, cellBg), !column.wrap && "whitespace-nowrap", secondaryCell(column), column.className)}>
                   {index === 0 && selection ? <div className="flex items-start gap-3">
                     {/* A row that cannot be selected keeps the space, so the names stay aligned. */}
                     {selection.selectable(row) ? <SelectBox testId={`checkbox-row-${rowKey(row)}`} label={`Select ${selection.rowLabel(row)}`} checked={selection.selected.has(rowKey(row))} onChange={(on) => toggle(rowKey(row), on)} />
@@ -153,7 +156,7 @@ export function DataTable<T>({ rows: sorted, columns, rowKey, actions, emptyTitl
                   </div> : content}
                 </td>;
               })}
-              {actions && <td className={cx(stickyAction, cellBg, "px-5 py-3 text-right")}>{actions(row)}</td>}
+              {actions && <td className={cx(stickyAction, cellBg, cellX, "py-3 text-right")}>{actions(row)}</td>}
             </tr>;
           })}
         </tbody>
@@ -164,7 +167,7 @@ export function DataTable<T>({ rows: sorted, columns, rowKey, actions, emptyTitl
         <p className="max-w-md text-xs text-ink-3">{emptyText}</p>
       </div>}
     </div>
-    {rows.length > 0 && <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-3 text-xs text-ink-2">
+    {rows.length > 0 && <footer className={cx("flex flex-wrap items-center justify-between gap-3 border-t border-line py-3 text-xs text-ink-2", cellX)}>
       <div className="flex flex-wrap items-center gap-3">
         <span data-testid="table-count">Showing {first}–{Math.min(current * pageSize, rows.length)} of {rows.length} {noun}</span>
         <span className="flex items-center gap-1.5">Rows per page<PageSizeSelect value={pageSize} onChange={(size) => { setPageSize(size); setPage(1); }} /></span>
