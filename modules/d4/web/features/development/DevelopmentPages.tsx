@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { DevelopmentNeedVersion, DevelopmentSourceType } from "../../../development/types";
 import { useSnapshot } from "../../data/D4DataProvider";
-import { canAssess, canWrite, describeSource, developmentById, developmentHistory, developmentNeeds, employeeById, employeeMeta, formatDate, formatPeriod, nextStep, REASSESSMENT_PENDING, reassessmentFor, revisionChanges, sourceFinding, sourceTypeLabel, trainings, visibleEmployees, type NeedStep, type Snapshot } from "../../data/selectors";
+import { canAssess, canWrite, describeSource, developmentById, developmentHistory, developmentNeeds, employeeById, employeeMeta, formatDate, formatDateTime, formatPeriod, nextStep, REASSESSMENT_PENDING, reassessmentFor, revisionChanges, sourceFinding, sourceTypeLabel, trainings, visibleEmployees, type NeedStep, type Snapshot } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, PeriodFilter, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
@@ -16,7 +16,7 @@ import { BulkTrainingModal } from "../training/BulkModals";
 import { LevelLine, TrainingFormModal, TrainingProgressModal } from "../training/TrainingModals";
 import { closeEvidence, CloseAsMetModal, DevelopmentEditModal, DevelopmentFormModal, openTrainingOf } from "./DevelopmentModals";
 import { competencyOptions } from "../competency/rows";
-import { archivedCount, developmentRows, withJustSaved } from "./rows";
+import { archivedCount, developmentRows, recentLabel, withJustSaved } from "./rows";
 
 /**
  * High priority as a badge, Medium and Low as text, so the requirements a manager must act on first stand out
@@ -25,6 +25,14 @@ import { archivedCount, developmentRows, withJustSaved } from "./rows";
 function PriorityCell({ priority, compact }: { priority: DevelopmentNeedVersion["priority"]; compact?: boolean }) {
   if (priority !== "High") return compact ? null : <>{statusLabel(priority)}</>;
   return <span data-testid={compact ? "cell-priority-compact" : "priority-high"} className={compact ? "mt-1.5 block min-[1280px]:hidden" : undefined}><StatusBadge status="High" /></span>;
+}
+
+/** New / Updated within a day. `compact`: under the objective while Last updated is hidden (below 1400 px). */
+function RecentLabel({ need, now, compact }: { need: DevelopmentNeedVersion; now: number; compact?: boolean }) {
+  const label = recentLabel(need, now);
+  if (!label) return null;
+  return <span data-testid={compact ? "label-recent-compact" : "label-recent"} title="Changed in the last 24 hours"
+    className={compact ? "mt-1.5 block min-[1400px]:hidden" : "mt-1 block"}><StatusBadge status={label} /></span>;
 }
 
 /**
@@ -105,6 +113,7 @@ export function DevelopmentListPage() {
   // K15: dashboard alerts link here with ?q=<name>. Read from the router: during a client navigation window.location is still the previous page.
   const params = useSearchParams();
   const [search, setSearch] = useState(() => params.get("q") ?? "");
+  const [now] = useState(Date.now);
   const [department, setDepartment] = useState("");
   const [sourceType, setSourceType] = useState("");
   const [status, setStatus] = useState("");
@@ -162,6 +171,7 @@ export function DevelopmentListPage() {
           <span data-testid="cell-objective" className="line-clamp-2">{row.objective}</span>
           <span data-testid="cell-source" className="mt-1.5 block"><SourceChip label={sourceTypeLabel[row.sourceType]} /></span>
           <PriorityCell priority={row.priority} compact />
+          <RecentLabel need={row} now={now} compact />
         </> },
         { key: "priority", header: "Priority", optional: true, cell: (row) => <PriorityCell priority={row.priority} /> },
         // One column, as Position / Department on the People Dashboard, so the table fits a laptop screen.
@@ -175,7 +185,12 @@ export function DevelopmentListPage() {
         { key: "next-step", header: "Next step", wrap: true, className: "max-w-[200px]", cell: (row) => <NextStepCell snapshot={snapshot} need={row} writer={canAssess(snapshot, row.employeeId)} onDecide={setProgressFor} onCreate={() => setTrainingFor(row)} /> },
         // The list is sorted by this date (interview 13 Nov 2026, 1:21:38). Below 1400 px it gives way (it is also on the
         // detail page), so Method / PIC stays visible for the "Tanpa PIC" alert.
-        { key: "updated", header: "Last updated", secondary: true, cell: (row) => formatDate(row.createdAt) },
+        { key: "updated", header: "Last updated", secondary: true, cell: (row) => <>
+          <span className="block">{formatDateTime(row.createdAt)}</span>
+          <span data-testid="cell-updated-by" className="block text-xs text-ink-3">{row.actor}</span>
+          {/* Its own line: beside the time it widened the column and the table scrolled at 1440 px. */}
+          <RecentLabel need={row} now={now} />
+        </> },
       ]}
       actions={(row) => { const step = nextStep(snapshot, row); return <RowActionMenu label={`Actions for ${row.objective}`} actions={[
         { label: "View Detail", testId: "view-detail", icon: <Eye />, href: `/development/${row.needId}` },
@@ -234,7 +249,7 @@ export function DevelopmentDetailPage({ needId }: { needId: string }) {
           { label: "PIC", testId: "pic", value: need.pic || "—" },
           { label: "Status", value: <StatusBadge status={need.status} /> },
           { label: "Reassessment", testId: "reassessment", value: reassessmentFor(snapshot, need.needId) ? <ReassessmentBadge snapshot={snapshot} needId={need.needId} /> : "—" },
-          { label: "Last updated", testId: "last-updated", value: `${formatDate(need.createdAt)} · ${need.actor}` },
+          { label: "Last updated", testId: "last-updated", value: `${formatDateTime(need.createdAt)} · ${need.actor}` },
           { label: "Created", testId: "created", value: formatDate(history[history.length - 1]?.createdAt) },
         ]} /></div>
         <h3 className="mb-2 mt-8 text-sm font-semibold text-ink-2">Notes</h3>

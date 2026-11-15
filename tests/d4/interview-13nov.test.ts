@@ -2,9 +2,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DevelopmentNeedVersion } from "@/modules/d4/development/types";
 import { assertPeriodRevision, MAX_PERIOD_REVISIONS, revisionsLeft } from "@/modules/d4/shared/rules";
 import { addTrainingToNeeds, bulkSummary, DECIDE_LATER, progressTargets, requireSome, updateTrainings } from "@/modules/d4/web/data/bulk";
-import { developmentNeeds, trainingById, trainings, type Snapshot } from "@/modules/d4/web/data/selectors";
+import { developmentNeeds, formatDate, formatDateTime, trainingById, trainings, type Snapshot } from "@/modules/d4/web/data/selectors";
 import type { D4DataSource } from "@/modules/d4/web/data/source";
-import { archivedCount, developmentRows, withJustSaved, type DevelopmentFilters } from "@/modules/d4/web/features/development/rows";
+import { archivedCount, developmentRows, RECENT_MS, recentLabel, withJustSaved, type DevelopmentFilters } from "@/modules/d4/web/features/development/rows";
 
 // Client feedback of 13 Nov 2026 (Mas Bram). Rows are picked by rule, not by name: the fixture names change.
 async function hrSource(): Promise<D4DataSource> {
@@ -136,5 +136,27 @@ describe("bulk select (1:10:34–1:12:33)", () => {
   it("treats a batch where every row was refused as a failed save", () => {
     expect(() => requireSome({ done: [], failed: [{ key: "A", label: "Ani", message: "Ditolak." }] })).toThrow(/Tidak ada yang tersimpan. Ani: Ditolak./);
     expect(requireSome({ done: ["A"], failed: [] })).toEqual({ done: ["A"], failed: [] });
+  });
+});
+
+describe("Recent change label (follow-up 15 Nov 2026)", () => {
+  const now = Date.parse("2026-11-15T10:00:00.000Z");
+  const at = (iso: string, revision: number) => ({ createdAt: iso, revision });
+
+  it("labels a requirement created in the last day New and a changed one Updated", () => {
+    expect(recentLabel(at("2026-11-15T09:00:00.000Z", 1), now)).toBe("New");
+    expect(recentLabel(at("2026-11-14T10:00:01.000Z", 3), now)).toBe("Updated");
+  });
+
+  it("drops the label after 24 hours or for an unreadable date", () => {
+    expect(recentLabel(at(new Date(now - RECENT_MS).toISOString(), 2), now)).toBeNull();
+    expect(recentLabel(at("2026-10-01T09:00:00.000Z", 1), now)).toBeNull();
+    expect(recentLabel(at("not a date", 1), now)).toBeNull();
+  });
+
+  it("shows the time of a save and keeps a plain date a date", () => {
+    expect(formatDateTime("2026-11-15T09:05:00.000Z")).toMatch(/^\d{1,2} Nov 2026, \d{2}:\d{2}$/);
+    expect(formatDateTime("2026-11-15")).toBe(formatDate("2026-11-15"));
+    expect(formatDateTime(undefined)).toBe("—");
   });
 });
