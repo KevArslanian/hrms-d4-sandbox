@@ -41,6 +41,15 @@ export function ReassessmentBadge({ snapshot, needId, compact }: { snapshot: Sna
     : <span data-testid="reassessment-result"><StatusBadge status={status} /></span>;
 }
 
+/**
+ * Under the status while one of the requirement's trainings waits for HR (result, follow-up or reassessment): a
+ * requirement stays In Progress after its training is Completed until Meets requirement is recorded, which the team
+ * read as a mismatch with Training Tracking (17 Nov 2026).
+ */
+function AwaitingDecision({ snapshot, need }: { snapshot: Snapshot; need: DevelopmentNeedVersion }) {
+  return nextStep(snapshot, need).kind === "decide" ? <span data-testid="awaiting-decision" className="mt-1 block text-xs text-ink-2">Menunggu keputusan</span> : null;
+}
+
 type StepHandlers = { onDecide: (trainingId: string) => void; onCreate: () => void };
 
 /** The button of a step, or null when the step needs none. `row`: the small button of the list. */
@@ -179,7 +188,7 @@ export function DevelopmentListPage() {
         </> },
         // Display only: a gap requirement of a former position stays open until HR closes it, so the list says why it looks stuck.
         // Wraps so that note does not widen the column (the badge itself stays on one line).
-        { key: "status", header: "Status", wrap: true, cell: (row) => <><StatusBadge status={row.status} />{row.sourceType === "competency_gap" && row.status !== "Completed" && !sourceFinding(snapshot, row)
+        { key: "status", header: "Status", wrap: true, cell: (row) => <><StatusBadge status={row.status} /><AwaitingDecision snapshot={snapshot} need={row} />{row.sourceType === "competency_gap" && row.status !== "Completed" && !sourceFinding(snapshot, row)
           && <span data-testid="not-in-position" className="mt-1 block text-xs text-ink-2">Not in current position</span>}</> },
         { key: "next-step", header: "Next step", wrap: true, className: "max-w-[200px]", cell: (row) => <NextStepCell snapshot={snapshot} need={row} writer={canAssess(snapshot, row.employeeId)} onDecide={setProgressFor} onCreate={() => setTrainingFor(row)} /> },
         // The list is sorted by this date (interview 13 Nov 2026, 1:21:38). Below 1400 px it gives way (it is also on the
@@ -246,7 +255,7 @@ export function DevelopmentDetailPage({ needId }: { needId: string }) {
           { label: "Priority", testId: "priority", value: statusLabel(need.priority) },
           { label: "Method", testId: "method", value: need.method || "—" },
           { label: "PIC", testId: "pic", value: need.pic || "—" },
-          { label: "Status", value: <StatusBadge status={need.status} /> },
+          { label: "Status", value: <><StatusBadge status={need.status} /><AwaitingDecision snapshot={snapshot} need={need} /></> },
           { label: "Reassessment", testId: "reassessment", value: reassessmentFor(snapshot, need.needId) ? <ReassessmentBadge snapshot={snapshot} needId={need.needId} /> : "—" },
           { label: "Last updated", testId: "last-updated", value: `${formatDateTime(need.createdAt)} · ${need.actor}` },
           { label: "Created", testId: "created", value: formatDate(history[history.length - 1]?.createdAt) },
