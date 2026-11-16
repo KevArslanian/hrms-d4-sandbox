@@ -422,6 +422,17 @@ describe("POST /kpi-assessments", () => {
     expect(writes).toHaveLength(0);
   });
 
+  // Interview 13 Nov 2026 (0:52:35): a period's assessment is revised at most once.
+  it("answers 422 for a revision of a revision", async () => {
+    const current = snapshot.kpiAssessments!.find((item) => item.id === KPI_ALFA)!;
+    const revision = { ...current, id: uuid(78), createdAt: "2099-01-01T00:00:00Z" };
+    snapshot = { ...snapshot, kpiAssessments: [revision, ...snapshot.kpiAssessments!] };
+    const res = await call(kpi.POST(post(kpiBody({ period: "2026-09", revisionOf: revision.id }))));
+    expect(res).toMatchObject({ status: 422, body: { error: { code: "VALIDATION_FAILED" } } });
+    expect(res.body.error?.message).toMatch(/satu revisi per periode/);
+    expect(writes).toHaveLength(0);
+  });
+
   it("rejects a self scorecard", async () => {
     signIn("MANAGER", ALFA);
     const res = await call(kpi.POST(post(kpiBody())));

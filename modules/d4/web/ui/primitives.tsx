@@ -45,6 +45,10 @@ const statusTone: Record<string, Tone> = {
   Gap: "danger", Cancelled: "danger", "Needs Attention": "danger",
   // KPI score bands (1–100 scorecards): below 80 yellow, 80–85 average, above 85 high.
   "Under Performance": "warning", "Average Performance": "info", "High Performance": "success",
+  // Development priority: only High is drawn as a badge, so it stands out in the list (interview 13 Nov 2026).
+  High: "danger",
+  // A row created or changed in the last day (Development Requirement list, 15 Nov 2026).
+  New: "info", Updated: "info",
   // Reassessment after a Completed development requirement.
   Retraining: "warning", "Meets requirement": "success", "Needs reassessment": "neutral",
   "Data Belum Cukup": "neutral", "Bukti Belum Cukup": "neutral", "Not Evaluated": "neutral", "Belum Ada Persyaratan": "neutral", "Belum Ada Posisi": "neutral",
@@ -65,6 +69,12 @@ export function StatusBadge({ status }: { status: string }) {
   return <span data-testid="status-badge" className={cx("inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-semibold leading-none", toneStyles[tone])}>
     <span aria-hidden="true" className="size-1.5 rounded-full bg-current" />{statusLabel(status)}
   </span>;
+}
+
+/** New / Updated for a row changed in the last day (see recentLabel); nothing otherwise. */
+export function RecentBadge({ label, testId = "label-recent", className = "mt-1 block" }: { label: "New" | "Updated" | null; testId?: string; className?: string }) {
+  if (!label) return null;
+  return <span data-testid={testId} title="Changed in the last 24 hours" className={className}><StatusBadge status={label} /></span>;
 }
 
 export function SourceChip({ label, reference, href }: { label: string; reference?: string; href?: string | null }) {
