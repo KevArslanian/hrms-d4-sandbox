@@ -69,6 +69,7 @@ People Dashboard: ringkasan semua langkah di atas, tanpa data sendiri.
 
 - **Membuat training:** dari requirement → **Create Training**. Training Tracking tidak punya tombol Add sendiri, jadi setiap training selalu punya alasan.
 - **Memperbarui progres:** menu **Training Tracking** → **Update Progress**. Dari Development Requirement, tombol **Update progress in Training** langsung membuka training aktifnya. Untuk banyak training sekaligus (misalnya satu angkatan field agent), centang barisnya lalu **Update Progress** di atas tabel: In Progress, atau Completed dengan satu Result dan satu keputusan. Baris yang ditolak aturan satu-barisnya tampil dengan alasannya dan tetap terpilih. Daftar tetap diurutkan per tahap; training yang dibuat atau diubah dalam 24 jam terakhir diberi label New atau Updated, dan kolom Last updated (layar 1400 px ke atas) menunjukkan jam serta siapa yang mengubah.
+- **Riwayat training (17 Nov 2026):** training yang sudah tidak butuh tindakan tidak tampil di daftar default, yaitu Completed yang hasilnya sudah diputuskan dan Cancelled. Training Completed yang masih menunggu follow-up atau reassessment tetap tampil. Keterangan di atas tabel menyebut jumlahnya, dengan **Show Completed** dan **Show Cancelled** untuk membukanya; detail dan History training tetap bisa dibuka.
 - **Status requirement otomatis:**
 
 | Keadaan training di putaran berjalan | Status requirement |
