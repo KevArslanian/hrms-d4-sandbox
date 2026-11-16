@@ -193,7 +193,7 @@ export const trainingDecision = (snapshot: Snapshot, record: TrainingVersion) =>
 
 /** What HR does next for a requirement (Development Requirement, Next step). */
 export type NeedStep =
-  | { kind: "decide"; decision: "follow-up" | "reassessment"; training: TrainingVersion }
+  | { kind: "decide"; decision: "result" | "follow-up" | "reassessment"; training: TrainingVersion }
   | { kind: "running"; training: TrainingVersion; retraining: boolean }
   | { kind: "create"; retraining: boolean }
   | { kind: "closed"; meets: boolean };
