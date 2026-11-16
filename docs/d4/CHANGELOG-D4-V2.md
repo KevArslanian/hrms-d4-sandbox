@@ -359,6 +359,14 @@ Tidak dikerjakan karena belum pasti atau bukan milik D4:
 - **Baris yang baru disimpan tetap terlihat** walaupun penyimpanannya membuat requirement Completed dan tersembunyi (misalnya Close as Met dari daftar), sampai halaman ditinggalkan.
 - **Tes:** `tests/d4/interview-13nov.test.ts` (10 kasus) dan satu kasus API di `api.test.ts` (revisi dari revisi dijawab 422). Satu tes lama di `fixture-source.test.ts` diubah karena revisi dari revisi kini ditolak.
 
+## Design system, field read-only, dan riwayat training · 16–17 Nov 2026
+
+- **Sidebar mengikuti revisi Design System PISD** (node Figma `5429:830`, PR #58). Wordmark ANDIMA tanpa logo, link Dashboard berikon di atas grup HRMS (membuka People Dashboard; untuk Employee, My Performance), titik teal `#069494` pada menu aktif, menu lain putih, semua label mulai di x 71. Poppins untuk Dashboard, HRMS, Logistics Suite, dan Logout. Teks Logout tetap `#e3697b` (`#d9364f` hanya 3,4:1 di navy). testId baru `nav-dashboard`; `nav-people-dashboard`, `nav-my-performance`, dan `sidebar-logo` dihapus. Ini menggantikan "sub-menu tanpa bullet" dari 16 Nov.
+- **Tombol secondary mengikuti Standar Button** (PR #58): isi `#f8f9fc`, garis `#3b6ff5`, label `#155dfc` (kontras 4,5:1).
+- **Field read-only diberi border** sama dengan input nonaktif (PR #58). Tanpa border, field itu terlihat seperti dropdown rusak saat praktik bersama Mas Bram (13 Nov).
+- **Judul section Notes dan Reference** di halaman detail memakai Poppins (PR #58).
+- **Training yang selesai masuk riwayat** (aturan yang sama dengan Development Requirement, wawancara 13 Nov, 1:08:36). Training Completed yang hasilnya sudah diputuskan dan training Cancelled tidak tampil di daftar default Training Tracking; training Completed yang masih menunggu follow-up atau reassessment tetap tampil. Di atas tabel tampil "N training Completed dan N training Cancelled sudah masuk riwayat" dengan **Show Completed** (`btn-show-completed`) dan **Show Cancelled** (`btn-show-cancelled`), yang mengisi filter Status. Training yang baru disimpan tetap tampil sampai halaman ditinggalkan. Aturannya di `modules/d4/web/features/training/rows.ts`; tes `tests/d4/training-history.test.ts` (3 kasus).
+
 ## Belum selesai
 
 | Item | Alasan | Langkah berikut |
