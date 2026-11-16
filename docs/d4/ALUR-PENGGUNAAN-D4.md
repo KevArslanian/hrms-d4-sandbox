@@ -3,7 +3,7 @@
 | **Document ID** | FLOW-D4-001 |
 | **Squad** | D4 – Performance & Training Development |
 | **Type** | Panduan alur penggunaan |
-| **Status** | Berlaku sejak 13 Nov 2026 (main `13cb51d`, termasuk PR #51 dan #54) |
+| **Status** | Berlaku sejak 13 Nov 2026 (main `833ebf9`, PR #51 sampai #56). Bagian 2.2, 2.4, dan 2.5 diperbarui 15 Nov 2026 di branch `fix/D4-masukan-mas-bram` (belum di-merge) |
 | **Related** | UI-D4-001 (layar dan tombol); API-D4-001 (aturan server); TEST-PLAN-D4 (kasus uji) |
 
 Panduan ini menjelaskan urutan kerja D4 dari awal sampai akhir: siapa mengisi apa, di layar mana, dan apa yang terjadi otomatis. Prinsipnya satu: **setiap data punya satu tempat untuk ditulis**. Layar lain hanya menampilkan atau mengarahkan ke tempat itu, sehingga tidak ada pekerjaan yang diisi dua kali dan tidak ada dua angka yang bisa saling bertentangan.
@@ -36,6 +36,7 @@ People Dashboard: ringkasan semua langkah di atas, tanpa data sendiri.
 - **Siapa:** setiap pegawai yang posisinya punya peran KPI, termasuk HR dan Manager. Direktur tidak mengisi Daily KPI.
 - **Di mana:** menu **Daily KPI** → form "My KPI today".
 - **Isinya:** skor lima Core KPI hari itu. Tanggal boleh hari ini atau mundur di periode berjalan, tidak boleh di masa depan. Koreksi disimpan sebagai entri baru; entri terbaru per tanggal yang dipakai.
+- **Koreksi:** tombol **Correct** di tabel entri membuka hari itu di form, dengan skor tersimpan di bawah tiap field dan total tersimpan dibanding total baru. Semua entri dan koreksi terlihat di halaman **History** (KPI n: lama → baru).
 - **Otomatis:** rata-rata periode (Compiled) dihitung dari entri harian. Alert X-24 muncul di dashboard bila Under atau High tiga entri berturut-turut, atau kelima KPI diisi 100.
 
 ### 2.2 Performance Review: HR/Manager memfinalkan periode
@@ -113,8 +114,6 @@ People Dashboard: ringkasan semua langkah di atas, tanpa data sendiri.
 Aturan yang sama dijaga di server: API menolak perubahan status requirement manual dan penilaian untuk diri sendiri, keduanya dengan `VALIDATION_FAILED` (422). Migrasi `20261113120000` menahan aturan status di database untuk penulisan di luar aplikasi; migrasi ini sudah diuji tetapi **belum diterapkan** dan menunggu izin PO.
 
 ## 5. Yang menyusul
-
-- **Revisi dosen yang belum dikerjakan:** halaman History Daily KPI, tombol Correct di tabel entri Daily KPI, dan dialog Review changes (lihat PEMBAHASAN-ALUR-D4 bagian 5).
 
 - **Enam posisi tanpa peran KPI** (Sales Executive, Associate Officer, IT, Field Agent, Billing, Tax Associate; 21 pegawai) belum bisa mengisi Daily KPI atau diberi Performance Review sampai PO memetakan perannya.
 - **Data lama:** 3 requirement Completed tanpa Meets requirement dan 4 requirement yang statusnya belum sesuai training. Yang 4 ikut tersinkron saat training-nya disimpan lagi.
