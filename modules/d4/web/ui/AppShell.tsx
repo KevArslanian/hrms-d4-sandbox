@@ -35,7 +35,7 @@ const menuFor = (role: string | undefined): readonly { href: string; label: stri
 const roleLabel: Record<string, string> = { HR: "HR", MANAGER: "Manager", MANAGEMENT: "Management", EMPLOYEE: "Employee" };
 
 // Sidebar follows the HRMS reference shared on 15 Nov 2026: only the HRMS group (POS, CRM and MID left out, they were
-// never clickable from D4), sub-menu items with a bullet, the active one on #b0c6d4 with a teal bullet. Logout stays at
+// never clickable from D4), sub-menu items without bullets as in the team's Figma (16 Nov 2026), the active one on #b0c6d4. Logout stays at
 // the bottom: it is the only way out (decision 13 Nov 2026). Menu text is darker/brighter than in Figma (#606f8c active,
 // #d9e2fc at 40% inactive: 2.9-3.1:1) so it reaches 4.5:1; hues unchanged.
 /**
@@ -122,11 +122,10 @@ function Sidebar({ onNavigate, onClose }: { onNavigate: () => void; onClose: () 
       {hrmsOpen && <div className="ml-4 mt-2 space-y-1.5 border-l border-[#d9e2fc]/20 pl-3">
         {menuFor(snapshot?.role).map((item) => {
           const active = isActive(item.href);
-          // Wraps instead of clipping: with the reference indent "Development Requirement" needs 179 px at 14 px Inter, the pill has 161.
+          // Wraps instead of clipping: with the reference indent "Development Requirement" needs 179 px at 14 px Inter, the pill has 175.
           return <Link key={item.href} href={item.href} data-testid={`nav-${slug(item.label)}`} onClick={onNavigate} aria-current={active ? "page" : undefined}
-            className={cx("flex items-start gap-2 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors",
+            className={cx("block rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors",
               active ? "bg-[#b0c6d4] text-[#454f64]" : "text-[#d9e2fc]/55 hover:text-[#d9e2fc]")}>
-            <span aria-hidden="true" className={cx("mt-[7px] size-1.5 shrink-0 rounded-full", active ? "bg-teal" : "bg-current")} />
             {item.label}
           </Link>;
         })}
