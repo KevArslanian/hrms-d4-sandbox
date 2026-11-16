@@ -6,16 +6,27 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { DevelopmentNeedVersion, DevelopmentSourceType } from "../../../development/types";
 import { useSnapshot } from "../../data/D4DataProvider";
-import { canAssess, canWrite, describeSource, developmentById, developmentHistory, developmentNeeds, employeeById, employeeMeta, formatDate, formatPeriod, nextStep, REASSESSMENT_PENDING, reassessmentFor, revisionChanges, sourceFinding, sourceTypeLabel, trainings, visibleEmployees, type NeedStep, type Snapshot } from "../../data/selectors";
+import { canAssess, canWrite, describeSource, developmentById, developmentHistory, developmentNeeds, employeeById, employeeMeta, formatDate, formatDateTime, formatPeriod, nextStep, recentLabel, REASSESSMENT_PENDING, reassessmentFor, revisionChanges, sourceFinding, sourceTypeLabel, trainings, visibleEmployees, type NeedStep, type Snapshot } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, PeriodFilter, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
-import { Button, ButtonLink, Card, InfoGrid, Notice, SavedNotice, SourceChip, statusLabel, StatusBadge } from "../../ui/primitives";
+import { Button, ButtonLink, Card, InfoGrid, Notice, RecentBadge, SavedNotice, SourceChip, statusLabel, StatusBadge } from "../../ui/primitives";
+import { BulkTrainingModal } from "../training/BulkModals";
 import { LevelLine, TrainingFormModal, TrainingProgressModal } from "../training/TrainingModals";
 import { closeEvidence, CloseAsMetModal, DevelopmentEditModal, DevelopmentFormModal, openTrainingOf } from "./DevelopmentModals";
 import { competencyOptions } from "../competency/rows";
-import { developmentRows } from "./rows";
+import { archivedCount, developmentRows, withJustSaved } from "./rows";
+
+/**
+ * High priority as a badge, Medium and Low as text, so the requirements a manager must act on first stand out
+ * (interview 13 Nov 2026, 1:06:52). `compact`: under the objective, where the Priority column is hidden below 1280 px.
+ */
+function PriorityCell({ priority, compact }: { priority: DevelopmentNeedVersion["priority"]; compact?: boolean }) {
+  if (priority !== "High") return compact ? null : <>{statusLabel(priority)}</>;
+  return <span data-testid={compact ? "cell-priority-compact" : "priority-high"} className={compact ? "mt-1.5 block min-[1280px]:hidden" : undefined}><StatusBadge status="High" /></span>;
+}
+
 
 /**
  * Reassessment result of a need, or nothing while it is still open.
@@ -28,19 +39,6 @@ export function ReassessmentBadge({ snapshot, needId, compact }: { snapshot: Sna
   return compact
     ? <span data-testid="reassessment-result" className="block max-w-28 text-xs leading-4 text-ink-2">{statusLabel(status)}</span>
     : <span data-testid="reassessment-result"><StatusBadge status={status} /></span>;
-}
-
-const STATUS_MEANING: [string, string][] = [
-  ["Identified", "dicatat, belum ada training"], ["Planned", "training dijadwalkan"],
-  ["In Progress", "training berjalan atau menunggu keputusan HR"], ["Completed", "ditutup oleh keputusan HR"],
-];
-
-/** What each requirement status means; HR asked (10 Nov 2026) because the status words alone were unclear. */
-function StatusLegend() {
-  return <div data-testid="status-legend" className="flex flex-wrap items-center gap-x-4 gap-y-2 px-1 text-xs text-ink-2">
-    {STATUS_MEANING.map(([status, meaning]) => <span key={status} className="inline-flex items-center gap-1.5"><StatusBadge status={status} />{meaning}</span>)}
-    <span className="text-ink-3">Status mengikuti training secara otomatis.</span>
-  </div>;
 }
 
 type StepHandlers = { onDecide: (trainingId: string) => void; onCreate: () => void };
@@ -108,6 +106,7 @@ export function DevelopmentListPage() {
   // K15: dashboard alerts link here with ?q=<name>. Read from the router: during a client navigation window.location is still the previous page.
   const params = useSearchParams();
   const [search, setSearch] = useState(() => params.get("q") ?? "");
+  const [now] = useState(Date.now);
   const [department, setDepartment] = useState("");
   const [sourceType, setSourceType] = useState("");
   const [status, setStatus] = useState("");
@@ -120,10 +119,17 @@ export function DevelopmentListPage() {
   const [trainingFor, setTrainingFor] = useState<DevelopmentNeedVersion | null>(null);
   const [progressFor, setProgressFor] = useState<string | null>(null);
   const [saved, setSaved] = useState<{ needId: string; trainingId?: string } | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkOpen, setBulkOpen] = useState(false);
   // FR-04.8: filter by employee, source, period (month the requirement was last recorded) and status; FR-D4-002 B adds competency and priority.
   const periods = useMemo(() => [...new Set(developmentNeeds(snapshot).map((need) => need.createdAt.slice(0, 7)))].sort().reverse(), [snapshot]);
   const rows = useMemo(() => developmentRows(snapshot, { search, department, sourceType, status, period, competency, priority }), [snapshot, search, department, sourceType, status, period, competency, priority]);
+  const archived = useMemo(() => archivedCount(snapshot, { search, department, sourceType, status, period, competency, priority }), [snapshot, search, department, sourceType, status, period, competency, priority]);
   const filtered = Boolean(search || department || sourceType || status || period || competency || priority);
+  // A Completed requirement takes no new training (assertNeedOpen), and nobody adds training for themselves.
+  const selectable = (need: DevelopmentNeedVersion) => need.status !== "Completed" && canAssess(snapshot, need.employeeId);
+  const rowLabel = (need: DevelopmentNeedVersion) => `${employeeById(snapshot, need.employeeId)?.fullName ?? "—"} · ${need.objective}`;
+  const bulkNeeds = rows.filter((need) => selected.has(need.needId) && selectable(need)).map((need) => ({ key: need.needId, label: rowLabel(need), employeeId: need.employeeId }));
   const savedNeed = saved && developmentNeeds(snapshot).find((need) => need.needId === saved.needId);
   const savedTraining = saved?.trainingId && trainings(snapshot).find((item) => item.trainingId === saved.trainingId);
   const savedName = savedNeed ? employeeById(snapshot, savedNeed.employeeId)?.fullName : "";
@@ -140,31 +146,46 @@ export function DevelopmentListPage() {
       <SelectFilter label="Competencies" testId="all-competencies" value={competency} onChange={setCompetency} options={competencyOptions(snapshot)} />
       <SelectFilter label="Priorities" testId="all-priorities" value={priority} onChange={setPriority} options={["High", "Medium", "Low"].map((item) => ({ value: item, label: statusLabel(item) }))} />
     </FilterBar>
-    <StatusLegend />
+    {archived > 0 && <p data-testid="archived-hint" className="px-1 text-xs text-ink-2">
+      {archived} requirement Completed sudah masuk riwayat.{" "}
+      <button type="button" data-testid="btn-show-completed" onClick={() => setStatus("Completed")} className="rounded font-semibold text-primary-600 underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500">Show Completed</button>
+    </p>}
     {savedTraining ? <SavedNotice text={`Training "${savedTraining.activity}" untuk ${savedName} tersimpan.`} href={`/training/${savedTraining.trainingId}`} />
       : savedNeed && <SavedNotice text={`Development requirement ${savedName} tersimpan (${statusLabel(savedNeed.status)}).`} href={`/development/${savedNeed.needId}`} />}
-    <DataTable<DevelopmentNeedVersion> rows={rows} noun="requirements" rowKey={(row) => row.needId} highlightKey={savedNeed ? savedNeed.needId : undefined}
-      emptyTitle={filtered ? "Tidak ada requirement yang cocok" : "Belum ada development requirement"}
-      emptyText={filtered ? "Ubah kata kunci atau reset filter." : writer ? "Buat dari gap kompetensi, perubahan posisi, atau evaluasi performance dengan Add Requirement." : "Belum ada development requirement yang tercatat."}
+    <DataTable<DevelopmentNeedVersion> rows={withJustSaved(rows, savedNeed || undefined)} noun="requirements" rowKey={(row) => row.needId} highlightKey={savedNeed ? savedNeed.needId : undefined}
+      emptyTitle={filtered ? "Tidak ada requirement yang cocok" : archived ? "Semua requirement sudah Completed" : "Belum ada development requirement"}
+      emptyText={filtered ? "Ubah kata kunci atau reset filter." : archived ? "Pilih Show Completed untuk melihatnya." : writer ? "Buat dari gap kompetensi, perubahan posisi, atau evaluasi performance dengan Add Requirement." : "Belum ada development requirement yang tercatat."}
+      selection={writer ? { selected, onChange: setSelected, selectable, rowLabel,
+        actions: <Button variant="primary" icon={<GraduationCap className="size-4" />} onClick={() => setBulkOpen(true)} data-testid="btn-bulk-add-training">Add Training</Button> } : undefined}
       columns={[
         { key: "employee", header: "Employee", cell: (row) => { const employee = employeeById(snapshot, row.employeeId); return <PersonCell name={employee?.fullName ?? "—"} code={employee?.employeeId ?? ""} />; } },
         // The source sits under the objective it explains, so the Action column fits 1280 px without scrolling (Q10).
         { key: "objective-source", header: "Objective / Source", wrap: true, className: "max-w-[320px]", cell: (row) => <>
           <span data-testid="cell-objective" className="line-clamp-2">{row.objective}</span>
           <span data-testid="cell-source" className="mt-1.5 block"><SourceChip label={sourceTypeLabel[row.sourceType]} /></span>
+          <PriorityCell priority={row.priority} compact />
+          {/* Under the objective while Last updated is hidden (below 1400 px), as the High badge. */}
+          <RecentBadge label={recentLabel(row, now)} testId="label-recent-compact" className="mt-1.5 block min-[1400px]:hidden" />
         </> },
-        { key: "priority", header: "Priority", optional: true, cell: (row) => statusLabel(row.priority) },
+        { key: "priority", header: "Priority", optional: true, cell: (row) => <PriorityCell priority={row.priority} /> },
         // One column, as Position / Department on the People Dashboard, so the table fits a laptop screen.
         { key: "method-pic", header: "Method / PIC", wrap: true, optional: true, className: "max-w-[160px]", cell: (row) => <>
           <span data-testid="cell-method" className="block">{row.method || "—"}</span>
           <span data-testid="cell-pic" className="block text-xs text-ink-3">{row.pic || "—"}</span>
         </> },
         // Display only: a gap requirement of a former position stays open until HR closes it, so the list says why it looks stuck.
-        { key: "status", header: "Status", cell: (row) => <><StatusBadge status={row.status} />{row.sourceType === "competency_gap" && row.status !== "Completed" && !sourceFinding(snapshot, row)
+        // Wraps so that note does not widen the column (the badge itself stays on one line).
+        { key: "status", header: "Status", wrap: true, cell: (row) => <><StatusBadge status={row.status} />{row.sourceType === "competency_gap" && row.status !== "Completed" && !sourceFinding(snapshot, row)
           && <span data-testid="not-in-position" className="mt-1 block text-xs text-ink-2">Not in current position</span>}</> },
         { key: "next-step", header: "Next step", wrap: true, className: "max-w-[200px]", cell: (row) => <NextStepCell snapshot={snapshot} need={row} writer={canAssess(snapshot, row.employeeId)} onDecide={setProgressFor} onCreate={() => setTrainingFor(row)} /> },
-        // Below 1400 px the date gives way (it is also on the detail page), so Method / PIC stays visible for the "Tanpa PIC" alert.
-        { key: "updated", header: "Updated", secondary: true, cell: (row) => formatDate(row.createdAt) },
+        // The list is sorted by this date (interview 13 Nov 2026, 1:21:38). Below 1400 px it gives way (it is also on the
+        // detail page), so Method / PIC stays visible for the "Tanpa PIC" alert.
+        { key: "updated", header: "Last updated", secondary: true, cell: (row) => <>
+          <span className="block">{formatDateTime(row.createdAt)}</span>
+          <span data-testid="cell-updated-by" className="block text-xs text-ink-3">{row.actor}</span>
+          {/* Its own line: beside the time it widened the column and the table scrolled at 1440 px. */}
+          <RecentBadge label={recentLabel(row, now)} />
+        </> },
       ]}
       actions={(row) => { const step = nextStep(snapshot, row); return <RowActionMenu label={`Actions for ${row.objective}`} actions={[
         { label: "View Detail", testId: "view-detail", icon: <Eye />, href: `/development/${row.needId}` },
@@ -182,6 +203,8 @@ export function DevelopmentListPage() {
     {editFor && <DevelopmentEditModal needId={editFor} onClose={() => setEditFor(null)} onSaved={() => setSaved({ needId: editFor })} />}
     {trainingFor && <TrainingFormModal employeeId={trainingFor.employeeId} developmentNeedId={trainingFor.needId} onClose={() => setTrainingFor(null)} onSaved={(trainingId) => setSaved({ needId: trainingFor.needId, trainingId })} />}
     {progressFor && <TrainingProgressModal trainingId={progressFor} onClose={() => setProgressFor(null)} />}
+    {bulkOpen && <BulkTrainingModal needs={bulkNeeds} onClose={() => setBulkOpen(false)}
+      onDone={(outcome) => setSelected((current) => new Set([...current].filter((key) => !outcome.done.includes(key))))} />}
   </>;
 }
 
@@ -221,7 +244,7 @@ export function DevelopmentDetailPage({ needId }: { needId: string }) {
           { label: "PIC", testId: "pic", value: need.pic || "—" },
           { label: "Status", value: <StatusBadge status={need.status} /> },
           { label: "Reassessment", testId: "reassessment", value: reassessmentFor(snapshot, need.needId) ? <ReassessmentBadge snapshot={snapshot} needId={need.needId} /> : "—" },
-          { label: "Last updated", testId: "last-updated", value: `${formatDate(need.createdAt)} · ${need.actor}` },
+          { label: "Last updated", testId: "last-updated", value: `${formatDateTime(need.createdAt)} · ${need.actor}` },
           { label: "Created", testId: "created", value: formatDate(history[history.length - 1]?.createdAt) },
         ]} /></div>
         <h3 className="mb-2 mt-8 text-sm font-semibold text-ink-2">Notes</h3>

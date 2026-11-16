@@ -273,6 +273,11 @@ function TeamDailyKpi() {
     // No entry in the period first, then entries but none today, then filled today (only the running period has a "today").
     }).sort(byProgress((row) => !row.compiled ? 0 : period === thisMonth() && row.last === today() ? 2 : 1, (row) => row.employee.fullName)), [snapshot, catalog, period, search]);
 
+  const daysFilled = (row: TeamRow) => `${row.compiled?.days.length ?? 0} / ${workingDays}`;
+  // Below 1280 px the Days column gives way and its count sits here, under Today or Last entry: with the column the
+  // table scrolled sideways at 1024 and 768 px.
+  const daysCompact = (row: TeamRow) => <span data-testid="days-compact" className="mt-0.5 block text-xs tabular-nums text-ink-3 min-[1280px]:hidden">{daysFilled(row)} days</span>;
+
   return <section aria-label="Team daily KPI" className="space-y-4">
     <div>
       <h2 className="font-display text-lg font-semibold text-ink">Team · {formatPeriod(period)}</h2>
@@ -287,12 +292,12 @@ function TeamDailyKpi() {
       columns={[
         { key: "employee", header: "Employee", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
         { key: "position", header: "Position / Department", wrap: true, secondary: true, cell: (row) => <><span className="block">{row.position}</span><span className="block text-xs text-ink-3">{departmentOf(snapshot, row.employee)?.name ?? "—"}</span></> },
-        { key: "days", header: "Days filled / working days", className: "tabular-nums", cell: (row) => `${row.compiled?.days.length ?? 0} / ${workingDays}` },
+        { key: "days", header: "Days filled / working days", className: "tabular-nums", optional: true, cell: daysFilled },
         // R1: who has not filled today is visible at laptop widths; a closed period shows its last entry instead.
         running
-          ? { key: "today", header: "Today", cell: (row) => row.last === today() ? <span data-testid="today-filled" className="text-ink-2">Filled</span>
-            : <span data-testid="today-missing" className={weekend ? "text-ink-3" : "font-semibold text-danger"}>Not filled</span> }
-          : { key: "last", header: "Last entry", cell: (row) => formatDate(row.last) },
+          ? { key: "today", header: "Today", cell: (row) => <>{row.last === today() ? <span data-testid="today-filled" className="text-ink-2">Filled</span>
+            : <span data-testid="today-missing" className={weekend ? "text-ink-3" : "font-semibold text-danger"}>Not filled</span>}{daysCompact(row)}</> }
+          : { key: "last", header: "Last entry", cell: (row) => <>{formatDate(row.last)}{daysCompact(row)}</> },
         // The gap sits under the score, so the table keeps room for the status badge on laptop widths.
         { key: "score", header: "Compiled score", className: "tabular-nums", cell: (row) => row.compiled ? <><span className="block font-semibold">{formatScore(row.compiled.total, scaleMaxOf(row.compiled.definitionVersion))}</span>
           <span data-testid="compiled-gap" className="block text-xs text-ink-3">Gap {formatGap(row.compiled.total, row.compiled.definitionVersion)} vs {KPI_TARGET}</span></> : "—" },

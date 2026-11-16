@@ -61,7 +61,7 @@ Dokumen ini menetapkan apa yang boleh dan tidak boleh dilakukan akun berperan **
 
 | ID | Ketetapan |
 | --- | --- |
-| SR-D4-EMP-30 | Sidebar tetap menampilkan lima menu D4 (Performance & KPI, Competency Gap, Development Requirement, Training Tracking, People Dashboard) dengan isi terbatas pada data sendiri. POS dan CRM tampil nonaktif. |
+| SR-D4-EMP-30 | Sidebar tetap menampilkan lima menu D4 (Performance & KPI, Competency Gap, Development Requirement, Training Tracking, People Dashboard) dengan isi terbatas pada data sendiri. Sejak 15 Nov 2026 sidebar hanya berisi grup HRMS; POS, CRM, dan MID tidak ditampilkan. |
 | SR-D4-EMP-31 | Filter "All positions" dan "All departments" tidak tampil untuk Employee. |
 | SR-D4-EMP-32 | Bila belum ada data, halaman menampilkan empty state, bukan error. |
 | SR-D4-EMP-33 | Akun yang lolos login tetapi tidak memenuhi SR-D4-EMP-02 melihat "Data D4 gagal dimuat – akun ini belum punya akses ke data HRMS". |

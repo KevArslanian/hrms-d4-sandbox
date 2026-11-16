@@ -46,15 +46,26 @@ export function latestForPeriod<T extends PeriodRecord>(records: readonly T[], e
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
 }
 
+/** Interview 13 Nov 2026 (0:52:35): a period's assessment is revised at most once, so an employee has at most two records per period. */
+export const MAX_PERIOD_REVISIONS = 1;
+
+/** Revisions still allowed for an employee's period. With no record yet the next save is the first record, not a revision. */
+export function revisionsLeft(records: readonly PeriodRecord[], employeeId: string, period: string): number {
+  const saved = records.filter((item) => item.employeeId === employeeId && item.period === period).length;
+  return saved ? Math.max(0, MAX_PERIOD_REVISIONS + 1 - saved) : MAX_PERIOD_REVISIONS;
+}
+
 /**
  * One active record per employee and period (FR-01.4, FR-02.9, BR-06.2). A second record is only
- * accepted as an explicit revision of the current one, so it never hides another record silently.
+ * accepted as an explicit revision of the current one, so it never hides another record silently, and only once.
  */
 export function assertPeriodRevision(records: readonly PeriodRecord[], employeeId: string, period: string, revisionOf: string | null | undefined, label: string) {
   const current = latestForPeriod(records, employeeId, period);
-  if (current && !revisionOf) throw new ApiError("VALIDATION_FAILED", `${label} untuk periode ini sudah ada. Simpan sebagai revisi atau buka riwayatnya.`);
   // A revision of an older record: someone saved a newer one after this form was opened (another tab or device).
-  if (current && revisionOf !== current.id) throw new ApiError("CONFLICT", `Sudah ada revisi ${label} yang lebih baru untuk periode ini sejak form dibuka.`);
+  // Checked first: the conflict reloads the data, and the reloaded form then shows whether a revision is still allowed.
+  if (current && revisionOf && revisionOf !== current.id) throw new ApiError("CONFLICT", `Sudah ada revisi ${label} yang lebih baru untuk periode ini sejak form dibuka.`);
+  if (current && !revisionsLeft(records, employeeId, period)) throw new ApiError("VALIDATION_FAILED", `${label} periode ini sudah pernah direvisi; batasnya satu revisi per periode.`);
+  if (current && !revisionOf) throw new ApiError("VALIDATION_FAILED", `${label} untuk periode ini sudah ada. Simpan sebagai revisi atau buka riwayatnya.`);
   if (!current && revisionOf) throw new ApiError("VALIDATION_FAILED", `${label} yang direvisi tidak cocok dengan pegawai atau periodenya.`);
 }
 

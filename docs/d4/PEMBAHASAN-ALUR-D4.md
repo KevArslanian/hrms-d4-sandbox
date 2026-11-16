@@ -70,6 +70,7 @@ Aturan yang dipakai: sebuah keputusan tidak boleh hanya bersandar pada selera pe
   - Kotak "Save as revision" berada di akhir form, tepat di atas tombol Save.
   - Justifikasi: [Dosen] R2 (lihat P3). Konfirmasi diletakkan di akhir karena penilai baru bisa memutuskan setelah melihat apa yang berubah; konfirmasi di awal meminta persetujuan sebelum ada yang ditinjau. [Standar] [GOVUK-CHECK]: tinjau jawaban tepat sebelum mengirim.
 - Revisi tidak menimpa versi lama. P2.
+- Revisi hanya sekali per periode. [Klien] wawancara 13 Nov 2026, 0:52:35. Ditegakkan di `rules.ts` (API dan pratinjau); migrasi `20261115120000` menahan aturan yang sama di database, belum diterapkan.
 
 ### Langkah 3 · Competency Gap
 
@@ -155,5 +156,5 @@ Bagian ini sengaja dipisah supaya pemeriksa tahu mana yang belum boleh diklaim s
 | 4 | Actual Performance Review baru diisi dari rata-rata Daily KPI | Belum diuji pada HR sungguhan; bisa mendorong HR menyetujui nilai diri tanpa menilai (K9 di dokumen revisi) | Uji dengan HR, atau keputusan PO |
 | 5 | Aturan status di database | Migrasi `20261113120000` sudah diuji di Postgres 16 lokal tetapi belum diterapkan | Izin PO |
 | 6 | Eksekusi QA | 145 test case di TEST-PLAN masih Not Run; yang lulus adalah test otomatis Web Dev | Eksekusi oleh QA |
-| 7 | Revisi dosen yang belum dikerjakan | R1: halaman History Daily KPI belum ada. R2: tombol Correct di Daily KPI dan dialog Review changes belum ada | Dikerjakan menyusul, dari prompt kerja revisi |
+| 7 | Revisi dosen R2: dialog Review changes | Halaman History Daily KPI (R1) dan tombol Correct (R2) sudah ada sejak PR #55. Dialog Review changes terpisah tidak dibuat: nilai tersimpan dan total lama dibanding total baru tampil langsung di form, di Daily KPI dan Performance Review | Konfirmasi ke dosen bahwa perbandingan di form sudah memenuhi R2 |
 | 8 | Alasan koreksi | Tidak ada kolom untuk menyimpan kenapa sebuah revisi dibuat (K5) | Migrasi dengan izin PO |

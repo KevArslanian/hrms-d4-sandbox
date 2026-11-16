@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, ChevronDown, Contact, Menu, SquareTerminal, Store, Users, X } from "lucide-react";
+import { Bell, ChevronDown, Menu, Users, X } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { catalogFor, roleForPosition } from "../../kpi/catalog";
@@ -34,11 +34,9 @@ const menuFor = (role: string | undefined): readonly { href: string; label: stri
 
 const roleLabel: Record<string, string> = { HR: "HR", MANAGER: "Manager", MANAGEMENT: "Management", EMPLOYEE: "Employee" };
 
-// Other teams' modules: shown as in the shared sidebar, not clickable from D4 yet.
-const OTHER_MODULES = [{ label: "POS", icon: Store }, { label: "CRM", icon: Contact }] as const;
-
-// Matches Figma PISD D3 sidebar (file L5k46NNy2gX6xOq8e1dczQ, node 1582:458): POS, CRM, HRMS (expanded) and MID,
-// active HRMS item on #b0c6d4 Logout outlined at the bottom. Menu text is darker/brighter than in Figma (#606f8c active,
+// Sidebar follows the HRMS reference shared on 15 Nov 2026: only the HRMS group (POS, CRM and MID left out, they were
+// never clickable from D4), sub-menu items without bullets as in the team's Figma (16 Nov 2026), the active one on #b0c6d4. Logout stays at
+// the bottom: it is the only way out (decision 13 Nov 2026). Menu text is darker/brighter than in Figma (#606f8c active,
 // #d9e2fc at 40% inactive: 2.9-3.1:1) so it reaches 4.5:1; hues unchanged.
 /**
  * Logout asks first (decision 13 Nov 2026). "Iya" turns the dialog into "Logging out..." until the login page replaces
@@ -106,36 +104,32 @@ function Sidebar({ onNavigate, onClose }: { onNavigate: () => void; onClose: () 
   const [confirmLogout, setConfirmLogout] = useState(false);
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
-  const moduleItem = "flex h-10 w-full items-center gap-3 rounded-lg px-3 text-sm font-semibold tracking-[0.07px] text-[#d9e2fc]";
-  const disabledModule = (label: string, Icon: typeof Store) => <span key={label} role="link" aria-disabled="true" title={`${label}: not available in module D4`} data-testid={`nav-${slug(label)}`}
-    className={cx(moduleItem, "cursor-not-allowed opacity-70")}><Icon aria-hidden="true" className="size-[17px]" />{label}</span>;
 
   return <div className="flex h-full flex-col bg-[#0f2342] px-4 pb-5 pt-4 text-white">
     <div className="flex h-12 items-center gap-3 px-2 pt-1">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/andima-logo.png" alt="Logo ANDIMA" width={400} height={246} data-testid="sidebar-logo" className="h-9 w-auto rounded-lg bg-white object-contain p-0.5" />
-      <div><p className="text-xl font-bold leading-7 tracking-[-0.5px]">ANDIMA</p><p className="text-xs leading-4 text-[#d9e2fc]/80">Logistics Suite</p></div>
+      <img src="/andima-logo.png" alt="Logo ANDIMA" width={400} height={246} data-testid="sidebar-logo" className="h-9 w-auto object-contain" />
+      <div><p className="font-display text-xl font-bold leading-7 tracking-[-0.5px]">ANDIMA</p><p className="text-xs leading-4 text-[#d9e2fc]/80">Logistics Suite</p></div>
       <button type="button" onClick={onClose} data-testid="btn-sidebar-close" className="ml-auto rounded p-1 text-[#d9e2fc] lg:hidden" aria-label="Close navigation"><X size={18} /></button>
     </div>
 
-    <nav aria-label="Main navigation" data-testid="sidebar" className="mt-[70px] flex-1 space-y-1.5 overflow-y-auto">
-      {OTHER_MODULES.map((item) => disabledModule(item.label, item.icon))}
+    <nav aria-label="Main navigation" data-testid="sidebar" className="mt-6 flex-1 overflow-y-auto">
       <button type="button" data-testid="nav-hrms" onClick={() => setHrmsOpen((v) => !v)} aria-expanded={hrmsOpen}
-        className="flex h-[29px] w-full items-center justify-between rounded-lg bg-[#155dfc] px-3 text-sm font-semibold tracking-[0.07px] text-white">
-        <span className="flex items-center gap-3"><Users aria-hidden="true" className="size-[17px]" /> HRMS</span>
+        className="flex h-10 w-full items-center justify-between rounded-lg bg-primary-700 px-4 text-sm font-semibold tracking-[0.07px] text-white">
+        <span className="flex items-center gap-2.5"><Users aria-hidden="true" className="size-[18px]" /> HRMS</span>
         <ChevronDown aria-hidden="true" size={16} className={cx("transition-transform", hrmsOpen ? "rotate-0" : "-rotate-90")} />
       </button>
-      {hrmsOpen && <div className="ml-5 space-y-1.5 border-l border-[#d9e2fc]/40 py-2 pl-1.5">
+      {hrmsOpen && <div className="ml-4 mt-2 space-y-1.5 border-l border-[#d9e2fc]/20 pl-3">
         {menuFor(snapshot?.role).map((item) => {
           const active = isActive(item.href);
+          // Wraps instead of clipping: with the reference indent "Development Requirement" needs 179 px at 14 px Inter, the pill has 175.
           return <Link key={item.href} href={item.href} data-testid={`nav-${slug(item.label)}`} onClick={onNavigate} aria-current={active ? "page" : undefined}
-            className={cx("flex items-center gap-2 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors",
+            className={cx("block rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors",
               active ? "bg-[#b0c6d4] text-[#454f64]" : "text-[#d9e2fc]/55 hover:text-[#d9e2fc]")}>
             {item.label}
           </Link>;
         })}
       </div>}
-      {disabledModule("MID", SquareTerminal)}
     </nav>
 
     {/* On a phone the header badge is hidden, so the sidebar is where the preview says it shows sample data. */}
@@ -263,7 +257,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Tighter gaps on a phone: at 320 px the header (menu, bell, avatar) otherwise pushes the avatar off screen. */}
       <header className="sticky top-0 z-20 flex h-16 items-center gap-2 border-b border-line bg-surface px-4 sm:gap-4 sm:px-8">
         <button ref={menuButton} type="button" data-testid="btn-mobile-menu" aria-label={menuOpen ? "Close menu" : "Open menu"} className="rounded-lg p-2 text-ink-2 hover:bg-muted lg:hidden" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}</button>
-        <strong className="text-sm font-semibold text-ink">ANDIMA HRMS</strong>
+        <strong className="font-display text-sm font-semibold text-ink">ANDIMA HRMS</strong>
         <span aria-hidden="true" className="hidden h-5 w-px bg-line-strong sm:block" />
         <p data-testid="header-breadcrumb" className="hidden flex-1 truncate text-xs text-ink-2 sm:block">HRMS / {current?.label ?? "Performance & Training"}</p>
         <span className="flex-1 sm:hidden" />

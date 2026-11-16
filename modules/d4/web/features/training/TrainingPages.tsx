@@ -6,13 +6,14 @@ import { useMemo, useState } from "react";
 import type { TrainingVersion } from "../../../training/types";
 import { completedAt, followUpOf } from "../../../shared/rules";
 import { useSnapshot } from "../../data/D4DataProvider";
-import { byProgress, canAssess, canWrite, employeeById, employeeMeta, employeeSearchText, formatDate, formatPeriod, includesText, sourceFinding, trainingById, trainingDecision, trainingHistory, trainings, trainingSource, visibleEmployees } from "../../data/selectors";
+import { byProgress, canAssess, canWrite, employeeById, employeeMeta, employeeSearchText, formatDate, formatDateTime, formatPeriod, includesText, recentLabel, sourceFinding, trainingById, trainingDecision, trainingHistory, trainings, trainingSource, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, PeriodFilter, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
-import { Button, ButtonLink, Card, InfoGrid, Notice, SavedNotice, SourceChip, statusLabel, StatusBadge } from "../../ui/primitives";
+import { Button, ButtonLink, Card, InfoGrid, Notice, RecentBadge, SavedNotice, SourceChip, statusLabel, StatusBadge } from "../../ui/primitives";
 import { ReassessmentBadge } from "../development/DevelopmentPages";
+import { BulkProgressModal } from "./BulkModals";
 import { LevelLine, TrainingProgressModal } from "./TrainingModals";
 
 // A result still waiting for HR's decision first (Q16 follow-up, Passed reassessment), then planned and running trainings; finished and cancelled last.
@@ -28,6 +29,9 @@ export function TrainingListPage() {
   const [status, setStatus] = useState("");
   const [progressFor, setProgressFor] = useState<string | null>(null);
   const [savedId, setSavedId] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [now] = useState(Date.now);
   const all = useMemo(() => {
     const visible = new Set(visibleEmployees(snapshot).map((item) => item.id));
     return trainings(snapshot).filter((item) => visible.has(item.employeeId));
@@ -42,6 +46,10 @@ export function TrainingListPage() {
   }).sort(byProgress((item) => trainingDecision(snapshot, item) ? 0 : TRAINING_RANK[item.status] ?? 3,
     (item) => employeeById(snapshot, item.employeeId)?.fullName ?? ""));
   const filtered = Boolean(search || department || period || status);
+  // Bulk progress is for trainings still running; a finished one takes its decision per person from its Next step.
+  const selectable = (item: TrainingVersion) => (item.status === "Planned" || item.status === "In Progress") && canAssess(snapshot, item.employeeId);
+  const rowLabel = (item: TrainingVersion) => `${employeeById(snapshot, item.employeeId)?.fullName ?? "—"} · ${item.activity}`;
+  const bulkTrainings = rows.filter((item) => selected.has(item.trainingId) && selectable(item)).map((item) => ({ key: item.trainingId, label: rowLabel(item), status: item.status }));
 
   return <>
     <PageHeader title="Training Tracking" subtitle="Pantau training dan development dari requirement sumber sampai hasilnya." />
@@ -55,12 +63,25 @@ export function TrainingListPage() {
     <DataTable<TrainingVersion> rows={rows} noun="trainings" rowKey={(row) => row.trainingId} highlightKey={saved ? saved.trainingId : undefined}
       emptyTitle={filtered ? "Tidak ada training yang cocok" : "Belum ada training"}
       emptyText={filtered ? "Ubah kata kunci atau reset filter." : canWrite(snapshot) ? "Training dibuat dari development requirement (Create Training) di Development Requirement." : "Belum ada training yang tercatat."}
+      selection={canWrite(snapshot) ? { selected, onChange: setSelected, selectable, rowLabel,
+        actions: <Button variant="primary" icon={<RefreshCw className="size-4" />} onClick={() => setBulkOpen(true)} data-testid="btn-bulk-update-progress">Update Progress</Button> } : undefined}
       columns={[
         { key: "employee", header: "Employee", cell: (row) => { const employee = employeeById(snapshot, row.employeeId); return <PersonCell name={employee?.fullName ?? "—"} code={employee?.employeeId ?? ""} />; } },
-        { key: "activity", header: "Training", wrap: true, cell: (row) => <span className="font-semibold">{row.activity}</span> },
+        { key: "activity", header: "Training", wrap: true, cell: (row) => <>
+          <span className="font-semibold">{row.activity}</span>
+          {/* Under the training while Last updated is hidden (below 1400 px), as on Development Requirement. */}
+          <RecentBadge label={recentLabel(row, now)} testId="label-recent-compact" className="mt-1.5 block min-[1400px]:hidden" />
+        </> },
         { key: "source", header: "Source requirement", wrap: true, optional: true, className: "max-w-[260px]", cell: (row) => <span className="line-clamp-2 text-ink-2">{trainingSource(snapshot, row)?.objective ?? "—"}</span> },
-        { key: "date", header: "Date", cell: (row) => formatDate(row.date) },
+        // "Training date" is when the training takes place; Last updated is when its record last changed.
+        { key: "date", header: "Training date", cell: (row) => formatDate(row.date) },
         { key: "status", header: "Status", cell: (row) => <StatusBadge status={row.status} /> },
+        // Below 1400 px it gives way (it is on the detail page too): with it the table scrolled at 1280 and 768 px.
+        { key: "updated", header: "Last updated", secondary: true, cell: (row) => <>
+          <span className="block">{formatDateTime(row.createdAt)}</span>
+          <span data-testid="cell-updated-by" className="block text-xs text-ink-3">{row.actor}</span>
+          <RecentBadge label={recentLabel(row, now)} />
+        </> },
       ]}
       actions={(row) => <RowActionMenu label={`Actions for ${row.activity}`} actions={[
         { label: "View Detail", testId: "view-detail", icon: <Eye />, href: `/training/${row.trainingId}` },
@@ -69,6 +90,8 @@ export function TrainingListPage() {
         { label: "Open Source Requirement", testId: "open-source-requirement", icon: <FileSearch />, href: `/development/${row.developmentNeedId}` },
       ]} />} />
     {progressFor && <TrainingProgressModal trainingId={progressFor} onClose={() => setProgressFor(null)} onSaved={() => setSavedId(progressFor)} />}
+    {bulkOpen && <BulkProgressModal trainings={bulkTrainings} onClose={() => setBulkOpen(false)}
+      onDone={(outcome) => setSelected((current) => new Set([...current].filter((key) => !outcome.done.includes(key))))} />}
   </>;
 }
 
@@ -103,10 +126,10 @@ export function TrainingDetailPage({ trainingId }: { trainingId: string }) {
       <Card title="Training">
         <p className="break-words font-display font-semibold text-lg text-ink">{record.activity}</p>
         <div className="mt-6"><InfoGrid columns={3} items={[
-          { label: "Date", testId: "date", value: formatDate(record.date) },
+          { label: "Training date", testId: "date", value: formatDate(record.date) },
           { label: "Status", value: <StatusBadge status={record.status} /> },
           { label: "Result", testId: "result", value: record.result || "Not recorded yet" },
-          { label: "Last updated", testId: "last-updated", value: `${formatDate(record.createdAt)} · ${record.actor}` },
+          { label: "Last updated", testId: "last-updated", value: `${formatDateTime(record.createdAt)} · ${record.actor}` },
         ]} /></div>
         <h3 className="mb-2 mt-8 text-sm font-semibold text-ink-2">Notes</h3>
         <p className="whitespace-pre-wrap break-words text-sm text-ink-2">{record.notes || "—"}</p>
