@@ -3,7 +3,7 @@
 | **Document ID** | FLOW-D4-001 |
 | **Squad** | D4 – Performance & Training Development |
 | **Type** | Panduan alur penggunaan |
-| **Status** | Berlaku sejak 13 Nov 2026 (main `833ebf9`, PR #51 sampai #56). Bagian 2.2, 2.4, dan 2.5 diperbarui 15 Nov 2026 di branch `fix/D4-masukan-mas-bram` (belum di-merge) |
+| **Status** | Berlaku sejak 13 Nov 2026 (PR #51 sampai #56); bagian 2.2, 2.4, dan 2.5 diperbarui 15 Nov 2026 untuk masukan wawancara 13 Nov |
 | **Related** | UI-D4-001 (layar dan tombol); API-D4-001 (aturan server); TEST-PLAN-D4 (kasus uji) |
 
 Panduan ini menjelaskan urutan kerja D4 dari awal sampai akhir: siapa mengisi apa, di layar mana, dan apa yang terjadi otomatis. Prinsipnya satu: **setiap data punya satu tempat untuk ditulis**. Layar lain hanya menampilkan atau mengarahkan ke tempat itu, sehingga tidak ada pekerjaan yang diisi dua kali dan tidak ada dua angka yang bisa saling bertentangan.
