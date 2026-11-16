@@ -404,10 +404,12 @@ export function RadioField({ label, testId, required, error, helper, className, 
   </fieldset>;
 }
 
+// Same border and corner as a disabled input: without them it read as a dropdown with its border missing (practice with
+// Mas Bram, 13 Nov 2026). The muted fill still says it cannot be changed.
 export function ReadOnlyField({ label, testId, value, className }: { label: string; testId?: string; value: ReactNode; className?: string }) {
   return <div className={cx("min-w-0", className)}>
     <p className="mb-1.5 text-sm font-semibold text-ink-2">{label}</p>
-    <div data-testid={`readonly-${testId ?? slug(label)}`} className="flex min-h-10 items-center rounded-[10px] bg-muted px-3 text-sm text-ink">{value}</div>
+    <div data-testid={`readonly-${testId ?? slug(label)}`} className="flex min-h-10 items-center rounded-2xl border border-ink-3 bg-muted px-3 text-sm text-ink">{value}</div>
   </div>;
 }
 

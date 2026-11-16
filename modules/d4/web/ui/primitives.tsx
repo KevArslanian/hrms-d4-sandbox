@@ -13,7 +13,9 @@ const autoId = (prefix: string, children: ReactNode) => typeof children === "str
 type ButtonVariant = "primary" | "secondary" | "danger" | "ghost";
 const buttonStyles: Record<ButtonVariant, string> = {
   primary: "bg-primary-600 text-white hover:bg-primary-700 disabled:bg-muted disabled:text-ink-3",
-  secondary: "border border-line-strong bg-surface text-ink hover:bg-app disabled:text-ink-3",
+  // Design system secondary button: #f8f9fc fill with a #3b6ff5 outline. The label is one step darker (#155dfc), since
+  // #3b6ff5 text on that fill is 4.0:1, under the 4.5:1 a 14 px label needs.
+  secondary: "border border-primary-500 bg-app text-primary-600 hover:bg-primary-50 disabled:border-line-strong disabled:text-ink-3",
   danger: "bg-danger text-white hover:brightness-95 disabled:bg-muted disabled:text-ink-3",
   ghost: "bg-primary-50 text-primary-600 hover:bg-primary-100 disabled:bg-muted disabled:text-ink-3",
 };
