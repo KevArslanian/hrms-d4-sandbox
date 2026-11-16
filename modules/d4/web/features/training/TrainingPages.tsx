@@ -151,14 +151,16 @@ export function TrainingDetailPage({ trainingId }: { trainingId: string }) {
       <div className="min-w-0 space-y-6">
         {/* Q14/Q16: the decision after a result is recorded here, in the same Update Progress form. */}
         {pending && <Card title="Next step" testId="training-next-step">
-          {pending === "follow-up"
+          {pending === "result"
+            ? <Notice tone="warning"><strong>Hasil belum dicatat.</strong> Training ini Completed tanpa hasil Passed atau Not Passed. Catat hasil dan keputusannya lewat Update Progress.</Notice>
+            : pending === "follow-up"
             ? <Notice tone="warning"><strong>Awaiting follow-up.</strong> Hasil Not Passed wajib ditindaklanjuti HR: Retraining, atau Other follow-up (coaching, rotasi, eskalasi ke atasan) dengan catatan.</Notice>
             : <div className="space-y-3">
                 <p className="text-sm text-ink-2">Training Passed. Catat hasil reassessment: Meets requirement bila level kompetensinya sudah memenuhi, atau Retraining bila gap belum tertutup.</p>
                 {finding && <LevelLine finding={finding} employeeId={record.employeeId} />}
               </div>}
-          {canAssess(snapshot, record.employeeId) && <div className="mt-4"><Button variant="primary" icon={pending === "follow-up" ? <ListChecks className="size-4" /> : <Scale className="size-4" />} onClick={() => setProgressOpen(true)}
-            data-testid={pending === "follow-up" ? "btn-record-follow-up" : "btn-record-reassessment"}>{pending === "follow-up" ? "Record Follow-up" : "Record Reassessment"}</Button></div>}
+          {canAssess(snapshot, record.employeeId) && <div className="mt-4"><Button variant="primary" icon={pending === "reassessment" ? <Scale className="size-4" /> : <ListChecks className="size-4" />} onClick={() => setProgressOpen(true)}
+            data-testid={`btn-record-${pending === "result" ? "result" : pending === "follow-up" ? "follow-up" : "reassessment"}`}>{pending === "result" ? "Record Result" : pending === "follow-up" ? "Record Follow-up" : "Record Reassessment"}</Button></div>}
         </Card>}
         {notPassed && followUp && <Card title="Follow-up" testId="training-follow-up">
           <p className="text-sm text-ink"><span data-testid="follow-up-value" className="font-semibold">{followUp.followUp}</span> · {formatDate(followUp.createdAt)} · {followUp.actor}</p>

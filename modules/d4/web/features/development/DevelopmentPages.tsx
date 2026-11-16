@@ -46,7 +46,9 @@ type StepHandlers = { onDecide: (trainingId: string) => void; onCreate: () => vo
 /** The button of a step, or null when the step needs none. `row`: the small button of the list. */
 function StepButton({ step, row, onDecide, onCreate }: { step: NeedStep; row?: boolean } & StepHandlers) {
   const action = step.kind === "decide"
-    ? step.decision === "follow-up"
+    ? step.decision === "result"
+      ? { label: "Record Result", testId: "record-result", icon: ListChecks, onClick: () => onDecide(step.training.trainingId) }
+      : step.decision === "follow-up"
       ? { label: "Retraining / Follow-up", testId: "record-follow-up", icon: ListChecks, onClick: () => onDecide(step.training.trainingId) }
       // In the narrow list column the two choices themselves fit; "Reassessment" alone would widen it past 1024 px.
       : { label: row ? "Meets / Retraining" : "Record Reassessment", testId: "record-reassessment", icon: Scale, onClick: () => onDecide(step.training.trainingId) }
@@ -67,7 +69,7 @@ function StepButton({ step, row, onDecide, onCreate }: { step: NeedStep; row?: b
 function NextStepCell({ snapshot, need, writer, ...handlers }: { snapshot: Snapshot; need: DevelopmentNeedVersion; writer: boolean } & StepHandlers) {
   const step = nextStep(snapshot, need);
   if (step.kind === "decide") return <div className="space-y-1.5">
-    <span className="block text-xs text-ink-2">Training {step.decision === "follow-up" ? "Not Passed" : "Passed"}</span>
+    <span className="block text-xs text-ink-2">{step.decision === "result" ? "Training Completed, hasil belum dicatat" : `Training ${step.decision === "follow-up" ? "Not Passed" : "Passed"}`}</span>
     {writer ? <StepButton step={step} row {...handlers} /> : <span className="block text-xs text-ink-3">Menunggu keputusan HR</span>}
   </div>;
   // Two lines rather than a chip, so the training name is not cut to a few letters in this narrow column.
@@ -84,7 +86,9 @@ function NextStepCard({ snapshot, need, writer, ...handlers }: { snapshot: Snaps
   const step = nextStep(snapshot, need);
   const finding = step.kind === "decide" && step.decision === "reassessment" ? sourceFinding(snapshot, need) : undefined;
   const text = step.kind === "decide"
-    ? step.decision === "follow-up"
+    ? step.decision === "result"
+      ? `Training "${step.training.activity}" Completed, tetapi hasilnya belum dicatat sebagai Passed atau Not Passed. Catat hasil dan keputusannya; status requirement mengikuti.`
+      : step.decision === "follow-up"
       ? `Training "${step.training.activity}" Not Passed. Pilih Retraining (training ulang dibuat, status Planned) atau Other follow-up dengan catatan.`
       : `Training "${step.training.activity}" Passed. Pilih Meets requirement bila level kompetensi sudah memenuhi, atau Retraining bila gap belum tertutup.`
     : step.kind === "running"

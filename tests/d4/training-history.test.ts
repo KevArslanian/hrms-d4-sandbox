@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DevelopmentNeedVersion } from "@/modules/d4/development/types";
 import type { TrainingVersion } from "@/modules/d4/training/types";
-import { developmentNeeds, trainingById, trainings, type Snapshot } from "@/modules/d4/web/data/selectors";
+import { developmentNeeds, nextStep, trainingById, trainingDecision, trainings, type Snapshot } from "@/modules/d4/web/data/selectors";
 import { isTrainingArchived } from "@/modules/d4/web/features/training/rows";
 
 // Training Tracking follows the Development Requirement rule (interview 13 Nov 2026, 1:08:36): nothing left to do, so
@@ -41,6 +41,16 @@ describe("finished trainings leave the Training Tracking list", () => {
     expect(isTrainingArchived(passed, latest(passed))).toBe(false);
     const met = decide(passed, need, { status: "Completed", reassessment: "Meets requirement" });
     expect(isTrainingArchived(met, latest(met))).toBe(true);
+  });
+
+  it("keeps a training completed with a free-text result and asks HR to record the result (Vira, 17 Nov 2026)", async () => {
+    const { base, training, need, latest } = await openTraining();
+    const legacy = progress(base, training, { status: "Completed", result: "Selesai; sertifikat diterima." });
+    expect(trainingDecision(legacy, latest(legacy))).toBe("result");
+    expect(isTrainingArchived(legacy, latest(legacy))).toBe(false);
+    // The requirement's Next step points at that training, not at a new one.
+    const step = nextStep(legacy, developmentNeeds(legacy).find((item) => item.needId === need.needId)!);
+    expect(step).toMatchObject({ kind: "decide", decision: "result", training: { trainingId: training.trainingId } });
   });
 
   it("keeps a Not Passed training until HR records the follow-up", async () => {
