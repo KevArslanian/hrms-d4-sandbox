@@ -285,9 +285,12 @@ export function completedAt(history: readonly CompletionVersion[]): string | und
  * "reassessment" for a Passed result its requirement has no decision for yet, else null. A Retraining recorded after
  * the pass decides it; so does Meets requirement on the Completed requirement.
  */
-export function pendingDecision(history: readonly CompletionVersion[], need: Pick<DevelopmentNeedVersion, "status"> | undefined, needHistory: readonly NeedRevision[]): "follow-up" | "reassessment" | null {
+export function pendingDecision(history: readonly CompletionVersion[], need: Pick<DevelopmentNeedVersion, "status"> | undefined, needHistory: readonly NeedRevision[]): "result" | "follow-up" | "reassessment" | null {
   const latest = [...history].sort((a, b) => b.revision - a.revision)[0];
   if (latest?.status !== "Completed") return null;
+  // Older trainings (sample data of 14 Oct 2026) were completed with free text instead of Passed or Not Passed: HR still
+  // has to record the result, so they wait for it instead of reading as finished.
+  if (!(TRAINING_RESULTS as readonly string[]).includes(latest.result)) return "result";
   if (latest.result === "Not Passed") return followUpOf(history) ? null : "follow-up";
   if (latest.result !== "Passed" || !need) return null;
   const since = retrainedAt(needHistory);
