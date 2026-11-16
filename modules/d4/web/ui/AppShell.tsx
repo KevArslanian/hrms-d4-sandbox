@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, ChevronDown, Menu, Users, X } from "lucide-react";
+import { Bell, ChevronDown, LayoutDashboard, Menu, Users, X } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { catalogFor, roleForPosition } from "../../kpi/catalog";
@@ -34,10 +34,9 @@ const menuFor = (role: string | undefined): readonly { href: string; label: stri
 
 const roleLabel: Record<string, string> = { HR: "HR", MANAGER: "Manager", MANAGEMENT: "Management", EMPLOYEE: "Employee" };
 
-// Sidebar follows the HRMS reference shared on 15 Nov 2026: only the HRMS group (POS, CRM and MID left out, they were
-// never clickable from D4), sub-menu items without bullets as in the team's Figma (16 Nov 2026), the active one on #b0c6d4. Logout stays at
-// the bottom: it is the only way out (decision 13 Nov 2026). Menu text is darker/brighter than in Figma (#606f8c active,
-// #d9e2fc at 40% inactive: 2.9-3.1:1) so it reaches 4.5:1; hues unchanged.
+// Sidebar follows the revised sidebar in the PISD design system page (node 5429:830, 16 Nov 2026): ANDIMA wordmark without
+// the logo, a Dashboard link above the HRMS group (POS, CRM and MID left out, they were never clickable from D4), and the
+// active sub-menu item on #b0c6d4 with a teal dot. Logout stays at the bottom: it is the only way out (decision 13 Nov 2026).
 /**
  * Logout asks first (decision 13 Nov 2026). "Iya" turns the dialog into "Logging out..." until the login page replaces
  * the app; "Tidak", Esc or the overlay closes it. Focus starts on "Tidak" and returns to where it was.
@@ -105,27 +104,36 @@ function Sidebar({ onNavigate, onClose }: { onNavigate: () => void; onClose: () 
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
+  // The first menu entry (People Dashboard, or My Performance for an employee) is the "Dashboard" link above the module.
+  const [home, ...features] = menuFor(snapshot?.role);
+  const homeActive = Boolean(home && isActive(home.href));
+
   return <div className="flex h-full flex-col bg-[#0f2342] px-4 pb-5 pt-4 text-white">
-    <div className="flex h-12 items-center gap-3 px-2 pt-1">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/andima-logo.png" alt="Logo ANDIMA" width={400} height={246} data-testid="sidebar-logo" className="h-9 w-auto object-contain" />
-      <div><p className="font-display text-xl font-bold leading-7 tracking-[-0.5px]">ANDIMA</p><p className="text-xs leading-4 text-[#d9e2fc]/80">Logistics Suite</p></div>
-      <button type="button" onClick={onClose} data-testid="btn-sidebar-close" className="ml-auto rounded p-1 text-[#d9e2fc] lg:hidden" aria-label="Close navigation"><X size={18} /></button>
+    <div className="relative flex h-12 items-center justify-center">
+      <div className="text-center"><p className="font-display text-xl font-bold leading-7 tracking-[-0.5px]">ANDIMA</p><p className="font-display text-xs leading-4 text-[#d9e2fc]/80">Logistics Suite</p></div>
+      <button type="button" onClick={onClose} data-testid="btn-sidebar-close" className="absolute right-0 rounded p-1 text-[#d9e2fc] lg:hidden" aria-label="Close navigation"><X size={18} /></button>
     </div>
 
     <nav aria-label="Main navigation" data-testid="sidebar" className="mt-6 flex-1 overflow-y-auto">
+      {home && <Link href={home.href} data-testid="nav-dashboard" onClick={onNavigate} aria-current={homeActive ? "page" : undefined}
+        className={cx("mb-1.5 flex h-10 items-center gap-3 rounded-lg px-3 font-display text-sm font-semibold transition-colors",
+          homeActive ? "bg-[#b0c6d4] text-[#45556c]" : "text-[#d9e2fc] hover:bg-white/10")}>
+        <LayoutDashboard aria-hidden="true" className="size-[15px]" /> Dashboard
+      </Link>}
       <button type="button" data-testid="nav-hrms" onClick={() => setHrmsOpen((v) => !v)} aria-expanded={hrmsOpen}
-        className="flex h-10 w-full items-center justify-between rounded-lg bg-primary-700 px-4 text-sm font-semibold tracking-[0.07px] text-white">
-        <span className="flex items-center gap-2.5"><Users aria-hidden="true" className="size-[18px]" /> HRMS</span>
+        className="flex h-10 w-full items-center justify-between rounded-lg bg-primary-700 px-4 font-display text-sm font-semibold text-white">
+        <span className="flex items-center gap-1"><Users aria-hidden="true" className="size-[18px]" /> HRMS</span>
         <ChevronDown aria-hidden="true" size={16} className={cx("transition-transform", hrmsOpen ? "rotate-0" : "-rotate-90")} />
       </button>
       {hrmsOpen && <div className="ml-4 mt-2 space-y-1.5 border-l border-[#d9e2fc]/20 pl-3">
-        {menuFor(snapshot?.role).map((item) => {
+        {features.map((item) => {
           const active = isActive(item.href);
-          // Wraps instead of clipping: with the reference indent "Development Requirement" needs 179 px at 14 px Inter, the pill has 175.
+          // Wraps instead of clipping: "Development Requirement" needs 179 px at 14 px Inter; after the dot the pill has 161.
           return <Link key={item.href} href={item.href} data-testid={`nav-${slug(item.label)}`} onClick={onNavigate} aria-current={active ? "page" : undefined}
-            className={cx("block rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors",
-              active ? "bg-[#b0c6d4] text-[#454f64]" : "text-[#d9e2fc]/55 hover:text-[#d9e2fc]")}>
+            className={cx("flex items-start gap-2 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors",
+              active ? "bg-[#b0c6d4] text-[#45556c]" : "text-white hover:bg-white/10")}>
+            {/* Only the active page has the teal dot; the others keep its space so every label starts at the same x. */}
+            <span aria-hidden="true" className={cx("mt-[7px] size-1.5 shrink-0 rounded-full", active && "bg-teal")} />
             {item.label}
           </Link>;
         })}
@@ -138,7 +146,7 @@ function Sidebar({ onNavigate, onClose }: { onNavigate: () => void; onClose: () 
         The text is a lighter shade of the #d9364f border, which reaches only 3.4:1 on the dark sidebar; this one clears 4.5:1 also on hover.
         On a phone the drawer traps focus and closes on Esc, so it closes first and the dialog has the keyboard to itself. */}
     <button type="button" data-testid="btn-logout" onClick={() => { onClose(); setConfirmLogout(true); }}
-      className="mt-4 h-10 w-full rounded-[20px] border-[3px] border-[#d9364f] text-xl font-semibold text-[#e3697b] transition hover:bg-[#d9364f]/10">
+      className="mt-4 h-10 w-full rounded-[20px] border-[3px] border-[#d9364f] font-display text-xl font-semibold text-[#e3697b] transition hover:bg-[#d9364f]/10">
       Logout
     </button>
     {confirmLogout && <LogoutConfirm onCancel={() => setConfirmLogout(false)} />}

@@ -247,7 +247,7 @@ export function DevelopmentDetailPage({ needId }: { needId: string }) {
           { label: "Last updated", testId: "last-updated", value: `${formatDateTime(need.createdAt)} · ${need.actor}` },
           { label: "Created", testId: "created", value: formatDate(history[history.length - 1]?.createdAt) },
         ]} /></div>
-        <h3 className="mb-2 mt-8 text-sm font-semibold text-ink-2">Notes</h3>
+        <h3 className="mb-2 mt-8 font-display text-sm font-semibold text-ink-2">Notes</h3>
         <p className="whitespace-pre-wrap break-words text-sm text-ink-2">{need.notes || "—"}</p>
       </Card>
       <div className="min-w-0 space-y-6">
