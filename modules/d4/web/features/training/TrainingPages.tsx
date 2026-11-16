@@ -131,7 +131,7 @@ export function TrainingDetailPage({ trainingId }: { trainingId: string }) {
           { label: "Result", testId: "result", value: record.result || "Not recorded yet" },
           { label: "Last updated", testId: "last-updated", value: `${formatDateTime(record.createdAt)} · ${record.actor}` },
         ]} /></div>
-        <h3 className="mb-2 mt-8 text-sm font-semibold text-ink-2">Notes</h3>
+        <h3 className="mb-2 mt-8 font-display text-sm font-semibold text-ink-2">Notes</h3>
         <p className="whitespace-pre-wrap break-words text-sm text-ink-2">{record.notes || "—"}</p>
       </Card>
       <div className="min-w-0 space-y-6">
