@@ -223,7 +223,7 @@ export function CompetencyHistoryPage({ employeeId }: { employeeId: string }) {
     <Card title="Assessment history" testId="assessment-history">
       <Timeline empty="Belum ada penilaian kompetensi yang tersimpan untuk pegawai ini." entries={saved.map((item) => ({
         id: item.id, date: formatDate(item.effectiveDate), status: item.overallStatus, actor: item.actor,
-        title: `${positionTitle(snapshot, item.positionId)} · ${item.context === "role-change" ? "position change" : "current position"}`,
+        title: `${positionTitle(snapshot, item.positionId, item.positionTitle)} · ${item.context === "role-change" ? "position change" : "current position"}`,
         body: [`${item.findings.length} requirement · ${item.findings.filter((finding) => finding.status === "Gap").length} gap · ${item.findings.filter((finding) => finding.status === "Bukti Belum Cukup").length} insufficient data`, assessedWithText(item.assessedWith)].filter(Boolean).join(" · "),
       }))} />
     </Card>

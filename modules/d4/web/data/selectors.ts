@@ -81,8 +81,12 @@ function indexOf(snapshot: Snapshot): SnapshotIndex {
 export const employeeById = (snapshot: Snapshot, id: string) => indexOf(snapshot).employees.get(id);
 export const positionOf = (snapshot: Snapshot, employee?: EmployeeReference) => employee?.positionId ? indexOf(snapshot).positions.get(employee.positionId) : undefined;
 export const positionById = (snapshot: Snapshot, id?: string | null) => id ? indexOf(snapshot).positions.get(id) : undefined;
-/** Title of a saved assessment's position, which may have left the position master since (UI-008). */
-export const positionTitle = (snapshot: Snapshot, id?: string | null) => positionById(snapshot, id)?.title ?? "posisi tidak ada di master";
+/**
+ * Title of a saved assessment's position, which may have left the position master since (UI-008). Then the title
+ * saved with the assessment is shown, so history still says which position was assessed.
+ */
+export const positionTitle = (snapshot: Snapshot, id?: string | null, saved?: string | null) =>
+  positionById(snapshot, id)?.title ?? (saved?.trim() || "posisi tidak ada di master");
 export const departmentOf = (snapshot: Snapshot, employee?: EmployeeReference) => employee?.departmentId ? indexOf(snapshot).departments.get(employee.departmentId) : undefined;
 /** Header line shared by every detail/history page: position · employee ID · department. */
 export const employeeMeta = (snapshot: Snapshot, employee: EmployeeReference) => [positionOf(snapshot, employee)?.title ?? "No position yet", employee.employeeId, departmentOf(snapshot, employee)?.name ?? ""];

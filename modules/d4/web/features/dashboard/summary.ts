@@ -248,7 +248,7 @@ export function employeeHistory(snapshot: Snapshot, employeeId: string): History
   const entries: HistoryEntry[] = [];
   for (const item of snapshot.competency) {
     if (item.employeeId !== employeeId) continue;
-    const position = positionTitle(snapshot, item.positionId);
+    const position = positionTitle(snapshot, item.positionId, item.positionTitle);
     const roleChange = item.context === "role-change";
     entries.push({ id: `competency-${item.id}`, kind: "competency", day: item.effectiveDate, createdAt: item.createdAt, actor: item.actor,
       date: `${roleChange ? "Efektif " : ""}${formatDate(item.effectiveDate)}`, status: item.overallStatus, href: `/competency/${employeeId}/history`,
