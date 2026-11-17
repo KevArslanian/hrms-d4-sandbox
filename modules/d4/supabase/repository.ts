@@ -46,7 +46,7 @@ interface RawKpi { id: string; employee_id: string; period: string; kpi_score: n
 interface RawKpiAssessment { id: string; definition_version?: string; employee_id: string; role_order: number; role_name: string; period: string; evaluation_date: string | null; evaluator_name: string; status: "draft" | "completed"; lines: unknown; overall_score: number | null; general_notes: string; evidence_reference?: string | null; actor_employee_id: string; created_at: string }
 interface RawKpiDaily { id: string; employee_id: string; entry_date: string; period: string; definition_version: string; role_order: number; role_name: string; lines: unknown; overall_score: number | null; created_at: string }
 interface RawPerformance { id: string; employee_id: string; period: string; evaluation_date: string | null; evaluator_name_snapshot: string; status: "draft" | "completed"; review_status: PerformanceEvaluation["reviewStatus"]; overall_score: number | null; aspects: unknown; general_notes: string; evidence_reference: string | null; actor_employee_id: string; created_at: string }
-interface RawAssessment { id: string; employee_id: string; position_id: string; effective_date: string; context: CompetencyAssessment["context"]; overall_status: CompetencyOverallStatus; findings: unknown; assessed_with?: string | null; actor_employee_id: string; created_at: string }
+interface RawAssessment { id: string; employee_id: string; position_id: string; position_title_snapshot?: string | null; effective_date: string; context: CompetencyAssessment["context"]; overall_status: CompetencyOverallStatus; findings: unknown; assessed_with?: string | null; actor_employee_id: string; created_at: string }
 interface RawDevelopment { id: string; employee_id: string; source_type: DevelopmentSourceType; position_requirement_id: string | null; competency_assessment_id: string | null; kpi_assessment_id?: string | null; performance_evaluation_id: string | null; objective: string; priority: DevelopmentPriority; method?: string | null; pic?: string | null }
 // priority/method/pic: null = unchanged in this revision, "" = cleared. Absent before migration 20261019120000.
 interface RawDevelopmentVersion { id: string; development_need_id: string; revision: number; status: DevelopmentNeedVersion["status"]; notes: string; priority?: DevelopmentPriority | null; method?: string | null; pic?: string | null; reassessment?: DevelopmentReassessment | null; actor_employee_id: string; created_at: string }
@@ -176,7 +176,7 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
       createdAt: row.created_at, actor: actorName(reference, row.actor_employee_id),
     }));
     const competency: CompetencyAssessment[] = assessmentRows.map((row) => ({
-      id: row.id, source: "supabase", employeeId: row.employee_id, positionId: row.position_id,
+      id: row.id, source: "supabase", employeeId: row.employee_id, positionId: row.position_id, positionTitle: row.position_title_snapshot ?? null,
       effectiveDate: row.effective_date, context: row.context, overallStatus: row.overall_status,
       findings: Array.isArray(row.findings) ? row.findings as CompetencyFinding[] : [],
       createdAt: row.created_at, actor: actorName(reference, row.actor_employee_id), assessedWith: row.assessed_with ?? null,

@@ -154,6 +154,19 @@ describe("recorded-by name", () => {
   });
 });
 
+describe("position title saved with a competency assessment", () => {
+  it("reads position_title_snapshot, so history can name a position that has left the master", async () => {
+    const me = { id: "emp-1", employee_id: "CCR-009", full_name: "Dimas", position_id: "new-position", department_id: null };
+    const { client } = fakeClient({
+      "d4_user_access:select": { data: { app_role: "EMPLOYEE", employee_id: me.id }, error: null },
+      "d4_employee:select": { data: [me], error: null },
+      "d4_competency_assessments:select": { data: [{ id: "c", employee_id: me.id, position_id: "deleted-position", position_title_snapshot: "Tax Associate ", effective_date: "2026-10-14", context: "current-position", overall_status: "Gap", findings: [], actor_employee_id: me.id, created_at: "2026-10-14T08:00:00.000Z" }], error: null },
+    });
+    const [assessment] = (await new SupabaseD4Repository(client).loadSnapshot()).competency;
+    expect(assessment).toMatchObject({ positionId: "deleted-position", positionTitle: "Tax Associate " });
+  });
+});
+
 // Code ships before migration 20261019120000: the new columns are sent only when they carry a value.
 describe("development revision and co-assessor columns", () => {
   const versionTable = { "d4_development_need_versions:select": { data: { revision: 2 }, error: null }, "d4_development_need_versions:insert": { data: { id: "v" }, error: null } };

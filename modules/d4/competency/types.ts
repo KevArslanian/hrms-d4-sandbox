@@ -18,6 +18,8 @@ export interface CompetencyAssessment {
   readonly employeeId: string;
   /** Position snapshot at assessment time; does not update employee master. */
   readonly positionId: string;
+  /** Position title saved with the assessment, so history keeps a name after the position leaves the master. */
+  readonly positionTitle?: string | null;
   readonly effectiveDate: string;
   readonly context: "current-position" | "role-change";
   readonly findings: readonly CompetencyFinding[];
