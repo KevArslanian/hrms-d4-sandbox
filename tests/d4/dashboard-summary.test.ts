@@ -180,6 +180,25 @@ describe("employee history timeline", () => {
     expect(trained).toMatchObject({ status: "Completed", body: expect.stringContaining("Result: Passed"), href: `/training/${training.trainingId}` });
     expect(history.at(-2)?.title).toMatch(/^Competency assessment/);
   });
+
+  it("names a position that has left the master with the title saved at assessment time (QA-07 F-3)", async () => {
+    const base = await hrSnapshot();
+    const assessment = base.competency.find((item) => item.employeeId === ALFA)!;
+    const snapshot: Snapshot = {
+      ...base,
+      competency: [
+        { ...assessment, id: "C-SAVED", positionId: "deleted-position", positionTitle: "Tax Associate ", effectiveDate: "2026-10-14", createdAt: "2026-10-14T02:00:00.000Z" },
+        { ...assessment, id: "C-BARE", positionId: "deleted-position", positionTitle: null, effectiveDate: "2026-10-13", createdAt: "2026-10-13T02:00:00.000Z" },
+        { ...assessment, id: "C-MASTER", positionId: TAX_MANAGER, positionTitle: "Old name", effectiveDate: "2026-10-12", createdAt: "2026-10-12T02:00:00.000Z" },
+      ],
+    };
+    const titles = employeeHistory(snapshot, ALFA).filter((item) => item.kind === "competency").map((item) => item.title);
+    expect(titles).toEqual([
+      "Competency assessment · Tax Associate",
+      "Competency assessment · posisi tidak ada di master",
+      "Competency assessment · Tax Manager",
+    ]);
+  });
 });
 
 describe("list search", () => {
