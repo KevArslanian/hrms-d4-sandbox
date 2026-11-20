@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { correctionsByDay, isDirty, scoreProblem, workingDaysSoFar } from "@/modules/d4/web/features/daily/entry";
+import { correctionsByDay, isDirty, missedWorkingDays, scoreProblem, workingDaysSoFar } from "@/modules/d4/web/features/daily/entry";
 import type { KpiDailyEntry } from "@/modules/d4/supabase/types";
 
 describe("scoreProblem (K22)", () => {
@@ -50,5 +50,18 @@ describe("workingDaysSoFar (R1)", () => {
   it("counts the whole month once it is over, and nothing for a future month", () => {
     expect(workingDaysSoFar("2026-10", "2026-11-12")).toBe(22);
     expect(workingDaysSoFar("2026-12", "2026-11-12")).toBe(0);
+  });
+});
+
+// Dosen 17 Nov 2026: "kalau lupa isinya lebih dari 1 hari?" The form shows the working days still empty this month.
+describe("missedWorkingDays", () => {
+  it("lists empty weekdays of the running month before today", () => {
+    // November 2026: the 2nd is a Monday; the 7th and 8th are a weekend.
+    expect(missedWorkingDays("2026-11", "2026-11-10", new Set(["2026-11-02", "2026-11-04"]))).toEqual(["2026-11-03", "2026-11-05", "2026-11-06", "2026-11-09"]);
+  });
+
+  it("leaves out today, and a past or future period", () => {
+    expect(missedWorkingDays("2026-11", "2026-11-02", new Set())).toEqual([]);
+    expect(missedWorkingDays("2026-10", "2026-11-10", new Set())).toEqual([]);
   });
 });
