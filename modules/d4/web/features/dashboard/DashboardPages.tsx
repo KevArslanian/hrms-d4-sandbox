@@ -7,16 +7,16 @@ import { followUpOf } from "../../../shared/rules";
 import type { D4LiveSnapshot, KpiAssessment } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
 import { catalogFor, KPI_TARGET, type KpiCatalog } from "../../../kpi/catalog";
-import { byProgress, canAssess, canWrite, currentCompetencyStatus, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, employeeSearchText, evaluationsOf, formatDate, formatGap, formatPeriod, formatScore, formatScorecard, includesText, pendingCompilation, positionOf, scorecardsOf, thisMonth, trainingHistory, trainings, trainingsOf, visibleEmployees } from "../../data/selectors";
+import { byProgress, canAssess, canWrite, currentCompetencyStatus, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, employeeSearchText, evaluationsOf, formatDate, formatGap, formatPeriod, formatScore, formatScorecard, includesText, pendingCompilation, positionOf, scorecardsOf, thisMonth, trainingHistory, trainings, trainingsOf, visibleEmployees, formatScoreCell, SCORE_COLUMN } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
-import { FilterBar, PeriodFilter, SearchInput, SelectFilter } from "../../ui/forms";
+import { FilterBar, FormModal, PeriodFilter, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
-import { Card, Notice, SavedNotice, slug, statusLabel, StatusBadge } from "../../ui/primitives";
+import { Button, Card, Notice, SavedNotice, slug, statusLabel, StatusBadge } from "../../ui/primitives";
 import { LineComment, targetLabel, weighted } from "../kpi/KpiFormModal";
 import type { DailyCompilation } from "../../../kpi/daily";
 import { HIGH_ABOVE, performanceBand, scaleMaxOf, UNDER_BELOW } from "../../../kpi/scale";
-import { averageScores, BANDS, COMPETENCY_ORDER, competencySlices, dashboardAlerts, defaultPeriod, employeeHistory, gapRanking, matchesDashboardFilters, openNeedCount, performanceSlices, profilePeriod, reviewCounts, validScorecard, withoutKpiRole, type AssignTarget, type DashboardRow, type Slice } from "./summary";
+import { averageScores, BANDS, COMPETENCY_ORDER, competencySlices, dashboardAlerts, defaultPeriod, employeeHistory, gapRanking, matchesDashboardFilters, openNeedCount, performanceSlices, profilePeriod, reviewCounts, validScorecard, withoutKpiRole, type AssignTarget, type DashboardAlert, type DashboardRow, type Slice } from "./summary";
 import { DevelopmentFormModal } from "../development/DevelopmentModals";
 import { useUrlFilters } from "./url-filters";
 
@@ -104,7 +104,7 @@ function PeopleDashboard() {
         { key: "position", header: "Position / Department", wrap: true, secondary: true, cell: (row) => <><span className="block">{row.position}</span><span className="block text-xs text-ink-3">{departmentOf(snapshot, row.employee)?.name ?? "—"}</span></> },
         // Every row shows the period chosen in the filter, so the column only earns its space on wide screens.
         { key: "period", header: "Period", secondary: true, cell: (row) => formatPeriod(row.period) },
-        { key: "kpi", header: "Total KPI", className: "tabular-nums", cell: (row) => <ScoreCell scorecard={row.scorecard} compiled={row.compiled} /> },
+        { key: "kpi", header: `Total KPI ${SCORE_COLUMN}`, className: "tabular-nums", cell: (row) => <ScoreCell scorecard={row.scorecard} compiled={row.compiled} /> },
         { key: "gap", header: "Competency", cell: (row) => <StatusBadge status={row.gap} /> },
         { key: "needs", header: "Open dev.", className: "tabular-nums", secondary: true, cell: (row) => row.openNeeds || "—" },
         // Wraps so "Completed, awaiting follow-up" takes two lines; on one line the table scrolled sideways at 1024 and 768 px.
@@ -121,6 +121,7 @@ function PeopleDashboard() {
 
 /** Headline counts over the rows currently listed (mentor review, 14 Oct 2026). */
 function SummaryStrip({ rows, period, noKpi }: { rows: readonly Row[]; period: string; noKpi: number }) {
+  const [needOpen, setNeedOpen] = useState(false);
   const reviewed = rows.filter((row) => row.scorecard && validScorecard(row.scorecard)).length;
   // K4: employees whose position has no KPI can never be reviewed, so they are not part of the share HR can complete.
   const reviewable = rows.length - noKpi;
@@ -134,13 +135,36 @@ function SummaryStrip({ rows, period, noKpi }: { rows: readonly Row[]; period: s
     { key: "training", label: "Training in progress", value: rows.filter((row) => row.trainingInProgress).length, hint: "punya training In Progress" },
     { key: "kpi", label: "Performance Review complete", value: reviewed, hint: `dari ${reviewable} pegawai yang bisa direview (${reviewable ? Math.round((reviewed / reviewable) * 100) : 0}%) · ${formatPeriod(period)}${compiled ? ` · ${compiled} Compiled, menunggu finalisasi` : ""}` },
   ];
+  const needing = rows.filter((row) => row.openNeeds > 0);
   return <section aria-label="Summary" data-testid="dashboard-summary" className="grid grid-cols-2 gap-4 xl:grid-cols-4">
     {tiles.map((tile) => <div key={tile.key} data-testid={`summary-${tile.key}`} className="rounded-2xl border border-line bg-surface p-5 shadow-card">
       <p className="text-xs font-semibold uppercase tracking-[0.04em] text-ink-3">{tile.label}</p>
       <p className="mt-2 font-display text-3xl font-semibold tabular-nums text-ink">{tile.value}</p>
       <p data-testid={`summary-${tile.key}-hint`} className="mt-1 text-xs text-ink-3">{tile.hint}</p>
+      {/* Dosen 17 Nov 2026 (Kei): "siapa yang butuh training?" The count alone did not say who. */}
+      {tile.key === "dev" && needing.length > 0 && <button type="button" data-testid="btn-need-training-people" onClick={() => setNeedOpen(true)}
+        className="mt-2 rounded text-xs font-semibold text-primary-600 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500">Lihat siapa saja</button>}
     </div>)}
+    {needOpen && <NeedTrainingDialog rows={needing} onClose={() => setNeedOpen(false)} />}
   </section>;
+}
+
+/** Who the Need training tile counts, with each open requirement and where its training stands. */
+function NeedTrainingDialog({ rows, onClose }: { rows: readonly Row[]; onClose: () => void }) {
+  const snapshot = useSnapshot();
+  return <FormModal title={`Need training · ${rows.length} pegawai`} description="Pegawai dengan development requirement yang belum selesai, beserta training-nya." onClose={onClose}
+    footer={<Button variant="secondary" onClick={onClose} data-testid="btn-close-need-training">Close</Button>}>
+    <ul data-testid="need-training-people" className="divide-y divide-line">{rows.map((row) => <li key={row.employee.id} className="py-3 first:pt-0 last:pb-0">
+      <div className="flex items-start justify-between gap-3">
+        <p className="min-w-0 text-sm font-semibold text-ink">{row.employee.fullName}<span className="block text-xs font-normal text-ink-3">{row.position}</span></p>
+        <SourceLink href={`/development?q=${encodeURIComponent(row.employee.fullName)}`}>Buka</SourceLink>
+      </div>
+      <ul className="mt-1.5 space-y-1 text-xs text-ink-2">{developmentNeeds(snapshot).filter((need) => need.employeeId === row.employee.id && need.status !== "Completed").map((need) => {
+        const training = trainings(snapshot).filter((item) => item.developmentNeedId === need.needId && item.status !== "Cancelled").sort((a, b) => b.date.localeCompare(a.date))[0];
+        return <li key={need.needId} className="[overflow-wrap:anywhere]">{need.objective} · <span className="font-semibold">{training ? `Training ${statusLabel(training.status)}` : "Belum dijadwalkan training"}</span></li>;
+      })}</ul>
+    </li>)}</ul>
+  </FormModal>;
 }
 
 const BAND_COLORS: Record<string, string> = {
@@ -255,6 +279,7 @@ function AlertsCard({ snapshot, rows, period }: { snapshot: D4LiveSnapshot; rows
   const writer = canWrite(snapshot);
   const [assignFor, setAssignFor] = useState<AssignTarget | null>(null);
   const [savedNeed, setSavedNeed] = useState<{ needId: string; name: string } | null>(null);
+  const [peopleFor, setPeopleFor] = useState<DashboardAlert | null>(null);
   return <Card title="Alerts" testId="dashboard-alerts">
     {savedNeed && <div className="mb-3"><SavedNotice text={`Development requirement untuk ${savedNeed.name} tersimpan.`} href={`/development/${savedNeed.needId}`} /></div>}
     {alerts.length ? <ul className="divide-y divide-line">
@@ -273,22 +298,40 @@ function AlertsCard({ snapshot, rows, period }: { snapshot: D4LiveSnapshot; rows
               <span className="truncate text-ink-2">{item.name}</span><span className="shrink-0 font-semibold text-primary-600">Assign training</span>
             </button>
           </li>)}</ul>
-            : <p className="mt-1 truncate text-xs text-ink-3">{alert.people.slice(0, 3).join(", ")}{alert.people.length > 3 ? ` dan ${alert.people.length - 3} lainnya` : ""}</p>}
+            : <p className="mt-1 text-xs text-ink-3"><span className="line-clamp-1 [overflow-wrap:anywhere]">{alert.people.slice(0, 3).join(", ")}</span>
+              {/* Dosen 17 Nov 2026: who the alert is about must be readable on the dashboard itself, not only after "Buka". */}
+              {alert.people.length > 3 && <button type="button" data-testid={`btn-alert-people-${alert.key}`} onClick={() => setPeopleFor(alert)} className="mt-0.5 rounded font-semibold text-primary-600 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500">
+                Lihat semua {alert.people.length} pegawai</button>}</p>}
         </div>
         <SourceLink href={alert.href}>Buka</SourceLink>
       </li>;
       })}
     </ul> : <p className="text-sm text-ink-3">Tidak ada alert untuk daftar ini.</p>}
+    {peopleFor && <FormModal title={`${peopleFor.title} · ${peopleFor.people.length} pegawai`} description={`${peopleFor.count} ${peopleFor.detail}`} onClose={() => setPeopleFor(null)}
+      footer={<Button variant="secondary" onClick={() => setPeopleFor(null)} data-testid="btn-close-alert-people">Close</Button>}>
+      <ul data-testid="alert-people" className="divide-y divide-line">{peopleFor.people.map((name) => <li key={name} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
+        <span className="min-w-0 truncate text-sm text-ink">{name}</span>
+        <SourceLink href={withQuery(peopleFor.href, name)}>Buka</SourceLink>
+      </li>)}</ul>
+    </FormModal>}
     {assignFor && <DevelopmentFormModal employeeId={assignFor.employeeId} sourceType="performance_context" sourceRef={assignFor.scorecardId} onClose={() => setAssignFor(null)} onSaved={(needId) => setSavedNeed({ needId, name: assignFor.name })} />}
   </Card>;
 }
 
+/** The alert's list narrowed to one person (`?q=<name>`, K15), keeping its period. */
+function withQuery(href: string, name: string) {
+  const [path, query = ""] = href.split("?");
+  const params = new URLSearchParams(query);
+  params.set("q", name);
+  return `${path}?${params}`;
+}
+
 function ScoreCell({ scorecard, compiled }: { scorecard?: KpiAssessment; compiled?: DailyCompilation | null }) {
-  if (!scorecard && compiled) return <span className="text-ink">{formatScore(compiled.total, scaleMaxOf(compiled.definitionVersion))}<span className="mt-1 block"><StatusBadge status="Compiled" /></span></span>;
+  if (!scorecard && compiled) return <span className="text-ink">{formatScoreCell(compiled.total, scaleMaxOf(compiled.definitionVersion))}<span className="mt-1 block"><StatusBadge status="Compiled" /></span></span>;
   if (!scorecard) return <>—</>;
   if (!validScorecard(scorecard)) return <span className="text-xs font-semibold text-danger">Invalid data</span>;
   const band = performanceBand(scorecard.overallScore, scorecard.definitionVersion);
-  return <span className="font-semibold text-ink">{formatScorecard(scorecard)}{band && <span className="mt-1 block"><StatusBadge status={band} /></span>}</span>;
+  return <span className="font-semibold text-ink">{formatScoreCell(scorecard.overallScore, scaleMaxOf(scorecard.definitionVersion))}{band && <span className="mt-1 block"><StatusBadge status={band} /></span>}</span>;
 }
 
 function SourceLink({ href, children = "View source" }: { href: string; children?: ReactNode }) {

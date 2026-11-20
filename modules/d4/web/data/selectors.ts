@@ -329,6 +329,14 @@ export function formatGap(score: number | null | undefined, definitionVersion?: 
 /** "4.10 / 5" for a V5.1 scorecard, "82.50 / 100" for V6: every scorecard shows the scale it was saved under. */
 export const formatScorecard = (scorecard: { overallScore: number | null; definitionVersion?: string | null }): string => formatScore(scorecard.overallScore, scaleMaxOf(scorecard.definitionVersion));
 
+/**
+ * A score in a table column headed "(1–100)": the scale is in the header, so a 1–100 score drops the " / 100" every row
+ * repeated (dosen, 17 Nov 2026). A legacy 1–5 score keeps " / 5", so the two scales are never read as one.
+ */
+export const formatScoreCell = (value: number | null | undefined, scale = 5): string =>
+  value === null || value === undefined ? "—" : scale === 100 ? value.toFixed(2) : formatScore(value, scale);
+export const SCORE_COLUMN = "(1–100)";
+
 /** Raw-score criteria from KPI Scorecard V3.1/V5.1 sheet "KPI Scoring Card"; shared by KPI and evaluation results. */
 export const SCORE_LABELS: Record<number, string> = { 1: "Very Poor", 2: "Poor", 3: "Fair", 4: "Good", 5: "Very Good" };
 

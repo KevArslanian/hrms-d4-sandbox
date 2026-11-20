@@ -350,6 +350,17 @@ export const meetsBlockedReason = (finding: LevelFinding | undefined) => finding
   : "";
 
 /**
+ * Why Retraining after a Passed training is not available, or "" when it is: a Passed training is retrained only because
+ * the gap is still open (dosen, 17 Nov 2026: "status Passed tapi ada opsi Retraining" confused the reviewers).
+ */
+export const retrainingBlockedReason = (finding: LevelFinding | undefined) => finding?.status === "Terpenuhi"
+  ? `${finding.competencyName}: level saat ini ${finding.actualLevel}, required ${finding.requiredLevel}, gap sudah tertutup. Pilih Meets requirement.`
+  : "";
+
+/** What Retraining after a Passed training means, shown under the option in Update Progress and its bulk version. */
+export const PASSED_RETRAINING = "Training lulus, tetapi level kompetensi masih di bawah required. Requirement dibuka lagi dan training lanjutan dibuat (Planned).";
+
+/**
  * Plan of the one save that completes a training: checks every rule against the state after the training is
  * Completed, before anything is written. The database keeps the decision in two places: a follow-up only on a Not
  * Passed version, a reassessment only with the matching requirement status (Retraining → Planned, Meets → Completed).
@@ -380,6 +391,8 @@ export function planTrainingCompletion(input: TrainingCompletion, context: {
   if (decision === "Retraining" && (!input.activity?.trim() || !input.date)) throw new ApiError("VALIDATION_FAILED", "Isi nama training dan tanggal untuk Retraining.");
   if (decision === "Meets requirement" && context.need.sourceType === "competency_gap" && meetsBlockedReason(context.finding))
     throw new ApiError("VALIDATION_FAILED", meetsBlockedReason(context.finding));
+  if (decision === "Retraining" && context.need.sourceType === "competency_gap" && retrainingBlockedReason(context.finding))
+    throw new ApiError("VALIDATION_FAILED", retrainingBlockedReason(context.finding));
   const trainingsAfter = context.latestTrainings.map((item) => item.trainingId === context.trainingId ? { ...item, status: "Completed" as const, result: "Passed", createdAt: context.at } : item);
   const kept = decision === "Meets requirement" && context.need.status === "Completed" && reassessmentOf(context.needHistory) === "Meets requirement";
   const development = kept ? null : nextDevelopmentRevision(context.need, { status: decision === "Retraining" ? "Planned" : "Completed", notes: input.notes, reassessment: decision },

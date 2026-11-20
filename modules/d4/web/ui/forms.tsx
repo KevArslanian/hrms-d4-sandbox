@@ -406,10 +406,11 @@ export function RadioField({ label, testId, required, error, helper, className, 
 
 // Same border and corner as a disabled input: without them it read as a dropdown with its border missing (practice with
 // Mas Bram, 13 Nov 2026). The muted fill still says it cannot be changed.
-export function ReadOnlyField({ label, testId, value, className }: { label: string; testId?: string; value: ReactNode; className?: string }) {
+export function ReadOnlyField({ label, testId, value, helper, className }: { label: string; testId?: string; value: ReactNode; helper?: string; className?: string }) {
   return <div className={cx("min-w-0", className)}>
     <p className="mb-1.5 text-sm font-semibold text-ink-2">{label}</p>
     <div data-testid={`readonly-${testId ?? slug(label)}`} className="flex min-h-10 items-center rounded-2xl border border-ink-3 bg-muted px-3 text-sm text-ink">{value}</div>
+    {helper && <p className="mt-1.5 text-xs text-ink-3">{helper}</p>}
   </div>;
 }
 
@@ -489,7 +490,7 @@ export function FormModal({ title, description, size = "md", onClose, children, 
       <footer className="flex flex-wrap justify-end gap-3 border-t border-line px-6 py-4"><ModalCloseContext.Provider value={requestClose}>{footer}</ModalCloseContext.Provider></footer>
       {confirming && <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-ink/30 p-6">
         <div role="alertdialog" data-testid="modal-discard-confirm" aria-labelledby={`${titleId}-discard`} className="w-full max-w-sm rounded-2xl bg-surface p-6 shadow-modal">
-          <h3 id={`${titleId}-discard`} className="font-display font-semibold text-base text-ink">Buang perubahan?</h3>
+          <h3 id={`${titleId}-discard`} className="font-display font-semibold text-base text-ink">Discard changes?</h3>
           <p className="mt-1.5 text-sm text-ink-3">Data yang sudah diisi tidak akan disimpan.</p>
           <div className="mt-5 flex justify-end gap-3">
             <Button variant="secondary" data-testid="btn-discard-keep" autoFocus onClick={() => setConfirming(false)}>Keep editing</Button>

@@ -9,7 +9,7 @@ import type { PerformanceEvaluation } from "../../../performance/types";
 import type { EmployeeReference } from "../../../shared/types";
 import type { KpiAssessment } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { canAssess, canWrite, departmentOf, describeSource, developmentNeeds, employeeById, employeeMeta, employeeSearchText, evaluationsOf, formatDate, formatGap, formatPeriod, byProgress, formatScore, formatScorecard, includesText, latestScorecard, pendingCompilation, positionOf, revisionTag, scorecardsOf, thisMonth, visibleEmployees } from "../../data/selectors";
+import { canAssess, canWrite, departmentOf, describeSource, developmentNeeds, employeeById, employeeMeta, employeeSearchText, evaluationsOf, formatDate, formatGap, formatPeriod, byProgress, formatScorecard, includesText, latestScorecard, pendingCompilation, positionOf, revisionTag, scorecardsOf, thisMonth, visibleEmployees, formatScoreCell, SCORE_COLUMN } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, PeriodFilter, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
@@ -93,8 +93,8 @@ export function PerformanceListPage() {
         { key: "employee", header: "Employee", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
         { key: "position", header: "Position / Department", wrap: true, optional: true, cell: (row) => <><span className="block">{row.position}</span><span className="block text-xs text-ink-3">{departmentOf(snapshot, row.employee)?.name ?? "—"}</span></> },
         { key: "period", header: "Period", cell: (row) => formatPeriod(row.period) },
-        { key: "total", header: "Total KPI", className: "tabular-nums", cell: (row) => row.scorecard ? <span className="font-semibold">{formatScorecard(row.scorecard)}</span>
-          : row.compiled ? <><span className="block font-semibold">{formatScore(row.compiled.total, scaleMaxOf(row.compiled.definitionVersion))}</span><span data-testid="compiled-days" className="block whitespace-normal text-xs text-ink-3">from {row.compiled.days.length} daily {row.compiled.days.length === 1 ? "entry" : "entries"}</span></>
+        { key: "total", header: `Total KPI ${SCORE_COLUMN}`, className: "tabular-nums", cell: (row) => row.scorecard ? <span className="font-semibold">{formatScoreCell(row.scorecard.overallScore, scaleMaxOf(row.scorecard.definitionVersion))}</span>
+          : row.compiled ? <><span className="block font-semibold">{formatScoreCell(row.compiled.total, scaleMaxOf(row.compiled.definitionVersion))}</span><span data-testid="compiled-days" className="block whitespace-normal text-xs text-ink-3">from {row.compiled.days.length} daily {row.compiled.days.length === 1 ? "entry" : "entries"}</span></>
           // The small lines may wrap (the score stays on one line), so they do not widen the table past the Status badge.
           : row.evaluation ? <span data-testid="legacy-evaluation" className="whitespace-normal text-xs text-ink-3">Old evaluation, no KPI score</span>
           : row.hasKpi ? "—" : <span className="whitespace-normal text-xs text-ink-3">Not in catalog {catalog?.version} yet</span> },

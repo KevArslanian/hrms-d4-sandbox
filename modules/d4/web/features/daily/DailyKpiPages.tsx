@@ -11,7 +11,7 @@ import { canFillDaily } from "../../../shared/rules";
 import type { EmployeeReference } from "../../../shared/types";
 import type { KpiAssessment, KpiDailyEntry } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { byProgress, canAssess, departmentOf, employeeById, employeeMeta, employeeSearchText, formatDate, formatGap, formatPeriod, formatScore, includesText, positionOf, scorecardsOf, thisMonth, today, visibleEmployees } from "../../data/selectors";
+import { byProgress, canAssess, departmentOf, employeeById, employeeMeta, employeeSearchText, formatDate, formatGap, formatPeriod, formatScore, includesText, positionOf, scorecardsOf, thisMonth, today, visibleEmployees, formatScoreCell, SCORE_COLUMN } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { DateField, FilterBar, FormError, PeriodFilter, ReadOnlyField, SearchInput } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
@@ -19,7 +19,7 @@ import { RowActionMenu } from "../../ui/RowActionMenu";
 import { Button, ButtonLink, Card, InfoGrid, Notice, SavedNotice, StatusBadge } from "../../ui/primitives";
 import { FinalizeDailyModal } from "../kpi/FinalizeDailyModal";
 import { noKpiText, SavedScore, scorecardTotal, totalComparison } from "../kpi/KpiFormModal";
-import { COMPILED_RULE, correctionsByDay, isDirty, scoreProblem, workingDaysSoFar } from "./entry";
+import { COMPILED_RULE, correctionsByDay, isDirty, missedWorkingDays, scoreProblem, workingDaysSoFar } from "./entry";
 
 const NOT_READY = "Daily KPI belum tersedia karena database belum diperbarui (migrasi 20261108130000). Menu lain tetap bisa dipakai.";
 const input = "h-9 w-full rounded-2xl border border-ink-3 px-3 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/15 text-sm aria-[invalid=true]:border-danger";
@@ -128,11 +128,18 @@ function MyDailyKpi({ team }: { team: boolean }) {
   }
 
   const compiled = compileDaily(snapshot.kpiDaily ?? [], snapshot.actorEmployeeId, period);
+  const missed = missedWorkingDays(period, today(), new Set(days.map((entry) => entry.entryDate)));
   return <>
     <Card title="My KPI today" testId="my-daily-kpi">
       <form onSubmit={submit} noValidate className="space-y-5">
         {/* B5 (interview D4, 14 Oct 2026): everyone scores their KPI every day before going home. */}
         {date === today() && !savedFor(today()) && <div data-testid="daily-reminder"><Notice tone="warning">Daily KPI hari ini belum diisi. Isi sebelum pulang.</Notice></div>}
+        {/* Dosen 17 Nov 2026 ("kalau lupa lebih dari 1 hari?"): every empty working day of the month opens with one click. */}
+        {missed.length > 0 && <div data-testid="daily-missed"><Notice tone="warning">
+          <strong>{missed.length} hari kerja bulan ini belum diisi.</strong> Klik tanggalnya untuk mengisi. Hari yang terlewat bisa diisi sampai akhir {formatPeriod(period)}.
+          <span className="mt-2 flex flex-wrap gap-1.5">{missed.map((day) => <button key={day} type="button" data-testid={`btn-fill-missed-${day}`} onClick={(event) => correct(day, event.currentTarget)}
+            className="rounded-lg border border-warning/40 bg-surface px-2.5 py-1 font-semibold text-warning hover:border-warning focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/15">{formatDate(day)}</button>)}</span>
+        </Notice></div>}
         <div className="grid gap-4 sm:grid-cols-3">
           <DateField label="Date" testId="daily-date" required min={`${period}-01`} max={today()} value={date} onChange={(event) => chooseDate(event.target.value)} />
           <ReadOnlyField label="Position KPI" testId="daily-role" value={indicators[0].role_name} />
@@ -180,7 +187,7 @@ function MyDailyKpi({ team }: { team: boolean }) {
       <DailySummary compiled={compiled} />
       <div className="mt-5"><DailyEntriesTable entries={[...days].reverse()} corrections={correctionsByDay(snapshot.kpiDaily ?? [], snapshot.actorEmployeeId, period)} editing={date} onCorrect={correct} /></div>
     </Card>
-    {discarding && <DiscardDialog what={"date" in discarding ? `Pindah ke ${formatDate(discarding.date)}?` : "Tinggalkan halaman ini?"} back={discarding.back} onKeep={() => setDiscarding(null)} onDiscard={discard} />}
+    {discarding && <DiscardDialog what={"date" in discarding ? `Go to ${formatDate(discarding.date)}?` : "Leave this page?"} back={discarding.back} onKeep={() => setDiscarding(null)} onDiscard={discard} />}
   </>;
 }
 
@@ -224,7 +231,7 @@ function DailyEntriesTable({ entries, corrections, editing, onCorrect }: { entri
     columns={[
       { key: "date", header: "Date", cell: (entry) => { const count = corrections.get(entry.entryDate);
         return <>{formatDate(entry.entryDate)}{count && <span data-testid="daily-corrected" className="block text-xs text-ink-3">{count === 1 ? "Corrected once" : `Corrected ${count} times`}</span>}</>; } },
-      { key: "total", header: "Total", className: "tabular-nums", cell: (entry) => <span className="font-semibold">{formatScore(entry.overallScore, scaleMaxOf(entry.definitionVersion))}</span> },
+      { key: "total", header: `Total ${SCORE_COLUMN}`, className: "tabular-nums", cell: (entry) => <span className="font-semibold">{formatScoreCell(entry.overallScore, scaleMaxOf(entry.definitionVersion))}</span> },
       { key: "gap", header: `Gap vs ${KPI_TARGET}`, className: "tabular-nums", cell: (entry) => formatGap(entry.overallScore, entry.definitionVersion) },
       // Interview 14 Oct (00:58:05): each day's score reads as a category ("nilainya ternyata high performance").
       { key: "category", header: "Category", cell: (entry) => { const band = performanceBand(entry.overallScore, entry.definitionVersion); return band ? <StatusBadge status={band} /> : "—"; } },
@@ -299,7 +306,7 @@ function TeamDailyKpi() {
             : <span data-testid="today-missing" className={weekend ? "text-ink-3" : "font-semibold text-danger"}>Not filled</span>}{daysCompact(row)}</> }
           : { key: "last", header: "Last entry", cell: (row) => <>{formatDate(row.last)}{daysCompact(row)}</> },
         // The gap sits under the score, so the table keeps room for the status badge on laptop widths.
-        { key: "score", header: "Compiled score", className: "tabular-nums", cell: (row) => row.compiled ? <><span className="block font-semibold">{formatScore(row.compiled.total, scaleMaxOf(row.compiled.definitionVersion))}</span>
+        { key: "score", header: `Compiled score ${SCORE_COLUMN}`, className: "tabular-nums", cell: (row) => row.compiled ? <><span className="block font-semibold">{formatScoreCell(row.compiled.total, scaleMaxOf(row.compiled.definitionVersion))}</span>
           <span data-testid="compiled-gap" className="block text-xs text-ink-3">Gap {formatGap(row.compiled.total, row.compiled.definitionVersion)} vs {KPI_TARGET}</span></> : "—" },
         { key: "status", header: "Status", cell: (row) => <><StatusBadge status={!row.compiled ? "No entries" : performanceBand(row.compiled.total, row.compiled.definitionVersion) ?? "Filled"} />
           {row.scorecard && <Link href={`/performance/scorecard/${row.scorecard.id}`} data-testid="daily-finalized" className="mt-1 block text-xs font-semibold text-primary-600 hover:underline">Finalized</Link>}</> },

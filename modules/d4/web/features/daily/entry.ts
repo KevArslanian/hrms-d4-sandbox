@@ -28,6 +28,22 @@ export function correctionsByDay(entries: readonly KpiDailyEntry[], employeeId: 
   return new Map([...rows].filter(([, count]) => count > 1).map(([day, count]) => [day, count - 1]));
 }
 
+/**
+ * Working days (Monday to Friday) of the running period before today that have no entry: what an employee who forgot
+ * for more than a day still has to fill (dosen, 17 Nov 2026). Today is left out; its own reminder covers it.
+ */
+export function missedWorkingDays(period: string, today: string, filled: ReadonlySet<string>): string[] {
+  if (period !== today.slice(0, 7)) return [];
+  const [year, month] = period.split("-").map(Number);
+  const days: string[] = [];
+  for (let day = 1; day < Number(today.slice(8, 10)); day += 1) {
+    const date = `${period}-${String(day).padStart(2, "0")}`;
+    const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+    if (weekday !== 0 && weekday !== 6 && !filled.has(date)) days.push(date);
+  }
+  return days;
+}
+
 /** Monday to Friday from the first of the period up to today (the whole month once it is over). Holidays are not known here. */
 export function workingDaysSoFar(period: string, today: string): number {
   if (period > today.slice(0, 7)) return 0;

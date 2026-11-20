@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import type { TrainingStatus } from "../../../training/types";
-import { TRAINING_RESULTS, type TrainingCompletion, type TrainingDecision } from "../../../shared/rules";
+import { PASSED_RETRAINING, TRAINING_RESULTS, type TrainingCompletion, type TrainingDecision } from "../../../shared/rules";
 import { addTrainingToNeeds, bulkSummary, DECIDE_LATER, progressTargets, requireSome, updateTrainings, type BulkFailure, type BulkNeed, type BulkOutcome, type BulkProgress, type BulkTraining } from "../../data/bulk";
 import { useD4 } from "../../data/D4DataProvider";
 import { today } from "../../data/selectors";
@@ -24,7 +24,7 @@ function TargetList({ items, noun }: { items: readonly { key: string; label: str
 }
 
 /** Rows a bulk save refused, with the reason the single-row save gives; they stay selected for another try. */
-function FailureList({ failures }: { failures: readonly BulkFailure[] }) {
+export function FailureList({ failures }: { failures: readonly BulkFailure[] }) {
   if (!failures.length) return null;
   return <div role="alert" data-testid="bulk-failures" className="rounded-xl bg-danger-bg px-4 py-3 text-sm text-danger">
     <p className="font-semibold">{failures.length} tidak tersimpan dan masih dipilih. Perbaiki lalu simpan lagi, atau pilih keputusan lain:</p>
@@ -86,7 +86,7 @@ export function BulkTrainingModal({ needs, onClose, onDone }: { needs: readonly 
 
 const PASSED_OPTIONS = [
   { value: "Meets requirement", label: "Meets requirement", description: "Gap tertutup. Untuk requirement dari Competency Gap, hanya tersimpan bila level di data kompetensi (D3) sudah memenuhi.", testId: "meets-requirement" },
-  { value: "Retraining", label: "Retraining", description: "Gap belum tertutup. Requirement dibuka lagi dan training ulang dibuat (Planned)." },
+  { value: "Retraining", label: "Retraining", description: `${PASSED_RETRAINING} Training yang level kompetensinya sudah memenuhi ditolak dan tetap dipilih.` },
   { value: DECIDE_LATER, label: DECIDE_LATER, description: "Hasil Passed disimpan sekarang; reassessment dicatat nanti dari Next step.", testId: "decide-later" },
 ];
 const NOT_PASSED_OPTIONS = [
