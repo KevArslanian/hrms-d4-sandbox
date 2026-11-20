@@ -74,6 +74,18 @@ describe("planTrainingCompletion", () => {
     expect(plan).toMatchObject({ training: "version", retraining: false, snapshot: true, development: { status: "Completed", reassessment: "Meets requirement" } });
   });
 
+  // Dosen 17 Nov 2026: "status Passed tapi ada opsi Retraining". Retraining after a pass only answers a gap still open.
+  it("refuses Retraining after a Passed training once the level is met", async () => {
+    const snapshot = await (await hrSource()).loadSnapshot();
+    const context = {
+      trainingId: TRAINING, history: snapshot.trainingVersions.filter((item) => item.trainingId === TRAINING), need: need(snapshot),
+      needHistory: snapshot.developmentVersions.filter((item) => item.needId === NEED), latestNeeds: latestDevelopment(snapshot), latestTrainings: latestTraining(snapshot), at: "2026-11-10T03:00:00.000Z",
+    };
+    const input = { result: "Passed" as const, decision: "Retraining" as const, notes: "", activity: "Coretax Reporting Clinic", date: "2026-11-24" };
+    expect(() => planTrainingCompletion(input, { ...context, finding: { competencyName: "Tax", requiredLevel: 4, actualLevel: 4, status: "Terpenuhi" } })).toThrow(/gap sudah tertutup/);
+    expect(planTrainingCompletion(input, { ...context, finding: { competencyName: "Tax", requiredLevel: 4, actualLevel: 3, status: "Gap" } })).toMatchObject({ retraining: true });
+  });
+
   it("finds what is still open: a follow-up, a reassessment, or nothing", () => {
     const version = (patch: object) => ({ revision: 1, status: "Completed" as const, result: "Passed", followUp: null, createdAt: "2026-11-02T00:00:00.000Z", ...patch });
     const open = { status: "In Progress" as const };

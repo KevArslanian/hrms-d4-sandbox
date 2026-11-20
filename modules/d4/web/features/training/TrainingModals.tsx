@@ -6,7 +6,7 @@ import type { CompetencyFinding } from "../../../competency/types";
 import type { TrainingStatus } from "../../../training/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
 import { developmentById, developmentNeeds, employeeById, reassessmentFor, sourceFinding, today, trainingById, trainingDecision, trainingHistory, visibleEmployees } from "../../data/selectors";
-import { followUpOf, isTrainingRollback, meetsBlockedReason, TRAINING_RESULTS, type TrainingCompletion, type TrainingDecision } from "../../../shared/rules";
+import { followUpOf, isTrainingRollback, meetsBlockedReason, PASSED_RETRAINING, retrainingBlockedReason, TRAINING_RESULTS, type TrainingCompletion, type TrainingDecision } from "../../../shared/rules";
 import { DateField, FormError, FormModal, ModalActions, RadioField, ReadOnlyField, SearchSelectField, SelectField, TextAreaField, TextField } from "../../ui/forms";
 import { Notice, statusLabel } from "../../ui/primitives";
 
@@ -129,11 +129,12 @@ export function TrainingProgressModal({ trainingId, onClose, onSaved }: { traini
   const rollback = isTrainingRollback(record.status, status);
   const finding = need && sourceFinding(snapshot, need);
   const blocked = meetsBlockedReason(finding);
+  const retrainBlocked = need?.sourceType === "competency_gap" ? retrainingBlockedReason(finding) : "";
   const retraining = deciding && decision === "Retraining", other = deciding && decision === "Other follow-up";
   const later = deciding && decision === LATER;
   const options = result === "Passed" ? [
     { value: "Meets requirement", label: "Meets requirement", description: blocked ? "Belum bisa: level kompetensinya belum memenuhi. Perbarui dulu di data kompetensi pegawai (modul D3)." : "Gap tertutup. Requirement ditutup (Completed).", testId: "meets-requirement", disabled: Boolean(blocked) },
-    { value: "Retraining", label: "Retraining", description: "Gap belum tertutup. Requirement dibuka lagi dan training ulang dibuat (Planned)." },
+    { value: "Retraining", label: "Retraining", description: retrainBlocked ? `Tidak perlu: ${retrainBlocked}` : PASSED_RETRAINING, disabled: Boolean(retrainBlocked) },
     { value: LATER, label: LATER, description: "Hasil Passed disimpan sekarang. Keputusan dicatat nanti dari Next step, setelah level di data kompetensi pegawai (modul D3) diperbarui.", testId: "decide-later" },
   ] : FOLLOW_UP_OPTIONS;
   const saveResult = status === "Completed" ? result : "";
