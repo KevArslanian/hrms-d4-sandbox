@@ -215,12 +215,13 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
       <div className="grid gap-4 sm:grid-cols-3">
         <SearchSelectField label="Employee" testId="employee" required value={employee} onChange={(value) => chooseEmployee(value)} error={touched && !employee ? "Employee wajib diisi." : undefined} className="sm:col-span-2" placeholder="Select employee"
           options={assessableEmployees(snapshot).map((item) => ({ value: item.id, label: `${item.fullName} · ${item.employeeId}` }))} />
-        <DateField label="Period" testId="period" required month max={thisMonth()} value={period} onChange={(event) => choosePeriod(event.target.value)} error={touched && !period ? "Period wajib diisi." : touched && period > thisMonth() ? FUTURE_PERIOD : undefined} />
+        <DateField label="Period" testId="period" required month max={thisMonth()} helper="Bulan KPI yang dinilai. Bisa periode sebelumnya, tidak bisa periode yang belum dimulai." value={period} onChange={(event) => choosePeriod(event.target.value)} error={touched && !period ? "Period wajib diisi." : touched && period > thisMonth() ? FUTURE_PERIOD : undefined} />
         <ReadOnlyField label="Position" testId="position" value={position?.title ?? "—"} />
         <ReadOnlyField label="Department" testId="department" value={departmentOf(snapshot, selected)?.name ?? "—"} />
         <ReadOnlyField label="Position KPI" testId="kpi-jabatan" value={!employee ? "—" : roleName ?? (catalog ? `Not in catalog ${catalog.version} yet` : "No KPI catalog for this period")} />
-        <DateField label="Evaluation date" testId="evaluation-date" required min={period ? `${period}-01` : undefined} max={today()} value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? "Date wajib diisi." : touched && date > today() ? "Tidak boleh lebih dari hari ini." : touched && periodDateError(period, date) || undefined} />
-        <ReadOnlyField label="Evaluator" testId="evaluator" value={evaluator || "—"} className="sm:col-span-2" />
+        <DateField label="Evaluation date" testId="evaluation-date" required min={period ? `${period}-01` : undefined} max={today()} helper="Hari penilaian dilakukan: dari awal periode sampai hari ini." value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? "Date wajib diisi." : touched && date > today() ? "Tidak boleh lebih dari hari ini." : touched && periodDateError(period, date) || undefined} />
+        <ReadOnlyField label="Evaluator" testId="evaluator" value={evaluator || "—"} className="sm:col-span-2"
+          helper="Otomatis akun yang sedang login dan tidak bisa diubah, supaya riwayat mencatat siapa yang benar-benar menilai." />
       </div>
       {daily && <div data-testid="daily-prefill"><Notice>Actual diisi dari rata-rata {daily.days.length} entri Daily KPI pegawai ini ({formatPeriod(period)}), dibulatkan. Periksa dan ubah bila perlu sebelum menyimpan.</Notice></div>}
       {/* Up front, so the evaluator does not fill the whole form before learning it cannot be saved. */}
