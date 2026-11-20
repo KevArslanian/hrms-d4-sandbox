@@ -187,7 +187,7 @@ function MyDailyKpi({ team }: { team: boolean }) {
       <DailySummary compiled={compiled} />
       <div className="mt-5"><DailyEntriesTable entries={[...days].reverse()} corrections={correctionsByDay(snapshot.kpiDaily ?? [], snapshot.actorEmployeeId, period)} editing={date} onCorrect={correct} /></div>
     </Card>
-    {discarding && <DiscardDialog what={"date" in discarding ? `Pindah ke ${formatDate(discarding.date)}?` : "Tinggalkan halaman ini?"} back={discarding.back} onKeep={() => setDiscarding(null)} onDiscard={discard} />}
+    {discarding && <DiscardDialog what={"date" in discarding ? `Go to ${formatDate(discarding.date)}?` : "Leave this page?"} back={discarding.back} onKeep={() => setDiscarding(null)} onDiscard={discard} />}
   </>;
 }
 
