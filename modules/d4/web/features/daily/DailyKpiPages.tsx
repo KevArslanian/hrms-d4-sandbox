@@ -19,7 +19,7 @@ import { RowActionMenu } from "../../ui/RowActionMenu";
 import { Button, ButtonLink, Card, InfoGrid, Notice, SavedNotice, StatusBadge } from "../../ui/primitives";
 import { FinalizeDailyModal } from "../kpi/FinalizeDailyModal";
 import { noKpiText, SavedScore, scorecardTotal, totalComparison } from "../kpi/KpiFormModal";
-import { COMPILED_RULE, correctionsByDay, isDirty, scoreProblem, workingDaysSoFar } from "./entry";
+import { COMPILED_RULE, correctionsByDay, isDirty, missedWorkingDays, scoreProblem, workingDaysSoFar } from "./entry";
 
 const NOT_READY = "Daily KPI belum tersedia karena database belum diperbarui (migrasi 20261108130000). Menu lain tetap bisa dipakai.";
 const input = "h-9 w-full rounded-2xl border border-ink-3 px-3 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/15 text-sm aria-[invalid=true]:border-danger";
@@ -128,11 +128,18 @@ function MyDailyKpi({ team }: { team: boolean }) {
   }
 
   const compiled = compileDaily(snapshot.kpiDaily ?? [], snapshot.actorEmployeeId, period);
+  const missed = missedWorkingDays(period, today(), new Set(days.map((entry) => entry.entryDate)));
   return <>
     <Card title="My KPI today" testId="my-daily-kpi">
       <form onSubmit={submit} noValidate className="space-y-5">
         {/* B5 (interview D4, 14 Oct 2026): everyone scores their KPI every day before going home. */}
         {date === today() && !savedFor(today()) && <div data-testid="daily-reminder"><Notice tone="warning">Daily KPI hari ini belum diisi. Isi sebelum pulang.</Notice></div>}
+        {/* Dosen 17 Nov 2026 ("kalau lupa lebih dari 1 hari?"): every empty working day of the month opens with one click. */}
+        {missed.length > 0 && <div data-testid="daily-missed"><Notice tone="warning">
+          <strong>{missed.length} hari kerja bulan ini belum diisi.</strong> Klik tanggalnya untuk mengisi. Hari yang terlewat bisa diisi sampai akhir {formatPeriod(period)}.
+          <span className="mt-2 flex flex-wrap gap-1.5">{missed.map((day) => <button key={day} type="button" data-testid={`btn-fill-missed-${day}`} onClick={(event) => correct(day, event.currentTarget)}
+            className="rounded-lg border border-warning/40 bg-surface px-2.5 py-1 font-semibold text-warning hover:border-warning focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/15">{formatDate(day)}</button>)}</span>
+        </Notice></div>}
         <div className="grid gap-4 sm:grid-cols-3">
           <DateField label="Date" testId="daily-date" required min={`${period}-01`} max={today()} value={date} onChange={(event) => chooseDate(event.target.value)} />
           <ReadOnlyField label="Position KPI" testId="daily-role" value={indicators[0].role_name} />
