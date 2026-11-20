@@ -121,6 +121,7 @@ function PeopleDashboard() {
 
 /** Headline counts over the rows currently listed (mentor review, 14 Oct 2026). */
 function SummaryStrip({ rows, period, noKpi }: { rows: readonly Row[]; period: string; noKpi: number }) {
+  const [needOpen, setNeedOpen] = useState(false);
   const reviewed = rows.filter((row) => row.scorecard && validScorecard(row.scorecard)).length;
   // K4: employees whose position has no KPI can never be reviewed, so they are not part of the share HR can complete.
   const reviewable = rows.length - noKpi;
@@ -134,13 +135,36 @@ function SummaryStrip({ rows, period, noKpi }: { rows: readonly Row[]; period: s
     { key: "training", label: "Training in progress", value: rows.filter((row) => row.trainingInProgress).length, hint: "punya training In Progress" },
     { key: "kpi", label: "Performance Review complete", value: reviewed, hint: `dari ${reviewable} pegawai yang bisa direview (${reviewable ? Math.round((reviewed / reviewable) * 100) : 0}%) · ${formatPeriod(period)}${compiled ? ` · ${compiled} Compiled, menunggu finalisasi` : ""}` },
   ];
+  const needing = rows.filter((row) => row.openNeeds > 0);
   return <section aria-label="Summary" data-testid="dashboard-summary" className="grid grid-cols-2 gap-4 xl:grid-cols-4">
     {tiles.map((tile) => <div key={tile.key} data-testid={`summary-${tile.key}`} className="rounded-2xl border border-line bg-surface p-5 shadow-card">
       <p className="text-xs font-semibold uppercase tracking-[0.04em] text-ink-3">{tile.label}</p>
       <p className="mt-2 font-display text-3xl font-semibold tabular-nums text-ink">{tile.value}</p>
       <p data-testid={`summary-${tile.key}-hint`} className="mt-1 text-xs text-ink-3">{tile.hint}</p>
+      {/* Dosen 17 Nov 2026 (Kei): "siapa yang butuh training?" The count alone did not say who. */}
+      {tile.key === "dev" && needing.length > 0 && <button type="button" data-testid="btn-need-training-people" onClick={() => setNeedOpen(true)}
+        className="mt-2 rounded text-xs font-semibold text-primary-600 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500">Lihat siapa saja</button>}
     </div>)}
+    {needOpen && <NeedTrainingDialog rows={needing} onClose={() => setNeedOpen(false)} />}
   </section>;
+}
+
+/** Who the Need training tile counts, with each open requirement and where its training stands. */
+function NeedTrainingDialog({ rows, onClose }: { rows: readonly Row[]; onClose: () => void }) {
+  const snapshot = useSnapshot();
+  return <FormModal title={`Need training · ${rows.length} pegawai`} description="Pegawai dengan development requirement yang belum selesai, beserta training-nya." onClose={onClose}
+    footer={<Button variant="secondary" onClick={onClose} data-testid="btn-close-need-training">Close</Button>}>
+    <ul data-testid="need-training-people" className="divide-y divide-line">{rows.map((row) => <li key={row.employee.id} className="py-3 first:pt-0 last:pb-0">
+      <div className="flex items-start justify-between gap-3">
+        <p className="min-w-0 text-sm font-semibold text-ink">{row.employee.fullName}<span className="block text-xs font-normal text-ink-3">{row.position}</span></p>
+        <SourceLink href={`/development?q=${encodeURIComponent(row.employee.fullName)}`}>Buka</SourceLink>
+      </div>
+      <ul className="mt-1.5 space-y-1 text-xs text-ink-2">{developmentNeeds(snapshot).filter((need) => need.employeeId === row.employee.id && need.status !== "Completed").map((need) => {
+        const training = trainings(snapshot).filter((item) => item.developmentNeedId === need.needId && item.status !== "Cancelled").sort((a, b) => b.date.localeCompare(a.date))[0];
+        return <li key={need.needId} className="[overflow-wrap:anywhere]">{need.objective} · <span className="font-semibold">{training ? `Training ${statusLabel(training.status)}` : "Belum dijadwalkan training"}</span></li>;
+      })}</ul>
+    </li>)}</ul>
+  </FormModal>;
 }
 
 const BAND_COLORS: Record<string, string> = {
