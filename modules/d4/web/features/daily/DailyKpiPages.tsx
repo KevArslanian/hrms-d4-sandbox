@@ -11,7 +11,7 @@ import { canFillDaily } from "../../../shared/rules";
 import type { EmployeeReference } from "../../../shared/types";
 import type { KpiAssessment, KpiDailyEntry } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { byProgress, canAssess, departmentOf, employeeById, employeeMeta, employeeSearchText, formatDate, formatGap, formatPeriod, formatScore, includesText, positionOf, scorecardsOf, thisMonth, today, visibleEmployees } from "../../data/selectors";
+import { byProgress, canAssess, departmentOf, employeeById, employeeMeta, employeeSearchText, formatDate, formatGap, formatPeriod, formatScore, includesText, positionOf, scorecardsOf, thisMonth, today, visibleEmployees, formatScoreCell, SCORE_COLUMN } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { DateField, FilterBar, FormError, PeriodFilter, ReadOnlyField, SearchInput } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
@@ -224,7 +224,7 @@ function DailyEntriesTable({ entries, corrections, editing, onCorrect }: { entri
     columns={[
       { key: "date", header: "Date", cell: (entry) => { const count = corrections.get(entry.entryDate);
         return <>{formatDate(entry.entryDate)}{count && <span data-testid="daily-corrected" className="block text-xs text-ink-3">{count === 1 ? "Corrected once" : `Corrected ${count} times`}</span>}</>; } },
-      { key: "total", header: "Total", className: "tabular-nums", cell: (entry) => <span className="font-semibold">{formatScore(entry.overallScore, scaleMaxOf(entry.definitionVersion))}</span> },
+      { key: "total", header: `Total ${SCORE_COLUMN}`, className: "tabular-nums", cell: (entry) => <span className="font-semibold">{formatScoreCell(entry.overallScore, scaleMaxOf(entry.definitionVersion))}</span> },
       { key: "gap", header: `Gap vs ${KPI_TARGET}`, className: "tabular-nums", cell: (entry) => formatGap(entry.overallScore, entry.definitionVersion) },
       // Interview 14 Oct (00:58:05): each day's score reads as a category ("nilainya ternyata high performance").
       { key: "category", header: "Category", cell: (entry) => { const band = performanceBand(entry.overallScore, entry.definitionVersion); return band ? <StatusBadge status={band} /> : "—"; } },
@@ -299,7 +299,7 @@ function TeamDailyKpi() {
             : <span data-testid="today-missing" className={weekend ? "text-ink-3" : "font-semibold text-danger"}>Not filled</span>}{daysCompact(row)}</> }
           : { key: "last", header: "Last entry", cell: (row) => <>{formatDate(row.last)}{daysCompact(row)}</> },
         // The gap sits under the score, so the table keeps room for the status badge on laptop widths.
-        { key: "score", header: "Compiled score", className: "tabular-nums", cell: (row) => row.compiled ? <><span className="block font-semibold">{formatScore(row.compiled.total, scaleMaxOf(row.compiled.definitionVersion))}</span>
+        { key: "score", header: `Compiled score ${SCORE_COLUMN}`, className: "tabular-nums", cell: (row) => row.compiled ? <><span className="block font-semibold">{formatScoreCell(row.compiled.total, scaleMaxOf(row.compiled.definitionVersion))}</span>
           <span data-testid="compiled-gap" className="block text-xs text-ink-3">Gap {formatGap(row.compiled.total, row.compiled.definitionVersion)} vs {KPI_TARGET}</span></> : "—" },
         { key: "status", header: "Status", cell: (row) => <><StatusBadge status={!row.compiled ? "No entries" : performanceBand(row.compiled.total, row.compiled.definitionVersion) ?? "Filled"} />
           {row.scorecard && <Link href={`/performance/scorecard/${row.scorecard.id}`} data-testid="daily-finalized" className="mt-1 block text-xs font-semibold text-primary-600 hover:underline">Finalized</Link>}</> },
