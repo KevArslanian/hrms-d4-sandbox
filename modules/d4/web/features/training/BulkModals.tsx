@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import type { TrainingStatus } from "../../../training/types";
-import { TRAINING_RESULTS, type TrainingCompletion, type TrainingDecision } from "../../../shared/rules";
+import { PASSED_RETRAINING, TRAINING_RESULTS, type TrainingCompletion, type TrainingDecision } from "../../../shared/rules";
 import { addTrainingToNeeds, bulkSummary, DECIDE_LATER, progressTargets, requireSome, updateTrainings, type BulkFailure, type BulkNeed, type BulkOutcome, type BulkProgress, type BulkTraining } from "../../data/bulk";
 import { useD4 } from "../../data/D4DataProvider";
 import { today } from "../../data/selectors";
@@ -86,7 +86,7 @@ export function BulkTrainingModal({ needs, onClose, onDone }: { needs: readonly 
 
 const PASSED_OPTIONS = [
   { value: "Meets requirement", label: "Meets requirement", description: "Gap tertutup. Untuk requirement dari Competency Gap, hanya tersimpan bila level di data kompetensi (D3) sudah memenuhi.", testId: "meets-requirement" },
-  { value: "Retraining", label: "Retraining", description: "Gap belum tertutup. Requirement dibuka lagi dan training ulang dibuat (Planned)." },
+  { value: "Retraining", label: "Retraining", description: `${PASSED_RETRAINING} Training yang level kompetensinya sudah memenuhi ditolak dan tetap dipilih.` },
   { value: DECIDE_LATER, label: DECIDE_LATER, description: "Hasil Passed disimpan sekarang; reassessment dicatat nanti dari Next step.", testId: "decide-later" },
 ];
 const NOT_PASSED_OPTIONS = [

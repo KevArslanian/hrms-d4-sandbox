@@ -372,7 +372,8 @@ Tidak dikerjakan karena belum pasti atau bukan milik D4:
 
 ## Masukan Pak Emanuel di Show N Tell · 17 Nov 2026
 
-- **Filter, bukan tautan, untuk riwayat** ("kenapa ada filter yang dibuat link?"). Tautan **Show Completed** dan **Show Cancelled** di atas tabel Training Tracking dan Development Requirement dihapus. Keterangannya kini menyebut jumlah yang masuk riwayat dan mengarahkan ke filter Status, satu-satunya cara membukanya. testId `btn-show-completed` dan `btn-show-cancelled` dihapus; skrip Katalon yang mengekliknya perlu memilih Completed atau Cancelled di filter Status (`select-all-status`).
+- **Filter, bukan tautan, untuk riwayat** ("kenapa ada filter yang dibuat link?"). Tautan **Show Completed** dan **Show Cancelled** di atas tabel Training Tracking dan Development Requirement dihapus. Keterangannya kini menyebut jumlah yang masuk riwayat dan mengarahkan ke filter Status, satu-satunya cara membukanya. testId `btn-show-completed` dan `btn-show-cancelled` dihapus; skrip Katalon yang mengekliknya perlu memilih Completed atau Cancelled di filter Status (`filter-all-status`).
+- **Retraining setelah Passed hanya bila gap masih terbuka** ("kenapa status Passed tapi ada opsi Retraining?"). Jalurnya tetap ada karena lulus training tidak sama dengan level kompetensi terpenuhi, tetapi kini mengikuti data: di Update Progress, opsi Retraining (`input-reassessment-retraining`) nonaktif dengan alasannya bila level di Competency Gap sudah memenuhi, dan deskripsinya menjelaskan "Training lulus, tetapi level kompetensi masih di bawah required". Server menolak kombinasi itu dengan pesan yang sama (`retrainingBlockedReason` di `modules/d4/shared/rules.ts`), sehingga Update Progress massal menolak baris tersebut tanpa menghentikan baris lain. Tes di `tests/d4/training-completion.test.ts`.
 
 ## Belum selesai
 
