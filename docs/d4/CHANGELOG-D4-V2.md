@@ -370,6 +370,10 @@ Tidak dikerjakan karena belum pasti atau bukan milik D4:
 - **Label "Menunggu keputusan"** di bawah status requirement (daftar dan detail Development Requirement, `awaiting-decision`) selama ada training yang menunggu HR: hasil belum dicatat, Not Passed tanpa tindak lanjut, atau Passed tanpa reassessment. Tim membaca requirement In Progress dengan training Completed sebagai tidak konsisten; labelnya menjelaskan bahwa requirement menunggu keputusan HR. Tiga requirement lama yang statusnya memang tertinggal dari training-nya diperbaiki dengan `supabase/maintenance/20261117_d4_sync_requirement_status.sql` (menunggu izin PO).
 - **Nama posisi tersimpan di riwayat kompetensi** (QA-07, temuan F-3). Penilaian yang posisinya sudah tidak ada di master posisi kini menampilkan nama posisi yang disimpan saat penilaian (`position_title_snapshot`), bukan "posisi tidak ada di master". Ini berlaku di Competency Gap › History dan timeline History di profil pegawai. Di production ada 10 penilaian yang terdampak, karena D3 membuat ulang 3 posisi dengan id baru setelah 14 Okt. Teks lama tetap dipakai bila snapshot kosong. Tes ada di `tests/d4/repository.test.ts` dan `tests/d4/dashboard-summary.test.ts`.
 
+## Masukan Pak Emanuel di Show N Tell · 17 Nov 2026
+
+- **Filter, bukan tautan, untuk riwayat** ("kenapa ada filter yang dibuat link?"). Tautan **Show Completed** dan **Show Cancelled** di atas tabel Training Tracking dan Development Requirement dihapus. Keterangannya kini menyebut jumlah yang masuk riwayat dan mengarahkan ke filter Status, satu-satunya cara membukanya. testId `btn-show-completed` dan `btn-show-cancelled` dihapus; skrip Katalon yang mengekliknya perlu memilih Completed atau Cancelled di filter Status (`select-all-status`).
+
 ## Belum selesai
 
 | Item | Alasan | Langkah berikut |
