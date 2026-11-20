@@ -24,7 +24,7 @@ function TargetList({ items, noun }: { items: readonly { key: string; label: str
 }
 
 /** Rows a bulk save refused, with the reason the single-row save gives; they stay selected for another try. */
-function FailureList({ failures }: { failures: readonly BulkFailure[] }) {
+export function FailureList({ failures }: { failures: readonly BulkFailure[] }) {
   if (!failures.length) return null;
   return <div role="alert" data-testid="bulk-failures" className="rounded-xl bg-danger-bg px-4 py-3 text-sm text-danger">
     <p className="font-semibold">{failures.length} tidak tersimpan dan masih dipilih. Perbaiki lalu simpan lagi, atau pilih keputusan lain:</p>

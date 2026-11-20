@@ -1,11 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import { X } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import type { CompetencyFinding } from "../../../competency/types";
+import type { DevelopmentNeedVersion } from "../../../development/types";
 import type { TrainingStatus } from "../../../training/types";
+import { addTrainingToNeeds, bulkSummary, type BulkFailure, type BulkNeed } from "../../data/bulk";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { developmentById, developmentNeeds, employeeById, reassessmentFor, sourceFinding, today, trainingById, trainingDecision, trainingHistory, visibleEmployees } from "../../data/selectors";
+import { FailureList } from "./BulkModals";
+import { canAssess, developmentById, developmentNeeds, employeeById, reassessmentFor, sourceFinding, today, trainingById, trainingDecision, trainingHistory, visibleEmployees } from "../../data/selectors";
 import { followUpOf, isTrainingRollback, meetsBlockedReason, PASSED_RETRAINING, retrainingBlockedReason, TRAINING_RESULTS, type TrainingCompletion, type TrainingDecision } from "../../../shared/rules";
 import { DateField, FormError, FormModal, ModalActions, RadioField, ReadOnlyField, SearchSelectField, SelectField, TextAreaField, TextField } from "../../ui/forms";
 import { Notice, statusLabel } from "../../ui/primitives";
@@ -47,24 +51,48 @@ export function TrainingFormModal({ employeeId, developmentNeedId, onClose, onSa
   // Opened from a requirement or employee page: that context is fixed, not re-pickable.
   const lockedEmployee = employeeId ? employeeById(snapshot, employeeId) : undefined;
   const lockedNeed = developmentNeedId ? needs.find((item) => item.needId === developmentNeedId) : undefined;
+  // Dosen 17 Nov 2026: colleagues join the same training. Each one still needs an open requirement of their own, because
+  // every training is traced to one; nobody adds themselves (W9).
+  const [extras, setExtras] = useState<string[]>([]);
+  const [mainSaved, setMainSaved] = useState("");
+  const [failures, setFailures] = useState<BulkFailure[]>([]);
+  const participantLabel = (item: DevelopmentNeedVersion) => `${employeeById(snapshot, item.employeeId)?.fullName ?? "—"} · ${item.objective}`;
+  const candidates = developmentNeeds(snapshot).filter((item) => item.status !== "Completed" && item.employeeId !== employee && canAssess(snapshot, item.employeeId)
+    && visibleEmployees(snapshot).some((person) => person.id === item.employeeId) && !extras.includes(item.needId));
+  const extraNeeds: BulkNeed[] = extras.flatMap((id) => { const item = developmentById(snapshot, id); return item ? [{ key: id, employeeId: item.employeeId, label: participantLabel(item) }] : []; });
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     setTouched(true);
     if (missing.length) { setError(`Lengkapi ${missing.join(", ")} sebelum menyimpan.`); return; }
     if (futureDone) { setError("Training yang Completed tidak boleh bertanggal setelah hari ini."); return; }
+    if (extras.length && status === "Completed") { setError("Peserta lain hanya untuk status Planned atau In Progress. Hasil Completed dicatat per orang lewat Update Progress."); return; }
     setError("");
-    const saved = await run((source) => source.createTraining({ employeeId: employee, developmentNeedId: need, activity, date, status, result: status === "Completed" ? result : "", notes }), "Training tersimpan dan terhubung ke development requirement-nya.");
-    if (saved.ok) { onSaved?.(saved.value); onClose(); } else setError(saved.error);
+    if (!extras.length) {
+      const saved = await run((source) => source.createTraining({ employeeId: employee, developmentNeedId: need, activity, date, status, result: status === "Completed" ? result : "", notes }), "Training tersimpan dan terhubung ke development requirement-nya.");
+      if (saved.ok) { onSaved?.(saved.value); onClose(); } else setError(saved.error);
+      return;
+    }
+    // The first participant is saved once: after a partial failure only the refused colleagues are tried again.
+    const saved = await run(async (source) => {
+      const id = mainSaved || await source.createTraining({ employeeId: employee, developmentNeedId: need, activity, date, status, result: "", notes });
+      setMainSaved(id);
+      return { id, outcome: await addTrainingToNeeds(source, extraNeeds, { activity, date, status, notes }) };
+    }, ({ outcome }) => bulkSummary({ ...outcome, done: [...(mainSaved ? [] : [need]), ...outcome.done] }, "training"));
+    if (!saved.ok) { setError(saved.error); return; }
+    setFailures(saved.value.outcome.failed);
+    setExtras(saved.value.outcome.failed.map((item) => item.key));
+    if (!saved.value.outcome.failed.length) { onSaved?.(saved.value.id); onClose(); }
   }
 
   return <FormModal title="Add Training" description="Training selalu terhubung ke development requirement sebagai sumbernya." onClose={onClose}
-    footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save Training" />}>
+    footer={<ModalActions onCancel={onClose} busy={busy} submitLabel={extras.length ? `Save ${extras.length + (mainSaved ? 0 : 1)} Trainings` : "Save Training"} />}>
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />
+      <FailureList failures={failures} />
       <div className="grid gap-4 sm:grid-cols-2">
         {lockedEmployee ? <ReadOnlyField label="Employee" testId="employee" value={`${lockedEmployee.fullName} · ${lockedEmployee.employeeId}`} className="sm:col-span-2" />
-          : <SearchSelectField label="Employee" testId="employee" required value={employee} onChange={(value) => { setEmployee(value); setNeed(""); }} error={touched && !employee ? "Employee wajib diisi." : undefined} className="sm:col-span-2" placeholder="Select employee"
+          : <SearchSelectField label="Employee" testId="employee" required value={employee} onChange={(value) => { setEmployee(value); setNeed(""); setExtras((items) => items.filter((id) => developmentById(snapshot, id)?.employeeId !== value)); }} error={touched && !employee ? "Employee wajib diisi." : undefined} className="sm:col-span-2" placeholder="Select employee"
             options={visibleEmployees(snapshot).map((item) => ({ value: item.id, label: `${item.fullName} · ${item.employeeId}` }))} />}
         {lockedNeed ? <ReadOnlyField label="Source requirement" testId="source-requirement" value={`${lockedNeed.objective} · ${statusLabel(lockedNeed.status)}`} className="sm:col-span-2" /> :
         <SelectField label="Source requirement" testId="source-requirement" required value={need} onChange={(event) => setNeed(event.target.value)} error={touched && employee && !needOpen ? "Pilih development requirement yang masih terbuka." : undefined} className="sm:col-span-2"
@@ -72,6 +100,16 @@ export function TrainingFormModal({ employeeId, developmentNeedId, onClose, onSa
           <option value="">{!employee ? "Pilih pegawai terlebih dahulu" : needs.length ? "Select development requirement" : "Pegawai belum memiliki development requirement yang terbuka"}</option>
           {needs.map((item) => <option key={item.needId} value={item.needId}>{item.objective} · {statusLabel(item.status)}</option>)}
         </SelectField>}
+        {employee && <div className="sm:col-span-2">
+          <SearchSelectField label="Other participants" testId="add-participant" value="" onChange={(value) => { if (value) setExtras((items) => [...items, value]); }} placeholder="Add participant"
+            helper="Satu training yang sama untuk tiap peserta, masing-masing terhubung ke requirement-nya sendiri. Hanya pegawai dengan development requirement terbuka yang bisa dipilih."
+            options={candidates.map((item) => ({ value: item.needId, label: participantLabel(item) }))} />
+          {extraNeeds.length > 0 && <ul data-testid="participants" className="mt-2 flex flex-wrap gap-2">{extraNeeds.map((item) => <li key={item.key} className="flex min-w-0 max-w-full items-center gap-1 rounded-lg border border-line py-1 pl-2.5 pr-1 text-xs text-ink-2">
+            <span className="truncate">{item.label}</span>
+            <button type="button" data-testid={`btn-remove-participant-${item.key}`} aria-label={`Remove ${item.label}`} onClick={() => setExtras((items) => items.filter((id) => id !== item.key))}
+              className="grid size-6 shrink-0 place-items-center rounded-md text-ink-3 hover:bg-muted hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/15"><X aria-hidden="true" className="size-3.5" /></button>
+          </li>)}</ul>}
+        </div>}
         <TextField label="Training / activity" testId="training-activity" required maxLength={200} value={activity} onChange={(event) => setActivity(event.target.value)} error={touched && !activity.trim() ? "Nama aktivitas wajib diisi." : undefined} className="sm:col-span-2" />
         <DateField label="Date" testId="date" required max={status === "Completed" ? today() : undefined} value={date} onChange={(event) => setDate(event.target.value)} error={touched && futureDone ? "Tidak boleh lebih dari hari ini untuk training yang Completed." : undefined} />
         <SelectField label="Status" required value={status} onChange={(event) => setStatus(event.target.value as TrainingStatus)}>{STATUSES.map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}</SelectField>
