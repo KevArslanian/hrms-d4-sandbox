@@ -170,7 +170,7 @@ export const unfinalizedPeriods = (snapshot: Snapshot, employeeId: string, today
  * An alert about one person links to the list narrowed to them (`?q=<name>`, K15).
  */
 export function dashboardAlerts(snapshot: Snapshot, rows: readonly DashboardRow[], dailyCatalog: KpiCatalog | null = null, period = "", today = localMonth()): DashboardAlert[] {
-  const found = { under: [] as string[], unfinalized: [] as string[], completedGap: [] as string[], notPassed: [] as string[], noPlan: [] as string[], noPic: [] as string[], dailyUnder: [] as string[], dailyHigh: [] as string[], dailyAllTop: [] as string[], noDaily: [] as string[] };
+  const found = { under: [] as string[], unfinalized: [] as string[], completedGap: [] as string[], notPassed: [] as string[], noPlan: [] as string[], noPic: [] as string[], dailyUnder: [] as string[], dailyHigh: [] as string[], dailyAllTop: [] as string[], noDaily: [] as string[], noTraining: [] as string[] };
   const assign: AssignTarget[] = [];
   let unfinalizedPeriod = "";
   for (const row of rows) {
@@ -208,6 +208,8 @@ export function dashboardAlerts(snapshot: Snapshot, rows: readonly DashboardRow[
     for (const need of needs) {
       if (need.status === "Completed") continue;
       if (!need.pic?.trim()) found.noPic.push(name);
+      // Dosen 17 Nov 2026 ("siapa yang butuh training?"): an open requirement nobody has scheduled a training for yet.
+      if (!trainings.some((item) => item.developmentNeedId === need.needId && item.status !== "Cancelled")) found.noTraining.push(name);
       const last = trainings.filter((item) => item.developmentNeedId === need.needId && item.status !== "Cancelled")
         .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))[0];
       // Q16: waits for HR's follow-up. Retraining adds a newer training; any recorded follow-up clears it.
@@ -218,6 +220,7 @@ export function dashboardAlerts(snapshot: Snapshot, rows: readonly DashboardRow[
     { key: "under-performance", list: found.under, assign, title: "Under Performance", href: "/performance", period, detail: `pegawai di bawah 80 pada ${period ? formatPeriod(period) : "periode ini"}.`, action: "Tindak lanjuti dengan Assign training: development requirement dari Performance Review-nya." },
     { key: "daily-not-finalized", list: found.unfinalized, title: "Daily KPI belum difinalisasi", href: "/performance", period: unfinalizedPeriod, detail: "pegawai punya skor Compiled dari Daily KPI periode yang sudah berakhir, belum menjadi Performance Review.", action: "Finalize from Daily KPI di Performance Review periode itu." },
     { key: "completed-gap-open", list: found.completedGap, title: "Completed, gap masih terbuka", href: "/training", detail: "development requirement Completed atau training Passed, tetapi belum ada penilaian kompetensi baru yang menunjukkan level terpenuhi.", action: "Catat hasil reassessment di detail training." },
+    { key: "requirement-no-training", list: found.noTraining, title: "Butuh training", href: "/development", detail: "development requirement terbuka belum punya training.", action: "Jadwalkan dengan Create Training di requirement-nya; teman yang ikut training sama bisa ditambahkan di form itu." },
     { key: "training-not-passed", list: found.notPassed, title: "Training Not Passed", label: "Awaiting follow-up", href: "/training", detail: "development requirement dengan training terakhir Not Passed dan belum ada tindak lanjut.", action: "Catat Retraining atau Other follow-up di detail training." },
     { key: "gap-no-requirement", list: found.noPlan, title: "Gap tanpa development requirement", href: "/competency", detail: "gap kompetensi belum dibuatkan development requirement." },
     { key: "daily-under", list: found.dailyUnder, title: "Daily KPI Under Performance 3 hari", href: "/daily-kpi", detail: `pegawai dengan total Daily KPI di bawah ${UNDER_BELOW} pada tiga entri terakhir berturut-turut di ${formatPeriod(today)}.`, action: "Panggil pegawai ini untuk ditindaklanjuti." },

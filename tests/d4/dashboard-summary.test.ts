@@ -142,6 +142,13 @@ describe("People Dashboard charts", () => {
     expect(keys(notPassed)).toContain("training-not-passed");
     const retrained = { ...notPassed, trainingVersions: [...notPassed.trainingVersions, training("T2", "2026-10-20", "Planned", "")] };
     expect(keys(retrained)).not.toContain("training-not-passed");
+
+    // Dosen 17 Nov 2026: who needs training. An open requirement without a training, a cancelled one does not count.
+    expect(keys(noPic)).toContain("requirement-no-training");
+    const cancelled = { ...noPic, trainingVersions: [training("T3", "2026-10-05", "Cancelled", "")] };
+    expect(keys(cancelled)).toContain("requirement-no-training");
+    expect(keys(notPassed)).not.toContain("requirement-no-training");
+    expect(keys(completed)).not.toContain("requirement-no-training");
   });
 });
 
