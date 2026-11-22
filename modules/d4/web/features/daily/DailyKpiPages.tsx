@@ -136,7 +136,7 @@ function MyDailyKpi({ team }: { team: boolean }) {
         {date === today() && !savedFor(today()) && <div data-testid="daily-reminder"><Notice tone="warning">Daily KPI hari ini belum diisi. Isi sebelum pulang.</Notice></div>}
         {/* A forgotten day can still be filled until the month ends: each one opens that date in this form. */}
         {missed.length > 0 && <div data-testid="daily-missed"><Notice tone="warning">
-          <span className="font-semibold">{missed.length} hari kerja bulan ini belum diisi.</span> Pilih tanggalnya untuk mengisi, satu per satu, sampai akhir {formatPeriod(period)}:
+          <span className="font-semibold">{missed.length} hari kerja bulan ini belum diisi.</span> Pilih tanggalnya untuk mengisi, satu per satu, sampai akhir {formatPeriod(period)}. Lewati tanggal libur:
           <span className="mt-2 flex flex-wrap gap-2">{missed.map((day) => <button key={day} type="button" data-testid={`missed-${day}`} onClick={() => chooseDate(day)}
             className={cx("rounded-lg border px-2.5 py-1 text-xs font-semibold", day === date ? "border-primary-500 bg-primary-50 text-primary-600" : "border-line bg-surface text-ink hover:border-primary-500")}>{shortDay(day)}</button>)}</span>
         </Notice></div>}

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { AlertTriangle, ArrowLeft, CheckCircle2, ChevronRight, Inbox, Lock, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ChevronRight, Inbox, Lock, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useD4 } from "../data/D4DataProvider";
 import { Avatar, Button, cx, StatusBadge } from "./primitives";
@@ -128,13 +128,18 @@ export function Forbidden() {
 
 export function Toasts() {
   const { toasts, dismissToast } = useD4();
-  return <div aria-live="polite" className="pointer-events-none fixed right-4 top-4 z-[80] flex w-[min(380px,calc(100vw-2rem))] flex-col gap-2">
-    {toasts.map((toast) => <div key={toast.id} role={toast.tone === "error" ? "alert" : "status"} data-testid={`toast-${toast.tone}`} className="pointer-events-auto flex items-start gap-3 rounded-xl border border-line bg-surface p-3 shadow-modal">
-      <span className={cx("flex size-8 shrink-0 items-center justify-center rounded-full", toast.tone === "success" ? "bg-success-bg text-success" : "bg-danger-bg text-danger")}>
-        {toast.tone === "success" ? <CheckCircle2 className="size-4" /> : <AlertTriangle className="size-4" />}
-      </span>
-      <p className="flex-1 pt-1.5 text-sm text-ink">{toast.text}</p>
-      <button type="button" data-testid="btn-toast-close" aria-label="Dismiss notification" onClick={() => dismissToast(toast.id)} className="rounded p-1 text-ink-3 hover:bg-muted"><X className="size-4" /></button>
+  // Bottom right, so a toast never covers the header bell or its panel (PST 2).
+  return <div aria-live="polite" className="pointer-events-none fixed bottom-4 right-4 z-[80] flex w-[min(451px,calc(100vw-2rem))] flex-col gap-2">
+    {/* Design System PISD 6410:132 (Normal state). The error toast follows the same shape in the System/business error red.
+        Solid instead of the 70% fill: a toast floats over tables, and their text would show through. */}
+    {toasts.map((toast) => <div key={toast.id} role={toast.tone === "error" ? "alert" : "status"} data-testid={`toast-${toast.tone}`}
+      className={cx("pointer-events-auto flex items-start gap-3 rounded-xl border px-4 py-3 font-display shadow-card", toast.tone === "success" ? "border-[#a7f3d0] bg-[#ecfdf5]" : "border-[#f5b8c2] bg-danger-bg")}>
+      <div className="min-w-0 flex-1">
+        <p className={cx("text-xs font-bold leading-4", toast.tone === "success" ? "text-[#064e3b]" : "text-[#8f1c2d]")}>{toast.tone === "success" ? "SUCCEED" : "FAILED"}</p>
+        <p className={cx("mt-0.5 text-sm leading-5", toast.tone === "success" ? "text-[#047857]" : "text-[#b42335]")}>{toast.text}</p>
+      </div>
+      <button type="button" data-testid="btn-toast-close" aria-label="Dismiss notification" onClick={() => dismissToast(toast.id)}
+        className={cx("-mr-1 rounded p-1", toast.tone === "success" ? "text-[#047857] hover:bg-[#a7f3d0]/40" : "text-[#b42335] hover:bg-[#f5b8c2]/40")}><X className="size-4" /></button>
     </div>)}
   </div>;
 }
