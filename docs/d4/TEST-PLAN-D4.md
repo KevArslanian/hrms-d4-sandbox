@@ -240,12 +240,13 @@ Keputusan 8 Nov 2026: pegawai mengisi skornya sendiri per hari; skor periode dik
 | TC-D4-008-10 | Test Finalize from Daily KPI: skor read-only, Notes dan Reference wajib, simpan membuat scorecard periode dengan total = skor kompilasi, lalu status menjadi Completed | Positif | Not Run | Staging: O5, O7 |
 | TC-D4-008-11 | Test Finalize tidak tersedia untuk diri sendiri, Employee, dan Management; grafik dan ringkasan dashboard tidak menghitung skor Compiled | Negatif | Not Run | Staging: O7, O8 |
 | TC-D4-008-12 | Test pengingat B5: pegawai yang belum mengisi hari ini melihat "Daily KPI hari ini belum diisi. Isi sebelum pulang."; setelah menyimpan, pengingat hilang | Positif | Not Run | Staging: O7 |
-| TC-D4-008-13 | Test lonceng notifikasi: badge "1" dan panel terbuka sendiri sekali per hari selama Daily KPI hari ini belum diisi; "Isi sekarang" membuka `/daily-kpi`; setelah diisi, badge hilang; Simulasi Employee langsung membuka `/daily-kpi` | Positif | Not Run | Staging: O7 |
+| TC-D4-008-13 | Test lonceng notifikasi: badge menghitung pengingat (Employee: "1") dan panel terbuka sendiri sekali untuk setiap kumpulan pengingat yang baru, selama Daily KPI hari ini belum diisi; "Isi sekarang" membuka `/daily-kpi`; setelah diisi, badge hilang; Simulasi Employee langsung membuka `/daily-kpi` | Positif | Not Run | Staging: O7 |
 | TC-D4-008-14 | Test kolom Category di tabel entri harian: Under/Average/High Performance per hari untuk skala 1–100, "—" untuk 1–5 | Positif | Not Run | Staging: O5, O7 |
 | TC-D4-008-15 | Test mengisi hari sebelumnya di periode berjalan (bukan tanggal 1): entri kemarin tersimpan, Days filled bertambah, skor kompilasi memakai rata-rata semua hari | Positif | Not Run | Staging: O7 |
 | TC-D4-008-16 | Test pemantauan tim oleh HR dan Management: pegawai tanpa entri di baris teratas ("No entries"), View entries membuka Daily entries, Management tanpa aksi simpan untuk pegawai lain | Positif | Not Run | Staging: O7, O8 |
 | TC-D4-008-17 | Test gagal simpan saat offline: toast "Tidak dapat terhubung ke server. Periksa koneksi internet lalu coba lagi." dan entri tidak tersimpan | Negatif | Not Run | Staging: O7 |
 | TC-D4-008-18 | Test sebelum migrasi Daily KPI: pesan "Daily KPI belum tersedia karena database belum diperbarui (migrasi 20261108130000). Menu lain tetap bisa dipakai." dan menu lain tetap berjalan | Negatif | Pass (10 Nov 2026, produksi, Simulasi Employee) | Hanya sebelum migrasi langkah 6 |
+| TC-D4-008-19 | Test lonceng "Butuh training" (PST 2): sebagai HR, buat satu requirement terbuka tanpa training atau batalkan training satu-satunya; lonceng menampilkan "1 pegawai butuh training", panel terbuka sendiri, "Buat training" membuka `/development`, dan alert **Butuh training** muncul di People Dashboard. Sebagai Employee dan Management, pengingat ini tidak muncul | Positif | Not Run | – |
 
 ### TC-D4-SEC · TR-D4-002 Security & audit
 

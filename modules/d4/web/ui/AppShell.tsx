@@ -3,14 +3,14 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Bell, ChevronDown, LayoutDashboard, Menu, Users, X } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { catalogFor, roleForPosition } from "../../kpi/catalog";
+import { catalogFor, roleForPosition, type KpiCatalogSet } from "../../kpi/catalog";
 import { canFillDaily } from "../../shared/rules";
 import { createD4BrowserClient } from "../../supabase/client";
 import { useD4 } from "../data/D4DataProvider";
 import { endPreviewSession } from "../data/preview-session";
-import { thisMonth, today } from "../data/selectors";
+import { canWrite, developmentNeeds, needsTraining, thisMonth, today, visibleEmployees, type Snapshot } from "../data/selectors";
 import { Button, cx, slug } from "./primitives";
 
 // People Dashboard first: it is the HR landing page and the summary the other five pages feed (decision 13 Nov 2026).
@@ -109,8 +109,11 @@ function Sidebar({ onNavigate, onClose }: { onNavigate: () => void; onClose: () 
   const homeActive = Boolean(home && isActive(home.href));
 
   return <div className="flex h-full flex-col bg-[#0f2342] px-4 pb-5 pt-4 text-white">
-    <div className="relative flex h-12 items-center justify-center">
-      <div className="text-center"><p className="font-display text-xl font-bold leading-7 tracking-[-0.5px]">ANDIMA</p><p className="font-display text-xs leading-4 text-[#d9e2fc]/80">Logistics Suite</p></div>
+    {/* Design System PISD 5858:643: logo 52x35, then the wordmark, 12 px apart. */}
+    <div className="relative flex h-12 items-center gap-3 px-2">
+      {/* eslint-disable-next-line @next/next/no-img-element -- a 52 px static logo; the login page loads it the same way. */}
+      <img src="/andima-logo.png" alt="" width={52} height={35} data-testid="sidebar-logo" className="h-[35px] w-[52px] object-contain" />
+      <div><p className="font-display text-xl font-bold leading-7">ANDIMA</p><p className="font-display text-xs leading-4 text-[#d9e2fc]/80">Logistics Suite</p></div>
       <button type="button" onClick={onClose} data-testid="btn-sidebar-close" className="absolute right-0 rounded p-1 text-[#d9e2fc] lg:hidden" aria-label="Close navigation"><X size={18} /></button>
     </div>
 
@@ -153,22 +156,49 @@ function Sidebar({ onNavigate, onClose }: { onNavigate: () => void; onClose: () 
   </div>;
 }
 
-type Notification = { id: string; title: string; text: string; href: string };
+type Notification = { id: string; title: string; text: string; href: string; action: string };
 
 /** B5 (interview D4, 14 Oct 2026): everyone with a KPI role scores today's Daily KPI; until then this is their notification. */
 function useNotifications(): Notification[] {
   const { snapshot, catalog } = useD4();
-  if (!snapshot?.kpiDaily || !canFillDaily(snapshot.role, snapshot.actorEmployeeId)) return [];
+  if (!snapshot) return [];
+  return [dailyReminder(snapshot, catalog), trainingReminder(snapshot)].filter((item): item is Notification => Boolean(item));
+}
+
+function dailyReminder(snapshot: Snapshot, catalog: KpiCatalogSet | null): Notification | null {
+  if (!snapshot.kpiDaily || !canFillDaily(snapshot.role, snapshot.actorEmployeeId)) return null;
   const periodCatalog = catalog ? catalogFor(catalog, thisMonth()) : null;
   const me = snapshot.reference.employees.find((item) => item.id === snapshot.actorEmployeeId);
-  if (!periodCatalog || !roleForPosition(periodCatalog, me?.positionId)) return [];
+  if (!periodCatalog || !roleForPosition(periodCatalog, me?.positionId)) return null;
   const day = today();
-  if (snapshot.kpiDaily.some((entry) => entry.employeeId === snapshot.actorEmployeeId && entry.entryDate === day)) return [];
-  return [{ id: `daily-kpi-${snapshot.actorEmployeeId}-${day}`, title: "Daily KPI hari ini belum diisi", text: "Isi skor lima Core KPI Anda sebelum pulang.", href: "/daily-kpi" }];
+  if (snapshot.kpiDaily.some((entry) => entry.employeeId === snapshot.actorEmployeeId && entry.entryDate === day)) return null;
+  return { id: `daily-kpi-${snapshot.actorEmployeeId}-${day}`, title: "Daily KPI hari ini belum diisi", text: "Isi skor lima Core KPI Anda sebelum pulang.", href: "/daily-kpi", action: "Isi sekarang" };
+}
+
+/** PST 2 (Kei): HR and managers see who still needs training without opening the dashboard first. */
+function trainingReminder(snapshot: Snapshot): Notification | null {
+  if (!canWrite(snapshot)) return null;
+  const visible = new Set(visibleEmployees(snapshot).map((item) => item.id));
+  const waiting = developmentNeeds(snapshot).filter((need) => visible.has(need.employeeId) && needsTraining(snapshot, need));
+  if (!waiting.length) return null;
+  const people = new Set(waiting.map((need) => need.employeeId)).size;
+  return { id: `need-training-${waiting.map((need) => need.needId).join(",")}`, title: `${people} pegawai butuh training`,
+    text: `${waiting.length} development requirement terbuka belum punya training.`, href: "/development", action: "Buat training" };
 }
 
 // The last reminder that was opened or dismissed, per browser: the panel opens by itself once per reminder, not on every page.
 const SEEN_KEY = "d4-notification-seen";
+const COLLAPSED_KEY = "d4-sidebar-collapsed";
+// Read through useSyncExternalStore: the server renders the sidebar open, the browser then applies the saved choice.
+const collapsedListeners = new Set<() => void>();
+let collapsedInMemory = false;
+const onCollapsedChange = (listener: () => void) => { collapsedListeners.add(listener); return () => { collapsedListeners.delete(listener); }; };
+const readCollapsed = () => { try { return localStorage.getItem(COLLAPSED_KEY) === "1"; } catch { return collapsedInMemory; } };
+function writeCollapsed(next: boolean) {
+  collapsedInMemory = next;
+  try { localStorage.setItem(COLLAPSED_KEY, next ? "1" : "0"); } catch { /* blocked storage: kept for this page view */ }
+  collapsedListeners.forEach((listener) => listener());
+}
 const wasSeen = (id: string) => { try { return localStorage.getItem(SEEN_KEY) === id; } catch { return false; } };
 const markSeen = (id: string) => { try { localStorage.setItem(SEEN_KEY, id); } catch { /* blocked storage: it opens again next load */ } };
 
@@ -179,10 +209,12 @@ function NotificationBell() {
   const [dismissed, setDismissed] = useState<string | null>(null);
   const wrapper = useRef<HTMLDivElement>(null);
   const first = items[0];
+  // Seen per set of reminders, so a new one (say, someone now needs training) opens the panel again.
+  const key = items.map((item) => item.id).join("|");
   // Opens by itself so nobody has to look for it, except on the page the reminder points to.
-  const shown = open || (Boolean(first) && pathname !== first.href && dismissed !== first.id && !wasSeen(first.id));
+  const shown = open || (Boolean(first) && pathname !== first.href && dismissed !== key && !wasSeen(key));
   function close() {
-    if (first) { markSeen(first.id); setDismissed(first.id); }
+    if (first) { markSeen(key); setDismissed(key); }
     setOpen(false);
   }
   useEffect(() => {
@@ -204,7 +236,7 @@ function NotificationBell() {
       {items.length ? items.map((item) => <Link key={item.id} href={item.href} onClick={close} data-testid="notification-item" className="block rounded-xl px-3 py-2.5 hover:bg-muted">
         <span className="flex items-center gap-2 text-sm font-semibold text-ink"><span aria-hidden="true" className="size-2 shrink-0 rounded-full bg-danger" />{item.title}</span>
         <span className="mt-0.5 block text-xs text-ink-2">{item.text}</span>
-        <span className="mt-2 inline-block text-xs font-semibold text-primary-600">Isi sekarang</span>
+        <span className="mt-2 inline-block text-xs font-semibold text-primary-600">{item.action}</span>
       </Link>) : <p className="px-3 py-2.5 text-sm text-ink-3">Tidak ada notifikasi.</p>}
     </div>}
   </div>;
@@ -214,6 +246,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { snapshot, mode } = useD4();
   const [menuOpen, setMenuOpen] = useState(false);
+  // Design System PISD 5858:737: on a desktop the same button hides the sidebar; the choice stays per browser.
+  const collapsed = useSyncExternalStore(onCollapsedChange, readCollapsed, () => false);
+  const toggleMenu = () => {
+    if (window.matchMedia("(min-width: 1024px)").matches) writeCollapsed(!collapsed);
+    else setMenuOpen(!menuOpen);
+  };
   const menuButton = useRef<HTMLButtonElement>(null);
   const drawer = useRef<HTMLElement>(null);
   const matches = (item: { href: string }) => pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -258,15 +296,19 @@ export function AppShell({ children }: { children: ReactNode }) {
     {menuOpen && <button type="button" aria-label="Close menu" tabIndex={-1} className="fixed inset-0 z-30 bg-ink/40 lg:hidden" onClick={closeMenu} />}
     {/* Closed on a phone it is also invisible, so Tab does not walk through links that are off screen. Visibility is part of
         the transition only when closing: it hides after the slide-out, and shows at once on opening so focus can move in. */}
-    <aside ref={drawer} className={cx("fixed inset-y-0 left-0 z-40 w-[260px] lg:visible lg:translate-x-0", menuOpen ? "translate-x-0 transition-transform" : "invisible -translate-x-full transition-[transform,visibility]")}>
+    <aside ref={drawer} data-testid="sidebar-panel" className={cx("fixed inset-y-0 left-0 z-40 w-[260px]", !collapsed && "lg:visible lg:translate-x-0", menuOpen ? "translate-x-0 transition-transform" : "invisible -translate-x-full transition-[transform,visibility]")}>
       <Sidebar onNavigate={closeMenu} onClose={closeMenu} />
     </aside>
-    <div className="lg:pl-[260px]">
+    <div className={cx(!collapsed && "lg:pl-[260px]")}>
       {/* Tighter gaps on a phone: at 320 px the header (menu, bell, avatar) otherwise pushes the avatar off screen. */}
       <header className="sticky top-0 z-20 flex h-16 items-center gap-2 border-b border-line bg-surface px-4 sm:gap-4 sm:px-8">
-        <button ref={menuButton} type="button" data-testid="btn-mobile-menu" aria-label={menuOpen ? "Close menu" : "Open menu"} className="rounded-lg p-2 text-ink-2 hover:bg-muted lg:hidden" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}</button>
-        <strong className="font-display text-sm font-semibold text-ink">ANDIMA HRMS</strong>
-        <span aria-hidden="true" className="hidden h-5 w-px bg-line-strong sm:block" />
+        {/* One button for both sizes: drawer on a phone, collapse on a desktop. 24 px mark, 40 px hit area. */}
+        <button ref={menuButton} type="button" data-testid="btn-mobile-menu" aria-label={menuOpen || !collapsed ? "Hide menu" : "Show menu"} aria-expanded={menuOpen}
+          className="-ml-2 rounded-lg p-2 hover:bg-muted sm:-ml-2" onClick={toggleMenu}>
+          <span className="flex size-6 items-center justify-center rounded-[5px] bg-[#3b6ff5] text-white"><Menu aria-hidden="true" className="size-[18px]" strokeWidth={2.5} /></span>
+        </button>
+        <strong className="font-display text-base font-semibold text-ink">ANDIMA HRMS</strong>
+        <span aria-hidden="true" className="hidden h-5 w-px bg-[#d9e2fc] sm:block" />
         <p data-testid="header-breadcrumb" className="hidden flex-1 truncate text-xs text-ink-2 sm:block">HRMS / {current?.label ?? "Performance & Training"}</p>
         <span className="flex-1 sm:hidden" />
         {mode === "fixture" && <span className="hidden rounded-full bg-warning-bg px-2.5 py-1 text-[11px] font-semibold text-warning md:inline">Pratinjau · data contoh</span>}

@@ -40,3 +40,20 @@ export function workingDaysSoFar(period: string, today: string): number {
   }
   return count;
 }
+
+/**
+ * Working days (Monday to Friday) of the running period before `today` that have no entry, oldest first. They can still
+ * be filled one by one until the period ends; today has its own reminder. Lecturer, 22 Nov 2026: "kalau lupa isinya
+ * lebih dari 1 hari?"
+ */
+export function missedWorkingDays(period: string, today: string, filled: ReadonlySet<string>): string[] {
+  if (period !== today.slice(0, 7)) return [];
+  const [year, month] = period.split("-").map(Number);
+  const missed: string[] = [];
+  for (let day = 1; day < Number(today.slice(8, 10)); day += 1) {
+    const date = `${period}-${String(day).padStart(2, "0")}`;
+    const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+    if (weekday !== 0 && weekday !== 6 && !filled.has(date)) missed.push(date);
+  }
+  return missed;
+}
