@@ -25,7 +25,7 @@ type D4Data = {
    * Runs a write, refreshes the snapshot, and shows a toast. Returns the error message for inline form feedback.
    * `success` may depend on the result, e.g. how many rows a bulk action saved.
    */
-  run: <T>(operation: (source: D4DataSource) => Promise<T>, success: string | ((value: T) => string)) => Promise<Result<T>>;
+  run: <T>(operation: (source: D4DataSource) => Promise<T>, success: string | ((value: T) => string), options?: { refreshInBackground?: boolean }) => Promise<Result<T>>;
   toasts: ToastMessage[];
   dismissToast: (id: number) => void;
 };
@@ -86,7 +86,7 @@ export function D4DataProvider({ children, mode }: { children: ReactNode; mode: 
     return () => { active = false; };
   }, [source, router, attempt]);
 
-  const run = useCallback(async <T,>(operation: (data: D4DataSource) => Promise<T>, successText: string | ((value: T) => string)): Promise<Result<T>> => {
+  const run = useCallback(async <T,>(operation: (data: D4DataSource) => Promise<T>, successText: string | ((value: T) => string), options?: { refreshInBackground?: boolean }): Promise<Result<T>> => {
     if (writing.current) return { ok: false, error: "Penyimpanan sebelumnya masih diproses." };
     writing.current = true;
     setBusy(true);
@@ -109,14 +109,19 @@ export function D4DataProvider({ children, mode }: { children: ReactNode; mode: 
     }
     // The write already succeeded; a failed refresh must not read as a failed save, or the user may submit twice.
     const success = typeof successText === "function" ? successText(value) : successText;
-    try {
-      setSnapshot(await data.loadSnapshot());
-      pushToast("success", success);
-    } catch {
-      pushToast("error", `${success} Namun data terbaru gagal dimuat; muat ulang halaman sebelum menyimpan lagi.`);
-    }
-    writing.current = false;
-    setBusy(false);
+    const refresh = (async () => {
+      try {
+        setSnapshot(await data.loadSnapshot());
+        pushToast("success", success);
+      } catch {
+        pushToast("error", `${success} Namun data terbaru gagal dimuat; muat ulang halaman sebelum menyimpan lagi.`);
+      }
+      writing.current = false;
+      setBusy(false);
+    })();
+    // PST 2: the whole snapshot reload took seconds on production while the form stayed open. With this option the
+    // form closes once the write is in; saving stays locked (busy) until the new data has arrived.
+    if (!options?.refreshInBackground) await refresh;
     return { ok: true, value };
   }, [source, pushToast]);
 

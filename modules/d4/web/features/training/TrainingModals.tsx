@@ -87,6 +87,8 @@ const FOLLOW_UP_OPTIONS = [
   { value: "Other follow-up", label: "Other follow-up", description: "Coaching, rotasi, atau eskalasi ke atasan. Catatan wajib." },
 ];
 const LATER = "Decide later";
+/** Update Progress closes as soon as the training is saved; the list refreshes behind it (PST 2). */
+export const BACKGROUND = { refreshInBackground: true };
 export const PASSED_HELPER = "Passed berarti lulus training. Di sini dicatat apakah level kompetensinya sudah memenuhi requirement: lulus training belum tentu menutup gap.";
 // TextAreaField's default limit, the server limit of notes.
 const NOTES_MAX = 2000;
@@ -153,8 +155,8 @@ export function TrainingProgressModal({ trainingId, onClose, onSaved }: { traini
     if (missing.length) { setError(`Lengkapi ${missing.join(", ")} sebelum menyimpan.`); return; }
     setError("");
     const saved = deciding && !later
-      ? await run((source) => source.completeTraining(trainingId, { result: result as TrainingCompletion["result"], decision: decision as TrainingDecision, notes, ...(retraining ? { activity, date } : {}) }), DONE[`${result} · ${decision}`])
-      : await run((source) => source.updateTraining(trainingId, status, saveResult, notes), later ? "Training Completed (Passed). Catat hasil reassessment dari Next step setelah level di data kompetensi pegawai (modul D3) diperbarui." : "Progres training tersimpan sebagai versi baru.");
+      ? await run((source) => source.completeTraining(trainingId, { result: result as TrainingCompletion["result"], decision: decision as TrainingDecision, notes, ...(retraining ? { activity, date } : {}) }), DONE[`${result} · ${decision}`], BACKGROUND)
+      : await run((source) => source.updateTraining(trainingId, status, saveResult, notes), later ? "Training Completed (Passed). Catat hasil reassessment dari Next step setelah level di data kompetensi pegawai (modul D3) diperbarui." : "Progres training tersimpan sebagai versi baru.", BACKGROUND);
     if (saved.ok) { onSaved?.(); onClose(); } else setError(saved.error);
   }
 

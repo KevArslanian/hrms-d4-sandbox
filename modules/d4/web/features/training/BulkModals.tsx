@@ -8,7 +8,7 @@ import { useD4 } from "../../data/D4DataProvider";
 import { today } from "../../data/selectors";
 import { DateField, FormError, FormModal, ModalActions, RadioField, SelectField, TextAreaField, TextField } from "../../ui/forms";
 import { Notice, statusLabel } from "../../ui/primitives";
-import { PASSED_HELPER } from "./TrainingModals";
+import { BACKGROUND, PASSED_HELPER } from "./TrainingModals";
 
 // TextAreaField's default limit, the server limit of notes.
 const NOTES_MAX = 2000;
@@ -128,7 +128,7 @@ export function BulkProgressModal({ trainings, onClose, onDone }: { trainings: r
       ? { status, result: result as TrainingCompletion["result"], decision: decision as TrainingDecision | typeof DECIDE_LATER, notes, ...(retraining ? { activity, date } : {}) }
       : { status, notes };
     let outcome: BulkOutcome | undefined;
-    const saved = await run(async (source) => requireSome(outcome = await updateTrainings(source, trainings, change)), (value) => bulkSummary(value, "training"));
+    const saved = await run(async (source) => requireSome(outcome = await updateTrainings(source, trainings, change)), (value) => bulkSummary(value, "training"), BACKGROUND);
     settle(saved.ok ? saved.value : outcome, saved.ok ? "" : saved.error);
   }
   /** Same as in BulkTrainingModal: refused rows stay listed and selected, a fully saved batch closes the form. */
