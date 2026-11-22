@@ -87,6 +87,7 @@ const FOLLOW_UP_OPTIONS = [
   { value: "Other follow-up", label: "Other follow-up", description: "Coaching, rotasi, atau eskalasi ke atasan. Catatan wajib." },
 ];
 const LATER = "Decide later";
+export const PASSED_HELPER = "Passed berarti lulus training. Di sini dicatat apakah level kompetensinya sudah memenuhi requirement: lulus training belum tentu menutup gap.";
 // TextAreaField's default limit, the server limit of notes.
 const NOTES_MAX = 2000;
 
@@ -132,8 +133,9 @@ export function TrainingProgressModal({ trainingId, onClose, onSaved }: { traini
   const retraining = deciding && decision === "Retraining", other = deciding && decision === "Other follow-up";
   const later = deciding && decision === LATER;
   const options = result === "Passed" ? [
-    { value: "Meets requirement", label: "Meets requirement", description: blocked ? "Belum bisa: level kompetensinya belum memenuhi. Perbarui dulu di data kompetensi pegawai (modul D3)." : "Gap tertutup. Requirement ditutup (Completed).", testId: "meets-requirement", disabled: Boolean(blocked) },
-    { value: "Retraining", label: "Retraining", description: "Gap belum tertutup. Requirement dibuka lagi dan training ulang dibuat (Planned)." },
+    // PST 2: "Passed" beside a bare "Retraining" read as a contradiction; the labels say it is the gap that decides.
+    { value: "Meets requirement", label: "Gap closed: Meets requirement", description: blocked ? "Belum bisa: level kompetensinya belum memenuhi. Perbarui dulu di data kompetensi pegawai (modul D3)." : "Gap tertutup. Requirement ditutup (Completed).", testId: "meets-requirement", disabled: Boolean(blocked) },
+    { value: "Retraining", label: "Gap still open: Retraining", description: "Lulus training, tetapi level kompetensinya masih di bawah requirement. Requirement dibuka lagi dan training ulang dibuat (Planned)." },
     { value: LATER, label: LATER, description: "Hasil Passed disimpan sekarang. Keputusan dicatat nanti dari Next step, setelah level di data kompetensi pegawai (modul D3) diperbarui.", testId: "decide-later" },
   ] : FOLLOW_UP_OPTIONS;
   const saveResult = status === "Completed" ? result : "";
@@ -146,7 +148,7 @@ export function TrainingProgressModal({ trainingId, onClose, onSaved }: { traini
     if (status === "Completed" && !result) { setError("Result wajib dipilih bila status Completed: Passed atau Not Passed."); return; }
     if (rollback && !notes.trim()) { setError(`Alasan wajib diisi saat status mundur dari ${statusLabel(record!.status)} ke ${statusLabel(status)}.`); return; }
     // R3: only the choices that can be picked are named.
-    if (deciding && !decision) { setError(`${result === "Passed" ? "Pilih hasil reassessment" : "Pilih tindak lanjut"}: ${orList(options.filter((item) => !("disabled" in item && item.disabled)).map((item) => item.label))}.`); return; }
+    if (deciding && !decision) { setError(`${result === "Passed" ? "Pilih Competency after training" : "Pilih tindak lanjut"}: ${orList(options.filter((item) => !("disabled" in item && item.disabled)).map((item) => item.label))}.`); return; }
     const missing = [retraining && !activity.trim() && "training/activity", retraining && !date && "date", other && !notes.trim() && "notes"].filter(Boolean);
     if (missing.length) { setError(`Lengkapi ${missing.join(", ")} sebelum menyimpan.`); return; }
     setError("");
@@ -168,7 +170,8 @@ export function TrainingProgressModal({ trainingId, onClose, onSaved }: { traini
         : <ResultField value={result} onChange={(value) => { setResult(value); setDecision(""); setError(""); }} error={touched && !result ? "Result wajib dipilih." : undefined} hint={false} />)}
       {deciding && <>
         {result === "Passed" && finding && <LevelLine finding={finding} />}
-        <RadioField label={result === "Passed" ? "Reassessment result" : "Follow-up"} testId={result === "Passed" ? "reassessment" : "follow-up"} required value={decision}
+        <RadioField label={result === "Passed" ? "Competency after training" : "Follow-up"} testId={result === "Passed" ? "reassessment" : "follow-up"} required value={decision}
+          helper={result === "Passed" ? PASSED_HELPER : undefined}
           onChange={(value) => { setDecision(value); setError(""); }} options={options}
           error={touched && !decision ? (result === "Passed" ? "Hasil reassessment wajib dipilih." : "Pilih tindak lanjut.") : undefined} />
         {retraining && <div className="grid gap-4 sm:grid-cols-2">

@@ -8,6 +8,7 @@ import { useD4 } from "../../data/D4DataProvider";
 import { today } from "../../data/selectors";
 import { DateField, FormError, FormModal, ModalActions, RadioField, SelectField, TextAreaField, TextField } from "../../ui/forms";
 import { Notice, statusLabel } from "../../ui/primitives";
+import { PASSED_HELPER } from "./TrainingModals";
 
 // TextAreaField's default limit, the server limit of notes.
 const NOTES_MAX = 2000;
@@ -85,8 +86,8 @@ export function BulkTrainingModal({ needs, onClose, onDone }: { needs: readonly 
 }
 
 const PASSED_OPTIONS = [
-  { value: "Meets requirement", label: "Meets requirement", description: "Gap tertutup. Untuk requirement dari Competency Gap, hanya tersimpan bila level di data kompetensi (D3) sudah memenuhi.", testId: "meets-requirement" },
-  { value: "Retraining", label: "Retraining", description: "Gap belum tertutup. Requirement dibuka lagi dan training ulang dibuat (Planned)." },
+  { value: "Meets requirement", label: "Gap closed: Meets requirement", description: "Gap tertutup. Untuk requirement dari Competency Gap, hanya tersimpan bila level di data kompetensi (D3) sudah memenuhi.", testId: "meets-requirement" },
+  { value: "Retraining", label: "Gap still open: Retraining", description: "Lulus training, tetapi level kompetensinya masih di bawah requirement. Requirement dibuka lagi dan training ulang dibuat (Planned)." },
   { value: DECIDE_LATER, label: DECIDE_LATER, description: "Hasil Passed disimpan sekarang; reassessment dicatat nanti dari Next step.", testId: "decide-later" },
 ];
 const NOT_PASSED_OPTIONS = [
@@ -119,7 +120,7 @@ export function BulkProgressModal({ trainings, onClose, onDone }: { trainings: r
     event.preventDefault();
     setTouched(true);
     if (completing && !result) { setError("Result wajib dipilih bila status Completed: Passed atau Not Passed."); return; }
-    if (completing && !decision) { setError(result === "Passed" ? "Pilih hasil reassessment: Meets requirement, Retraining, atau Decide later." : "Pilih tindak lanjut: Retraining atau Other follow-up."); return; }
+    if (completing && !decision) { setError(result === "Passed" ? "Pilih Competency after training: Gap closed, Gap still open, atau Decide later." : "Pilih tindak lanjut: Retraining atau Other follow-up."); return; }
     const missing = [retraining && !activity.trim() && "training/activity", retraining && !date && "date", other && !notes.trim() && "notes"].filter(Boolean);
     if (missing.length) { setError(`Lengkapi ${missing.join(", ")} sebelum menyimpan.`); return; }
     setError("");
@@ -154,7 +155,8 @@ export function BulkProgressModal({ trainings, onClose, onDone }: { trainings: r
           <option value="">Select result</option>
           {TRAINING_RESULTS.map((item) => <option key={item} value={item}>{item}</option>)}
         </SelectField>
-        {result && <RadioField label={result === "Passed" ? "Reassessment result" : "Follow-up"} testId={result === "Passed" ? "bulk-reassessment" : "bulk-follow-up"} required value={decision}
+        {result && <RadioField label={result === "Passed" ? "Competency after training" : "Follow-up"} testId={result === "Passed" ? "bulk-reassessment" : "bulk-follow-up"} required value={decision}
+          helper={result === "Passed" ? PASSED_HELPER : undefined}
           onChange={(value) => { setDecision(value); setError(""); }} options={result === "Passed" ? PASSED_OPTIONS : NOT_PASSED_OPTIONS}
           error={touched && !decision ? (result === "Passed" ? "Hasil reassessment wajib dipilih." : "Pilih tindak lanjut.") : undefined} />}
         {retraining && <div className="grid gap-4 sm:grid-cols-2">
