@@ -5,7 +5,7 @@ import { Eye, FileSearch, History, ListChecks, RefreshCw, Scale } from "lucide-r
 import { useMemo, useState } from "react";
 import type { TrainingVersion } from "../../../training/types";
 import { completedAt, followUpOf } from "../../../shared/rules";
-import { useSnapshot } from "../../data/D4DataProvider";
+import { useD4, useSnapshot } from "../../data/D4DataProvider";
 import { byProgress, canAssess, canWrite, employeeById, employeeMeta, employeeSearchText, formatDate, formatDateTime, formatPeriod, includesText, recentLabel, sourceFinding, trainingById, trainingDecision, trainingHistory, trainings, trainingSource, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, PeriodFilter, SearchInput, SelectFilter } from "../../ui/forms";
@@ -22,6 +22,7 @@ const TRAINING_RANK: Record<string, number> = { Planned: 1, "In Progress": 2, Co
 
 export function TrainingListPage() {
   const snapshot = useSnapshot();
+  const { busy } = useD4();
   // K15: dashboard alerts link here with ?q=<name>. Read from the router: during a client navigation window.location is still the previous page.
   const params = useSearchParams();
   const [search, setSearch] = useState(() => params.get("q") ?? "");
@@ -70,7 +71,8 @@ export function TrainingListPage() {
     {archived.length > 0 && <p data-testid="archived-hint" className="px-1 text-xs text-ink-2">
       {[archivedCompleted && `${archivedCompleted} training Completed`, archivedCancelled && `${archivedCancelled} training Cancelled`].filter(Boolean).join(" dan ")} sudah masuk riwayat. Pilih Status di Filter untuk melihatnya.
     </p>}
-    {saved && <SavedNotice text={`Training "${saved.activity}" untuk ${employeeById(snapshot, saved.employeeId)?.fullName ?? ""} tersimpan (${statusLabel(saved.status)}).`} href={`/training/${saved.trainingId}`} />}
+    {/* Update Progress closes before the refresh; until it lands the notice would name the old status. */}
+    {saved && !busy && <SavedNotice text={`Training "${saved.activity}" untuk ${employeeById(snapshot, saved.employeeId)?.fullName ?? ""} tersimpan (${statusLabel(saved.status)}).`} href={`/training/${saved.trainingId}`} />}
     <DataTable<TrainingVersion> rows={rows} noun="trainings" rowKey={(row) => row.trainingId} justSaved={saved}
       emptyTitle={filtered ? "Tidak ada training yang cocok" : archived.length ? "Semua training sudah selesai" : "Belum ada training"}
       emptyText={filtered ? "Ubah kata kunci atau reset filter." : archived.length ? "Pilih Status Completed atau Cancelled di Filter untuk melihatnya." : canWrite(snapshot) ? "Training dibuat dari development requirement (Create Training) di Development Requirement." : "Belum ada training yang tercatat."}
