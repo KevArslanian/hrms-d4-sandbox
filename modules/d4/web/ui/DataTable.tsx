@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, ChevronDown, ChevronLeft, ChevronRight, MoveHorizontal, SearchX } from "lucide-react";
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { pinJustSaved } from "../data/selectors";
 import { cx } from "./primitives";
@@ -36,6 +36,16 @@ export type Selection<T> = {
 };
 
 const PAGE_SIZES = [10, 20, 50, 100] as const;
+
+// Below 640 px a row is a card: on a 390 px phone the pinned name and ⋮ columns left about 110 px for everything else.
+// Only one of the two layouts is rendered, so test ids stay unique; the server and tests (no matchMedia) get the table.
+const PHONE = "(max-width: 639px)";
+const onPhoneChange = (listener: () => void) => {
+  const query = typeof window !== "undefined" && window.matchMedia ? window.matchMedia(PHONE) : null;
+  query?.addEventListener("change", listener);
+  return () => query?.removeEventListener("change", listener);
+};
+const isPhone = () => typeof window !== "undefined" && Boolean(window.matchMedia?.(PHONE).matches);
 
 // The ⋮ column stays pinned to the right edge, so row actions remain reachable when long names push the table wider than the screen.
 // Its edge shadow shows only while columns are actually scrolled underneath it.
@@ -77,6 +87,8 @@ export function DataTable<T>({ rows: sorted, columns, rowKey, actions, emptyTitl
   selection?: Selection<T>;
 }) {
   const rows = pinJustSaved(sorted, rowKey, justSaved);
+  const phone = useSyncExternalStore(onPhoneChange, isPhone, () => false);
+  const cards = phone && rows.length > 0;
   const pinned = justSaved && rows[0];
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -106,7 +118,7 @@ export function DataTable<T>({ rows: sorted, columns, rowKey, actions, emptyTitl
     observer.observe(el);
     if (el.firstElementChild) observer.observe(el.firstElementChild);
     return () => observer.disconnect();
-  }, []);
+  }, [cards]);
   // Keys selected among the current rows; a selection hidden by a filter is not acted on.
   const selectableKeys = selection ? rows.filter(selection.selectable).map(rowKey) : [];
   const chosen = selection ? selectableKeys.filter((key) => selection.selected.has(key)) : [];
@@ -129,9 +141,11 @@ export function DataTable<T>({ rows: sorted, columns, rowKey, actions, emptyTitl
       <button type="button" data-testid="btn-clear-selection" onClick={() => selection.onChange(new Set())}
         className="ml-auto rounded-lg px-2 py-1.5 text-xs font-semibold text-primary-600 hover:underline focus-visible:outline-2 focus-visible:outline-primary-500">Clear selection</button>
     </div>}
+    {cards && <PhoneRows rows={visible} columns={columns} rowKey={rowKey} actions={actions} pinned={pinned} noun={noun} label={label}
+      selection={selection && { ...selection, toggle, toggleAll, allChosen, some: chosen.length > 0 && !allChosen, none: !selectableKeys.length }} />}
     {/* Stays while the table is wider than the screen, so it does not jump away as the user scrolls. */}
-    {wide && <p data-testid="table-scroll-hint" className={cx("flex items-center gap-1.5 border-b border-line py-2 text-xs text-ink-2", cellX)}><MoveHorizontal aria-hidden="true" className="size-4 shrink-0" />Scroll sideways to see all columns</p>}
-    <div ref={scroller} onScroll={measure} data-covered={covered} data-scrolled={scrolled} className="group overflow-x-auto">
+    {!cards && wide && <p data-testid="table-scroll-hint" className={cx("flex items-center gap-1.5 border-b border-line py-2 text-xs text-ink-2", cellX)}><MoveHorizontal aria-hidden="true" className="size-4 shrink-0" />Scroll sideways to see all columns</p>}
+    {!cards && <div ref={scroller} onScroll={measure} data-covered={covered} data-scrolled={scrolled} className="group overflow-x-auto">
       <table data-testid="data-table" aria-label={label ?? noun.charAt(0).toUpperCase() + noun.slice(1)} className="w-full min-w-[640px] text-left text-sm">
         <thead className="bg-app">
           <tr>{columns.map((column, index) => <th key={column.key} scope="col" className={cx(cellX, "py-3 text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3", index === 0 && cx(stickyFirst, "bg-app"), secondaryCell(column), column.className)}>
@@ -167,7 +181,7 @@ export function DataTable<T>({ rows: sorted, columns, rowKey, actions, emptyTitl
         <p className="text-sm font-semibold text-ink">{emptyTitle}</p>
         <p className="max-w-md text-xs text-ink-3">{emptyText}</p>
       </div>}
-    </div>
+    </div>}
     {rows.length > 0 && <footer className={cx("flex flex-wrap items-center justify-between gap-3 border-t border-line py-3 text-xs text-ink-2", cellX)}>
       <div className="flex flex-wrap items-center gap-3">
         <span data-testid="table-count">Showing {first}–{Math.min(current * pageSize, rows.length)} of {rows.length} {noun}</span>
@@ -182,6 +196,42 @@ export function DataTable<T>({ rows: sorted, columns, rowKey, actions, emptyTitl
       </nav>
     </footer>}
   </section>;
+}
+
+/** Phone layout of DataTable: the first column heads the card beside its checkbox and ⋮, the other columns follow as label and value. */
+function PhoneRows<T>({ rows, columns, rowKey, actions, pinned, noun, label, selection }: {
+  rows: readonly T[]; columns: Column<T>[]; rowKey: (row: T) => string; actions?: (row: T) => ReactNode; pinned?: T | false; noun: string; label?: string;
+  selection?: Selection<T> & { toggle: (key: string, on: boolean) => void; toggleAll: () => void; allChosen: boolean; some: boolean; none: boolean };
+}) {
+  const [head, ...rest] = columns;
+  return <>
+    {selection && <div className={cx("flex items-center gap-3 border-b border-line bg-app py-2.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3", cellX)}>
+      <SelectBox testId="checkbox-select-all" label={`Select all ${noun}`} checked={selection.allChosen} indeterminate={selection.some} disabled={selection.none} onChange={selection.toggleAll} />Select all
+    </div>}
+    {/* Compact copies (…-compact) stand in for columns a narrow table hides; a card shows every column, so they would repeat. */}
+    <ul data-testid="data-cards" aria-label={label ?? noun.charAt(0).toUpperCase() + noun.slice(1)} className="divide-y divide-line [&_[data-testid$=-compact]]:hidden">
+      {rows.map((row) => {
+        const key = rowKey(row);
+        const marked = row === pinned;
+        return <li key={key} data-testid={`row-${key}`} data-highlighted={marked || undefined} className={cx("py-3.5", cellX, marked && "bg-primary-50 [&_.text-ink-3]:text-ink-2")}>
+          <div className="flex items-start gap-3">
+            {selection && (selection.selectable(row)
+              ? <SelectBox testId={`checkbox-row-${key}`} label={`Select ${selection.rowLabel(row)}`} checked={selection.selected.has(key)} onChange={(on) => selection.toggle(key, on)} />
+              : <span aria-hidden="true" className="size-4 shrink-0" />)}
+            <div className="min-w-0 flex-1 text-sm text-ink">{head.cell(row)}
+              {marked && <span data-testid="row-just-saved" className="mt-1 inline-block rounded-full bg-primary-600 px-2 py-0.5 text-[11px] font-semibold text-white">Just saved</span>}</div>
+            {actions && <div className="-mr-2 -mt-1 shrink-0">{actions(row)}</div>}
+          </div>
+          <dl className={cx("mt-2.5 grid grid-cols-[minmax(0,7.5rem)_minmax(0,1fr)] gap-x-3 gap-y-2 text-sm", selection && "pl-7")}>
+            {rest.map((column) => <Fragment key={column.key}>
+              <dt className="pt-0.5 text-[11px] font-semibold uppercase leading-4 tracking-[0.04em] text-ink-3">{column.header}</dt>
+              <dd data-testid={`cell-${column.key}`} className="min-w-0 break-words text-ink">{column.cell(row)}</dd>
+            </Fragment>)}
+          </dl>
+        </li>;
+      })}
+    </ul>
+  </>;
 }
 
 /**
