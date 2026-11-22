@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { correctionsByDay, isDirty, scoreProblem, workingDaysSoFar } from "@/modules/d4/web/features/daily/entry";
+import { correctionsByDay, isDirty, missedWorkingDays, scoreProblem, workingDaysSoFar } from "@/modules/d4/web/features/daily/entry";
 import type { KpiDailyEntry } from "@/modules/d4/supabase/types";
 
 describe("scoreProblem (K22)", () => {
@@ -50,5 +50,16 @@ describe("workingDaysSoFar (R1)", () => {
   it("counts the whole month once it is over, and nothing for a future month", () => {
     expect(workingDaysSoFar("2026-10", "2026-11-12")).toBe(22);
     expect(workingDaysSoFar("2026-12", "2026-11-12")).toBe(0);
+  });
+});
+
+describe("missed Daily KPI days (lecturer, 22 Nov 2026)", () => {
+  it("lists the empty working days before today, oldest first, without weekends", () => {
+    // Fri 20, Sat 21, Sun 22 Nov 2026: the weekend is not a missed day, today has its own reminder.
+    expect(missedWorkingDays("2026-11", "2026-11-23", new Set(["2026-11-03", "2026-11-04", "2026-11-05", "2026-11-06", "2026-11-09", "2026-11-10", "2026-11-11", "2026-11-12", "2026-11-13", "2026-11-16", "2026-11-17", "2026-11-18", "2026-11-19"])))
+      .toEqual(["2026-11-02", "2026-11-20"]);
+  });
+  it("offers nothing outside the running period, which can no longer be filled", () => {
+    expect(missedWorkingDays("2026-10", "2026-11-23", new Set())).toEqual([]);
   });
 });
