@@ -75,6 +75,8 @@ export function PerformanceListPage() {
     && (!position || row.employee.positionId === position) && (!department || row.employee.departmentId === department)
     && (!progress || rowStatus(row) === progress))
     .sort(byProgress(performanceRank, (row) => row.employee.fullName)), [all, snapshot, search, position, department, progress]);
+  const listScale = scaleMaxOf(catalog?.version);
+  const listScore = (value: number | null, version?: string | null) => scaleMaxOf(version) === listScale ? value?.toFixed(2) ?? "—" : formatScore(value, scaleMaxOf(version));
 
   return <>
     <PageHeader title="Performance Review" subtitle="Lima Core KPI dan Notes per pegawai dan periode, dalam satu penilaian."
@@ -94,8 +96,9 @@ export function PerformanceListPage() {
         { key: "employee", header: "Employee", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
         { key: "position", header: "Position / Department", wrap: true, optional: true, cell: (row) => <><span className="block">{row.position}</span><span className="block text-xs text-ink-3">{departmentOf(snapshot, row.employee)?.name ?? "—"}</span></> },
         { key: "period", header: "Period", cell: (row) => formatPeriod(row.period) },
-        { key: "total", header: "Total KPI", className: "tabular-nums", cell: (row) => row.scorecard ? <span className="font-semibold">{formatScorecard(row.scorecard)}</span>
-          : row.compiled ? <><span className="block font-semibold">{formatScore(row.compiled.total, scaleMaxOf(row.compiled.definitionVersion))}</span><span data-testid="compiled-days" className="block whitespace-normal text-xs text-ink-3">from {row.compiled.days.length} daily {row.compiled.days.length === 1 ? "entry" : "entries"}</span></>
+        // The scale sits in the header once instead of "/ 100" on every row (PST 2); a row on the other scale keeps its own.
+        { key: "total", header: `Total KPI (/${listScale})`, className: "tabular-nums", cell: (row) => row.scorecard ? <span className="font-semibold">{listScore(row.scorecard.overallScore, row.scorecard.definitionVersion)}</span>
+          : row.compiled ? <><span className="block font-semibold">{listScore(row.compiled.total, row.compiled.definitionVersion)}</span><span data-testid="compiled-days" className="block whitespace-normal text-xs text-ink-3">from {row.compiled.days.length} daily {row.compiled.days.length === 1 ? "entry" : "entries"}</span></>
           // The small lines may wrap (the score stays on one line), so they do not widen the table past the Status badge.
           : row.evaluation ? <span data-testid="legacy-evaluation" className="whitespace-normal text-xs text-ink-3">Old evaluation, no KPI score</span>
           : row.hasKpi ? "—" : <span className="whitespace-normal text-xs text-ink-3">Not in catalog {catalog?.version} yet</span> },
