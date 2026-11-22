@@ -142,6 +142,13 @@ describe("People Dashboard charts", () => {
     expect(keys(notPassed)).toContain("training-not-passed");
     const retrained = { ...notPassed, trainingVersions: [...notPassed.trainingVersions, training("T2", "2026-10-20", "Planned", "")] };
     expect(keys(retrained)).not.toContain("training-not-passed");
+
+    // PST 2 (Kei): an open requirement without a running or finished training is who still needs training.
+    const waiting = { ...noNeeds, developmentVersions: [need("Planned")] };
+    expect(keys(waiting)).toContain("requirement-no-training");
+    expect(keys({ ...waiting, trainingVersions: [training("T3", "2026-10-01", "Cancelled", "")] })).toContain("requirement-no-training");
+    expect(keys({ ...waiting, trainingVersions: [training("T4", "2026-10-01", "Planned", "")] })).not.toContain("requirement-no-training");
+    expect(keys(completed)).not.toContain("requirement-no-training");
   });
 });
 
