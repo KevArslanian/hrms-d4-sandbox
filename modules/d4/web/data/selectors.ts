@@ -185,6 +185,9 @@ export const inTrainingOrPositionChange = (snapshot: Snapshot, employeeId: strin
 };
 
 export const trainingsOf = (snapshot: Snapshot, employeeId: string): readonly TrainingVersion[] => indexOf(snapshot).trainingsByEmployee.get(employeeId) ?? [];
+/** PST 2 (Kei): who still needs training = an open requirement with no training other than Cancelled. */
+export const needsTraining = (snapshot: Snapshot, need: DevelopmentNeedVersion) =>
+  need.status !== "Completed" && !trainingsOf(snapshot, need.employeeId).some((item) => item.developmentNeedId === need.needId && item.status !== "Cancelled");
 export const developmentById = (snapshot: Snapshot, needId: string) => developmentNeeds(snapshot).find((item) => item.needId === needId);
 export const trainingById = (snapshot: Snapshot, trainingId: string) => trainings(snapshot).find((item) => item.trainingId === trainingId);
 /** Every revision of a need, newest first. */

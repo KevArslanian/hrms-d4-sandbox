@@ -5,12 +5,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { Bell, ChevronDown, LayoutDashboard, Menu, Users, X } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { catalogFor, roleForPosition } from "../../kpi/catalog";
+import { catalogFor, roleForPosition, type KpiCatalogSet } from "../../kpi/catalog";
 import { canFillDaily } from "../../shared/rules";
 import { createD4BrowserClient } from "../../supabase/client";
 import { useD4 } from "../data/D4DataProvider";
 import { endPreviewSession } from "../data/preview-session";
-import { thisMonth, today } from "../data/selectors";
+import { canWrite, developmentNeeds, needsTraining, thisMonth, today, visibleEmployees, type Snapshot } from "../data/selectors";
 import { Button, cx, slug } from "./primitives";
 
 // People Dashboard first: it is the HR landing page and the summary the other five pages feed (decision 13 Nov 2026).
@@ -153,18 +153,34 @@ function Sidebar({ onNavigate, onClose }: { onNavigate: () => void; onClose: () 
   </div>;
 }
 
-type Notification = { id: string; title: string; text: string; href: string };
+type Notification = { id: string; title: string; text: string; href: string; action: string };
 
 /** B5 (interview D4, 14 Oct 2026): everyone with a KPI role scores today's Daily KPI; until then this is their notification. */
 function useNotifications(): Notification[] {
   const { snapshot, catalog } = useD4();
-  if (!snapshot?.kpiDaily || !canFillDaily(snapshot.role, snapshot.actorEmployeeId)) return [];
+  if (!snapshot) return [];
+  return [dailyReminder(snapshot, catalog), trainingReminder(snapshot)].filter((item): item is Notification => Boolean(item));
+}
+
+function dailyReminder(snapshot: Snapshot, catalog: KpiCatalogSet | null): Notification | null {
+  if (!snapshot.kpiDaily || !canFillDaily(snapshot.role, snapshot.actorEmployeeId)) return null;
   const periodCatalog = catalog ? catalogFor(catalog, thisMonth()) : null;
   const me = snapshot.reference.employees.find((item) => item.id === snapshot.actorEmployeeId);
-  if (!periodCatalog || !roleForPosition(periodCatalog, me?.positionId)) return [];
+  if (!periodCatalog || !roleForPosition(periodCatalog, me?.positionId)) return null;
   const day = today();
-  if (snapshot.kpiDaily.some((entry) => entry.employeeId === snapshot.actorEmployeeId && entry.entryDate === day)) return [];
-  return [{ id: `daily-kpi-${snapshot.actorEmployeeId}-${day}`, title: "Daily KPI hari ini belum diisi", text: "Isi skor lima Core KPI Anda sebelum pulang.", href: "/daily-kpi" }];
+  if (snapshot.kpiDaily.some((entry) => entry.employeeId === snapshot.actorEmployeeId && entry.entryDate === day)) return null;
+  return { id: `daily-kpi-${snapshot.actorEmployeeId}-${day}`, title: "Daily KPI hari ini belum diisi", text: "Isi skor lima Core KPI Anda sebelum pulang.", href: "/daily-kpi", action: "Isi sekarang" };
+}
+
+/** PST 2 (Kei): HR and managers see who still needs training without opening the dashboard first. */
+function trainingReminder(snapshot: Snapshot): Notification | null {
+  if (!canWrite(snapshot)) return null;
+  const visible = new Set(visibleEmployees(snapshot).map((item) => item.id));
+  const waiting = developmentNeeds(snapshot).filter((need) => visible.has(need.employeeId) && needsTraining(snapshot, need));
+  if (!waiting.length) return null;
+  const people = new Set(waiting.map((need) => need.employeeId)).size;
+  return { id: `need-training-${waiting.map((need) => need.needId).join(",")}`, title: `${people} pegawai butuh training`,
+    text: `${waiting.length} development requirement terbuka belum punya training.`, href: "/development", action: "Buat training" };
 }
 
 // The last reminder that was opened or dismissed, per browser: the panel opens by itself once per reminder, not on every page.
@@ -179,10 +195,12 @@ function NotificationBell() {
   const [dismissed, setDismissed] = useState<string | null>(null);
   const wrapper = useRef<HTMLDivElement>(null);
   const first = items[0];
+  // Seen per set of reminders, so a new one (say, someone now needs training) opens the panel again.
+  const key = items.map((item) => item.id).join("|");
   // Opens by itself so nobody has to look for it, except on the page the reminder points to.
-  const shown = open || (Boolean(first) && pathname !== first.href && dismissed !== first.id && !wasSeen(first.id));
+  const shown = open || (Boolean(first) && pathname !== first.href && dismissed !== key && !wasSeen(key));
   function close() {
-    if (first) { markSeen(first.id); setDismissed(first.id); }
+    if (first) { markSeen(key); setDismissed(key); }
     setOpen(false);
   }
   useEffect(() => {
@@ -204,7 +222,7 @@ function NotificationBell() {
       {items.length ? items.map((item) => <Link key={item.id} href={item.href} onClick={close} data-testid="notification-item" className="block rounded-xl px-3 py-2.5 hover:bg-muted">
         <span className="flex items-center gap-2 text-sm font-semibold text-ink"><span aria-hidden="true" className="size-2 shrink-0 rounded-full bg-danger" />{item.title}</span>
         <span className="mt-0.5 block text-xs text-ink-2">{item.text}</span>
-        <span className="mt-2 inline-block text-xs font-semibold text-primary-600">Isi sekarang</span>
+        <span className="mt-2 inline-block text-xs font-semibold text-primary-600">{item.action}</span>
       </Link>) : <p className="px-3 py-2.5 text-sm text-ink-3">Tidak ada notifikasi.</p>}
     </div>}
   </div>;

@@ -6,7 +6,7 @@ import { HIGH_ABOVE, performanceBand, scaleMaxOf, UNDER_BELOW, type PerformanceB
 import { completedAt, followUpOf, isDirectorPosition, localMonth, localToday, retrainedAt } from "../../../shared/rules";
 import type { EmployeeReference } from "../../../shared/types";
 import type { KpiAssessment } from "../../../supabase/types";
-import { currentGap, developmentHistory, formatDate, formatPeriod, formatScorecard, needsOf, pendingCompilation, positionById, positionTitle, revisionChanges, scorecardsOf, trainingHistory, trainingsOf, type Snapshot } from "../../data/selectors";
+import { currentGap, developmentHistory, formatDate, formatPeriod, formatScorecard, needsOf, needsTraining, pendingCompilation, positionById, positionTitle, revisionChanges, scorecardsOf, trainingHistory, trainingsOf, type Snapshot } from "../../data/selectors";
 import type { TimelineEntry } from "../../ui/layout";
 import { slug, statusLabel } from "../../ui/primitives";
 
@@ -208,7 +208,7 @@ export function dashboardAlerts(snapshot: Snapshot, rows: readonly DashboardRow[
     for (const need of needs) {
       if (need.status === "Completed") continue;
       if (!need.pic?.trim()) found.noPic.push(name);
-      if (!trainings.some((item) => item.developmentNeedId === need.needId && item.status !== "Cancelled")) found.noTraining.push(name);
+      if (needsTraining(snapshot, need)) found.noTraining.push(name);
       const last = trainings.filter((item) => item.developmentNeedId === need.needId && item.status !== "Cancelled")
         .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))[0];
       // Q16: waits for HR's follow-up. Retraining adds a newer training; any recorded follow-up clears it.
