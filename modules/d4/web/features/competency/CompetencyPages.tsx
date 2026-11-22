@@ -58,6 +58,8 @@ export function CompetencyListPage() {
   const [changing, setChanging] = useState<EmployeeReference | null>(null);
   const [saved, setSaved] = useState<{ employeeId: string; needId?: string } | null>(null);
   const rows = useMemo(() => competencyRows(snapshot, { search, position, department, status, competency }), [snapshot, search, position, department, status, competency]);
+  const savedRow = useMemo(() => saved ? competencyRows(snapshot, { search: "", position: "", department: "", status: "", competency: "" })
+    .find((row) => row.employee.id === saved.employeeId) : undefined, [snapshot, saved]);
   const filtered = Boolean(search || position || department || status || competency);
   // UAT-11: the list holds only employees in scope; anyone else is reached from their People Dashboard profile, whose
   // Competency Gap card links to the detail page that has Assess Position Change.
@@ -79,7 +81,7 @@ export function CompetencyListPage() {
     </FilterBar>
     {saved && <SavedNotice text={saved.needId ? `Development requirement ${employeeById(snapshot, saved.employeeId)?.fullName ?? ""} tersimpan.` : `Penilaian perubahan posisi ${employeeById(snapshot, saved.employeeId)?.fullName ?? ""} tersimpan.`}
       href={saved.needId ? `/development/${saved.needId}` : `/competency/${saved.employeeId}/history`} />}
-    <DataTable<Row> rows={rows} noun="employees" rowKey={(row) => row.employee.id} highlightKey={saved?.employeeId}
+    <DataTable<Row> rows={rows} noun="employees" rowKey={(row) => row.employee.id} justSaved={savedRow}
       emptyTitle={filtered || snapshot.role === "EMPLOYEE" ? "Tidak ada pegawai yang cocok" : "Belum ada pegawai dalam cakupan"} emptyText={filtered || snapshot.role === "EMPLOYEE" ? "Ubah kata kunci atau reset filter." : `Daftar ini hanya memuat ${scopeRule}. ${outOfScope}`}
       columns={[
         { key: "employee", header: "Employee", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },

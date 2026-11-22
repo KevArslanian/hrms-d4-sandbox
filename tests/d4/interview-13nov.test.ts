@@ -2,9 +2,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DevelopmentNeedVersion } from "@/modules/d4/development/types";
 import { assertPeriodRevision, MAX_PERIOD_REVISIONS, revisionsLeft } from "@/modules/d4/shared/rules";
 import { addTrainingToNeeds, bulkSummary, DECIDE_LATER, progressTargets, requireSome, updateTrainings } from "@/modules/d4/web/data/bulk";
-import { developmentNeeds, formatDate, formatDateTime, RECENT_MS, recentLabel, trainingById, trainings, type Snapshot } from "@/modules/d4/web/data/selectors";
+import { developmentNeeds, formatDate, formatDateTime, pinJustSaved, RECENT_MS, recentLabel, trainingById, trainings, type Snapshot } from "@/modules/d4/web/data/selectors";
 import type { D4DataSource } from "@/modules/d4/web/data/source";
-import { archivedCount, developmentRows, withJustSaved, type DevelopmentFilters } from "@/modules/d4/web/features/development/rows";
+import { archivedCount, developmentRows, type DevelopmentFilters } from "@/modules/d4/web/features/development/rows";
 
 // Client feedback of 13 Nov 2026 (Mas Bram). Rows are picked by rule, not by name: the fixture names change.
 async function hrSource(): Promise<D4DataSource> {
@@ -53,8 +53,9 @@ describe("Completed requirements leave the list (1:08:36)", () => {
     expect(archivedCount(done, { ...NO_FILTER, status: "Completed" })).toBe(0);
     // Just saved (e.g. Close as Met from the list): it stays on top until the page is left.
     const closed = developmentNeeds(done).find((need) => need.needId === target.needId)!;
-    expect(withJustSaved(developmentRows(done, NO_FILTER), closed)[0].needId).toBe(target.needId);
-    expect(withJustSaved(developmentRows(base, NO_FILTER), target).filter((need) => need.needId === target.needId)).toHaveLength(1);
+    const needKey = (need: DevelopmentNeedVersion) => need.needId;
+    expect(pinJustSaved(developmentRows(done, NO_FILTER), needKey, closed)[0].needId).toBe(target.needId);
+    expect(pinJustSaved(developmentRows(base, NO_FILTER), needKey, target).filter((need) => need.needId === target.needId)).toHaveLength(1);
   });
 
   it("keeps a Completed requirement that still waits for HR's reassessment after a passed training", async () => {

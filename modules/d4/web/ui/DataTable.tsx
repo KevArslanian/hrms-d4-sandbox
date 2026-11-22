@@ -3,6 +3,7 @@
 import { Check, ChevronDown, ChevronLeft, ChevronRight, MoveHorizontal, SearchX } from "lucide-react";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { pinJustSaved } from "../data/selectors";
 import { cx } from "./primitives";
 
 export type Column<T> = {
@@ -61,7 +62,7 @@ export function pageWindow(current: number, count: number): (number | "gap")[] {
  * Standard D4 table: caps header, 56 px rows, ⋮ action column last, pagination bottom right.
  * Clicking a row opens its detail page (same as "View Detail" in the menu).
  */
-export function DataTable<T>({ rows: sorted, columns, rowKey, actions, emptyTitle, emptyText, noun, label, highlightKey, selection }: {
+export function DataTable<T>({ rows: sorted, columns, rowKey, actions, emptyTitle, emptyText, noun, label, justSaved, selection }: {
   rows: readonly T[];
   columns: Column<T>[];
   rowKey: (row: T) => string;
@@ -71,12 +72,12 @@ export function DataTable<T>({ rows: sorted, columns, rowKey, actions, emptyTitl
   noun: string;
   /** Accessible name of the table; defaults to the noun ("Employees"). */
   label?: string;
-  /** Row just saved by the page: shown first and marked, since its new status may sort it pages away. */
-  highlightKey?: string;
+  /** Row just saved by the page, taken from its unfiltered rows: shown first and marked whatever the filters (pinJustSaved). */
+  justSaved?: T;
   selection?: Selection<T>;
 }) {
-  const pinned = highlightKey ? sorted.find((row) => rowKey(row) === highlightKey) : undefined;
-  const rows = pinned ? [pinned, ...sorted.filter((row) => row !== pinned)] : sorted;
+  const rows = pinJustSaved(sorted, rowKey, justSaved);
+  const pinned = justSaved && rows[0];
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   // Other rows (a search or filter) start again at page 1; a re-render with the same rows (toast, saved edit) keeps the page.
