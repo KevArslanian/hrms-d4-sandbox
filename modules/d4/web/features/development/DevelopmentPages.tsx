@@ -160,7 +160,7 @@ export function DevelopmentListPage() {
       <SelectFilter label="Priorities" testId="all-priorities" value={priority} onChange={setPriority} options={["High", "Medium", "Low"].map((item) => ({ value: item, label: statusLabel(item) }))} />
     </FilterBar>
     {archived > 0 && <p data-testid="archived-hint" className="px-1 text-xs text-ink-2">
-      {archived} requirement Completed sudah masuk riwayat. Pilih Status Completed di Filter untuk melihatnya.
+      {archived} requirement Completed tidak tampil di daftar aktif. Pilih Status Completed di Filter untuk melihatnya.
     </p>}
     {savedTraining ? <SavedNotice text={`Training "${savedTraining.activity}" untuk ${savedName} tersimpan.`} href={`/training/${savedTraining.trainingId}`} />
       : savedNeed && <SavedNotice text={`Development requirement ${savedName} tersimpan (${statusLabel(savedNeed.status)}).`} href={`/development/${savedNeed.needId}`} />}
@@ -291,9 +291,9 @@ export function DevelopmentHistoryPage({ needId }: { needId: string }) {
   return <>
     <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Development Requirement", href: "/development" }, { label: "History" }]} backHref={`/development/${need.needId}`}
       name={employee.fullName} meta={employeeMeta(snapshot, employee)} status={need.status} />
-    <Card title="Revision history" testId="revision-history">
+    <Card title="Development Requirement history" testId="revision-history">
       <Timeline empty="Belum ada revisi." entries={developmentHistory(snapshot, need.needId).map((item, index, all) => ({
-        id: item.id, date: formatDate(item.createdAt), title: `Revision ${item.revision}`, status: item.status, actor: item.actor,
+        id: item.id, date: formatDateTime(item.createdAt), title: `Revision ${item.revision}`, status: item.status, actor: item.actor,
         body: [...revisionChanges(item, all[index + 1]), item.notes].filter(Boolean).join(" · ") || undefined,
       }))} />
     </Card>

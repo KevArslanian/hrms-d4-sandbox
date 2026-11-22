@@ -11,7 +11,7 @@ import { canFillDaily } from "../../../shared/rules";
 import type { EmployeeReference } from "../../../shared/types";
 import type { KpiAssessment, KpiDailyEntry } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { byProgress, canAssess, departmentOf, employeeById, employeeMeta, employeeSearchText, formatDate, formatGap, formatPeriod, formatScore, includesText, positionOf, scorecardsOf, thisMonth, today, visibleEmployees } from "../../data/selectors";
+import { byProgress, canAssess, departmentOf, employeeById, employeeMeta, employeeSearchText, formatDate, formatDateTime, formatGap, formatPeriod, formatScore, includesText, positionOf, scorecardsOf, thisMonth, today, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { DateField, FilterBar, FormError, PeriodFilter, ReadOnlyField, SearchInput } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
@@ -352,7 +352,7 @@ export function DailyKpiHistoryPage({ employeeId }: { employeeId: string }) {
   return <>
     <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Daily KPI", href: "/daily-kpi" }, { label: "History" }]} backHref={`/daily-kpi/${employeeId}`}
       name={employee.fullName} meta={[...employeeMeta(snapshot, employee), `Period ${formatPeriod(period)}`]} />
-    {!snapshot.kpiDaily ? <Notice tone="warning">{NOT_READY}</Notice> : <Card title="History" testId="daily-history"
+    {!snapshot.kpiDaily ? <Notice tone="warning">{NOT_READY}</Notice> : <Card title="Daily KPI history" testId="daily-history"
       actions={<div className="w-48"><PeriodFilter label="Period" testId="daily-period" value={period} onChange={(value) => setPeriod(value || periods[0])} emptyOption={false} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} /></div>}>
       <Timeline empty="Belum ada entri harian di periode ini." entries={items.map(({ entry, revision, previous, versions }) => {
         const max = scaleMaxOf(entry.definitionVersion);
@@ -360,7 +360,7 @@ export function DailyKpiHistoryPage({ employeeId }: { employeeId: string }) {
         const changes = previous ? entry.lines.flatMap((line, index) => line.raw_score === previous.lines[index]?.raw_score ? [] : [`KPI ${line.indicator_order}: ${previous.lines[index]?.raw_score ?? "—"} → ${line.raw_score ?? "—"}`]) : [];
         return {
           id: entry.id,
-          date: formatDate(entry.createdAt),
+          date: formatDateTime(entry.createdAt),
           title: `${previous ? `Correction ${formatDate(entry.entryDate)} · Revision ${revision}` : `Daily entry ${formatDate(entry.entryDate)}`}${versions > 1 ? (current ? " · Current" : " · Superseded") : ""}`,
           status: performanceBand(entry.overallScore, entry.definitionVersion) ?? undefined,
           body: previous

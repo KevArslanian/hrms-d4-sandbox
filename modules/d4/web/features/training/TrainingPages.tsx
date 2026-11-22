@@ -81,7 +81,7 @@ export function TrainingListPage() {
     </FilterBar>
     {/* PST 2: no "Show Completed" link beside the filter; the Status filter is the one way in, and its panel holds Reset. */}
     {archived.length > 0 && <p data-testid="archived-hint" className="px-1 text-xs text-ink-2">
-      {[archivedCompleted && `${archivedCompleted} training Completed`, archivedCancelled && `${archivedCancelled} training Cancelled`].filter(Boolean).join(" dan ")} sudah masuk riwayat. Pilih Status di Filter untuk melihatnya.
+      {[archivedCompleted && `${archivedCompleted} training Completed`, archivedCancelled && `${archivedCancelled} training Cancelled`].filter(Boolean).join(" dan ")} tidak tampil di daftar aktif. Pilih Status di Filter untuk melihatnya.
     </p>}
     {/* Update Progress closes before the refresh; until it lands the notice would name the old status. */}
     {saved && !busy && <SavedNotice text={`Training "${saved.activity}" untuk ${employeeById(snapshot, saved.employeeId)?.fullName ?? ""} tersimpan (${statusLabel(saved.status)}).`} href={`/training/${saved.trainingId}`} />}
@@ -204,9 +204,9 @@ export function TrainingHistoryPage({ trainingId }: { trainingId: string }) {
   return <>
     <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Training Tracking", href: "/training" }, { label: "History" }]} backHref={`/training/${record.trainingId}`}
       name={employee.fullName} meta={[...employeeMeta(snapshot, employee), record.activity]} status={record.status} />
-    <Card title="Status history" testId="status-history">
-      <Timeline empty="Belum ada riwayat status." entries={trainingHistory(snapshot, record.trainingId).map((item) => ({
-        id: item.id, date: formatDate(item.createdAt), title: `Version ${item.revision}`, status: item.status, actor: item.actor,
+    <Card title="Training history" testId="status-history">
+      <Timeline empty="Belum ada revisi." entries={trainingHistory(snapshot, record.trainingId).map((item) => ({
+        id: item.id, date: formatDateTime(item.createdAt), title: `Revision ${item.revision}`, status: item.status, actor: item.actor,
         body: [item.result && `Result: ${item.result}`, item.followUp && `Follow-up: ${item.followUp}`, item.notes].filter(Boolean).join(" · ") || undefined,
       }))} />
     </Card>

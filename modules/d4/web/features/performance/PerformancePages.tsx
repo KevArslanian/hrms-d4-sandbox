@@ -184,11 +184,11 @@ export function PerformanceHistoryPage({ employeeId }: { employeeId: string }) {
   const linkedNeeds = developmentNeeds(snapshot).filter((need) => need.employeeId === employee.id && need.sourceType === "performance_context");
   return <>
     <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Performance Review", href: "/performance" }, { label: "History" }]} backHref="/performance"
-      name={employee.fullName} meta={[...employeeMeta(snapshot, employee), `${scorecards.length} penilaian`]}
+      name={employee.fullName} meta={[...employeeMeta(snapshot, employee), `${scorecards.length} saved ${scorecards.length === 1 ? "review" : "reviews"}`]}
       actions={canAssess(snapshot, employee.id) && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)} data-testid="btn-add-penilaian">Add Performance Review</Button>} />
     <SavedScorecardNotice scorecard={scorecards.find((item) => item.id === savedId)} />
     {title && catalogSet && !(catalog && roleForPosition(catalog, employee.positionId)) && <Notice tone="warning">{noKpiText(catalog?.version)}</Notice>}
-    <Card title="Riwayat Performance Review" testId="scorecard-history">
+    <Card title="Performance Review history" testId="scorecard-history">
       <Timeline empty="Pegawai ini belum memiliki Performance Review." entries={scorecards.map((item) => ({
         id: item.id, date: `${formatPeriod(item.period)} · ${formatDate(item.evaluationDate || item.createdAt)}`,
         title: `${item.roleName} · ${formatScorecard(item)}${revisionTag(scorecards, item)}`, status: scorecardStatus(item), actor: item.actor, href: `/performance/scorecard/${item.id}`,
