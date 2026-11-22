@@ -55,7 +55,7 @@ export function PerformanceListPage() {
   const periods = useMemo(() => [...new Set([...(snapshot.kpiAssessments ?? []), ...(snapshot.kpiDaily ?? []), ...snapshot.performance].map((item) => item.period))].sort().reverse(), [snapshot]);
   // KPI role per the catalog in force for the filtered period, or this month when no period is chosen.
   const catalog = useMemo(() => catalogSet && catalogFor(catalogSet, period || thisMonth()), [catalogSet, period]);
-  const rows = useMemo<Row[]>(() => visibleEmployees(snapshot).map((employee) => {
+  const all = useMemo<Row[]>(() => visibleEmployees(snapshot).map((employee) => {
     const title = positionOf(snapshot, employee)?.title;
     const scorecard = period ? scorecardsOf(snapshot, employee.id).find((item) => item.period === period) : latestScorecard(snapshot, employee.id);
     // Without a period filter the running period's compilation wins over an older scorecard: it is the newer state.
@@ -70,10 +70,11 @@ export function PerformanceListPage() {
       employee, position: title ?? "—", hasKpi: !catalogSet || !title || Boolean(catalog && roleForPosition(catalog, employee.positionId)),
       scorecard: compiled ? undefined : scorecard, compiled, evaluation, period: compiled ? at : scorecard?.period ?? evaluation?.period,
     };
-  }).filter((row) => includesText(employeeSearchText(snapshot, row.employee), search)
+  }), [snapshot, catalog, catalogSet, period]);
+  const rows = useMemo(() => all.filter((row) => includesText(employeeSearchText(snapshot, row.employee), search)
     && (!position || row.employee.positionId === position) && (!department || row.employee.departmentId === department)
     && (!progress || rowStatus(row) === progress))
-    .sort(byProgress(performanceRank, (row) => row.employee.fullName)), [snapshot, catalog, catalogSet, search, position, department, period, progress]);
+    .sort(byProgress(performanceRank, (row) => row.employee.fullName)), [all, snapshot, search, position, department, progress]);
 
   return <>
     <PageHeader title="Performance Review" subtitle="Lima Core KPI dan Notes per pegawai dan periode, dalam satu penilaian."
@@ -87,7 +88,7 @@ export function PerformanceListPage() {
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label="Positions" testId="all-positions" value={position} onChange={set("position")} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />}
     </FilterBar>
     <SavedScorecardNotice scorecard={savedScorecard} />
-    <DataTable<Row> rows={rows} noun="employees" rowKey={(row) => row.employee.id} highlightKey={savedScorecard?.employeeId}
+    <DataTable<Row> rows={rows} noun="employees" rowKey={(row) => row.employee.id} justSaved={all.find((row) => row.employee.id === savedScorecard?.employeeId)}
       emptyTitle="Tidak ada pegawai yang cocok" emptyText="Ubah kata kunci atau reset filter untuk melihat semua pegawai."
       columns={[
         { key: "employee", header: "Employee", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },

@@ -16,7 +16,7 @@ import { BulkTrainingModal } from "../training/BulkModals";
 import { LevelLine, TrainingFormModal, TrainingProgressModal } from "../training/TrainingModals";
 import { closeEvidence, CloseAsMetModal, DevelopmentEditModal, DevelopmentFormModal, openTrainingOf } from "./DevelopmentModals";
 import { competencyOptions } from "../competency/rows";
-import { archivedCount, developmentRows, withJustSaved } from "./rows";
+import { archivedCount, developmentRows } from "./rows";
 
 /**
  * High priority as a badge, Medium and Low as text, so the requirements a manager must act on first stand out
@@ -165,7 +165,7 @@ export function DevelopmentListPage() {
     </p>}
     {savedTraining ? <SavedNotice text={`Training "${savedTraining.activity}" untuk ${savedName} tersimpan.`} href={`/training/${savedTraining.trainingId}`} />
       : savedNeed && <SavedNotice text={`Development requirement ${savedName} tersimpan (${statusLabel(savedNeed.status)}).`} href={`/development/${savedNeed.needId}`} />}
-    <DataTable<DevelopmentNeedVersion> rows={withJustSaved(rows, savedNeed || undefined)} noun="requirements" rowKey={(row) => row.needId} highlightKey={savedNeed ? savedNeed.needId : undefined}
+    <DataTable<DevelopmentNeedVersion> rows={rows} noun="requirements" rowKey={(row) => row.needId} justSaved={savedNeed || undefined}
       emptyTitle={filtered ? "Tidak ada requirement yang cocok" : archived ? "Semua requirement sudah Completed" : "Belum ada development requirement"}
       emptyText={filtered ? "Ubah kata kunci atau reset filter." : archived ? "Pilih Show Completed untuk melihatnya." : writer ? "Buat dari gap kompetensi, perubahan posisi, atau evaluasi performance dengan Add Requirement." : "Belum ada development requirement yang tercatat."}
       selection={writer ? { selected, onChange: setSelected, selectable, rowLabel,

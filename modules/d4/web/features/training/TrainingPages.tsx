@@ -45,11 +45,11 @@ export function TrainingListPage() {
       && (!department || employee?.departmentId === department)
       && (!period || item.date.startsWith(period)) && (!status || item.status === status);
   });
-  // Finished trainings show only when the Status filter asks for them; the one just saved stays until the page is left.
+  // Finished trainings show only when the Status filter asks for them; DataTable keeps the one just saved (justSaved).
   const archived = status ? [] : matching.filter((item) => isTrainingArchived(snapshot, item));
   const archivedCompleted = archived.filter((item) => item.status === "Completed").length;
   const archivedCancelled = archived.length - archivedCompleted;
-  const rows = matching.filter((item) => status || item.trainingId === savedId || !isTrainingArchived(snapshot, item))
+  const rows = matching.filter((item) => status || !isTrainingArchived(snapshot, item))
     .sort(byProgress((item) => trainingDecision(snapshot, item) ? 0 : TRAINING_RANK[item.status] ?? 3,
       (item) => employeeById(snapshot, item.employeeId)?.fullName ?? ""));
   const filtered = Boolean(search || department || period || status);
@@ -74,7 +74,7 @@ export function TrainingListPage() {
       {archivedCancelled > 0 && <button type="button" data-testid="btn-show-cancelled" onClick={() => setStatus("Cancelled")} className={showLink}>Show Cancelled</button>}
     </p>}
     {saved && <SavedNotice text={`Training "${saved.activity}" untuk ${employeeById(snapshot, saved.employeeId)?.fullName ?? ""} tersimpan (${statusLabel(saved.status)}).`} href={`/training/${saved.trainingId}`} />}
-    <DataTable<TrainingVersion> rows={rows} noun="trainings" rowKey={(row) => row.trainingId} highlightKey={saved ? saved.trainingId : undefined}
+    <DataTable<TrainingVersion> rows={rows} noun="trainings" rowKey={(row) => row.trainingId} justSaved={saved}
       emptyTitle={filtered ? "Tidak ada training yang cocok" : archived.length ? "Semua training sudah selesai" : "Belum ada training"}
       emptyText={filtered ? "Ubah kata kunci atau reset filter." : archived.length ? "Pilih Show Completed atau Show Cancelled untuk melihatnya." : canWrite(snapshot) ? "Training dibuat dari development requirement (Create Training) di Development Requirement." : "Belum ada training yang tercatat."}
       selection={canWrite(snapshot) ? { selected, onChange: setSelected, selectable, rowLabel,

@@ -261,17 +261,17 @@ function TeamDailyKpi() {
   const workingDays = workingDaysSoFar(period, today());
   // An empty Saturday or Sunday is not a missed working day, so it is not shown in red.
   const weekend = [0, 6].includes(new Date(`${today()}T12:00:00Z`).getUTCDay());
-  const rows = useMemo<TeamRow[]>(() => visibleEmployees(snapshot)
+  const all = useMemo<TeamRow[]>(() => visibleEmployees(snapshot)
     // Employees whose position has no KPI role have nothing to fill, unless they already have entries.
     .filter((employee) => (catalog && roleForPosition(catalog, employee.positionId)) || (snapshot.kpiDaily ?? []).some((entry) => entry.employeeId === employee.id && entry.period === period))
-    .filter((employee) => includesText(employeeSearchText(snapshot, employee), search))
     .map((employee) => {
       const compiled = compileDaily(snapshot.kpiDaily ?? [], employee.id, period);
       // Any scorecard of the period replaces the compilation (pendingCompilation), so the period counts as finalized.
       const scorecard = scorecardsOf(snapshot, employee.id).find((item) => item.period === period);
       return { employee, position: positionOf(snapshot, employee)?.title ?? "—", compiled, last: compiled?.days.at(-1)?.entryDate, scorecard };
     // No entry in the period first, then entries but none today, then filled today (only the running period has a "today").
-    }).sort(byProgress((row) => !row.compiled ? 0 : period === thisMonth() && row.last === today() ? 2 : 1, (row) => row.employee.fullName)), [snapshot, catalog, period, search]);
+    }).sort(byProgress((row) => !row.compiled ? 0 : period === thisMonth() && row.last === today() ? 2 : 1, (row) => row.employee.fullName)), [snapshot, catalog, period]);
+  const rows = useMemo(() => all.filter((row) => includesText(employeeSearchText(snapshot, row.employee), search)), [all, snapshot, search]);
 
   const daysFilled = (row: TeamRow) => `${row.compiled?.days.length ?? 0} / ${workingDays}`;
   // Below 1280 px the Days column gives way and its count sits here, under Today or Last entry: with the column the
@@ -287,7 +287,7 @@ function TeamDailyKpi() {
       search={<SearchInput value={search} onChange={setSearch} placeholder="Search name or position" />}
       period={<PeriodFilter label="Period" testId="daily-period" value={period} onChange={(value) => setPeriod(value || thisMonth())} emptyOption={false} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />} />
     {saved && <SavedNotice text={`Performance Review ${employeeById(snapshot, saved.employeeId)?.fullName ?? ""} · ${formatPeriod(period)} difinalisasi dari Daily KPI.`} href={`/performance/scorecard/${saved.scorecardId}`} />}
-    <DataTable<TeamRow> rows={rows} noun="employees" rowKey={(row) => row.employee.id} highlightKey={saved?.employeeId}
+    <DataTable<TeamRow> rows={rows} noun="employees" rowKey={(row) => row.employee.id} justSaved={all.find((row) => row.employee.id === saved?.employeeId)}
       emptyTitle="Tidak ada pegawai yang cocok" emptyText="Ubah kata kunci atau periode. Hanya pegawai dengan KPI di katalog yang tampil."
       columns={[
         { key: "employee", header: "Employee", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },

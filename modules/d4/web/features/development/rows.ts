@@ -52,10 +52,6 @@ export function developmentRows(snapshot: Snapshot, filters: DevelopmentFilters)
       || b.createdAt.localeCompare(a.createdAt) || name(a).localeCompare(name(b)));
 }
 
-/** A requirement just saved stays listed until the page is left (13 Nov 2026), also when the save archived it. */
-export const withJustSaved = (rows: DevelopmentNeedVersion[], saved?: DevelopmentNeedVersion) =>
-  saved && !rows.some((need) => need.needId === saved.needId) ? [saved, ...rows] : rows;
-
 /** Archived requirements the other filters keep but the default list hides; 0 once a Status is picked. */
 export const archivedCount = (snapshot: Snapshot, filters: DevelopmentFilters) =>
   filters.status ? 0 : matchingNeeds(snapshot, filters).filter((need) => isArchived(snapshot, need)).length;

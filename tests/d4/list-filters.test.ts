@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DevelopmentNeedVersion, DevelopmentStatus } from "@/modules/d4/development/types";
 import type { KpiAssessment } from "@/modules/d4/supabase/types";
 import { localToday } from "@/modules/d4/shared/rules";
-import { inTrainingOrPositionChange, visibleEmployees } from "@/modules/d4/web/data/selectors";
+import { inTrainingOrPositionChange, pinJustSaved, visibleEmployees } from "@/modules/d4/web/data/selectors";
 import { competencyRows, type CompetencyFilters } from "@/modules/d4/web/features/competency/rows";
 import { matchesDashboardFilters, openNeedCount, type DashboardFilters, type DashboardRow } from "@/modules/d4/web/features/dashboard/summary";
 import { developmentRows, needCompetencyIds, type DevelopmentFilters } from "@/modules/d4/web/features/development/rows";
@@ -135,5 +135,25 @@ describe("People Dashboard filters (FR-D4-004 B)", () => {
   it("combines all three", () => {
     expect(ids({ band: "High Performance", competency: "Gap", training: "In Progress" })).toEqual(["high-gap"]);
     expect(ids({ band: "High Performance", competency: "Gap", training: "Completed" })).toEqual([]);
+  });
+});
+
+describe("Just saved: one rule for every list (17 Nov 2026)", () => {
+  const key = (row: { employee: { id: string } }) => row.employee.id;
+
+  it("keeps the row just saved on top when the filters leave it out, and lists it once", async () => {
+    const snapshot = await (await fixtureAs("HR")).loadSnapshot();
+    const everyone = competencyRows(snapshot, NO_FILTER);
+    const saved = everyone[everyone.length - 1];
+    const filteredOut = competencyRows(snapshot, { ...NO_FILTER, search: "no employee has this name" });
+    expect(filteredOut).toHaveLength(0);
+    expect(pinJustSaved(filteredOut, key, saved).map(key)).toEqual([saved.employee.id]);
+    expect(pinJustSaved(everyone, key, saved).map(key)).toEqual([saved.employee.id, ...everyone.map(key).filter((id) => id !== saved.employee.id)]);
+  });
+
+  it("leaves the list as it is when nothing was saved", async () => {
+    const snapshot = await (await fixtureAs("HR")).loadSnapshot();
+    const everyone = competencyRows(snapshot, NO_FILTER);
+    expect(pinJustSaved(everyone, key)).toEqual(everyone);
   });
 });

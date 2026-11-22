@@ -113,6 +113,15 @@ export const latestScorecard = (snapshot: Snapshot, employeeId: string) => score
  */
 export const byProgress = <T,>(rank: (row: T) => number, name: (row: T) => string) => (a: T, b: T) => rank(a) - rank(b) || name(a).localeCompare(name(b));
 /**
+ * Just saved (13 Nov 2026, one rule for every list since 17 Nov): the row a page just saved comes first until the page
+ * is left, also when the search, a filter or the history rule would leave it out, so a save never seems to vanish.
+ */
+export function pinJustSaved<T>(rows: readonly T[], rowKey: (row: T) => string, saved?: T): T[] {
+  if (!saved) return [...rows];
+  const key = rowKey(saved);
+  return [saved, ...rows.filter((row) => rowKey(row) !== key)];
+}
+/**
  * B6: the period score compiled from Daily KPI, shown without manual input until HR finalizes it into a scorecard.
  * Null once the period has a scorecard, which then takes over everywhere.
  */
