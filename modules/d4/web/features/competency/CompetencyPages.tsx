@@ -222,7 +222,7 @@ export function CompetencyHistoryPage({ employeeId }: { employeeId: string }) {
   return <>
     <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Competency Gap", href: "/competency" }, { label: "History" }]} backHref={`/competency/${employee.id}`}
       name={employee.fullName} meta={[...employeeMeta(snapshot, employee), `${saved.length} saved ${saved.length === 1 ? "assessment" : "assessments"}`]} />
-    <Card title="Assessment history" testId="assessment-history">
+    <Card title="Competency Gap history" testId="assessment-history">
       <Timeline empty="Belum ada penilaian kompetensi yang tersimpan untuk pegawai ini." entries={saved.map((item) => ({
         id: item.id, date: formatDate(item.effectiveDate), status: item.overallStatus, actor: item.actor,
         title: `${positionTitle(snapshot, item.positionId, item.positionTitle)} · ${item.context === "role-change" ? "position change" : "current position"}`,
