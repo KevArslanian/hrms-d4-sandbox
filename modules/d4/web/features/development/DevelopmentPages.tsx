@@ -160,14 +160,13 @@ export function DevelopmentListPage() {
       <SelectFilter label="Priorities" testId="all-priorities" value={priority} onChange={setPriority} options={["High", "Medium", "Low"].map((item) => ({ value: item, label: statusLabel(item) }))} />
     </FilterBar>
     {archived > 0 && <p data-testid="archived-hint" className="px-1 text-xs text-ink-2">
-      {archived} requirement Completed sudah masuk riwayat.{" "}
-      <button type="button" data-testid="btn-show-completed" onClick={() => setStatus("Completed")} className="rounded font-semibold text-primary-600 underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500">Show Completed</button>
+      {archived} requirement Completed sudah masuk riwayat. Pilih Status Completed di Filter untuk melihatnya.
     </p>}
     {savedTraining ? <SavedNotice text={`Training "${savedTraining.activity}" untuk ${savedName} tersimpan.`} href={`/training/${savedTraining.trainingId}`} />
       : savedNeed && <SavedNotice text={`Development requirement ${savedName} tersimpan (${statusLabel(savedNeed.status)}).`} href={`/development/${savedNeed.needId}`} />}
     <DataTable<DevelopmentNeedVersion> rows={rows} noun="requirements" rowKey={(row) => row.needId} justSaved={savedNeed || undefined}
       emptyTitle={filtered ? "Tidak ada requirement yang cocok" : archived ? "Semua requirement sudah Completed" : "Belum ada development requirement"}
-      emptyText={filtered ? "Ubah kata kunci atau reset filter." : archived ? "Pilih Show Completed untuk melihatnya." : writer ? "Buat dari gap kompetensi, perubahan posisi, atau evaluasi performance dengan Add Requirement." : "Belum ada development requirement yang tercatat."}
+      emptyText={filtered ? "Ubah kata kunci atau reset filter." : archived ? "Pilih Status Completed di Filter untuk melihatnya." : writer ? "Buat dari gap kompetensi, perubahan posisi, atau evaluasi performance dengan Add Requirement." : "Belum ada development requirement yang tercatat."}
       selection={writer ? { selected, onChange: setSelected, selectable, rowLabel,
         actions: <Button variant="primary" icon={<GraduationCap className="size-4" />} onClick={() => setBulkOpen(true)} data-testid="btn-bulk-add-training">Add Training</Button> } : undefined}
       columns={[

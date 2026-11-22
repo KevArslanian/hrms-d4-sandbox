@@ -53,7 +53,6 @@ export function TrainingListPage() {
     .sort(byProgress((item) => trainingDecision(snapshot, item) ? 0 : TRAINING_RANK[item.status] ?? 3,
       (item) => employeeById(snapshot, item.employeeId)?.fullName ?? ""));
   const filtered = Boolean(search || department || period || status);
-  const showLink = "rounded font-semibold text-primary-600 underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500";
   // Bulk progress is for trainings still running; a finished one takes its decision per person from its Next step.
   const selectable = (item: TrainingVersion) => (item.status === "Planned" || item.status === "In Progress") && canAssess(snapshot, item.employeeId);
   const rowLabel = (item: TrainingVersion) => `${employeeById(snapshot, item.employeeId)?.fullName ?? "—"} · ${item.activity}`;
@@ -67,16 +66,14 @@ export function TrainingListPage() {
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label="Departments" testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />}
       <SelectFilter label="Status" testId="all-status" value={status} onChange={setStatus} options={["Planned", "In Progress", "Completed", "Cancelled"].map((item) => ({ value: item, label: statusLabel(item) }))} />
     </FilterBar>
+    {/* PST 2: no "Show Completed" link beside the filter; the Status filter is the one way in, and its panel holds Reset. */}
     {archived.length > 0 && <p data-testid="archived-hint" className="px-1 text-xs text-ink-2">
-      {[archivedCompleted && `${archivedCompleted} training Completed`, archivedCancelled && `${archivedCancelled} training Cancelled`].filter(Boolean).join(" dan ")} sudah masuk riwayat.{" "}
-      {archivedCompleted > 0 && <button type="button" data-testid="btn-show-completed" onClick={() => setStatus("Completed")} className={showLink}>Show Completed</button>}
-      {archivedCompleted > 0 && archivedCancelled > 0 && " · "}
-      {archivedCancelled > 0 && <button type="button" data-testid="btn-show-cancelled" onClick={() => setStatus("Cancelled")} className={showLink}>Show Cancelled</button>}
+      {[archivedCompleted && `${archivedCompleted} training Completed`, archivedCancelled && `${archivedCancelled} training Cancelled`].filter(Boolean).join(" dan ")} sudah masuk riwayat. Pilih Status di Filter untuk melihatnya.
     </p>}
     {saved && <SavedNotice text={`Training "${saved.activity}" untuk ${employeeById(snapshot, saved.employeeId)?.fullName ?? ""} tersimpan (${statusLabel(saved.status)}).`} href={`/training/${saved.trainingId}`} />}
     <DataTable<TrainingVersion> rows={rows} noun="trainings" rowKey={(row) => row.trainingId} justSaved={saved}
       emptyTitle={filtered ? "Tidak ada training yang cocok" : archived.length ? "Semua training sudah selesai" : "Belum ada training"}
-      emptyText={filtered ? "Ubah kata kunci atau reset filter." : archived.length ? "Pilih Show Completed atau Show Cancelled untuk melihatnya." : canWrite(snapshot) ? "Training dibuat dari development requirement (Create Training) di Development Requirement." : "Belum ada training yang tercatat."}
+      emptyText={filtered ? "Ubah kata kunci atau reset filter." : archived.length ? "Pilih Status Completed atau Cancelled di Filter untuk melihatnya." : canWrite(snapshot) ? "Training dibuat dari development requirement (Create Training) di Development Requirement." : "Belum ada training yang tercatat."}
       selection={canWrite(snapshot) ? { selected, onChange: setSelected, selectable, rowLabel,
         actions: <Button variant="primary" icon={<RefreshCw className="size-4" />} onClick={() => setBulkOpen(true)} data-testid="btn-bulk-update-progress">Update Progress</Button> } : undefined}
       columns={[
