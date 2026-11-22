@@ -16,10 +16,10 @@ import { DataTable, PersonCell } from "../../ui/DataTable";
 import { DateField, FilterBar, FormError, PeriodFilter, ReadOnlyField, SearchInput } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
-import { Button, ButtonLink, Card, InfoGrid, Notice, SavedNotice, StatusBadge } from "../../ui/primitives";
+import { Button, ButtonLink, Card, cx, InfoGrid, Notice, SavedNotice, StatusBadge } from "../../ui/primitives";
 import { FinalizeDailyModal } from "../kpi/FinalizeDailyModal";
 import { noKpiText, SavedScore, scorecardTotal, totalComparison } from "../kpi/KpiFormModal";
-import { COMPILED_RULE, correctionsByDay, isDirty, scoreProblem, workingDaysSoFar } from "./entry";
+import { COMPILED_RULE, correctionsByDay, isDirty, missedWorkingDays, scoreProblem, workingDaysSoFar } from "./entry";
 
 const NOT_READY = "Daily KPI belum tersedia karena database belum diperbarui (migrasi 20261108130000). Menu lain tetap bisa dipakai.";
 const input = "h-9 w-full rounded-2xl border border-ink-3 px-3 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/15 text-sm aria-[invalid=true]:border-danger";
@@ -128,11 +128,18 @@ function MyDailyKpi({ team }: { team: boolean }) {
   }
 
   const compiled = compileDaily(snapshot.kpiDaily ?? [], snapshot.actorEmployeeId, period);
+  const missed = missedWorkingDays(period, today(), new Set(days.map((entry) => entry.entryDate)));
   return <>
     <Card title="My KPI today" testId="my-daily-kpi">
       <form onSubmit={submit} noValidate className="space-y-5">
         {/* B5 (interview D4, 14 Oct 2026): everyone scores their KPI every day before going home. */}
         {date === today() && !savedFor(today()) && <div data-testid="daily-reminder"><Notice tone="warning">Daily KPI hari ini belum diisi. Isi sebelum pulang.</Notice></div>}
+        {/* A forgotten day can still be filled until the month ends: each one opens that date in this form. */}
+        {missed.length > 0 && <div data-testid="daily-missed"><Notice tone="warning">
+          <span className="font-semibold">{missed.length} hari kerja bulan ini belum diisi.</span> Pilih tanggalnya untuk mengisi, satu per satu, sampai akhir {formatPeriod(period)}:
+          <span className="mt-2 flex flex-wrap gap-2">{missed.map((day) => <button key={day} type="button" data-testid={`missed-${day}`} onClick={() => chooseDate(day)}
+            className={cx("rounded-lg border px-2.5 py-1 text-xs font-semibold", day === date ? "border-primary-500 bg-primary-50 text-primary-600" : "border-line bg-surface text-ink hover:border-primary-500")}>{shortDay(day)}</button>)}</span>
+        </Notice></div>}
         <div className="grid gap-4 sm:grid-cols-3">
           <DateField label="Date" testId="daily-date" required min={`${period}-01`} max={today()} value={date} onChange={(event) => chooseDate(event.target.value)} />
           <ReadOnlyField label="Position KPI" testId="daily-role" value={indicators[0].role_name} />
@@ -365,3 +372,6 @@ export function DailyKpiHistoryPage({ employeeId }: { employeeId: string }) {
     </Card>}
   </>;
 }
+
+/** "Sen, 17 Nov": a missed day as a short button label. */
+const shortDay = (day: string) => new Date(`${day}T12:00:00Z`).toLocaleDateString("id-ID", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
