@@ -136,7 +136,7 @@ export function PerformanceDetailPage({ id }: { id: string }) {
   const needs = developmentNeeds(snapshot).filter((item) => item.sourceType === "performance_context" && item.sourceRef === evaluation.id);
 
   return <>
-    <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Performance Review", href: "/performance" }, { label: "Evaluasi lama" }]} backHref={`/performance/history/${employee.id}`}
+    <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Performance Review", href: "/performance" }, { label: "Legacy Evaluation" }]} backHref={`/performance/history/${employee.id}`}
       name={employee.fullName} meta={[...employeeMeta(snapshot, employee), `Period ${formatPeriod(evaluation.period)}`]}
       status={evaluationStatus(evaluation)}
       actions={<>
@@ -195,7 +195,7 @@ export function PerformanceHistoryPage({ employeeId }: { employeeId: string }) {
         body: `Catalog ${item.definitionVersion} · Evaluator ${item.evaluatorName || "—"}${item.generalNotes ? ` · ${item.generalNotes}` : ""}`,
       }))} />
     </Card>
-    {evaluations.length > 0 && <Card title="Evaluasi lama (sebelum digabung)" testId="evaluation-history">
+    {evaluations.length > 0 && <Card title="Legacy Evaluation history (before the merge)" testId="evaluation-history">
       <Timeline empty="" entries={evaluations.map((item) => ({
         id: item.id, date: `${formatPeriod(item.period)} · ${formatDate(item.evaluationDate || item.createdAt)}`,
         title: `Evaluation ${formatPeriod(item.period)}${revisionTag(evaluations, item)}`,
@@ -203,7 +203,7 @@ export function PerformanceHistoryPage({ employeeId }: { employeeId: string }) {
         body: <>Evaluator: {item.evaluator || "—"}{item.generalNotes ? ` · ${item.generalNotes}` : ""}</>,
       }))} />
     </Card>}
-    {linkedNeeds.length > 0 && <Card title="Development dari Performance Review" testId="development-linked-to-evaluations">
+    {linkedNeeds.length > 0 && <Card title="Development from Performance Review" testId="development-linked-to-evaluations">
       <div className="flex flex-wrap gap-2">{linkedNeeds.map((need) => <SourceChip key={need.needId} label={describeSource(snapshot, need).label} reference={need.objective} href={`/development/${need.needId}`} />)}</div>
     </Card>}
     {adding && <KpiFormModal employeeId={employee.id} onClose={() => setAdding(false)} onSaved={setSavedId} />}
