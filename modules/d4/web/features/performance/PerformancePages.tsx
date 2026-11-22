@@ -55,7 +55,7 @@ export function PerformanceListPage() {
   const periods = useMemo(() => [...new Set([...(snapshot.kpiAssessments ?? []), ...(snapshot.kpiDaily ?? []), ...snapshot.performance].map((item) => item.period))].sort().reverse(), [snapshot]);
   // KPI role per the catalog in force for the filtered period, or this month when no period is chosen.
   const catalog = useMemo(() => catalogSet && catalogFor(catalogSet, period || thisMonth()), [catalogSet, period]);
-  const rows = useMemo<Row[]>(() => visibleEmployees(snapshot).map((employee) => {
+  const all = useMemo<Row[]>(() => visibleEmployees(snapshot).map((employee) => {
     const title = positionOf(snapshot, employee)?.title;
     const scorecard = period ? scorecardsOf(snapshot, employee.id).find((item) => item.period === period) : latestScorecard(snapshot, employee.id);
     // Without a period filter the running period's compilation wins over an older scorecard: it is the newer state.
@@ -70,10 +70,13 @@ export function PerformanceListPage() {
       employee, position: title ?? "—", hasKpi: !catalogSet || !title || Boolean(catalog && roleForPosition(catalog, employee.positionId)),
       scorecard: compiled ? undefined : scorecard, compiled, evaluation, period: compiled ? at : scorecard?.period ?? evaluation?.period,
     };
-  }).filter((row) => includesText(employeeSearchText(snapshot, row.employee), search)
+  }), [snapshot, catalog, catalogSet, period]);
+  const rows = useMemo(() => all.filter((row) => includesText(employeeSearchText(snapshot, row.employee), search)
     && (!position || row.employee.positionId === position) && (!department || row.employee.departmentId === department)
     && (!progress || rowStatus(row) === progress))
-    .sort(byProgress(performanceRank, (row) => row.employee.fullName)), [snapshot, catalog, catalogSet, search, position, department, period, progress]);
+    .sort(byProgress(performanceRank, (row) => row.employee.fullName)), [all, snapshot, search, position, department, progress]);
+  const listScale = scaleMaxOf(catalog?.version);
+  const listScore = (value: number | null, version?: string | null) => scaleMaxOf(version) === listScale ? value?.toFixed(2) ?? "—" : formatScore(value, scaleMaxOf(version));
 
   return <>
     <PageHeader title="Performance Review" subtitle="Lima Core KPI dan Notes per pegawai dan periode, dalam satu penilaian."
@@ -87,14 +90,15 @@ export function PerformanceListPage() {
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label="Positions" testId="all-positions" value={position} onChange={set("position")} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />}
     </FilterBar>
     <SavedScorecardNotice scorecard={savedScorecard} />
-    <DataTable<Row> rows={rows} noun="employees" rowKey={(row) => row.employee.id} highlightKey={savedScorecard?.employeeId}
+    <DataTable<Row> rows={rows} noun="employees" rowKey={(row) => row.employee.id} justSaved={all.find((row) => row.employee.id === savedScorecard?.employeeId)}
       emptyTitle="Tidak ada pegawai yang cocok" emptyText="Ubah kata kunci atau reset filter untuk melihat semua pegawai."
       columns={[
         { key: "employee", header: "Employee", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
         { key: "position", header: "Position / Department", wrap: true, optional: true, cell: (row) => <><span className="block">{row.position}</span><span className="block text-xs text-ink-3">{departmentOf(snapshot, row.employee)?.name ?? "—"}</span></> },
         { key: "period", header: "Period", cell: (row) => formatPeriod(row.period) },
-        { key: "total", header: "Total KPI", className: "tabular-nums", cell: (row) => row.scorecard ? <span className="font-semibold">{formatScorecard(row.scorecard)}</span>
-          : row.compiled ? <><span className="block font-semibold">{formatScore(row.compiled.total, scaleMaxOf(row.compiled.definitionVersion))}</span><span data-testid="compiled-days" className="block whitespace-normal text-xs text-ink-3">from {row.compiled.days.length} daily {row.compiled.days.length === 1 ? "entry" : "entries"}</span></>
+        // The scale sits in the header once instead of "/ 100" on every row (PST 2); a row on the other scale keeps its own.
+        { key: "total", header: `Total KPI (/${listScale})`, className: "tabular-nums", cell: (row) => row.scorecard ? <span className="font-semibold">{listScore(row.scorecard.overallScore, row.scorecard.definitionVersion)}</span>
+          : row.compiled ? <><span className="block font-semibold">{listScore(row.compiled.total, row.compiled.definitionVersion)}</span><span data-testid="compiled-days" className="block whitespace-normal text-xs text-ink-3">from {row.compiled.days.length} daily {row.compiled.days.length === 1 ? "entry" : "entries"}</span></>
           // The small lines may wrap (the score stays on one line), so they do not widen the table past the Status badge.
           : row.evaluation ? <span data-testid="legacy-evaluation" className="whitespace-normal text-xs text-ink-3">Old evaluation, no KPI score</span>
           : row.hasKpi ? "—" : <span className="whitespace-normal text-xs text-ink-3">Not in catalog {catalog?.version} yet</span> },
@@ -132,7 +136,7 @@ export function PerformanceDetailPage({ id }: { id: string }) {
   const needs = developmentNeeds(snapshot).filter((item) => item.sourceType === "performance_context" && item.sourceRef === evaluation.id);
 
   return <>
-    <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Performance Review", href: "/performance" }, { label: "Evaluasi lama" }]} backHref={`/performance/history/${employee.id}`}
+    <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Performance Review", href: "/performance" }, { label: "Legacy Evaluation" }]} backHref={`/performance/history/${employee.id}`}
       name={employee.fullName} meta={[...employeeMeta(snapshot, employee), `Period ${formatPeriod(evaluation.period)}`]}
       status={evaluationStatus(evaluation)}
       actions={<>
@@ -180,18 +184,18 @@ export function PerformanceHistoryPage({ employeeId }: { employeeId: string }) {
   const linkedNeeds = developmentNeeds(snapshot).filter((need) => need.employeeId === employee.id && need.sourceType === "performance_context");
   return <>
     <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Performance Review", href: "/performance" }, { label: "History" }]} backHref="/performance"
-      name={employee.fullName} meta={[...employeeMeta(snapshot, employee), `${scorecards.length} penilaian`]}
+      name={employee.fullName} meta={[...employeeMeta(snapshot, employee), `${scorecards.length} saved ${scorecards.length === 1 ? "review" : "reviews"}`]}
       actions={canAssess(snapshot, employee.id) && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)} data-testid="btn-add-penilaian">Add Performance Review</Button>} />
     <SavedScorecardNotice scorecard={scorecards.find((item) => item.id === savedId)} />
     {title && catalogSet && !(catalog && roleForPosition(catalog, employee.positionId)) && <Notice tone="warning">{noKpiText(catalog?.version)}</Notice>}
-    <Card title="Riwayat Performance Review" testId="scorecard-history">
+    <Card title="Performance Review history" testId="scorecard-history">
       <Timeline empty="Pegawai ini belum memiliki Performance Review." entries={scorecards.map((item) => ({
         id: item.id, date: `${formatPeriod(item.period)} · ${formatDate(item.evaluationDate || item.createdAt)}`,
         title: `${item.roleName} · ${formatScorecard(item)}${revisionTag(scorecards, item)}`, status: scorecardStatus(item), actor: item.actor, href: `/performance/scorecard/${item.id}`,
         body: `Catalog ${item.definitionVersion} · Evaluator ${item.evaluatorName || "—"}${item.generalNotes ? ` · ${item.generalNotes}` : ""}`,
       }))} />
     </Card>
-    {evaluations.length > 0 && <Card title="Evaluasi lama (sebelum digabung)" testId="evaluation-history">
+    {evaluations.length > 0 && <Card title="Legacy Evaluation history (before the merge)" testId="evaluation-history">
       <Timeline empty="" entries={evaluations.map((item) => ({
         id: item.id, date: `${formatPeriod(item.period)} · ${formatDate(item.evaluationDate || item.createdAt)}`,
         title: `Evaluation ${formatPeriod(item.period)}${revisionTag(evaluations, item)}`,
@@ -199,7 +203,7 @@ export function PerformanceHistoryPage({ employeeId }: { employeeId: string }) {
         body: <>Evaluator: {item.evaluator || "—"}{item.generalNotes ? ` · ${item.generalNotes}` : ""}</>,
       }))} />
     </Card>}
-    {linkedNeeds.length > 0 && <Card title="Development dari Performance Review" testId="development-linked-to-evaluations">
+    {linkedNeeds.length > 0 && <Card title="Development from Performance Review" testId="development-linked-to-evaluations">
       <div className="flex flex-wrap gap-2">{linkedNeeds.map((need) => <SourceChip key={need.needId} label={describeSource(snapshot, need).label} reference={need.objective} href={`/development/${need.needId}`} />)}</div>
     </Card>}
     {adding && <KpiFormModal employeeId={employee.id} onClose={() => setAdding(false)} onSaved={setSavedId} />}

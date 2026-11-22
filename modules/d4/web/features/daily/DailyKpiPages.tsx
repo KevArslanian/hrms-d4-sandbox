@@ -11,15 +11,15 @@ import { canFillDaily } from "../../../shared/rules";
 import type { EmployeeReference } from "../../../shared/types";
 import type { KpiAssessment, KpiDailyEntry } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { byProgress, canAssess, departmentOf, employeeById, employeeMeta, employeeSearchText, formatDate, formatGap, formatPeriod, formatScore, includesText, positionOf, scorecardsOf, thisMonth, today, visibleEmployees } from "../../data/selectors";
+import { byProgress, canAssess, departmentOf, employeeById, employeeMeta, employeeSearchText, formatDate, formatDateTime, formatGap, formatPeriod, formatScore, includesText, positionOf, scorecardsOf, thisMonth, today, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { DateField, FilterBar, FormError, PeriodFilter, ReadOnlyField, SearchInput } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
-import { Button, ButtonLink, Card, InfoGrid, Notice, SavedNotice, StatusBadge } from "../../ui/primitives";
+import { Button, ButtonLink, Card, cx, InfoGrid, Notice, SavedNotice, StatusBadge } from "../../ui/primitives";
 import { FinalizeDailyModal } from "../kpi/FinalizeDailyModal";
 import { noKpiText, SavedScore, scorecardTotal, totalComparison } from "../kpi/KpiFormModal";
-import { COMPILED_RULE, correctionsByDay, isDirty, scoreProblem, workingDaysSoFar } from "./entry";
+import { COMPILED_RULE, correctionsByDay, isDirty, missedWorkingDays, scoreProblem, workingDaysSoFar } from "./entry";
 
 const NOT_READY = "Daily KPI belum tersedia karena database belum diperbarui (migrasi 20261108130000). Menu lain tetap bisa dipakai.";
 const input = "h-9 w-full rounded-2xl border border-ink-3 px-3 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/15 text-sm aria-[invalid=true]:border-danger";
@@ -128,11 +128,18 @@ function MyDailyKpi({ team }: { team: boolean }) {
   }
 
   const compiled = compileDaily(snapshot.kpiDaily ?? [], snapshot.actorEmployeeId, period);
+  const missed = missedWorkingDays(period, today(), new Set(days.map((entry) => entry.entryDate)));
   return <>
     <Card title="My KPI today" testId="my-daily-kpi">
       <form onSubmit={submit} noValidate className="space-y-5">
         {/* B5 (interview D4, 14 Oct 2026): everyone scores their KPI every day before going home. */}
         {date === today() && !savedFor(today()) && <div data-testid="daily-reminder"><Notice tone="warning">Daily KPI hari ini belum diisi. Isi sebelum pulang.</Notice></div>}
+        {/* A forgotten day can still be filled until the month ends: each one opens that date in this form. */}
+        {missed.length > 0 && <div data-testid="daily-missed"><Notice tone="warning">
+          <span className="font-semibold">{missed.length} hari kerja bulan ini belum diisi.</span> Pilih tanggalnya untuk mengisi, satu per satu, sampai akhir {formatPeriod(period)}. Lewati tanggal libur:
+          <span className="mt-2 flex flex-wrap gap-2">{missed.map((day) => <button key={day} type="button" data-testid={`missed-${day}`} onClick={() => chooseDate(day)}
+            className={cx("rounded-lg border px-2.5 py-1 text-xs font-semibold", day === date ? "border-primary-500 bg-primary-50 text-primary-600" : "border-line bg-surface text-ink hover:border-primary-500")}>{shortDay(day)}</button>)}</span>
+        </Notice></div>}
         <div className="grid gap-4 sm:grid-cols-3">
           <DateField label="Date" testId="daily-date" required min={`${period}-01`} max={today()} value={date} onChange={(event) => chooseDate(event.target.value)} />
           <ReadOnlyField label="Position KPI" testId="daily-role" value={indicators[0].role_name} />
@@ -261,17 +268,17 @@ function TeamDailyKpi() {
   const workingDays = workingDaysSoFar(period, today());
   // An empty Saturday or Sunday is not a missed working day, so it is not shown in red.
   const weekend = [0, 6].includes(new Date(`${today()}T12:00:00Z`).getUTCDay());
-  const rows = useMemo<TeamRow[]>(() => visibleEmployees(snapshot)
+  const all = useMemo<TeamRow[]>(() => visibleEmployees(snapshot)
     // Employees whose position has no KPI role have nothing to fill, unless they already have entries.
     .filter((employee) => (catalog && roleForPosition(catalog, employee.positionId)) || (snapshot.kpiDaily ?? []).some((entry) => entry.employeeId === employee.id && entry.period === period))
-    .filter((employee) => includesText(employeeSearchText(snapshot, employee), search))
     .map((employee) => {
       const compiled = compileDaily(snapshot.kpiDaily ?? [], employee.id, period);
       // Any scorecard of the period replaces the compilation (pendingCompilation), so the period counts as finalized.
       const scorecard = scorecardsOf(snapshot, employee.id).find((item) => item.period === period);
       return { employee, position: positionOf(snapshot, employee)?.title ?? "—", compiled, last: compiled?.days.at(-1)?.entryDate, scorecard };
     // No entry in the period first, then entries but none today, then filled today (only the running period has a "today").
-    }).sort(byProgress((row) => !row.compiled ? 0 : period === thisMonth() && row.last === today() ? 2 : 1, (row) => row.employee.fullName)), [snapshot, catalog, period, search]);
+    }).sort(byProgress((row) => !row.compiled ? 0 : period === thisMonth() && row.last === today() ? 2 : 1, (row) => row.employee.fullName)), [snapshot, catalog, period]);
+  const rows = useMemo(() => all.filter((row) => includesText(employeeSearchText(snapshot, row.employee), search)), [all, snapshot, search]);
 
   const daysFilled = (row: TeamRow) => `${row.compiled?.days.length ?? 0} / ${workingDays}`;
   // Below 1280 px the Days column gives way and its count sits here, under Today or Last entry: with the column the
@@ -287,7 +294,7 @@ function TeamDailyKpi() {
       search={<SearchInput value={search} onChange={setSearch} placeholder="Search name or position" />}
       period={<PeriodFilter label="Period" testId="daily-period" value={period} onChange={(value) => setPeriod(value || thisMonth())} emptyOption={false} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />} />
     {saved && <SavedNotice text={`Performance Review ${employeeById(snapshot, saved.employeeId)?.fullName ?? ""} · ${formatPeriod(period)} difinalisasi dari Daily KPI.`} href={`/performance/scorecard/${saved.scorecardId}`} />}
-    <DataTable<TeamRow> rows={rows} noun="employees" rowKey={(row) => row.employee.id} highlightKey={saved?.employeeId}
+    <DataTable<TeamRow> rows={rows} noun="employees" rowKey={(row) => row.employee.id} justSaved={all.find((row) => row.employee.id === saved?.employeeId)}
       emptyTitle="Tidak ada pegawai yang cocok" emptyText="Ubah kata kunci atau periode. Hanya pegawai dengan KPI di katalog yang tampil."
       columns={[
         { key: "employee", header: "Employee", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
@@ -345,7 +352,7 @@ export function DailyKpiHistoryPage({ employeeId }: { employeeId: string }) {
   return <>
     <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Daily KPI", href: "/daily-kpi" }, { label: "History" }]} backHref={`/daily-kpi/${employeeId}`}
       name={employee.fullName} meta={[...employeeMeta(snapshot, employee), `Period ${formatPeriod(period)}`]} />
-    {!snapshot.kpiDaily ? <Notice tone="warning">{NOT_READY}</Notice> : <Card title="History" testId="daily-history"
+    {!snapshot.kpiDaily ? <Notice tone="warning">{NOT_READY}</Notice> : <Card title="Daily KPI history" testId="daily-history"
       actions={<div className="w-48"><PeriodFilter label="Period" testId="daily-period" value={period} onChange={(value) => setPeriod(value || periods[0])} emptyOption={false} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} /></div>}>
       <Timeline empty="Belum ada entri harian di periode ini." entries={items.map(({ entry, revision, previous, versions }) => {
         const max = scaleMaxOf(entry.definitionVersion);
@@ -353,7 +360,7 @@ export function DailyKpiHistoryPage({ employeeId }: { employeeId: string }) {
         const changes = previous ? entry.lines.flatMap((line, index) => line.raw_score === previous.lines[index]?.raw_score ? [] : [`KPI ${line.indicator_order}: ${previous.lines[index]?.raw_score ?? "—"} → ${line.raw_score ?? "—"}`]) : [];
         return {
           id: entry.id,
-          date: formatDate(entry.createdAt),
+          date: formatDateTime(entry.createdAt),
           title: `${previous ? `Correction ${formatDate(entry.entryDate)} · Revision ${revision}` : `Daily entry ${formatDate(entry.entryDate)}`}${versions > 1 ? (current ? " · Current" : " · Superseded") : ""}`,
           status: performanceBand(entry.overallScore, entry.definitionVersion) ?? undefined,
           body: previous
@@ -365,3 +372,6 @@ export function DailyKpiHistoryPage({ employeeId }: { employeeId: string }) {
     </Card>}
   </>;
 }
+
+/** "Sen, 17 Nov": a missed day as a short button label. */
+const shortDay = (day: string) => new Date(`${day}T12:00:00Z`).toLocaleDateString("id-ID", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });

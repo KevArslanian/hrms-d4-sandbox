@@ -28,5 +28,6 @@ Dibuat sebagai file baru karena file PISD tim hanya bisa dibaca oleh akun ini. F
 - Variable collection **D4 V2 Tokens** (warna) dan text style `D4/*`.
 - Board **00 Foundations & Components** dengan component set Button, Status Badge, Source Chip, Row Action Trigger, Menu Item, Toast, Metric Card, Form Field, Sidebar (6 varian menu aktif), Topbar, dan Pagination.
 - Frame layar 01–34 di page `D4`, 7 baris per fitur, dengan 9 prototype link (⋮ → menu → Detail/History/Create, Save → Success Toast). Kode pembangunnya ada di plugin lokal [`figma-plugin/d4-v2-builder`](../../figma-plugin/d4-v2-builder/README.md), jadi frame bisa dibangun ulang di file lain.
+- Section **D4 Web 1:1 (fix/D4-masukan-pst2, 23 Nov 2026)** di page `D4`: 36 frame tangkapan halaman asli (21 layar desktop, 9 state termasuk Loading dan Error, 6 layar ponsel 390). Ini acuan 1:1 terbaru; section 17 Nov diberi nama "arsip".
 
 Setelah frame selesai, file ini dapat disalin ke page `D4` di file PISD oleh anggota tim yang punya akses edit.

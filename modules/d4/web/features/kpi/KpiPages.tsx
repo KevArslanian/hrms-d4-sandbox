@@ -77,7 +77,7 @@ export function KpiDetailPage({ id }: { id: string }) {
           <h3 className="mb-1 mt-5 font-display text-xs font-semibold uppercase tracking-[0.04em] text-ink-3">Reference</h3>
           <p className="text-sm text-ink-2 [overflow-wrap:anywhere]">{scorecard.evidenceReference || evaluation?.evidenceReference || "—"}</p>
           {(needs.length > 0 || (!scorecard.generalNotes && evaluation)) && <div className="mt-4 flex flex-col items-start gap-2">
-            {!scorecard.generalNotes && evaluation && <SourceChip label="Evaluasi lama" reference={formatPeriod(evaluation.period)} href={`/performance/${evaluation.id}`} />}
+            {!scorecard.generalNotes && evaluation && <SourceChip label="Legacy Evaluation" reference={formatPeriod(evaluation.period)} href={`/performance/${evaluation.id}`} />}
             {needs.map((need) => <SourceChip key={need.needId} label="Development Requirement" reference={need.objective} href={`/development/${need.needId}`} />)}
           </div>}
         </Card>
