@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight, ChevronRight } from "lucide-react";
+import { ArrowDown, ArrowUpRight, ChevronRight } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import type { DailyCompilation } from "../../../kpi/daily";
 import { performanceBand } from "../../../kpi/scale";
@@ -68,7 +68,9 @@ export function SummaryTiles({ snapshot, rows, period, noKpi }: { snapshot: Snap
         const body = <>
           <span className="flex items-start justify-between gap-2">
             <span className="text-xs font-semibold uppercase tracking-[0.04em] text-ink-3">{tile.label}</span>
-            {tile.opens && <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-ink-3 transition-colors group-hover:text-primary-600" />}
+            {/* Employees jumps down to the table, the other tiles open a list: the mark says which. */}
+            {tile.opens && (tile.key === "total" ? <ArrowDown aria-hidden="true" data-testid="summary-total-jump" className="size-4 shrink-0 text-ink-3 transition-colors group-hover:text-primary-600" />
+              : <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-ink-3 transition-colors group-hover:text-primary-600" />)}
           </span>
           <span className="mt-2 block font-display text-3xl font-semibold tabular-nums text-ink">{tile.value}</span>
           <span data-testid={`summary-${tile.key}-hint`} className="mt-1 block text-xs text-ink-3">{tile.hint}</span>

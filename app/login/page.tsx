@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, FormEvent, ChangeEvent } from 'react';
+import React, { useState, useSyncExternalStore, FormEvent, ChangeEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
@@ -8,10 +8,14 @@ import { useGreeting } from '@/lib/useGreeting';
 import { loginErrorMessage } from '@/lib/loginErrorMessage';
 import { d4DataMode } from '@/modules/d4/web/data/mode';
 import { startPreviewSession } from '@/modules/d4/web/data/preview-session';
+import { IDLE_LIMIT_MS, IDLE_LOGOUT_KEY } from '@/modules/d4/web/data/idle';
 
 // B2 (PISD-B) tidak memuat webfont, jadi var font jatuh ke system stack. Samakan.
 const B2_FONT_STACK = "-apple-system, system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', 'Noto Sans', Arial, sans-serif";
 const B2_FONT_VARS = { '--font-montserrat': B2_FONT_STACK, '--font-syne': B2_FONT_STACK } as React.CSSProperties;
+
+const noSubscription = () => () => {};
+const readIdleLogout = () => { try { return window.sessionStorage.getItem(IDLE_LOGOUT_KEY) ?? ''; } catch { return ''; } };
 
 export default function LoginPage() {
   const router = useRouter();
@@ -21,6 +25,8 @@ export default function LoginPage() {
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState<string>('');
   const [isSigningIn, setIsSigningIn] = useState<boolean>(false);
+  // Set by an automatic logout for inactivity (IdleLogout), which clears it again once the app opens after login.
+  const idleLogoutAt = useSyncExternalStore(noSubscription, readIdleLogout, () => '');
   const greeting = useGreeting();
 
   const validateEmailFormat = (emailVal: string): boolean => {
@@ -194,6 +200,12 @@ export default function LoginPage() {
                 <p data-testid="login-preview-note" className="p-4 rounded-xl bg-[#D97706]/10 border border-[#D97706]/30 text-[#92400E] text-xs sm:text-sm font-semibold">
                   Mode pratinjau: email dan password apa pun dengan format yang valid bisa dipakai. Login dan logout tidak mengirim atau membaca data dari server.
                 </p>
+              )}
+
+              {idleLogoutAt && !errorMessage && !successMessage && (
+                <div data-testid="login-idle" role="status" className="p-4 rounded-xl bg-[#B45309]/10 border border-[#B45309]/30 text-[#92400E] text-xs sm:text-sm font-semibold">
+                  Anda logout otomatis pukul {idleLogoutAt} karena tidak aktif selama {Math.round(IDLE_LIMIT_MS / 60_000)} menit. Silakan login kembali.
+                </div>
               )}
 
               {errorMessage && (
