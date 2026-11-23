@@ -11,7 +11,7 @@
 
 ## 1. Tujuan dan cakupan
 
-Dokumen ini memetakan setiap requirement D4 ke test case yang dapat dijalankan QA. ID test case diturunkan langsung dari checklist kartu QA di board Planka *Squad D4*, jadi satu baris checklist = satu TC ID. Test case baru (TC-D4-001) ditambahkan karena FR-D4-001 belum punya skenario di checklist mana pun. TC-D4-002-16 s.d. 19 (skala 1–100 katalog V6 dan kategori performa) ditambahkan 20 Okt 2026 dan belum ada di checklist Planka. TC-D4-002-20 dan 21 (scorecard lama setelah Actual digabung dengan Score, dan kunci Reference) ditambahkan 20 Okt 2026 untuk Q4 dan Q12, juga belum ada di Planka.
+Dokumen ini memetakan setiap requirement D4 ke test case yang dapat dijalankan QA. ID test case diturunkan langsung dari checklist kartu QA di board Planka *Squad D4*, jadi satu baris checklist = satu TC ID. Test case baru (TC-D4-001) ditambahkan karena FR-D4-001 belum punya skenario di checklist mana pun. TC-D4-002-16 s.d. 19 (skala 1–100 katalog V6 dan kategori performa) ditambahkan 20 Okt 2026 dan belum ada di checklist Planka. TC-D4-002-20 dan 21 (scorecard lama setelah Actual digabung dengan Score, dan kunci Reference) ditambahkan 20 Okt 2026 untuk Q4 dan Q12, juga belum ada di Planka. TC-D4-002-25, TC-D4-006-24, TC-D4-008-20 dan TC-D4-008-21 ditambahkan 23 Nov 2026 untuk bug QA BUG-FN-D4-001, BUG-FN-D4-002 dan catatan PST 2 tentang "/ 100".
 
 Di luar cakupan: sertifikasi/renewal, trigger performance-gap formal, dan reassessment wajib (Academic/Project Extension sampai ada sumber resmi — lihat TS-D4-002/003).
 
@@ -20,17 +20,17 @@ Di luar cakupan: sertifikasi/renewal, trigger performance-gap formal, dan reasse
 | Requirement | Prefix TC | Jumlah TC | Kartu QA |
 |---|---|---|---|
 | US-D4-001 / FR-D4-001 Performance Evaluation | TC-D4-001 | 6 (baru) | [QA] Pengujian Phase 1 |
-| US-D4-002 / FR-D4-002 KPI Scorecard | TC-D4-002 | 24 (3 baru: KPI gap) | [QA] Pengujian Phase 1 |
+| US-D4-002 / FR-D4-002 KPI Scorecard | TC-D4-002 | 25 (3 baru: KPI gap; 1 baru: BUG-FN-D4-001) | [QA] Pengujian Phase 1 |
 | US-D4-003 / FR-D4-003 Competency Gap | TC-D4-003 | 12 | [QA] Pengujian Phase 2 |
 | US-D4-004 / FR-D4-004 Development Requirement | TC-D4-004 | 15 (3 baru) | [QA] Pengujian Phase 2 |
 | US-D4-005 / FR-D4-005 Training Tracking | TC-D4-005 | 15 | [QA] Pengujian Phase 3 |
-| US-D4-006 / FR-D4-006 Dashboard KPI Orang | TC-D4-006 | 23 | [QA] Pengujian Phase 3 |
+| US-D4-006 / FR-D4-006 Dashboard KPI Orang | TC-D4-006 | 24 (1 baru: skala di judul kolom) | [QA] Pengujian Phase 3 |
 | FR-D4-007 / TR-D4-001 Keterhubungan data | TC-D4-007 | 9 | [QA] Pengujian Integration, Security, Validation & UI Quality |
-| Daily KPI (wawancara D4, 14 Okt 2026) | TC-D4-008 | 18 (baru) | [QA] Pengujian Phase 1 |
+| Daily KPI (wawancara D4, 14 Okt 2026) | TC-D4-008 | 21 (baru) | [QA] Pengujian Phase 1 |
 | TR-D4-002 Security & audit | TC-D4-SEC | 9 | idem |
 | TR-D4-002 Validation & UI quality | TC-D4-UIQ | 14 (1 baru: pola filter) | idem |
 | Skenario lintas fitur | TS-D4-001 s.d. 003 | 3 | [QA] TS-D4-00x (list To Do List QA) |
-| **Total** | | **146** | |
+| **Total** | | **153** | |
 
 Semua FR dan TR yang dapat diuji punya minimal satu TC positif dan satu TC negatif.
 
@@ -112,6 +112,7 @@ Kartu Planka: **[QA] Pengujian Phase 1**
 | TC-D4-002-22 | Test kolom Gap per Core KPI = Actual − 85 di form dan detail scorecard V6 (contoh Actual 90 → +5, 80 → −5) | Positif | Not Run | Staging: O5 |
 | TC-D4-002-23 | Test KPI gap total = Total KPI − 85 di list Performance Review, detail (Ringkasan) dan profil People Dashboard | Positif | Not Run | Staging: O5 |
 | TC-D4-002-24 | Test scorecard 1–5 (V3.1/V5.1) tidak dikonversi: gap tampil `n/a (skala 1–5)`, kolom Gap per baris tidak muncul | Negatif | Not Run | Staging |
+| TC-D4-002-25 | Test Actual dengan nol di depan (BUG-FN-D4-001): ketik atau tempel `00085` → field menulis `85`, Weighted dan Gap dihitung dari 85; `00000` → `0` dan Save ditolak "Di luar rentang: isi 1 sampai 100."; `150` tetap tidak bisa diketik | Negatif | Not Run | Staging: O5 |
 
 ### TC-D4-003 · FR-D4-003 Competency Gap
 
@@ -205,6 +206,7 @@ Kartu Planka: **[QA] Pengujian Phase 3**
 | TC-D4-006-21 | Test empty state | Positif | Not Run | Staging |
 | TC-D4-006-22 | Test validation state | Positif | Not Run | Staging |
 | TC-D4-006-23 | Test error state | Positif | Not Run | Staging |
+| TC-D4-006-24 | Test kolom Total KPI di tabel People Dashboard: judul **Total KPI (/100)**, baris skala 1–100 hanya menulis angka (misalnya `82.00`) tanpa "/ 100"; baris scorecard 1–5 tetap menulis "/ 5" | Positif | Not Run | Staging: O5 |
 
 ### TC-D4-007 · FR-D4-007 / TR-D4-001 Keterhubungan data
 
@@ -247,6 +249,8 @@ Keputusan 8 Nov 2026: pegawai mengisi skornya sendiri per hari; skor periode dik
 | TC-D4-008-17 | Test gagal simpan saat offline: toast "Tidak dapat terhubung ke server. Periksa koneksi internet lalu coba lagi." dan entri tidak tersimpan | Negatif | Not Run | Staging: O7 |
 | TC-D4-008-18 | Test sebelum migrasi Daily KPI: pesan "Daily KPI belum tersedia karena database belum diperbarui (migrasi 20261108130000). Menu lain tetap bisa dipakai." dan menu lain tetap berjalan | Negatif | Pass (10 Nov 2026, produksi, Simulasi Employee) | Hanya sebelum migrasi langkah 6 |
 | TC-D4-008-19 | Test lonceng "Belum punya training" (PST 2): sebagai HR, buat satu requirement terbuka tanpa training atau batalkan training satu-satunya; lonceng menampilkan "1 pegawai belum punya training", panel terbuka sendiri, "Buat training" membuka `/development`, dan alert **Belum punya training** muncul di People Dashboard. Sebagai Employee dan Management, pengingat ini tidak muncul | Positif | Not Run | – |
+| TC-D4-008-20 | Test Score dengan nol di depan (BUG-FN-D4-001): ketik `0`, `0`, `8`, `5` → field menulis `85`; tempel `0085` → `85`; `00000` → `0` dan Save ditolak dengan pesan rentang 1–100 | Negatif | Not Run | Staging: O7 |
+| TC-D4-008-21 | Test form kosong (BUG-FN-D4-002): setelah Save, Score dan Comment kosong; membuka lagi `/daily-kpi` atau memilih tanggal yang sudah terisi tetap memberi form kosong dengan pemberitahuan "sudah tersimpan dengan total …" dan tombol **Save correction**; **Correct** di tabel This period memuat skor dan komentar tersimpan beserta "Saved: N"; History tetap menampilkan semua entri | Positif | Not Run | Staging: O7 |
 
 ### TC-D4-SEC · TR-D4-002 Security & audit
 
