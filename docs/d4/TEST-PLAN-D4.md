@@ -282,6 +282,7 @@ Kartu Planka: **[QA] Pengujian Integration, Security, Validation & UI Quality**
 | TC-D4-SEC-07 | Test error tidak mengekspos token atau credential | Negatif | Not Run | Staging |
 | TC-D4-SEC-08 | Test audit actor | Positif | Not Run | Staging |
 | TC-D4-SEC-09 | Test audit timestamp | Positif | Not Run | Staging |
+| TC-D4-SEC-10 | Test logout otomatis saat tidak aktif (asistensi 21 Nov 2026): setelah 29 menit tanpa klik, ketik, atau scroll di semua tab D4, muncul dialog `idle-warning` "Sesi akan berakhir" dengan jam logout dalam zona perangkat (WIB, WITA, atau WIT) dan hitung mundur `idle-countdown`; fokus di **Tetap masuk** (`btn-idle-stay`), yang menutup dialog dan memulai hitungan dari awal; menggerakkan mouse saat dialog terbuka tidak menutupnya; **Logout sekarang** (`btn-idle-logout`) atau habisnya 60 detik membawa ke `/login` dengan pesan `login-idle` "Anda logout otomatis pukul … karena tidak aktif selama 30 menit"; pesan itu hilang setelah login lagi; aktivitas di tab lain menunda logout di tab ini; ubah zona waktu perangkat ke Asia/Makassar → jamnya berlabel WITA | Positif | Not Run | Staging (cara cepat: ubah `localStorage.d4-last-activity` tidak cukup karena tab aktif menyimpan waktunya sendiri; jalankan dengan menunggu atau dengan jam perangkat dimajukan) |
 
 ### TC-D4-UIQ · TR-D4-002 Validation & UI quality
 
