@@ -175,7 +175,7 @@ function Donut({ name, slices, colors, center, centerLabel }: { name: string; sl
   </div>;
 }
 
-/** Under / Average / High from the total of the five Core KPI, for the period listed (Interview D4, 14 Oct 2026). */
+/** Under / Average / High from the total of the Core KPI, for the period listed (Interview D4, 14 Oct 2026). */
 function PerformanceCard({ rows, catalog, noKpi }: { rows: readonly Row[]; catalog: KpiCatalog | null; noKpi: number }) {
   const { slices, rated, total } = performanceSlices(rows);
   const averages = averageScores(rows);
@@ -189,7 +189,7 @@ function PerformanceCard({ rows, catalog, noKpi }: { rows: readonly Row[]; catal
   if (rated) return <Card title={t("Performance category")} testId="performance-pie">
     <Donut name={t("Performance category")} slices={slices} colors={BAND_COLORS} center={rated} centerLabel={t("dari {total} pegawai", { total })} />
     {noKpiNote}
-    <p className="mt-4 text-xs leading-5 text-ink-3">{`${t("Total 5 Core KPI: di bawah {under} Under, {under}–{high} Average, di atas {high} High.", { under: UNDER_BELOW, high: HIGH_ABOVE })}${total > rated ? ` ${t("{count} pegawai belum punya kategori.", { count: total - rated })}` : ""}`}</p>
+    <p className="mt-4 text-xs leading-5 text-ink-3">{`${t("Total Core KPI: di bawah {under} Under, {under}–{high} Average, di atas {high} High.", { under: UNDER_BELOW, high: HIGH_ABOVE })}${total > rated ? ` ${t("{count} pegawai belum punya kategori.", { count: total - rated })}` : ""}`}</p>
   </Card>;
   // No 1–100 scorecard yet: an empty donut says nothing, so show the period's average Total KPI instead.
   return <Card title={t("Performance")} testId="performance-pie">
@@ -312,9 +312,9 @@ export function EmployeeProfilePage({ employeeId, initialPeriod = "", own = fals
       <PeriodFilter label={t("Period")} testId="latest-period" emptyOption={false} value={shown ?? ""} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item, language) }))} />
       <p className="text-sm text-ink-3">{showing[0]}<strong className="text-ink">{formatPeriod(shown, language)}</strong>{showing[1]}</p>
     </FilterBar>
-    {scorecard && !validScorecard(scorecard) && <Notice tone="warning">{t("Scorecard periode ini tidak memiliki lima KPI dengan total bobot 100%.")}{canWrite(snapshot) ? ` ${t("Periksa datanya di halaman Performance Review sebelum digunakan.")}` : ""}</Notice>}
+    {scorecard && !validScorecard(scorecard) && <Notice tone="warning">{t("Total bobot KPI di scorecard periode ini tidak 100%.")}{canWrite(snapshot) ? ` ${t("Periksa datanya di halaman Performance Review sebelum digunakan.")}` : ""}</Notice>}
     <div className="grid gap-6 xl:grid-cols-2">
-      {/* Full width on xl: five KPI rows with six columns do not fit half a 1440 px layout. */}
+      {/* Full width on xl: KPI rows with six columns do not fit half a 1440 px layout. */}
       {/* An employee's compiled score comes from their own Daily KPI; the performance history has no entry for it yet (K10). */}
       <Card title="Performance Review" className="xl:col-span-2" actions={<SourceLink href={scorecard ? `/performance/scorecard/${scorecard.id}` : compiled && self ? "/daily-kpi" : evaluation ? `/performance/${evaluation.id}` : `/performance/history/${employee.id}`} />} padded={false}>
         {scorecard ? <div className="overflow-x-auto"><table data-testid="dashboard-kpi-table" className="w-full min-w-[480px] text-left text-sm">

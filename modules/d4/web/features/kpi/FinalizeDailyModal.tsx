@@ -38,7 +38,7 @@ export function FinalizeDailyModal({ employeeId, period, compiled, onClose, onSa
   async function submit(event: FormEvent) {
     event.preventDefault();
     setTouched(true);
-    if (lines.length !== 5) { setError(t("KPI pegawai ini tidak lagi sesuai katalog periode ini. Pakai Add Performance Review.")); return; }
+    if (!lines.length) { setError(t("KPI pegawai ini tidak lagi sesuai katalog periode ini. Pakai Add Performance Review.")); return; }
     const missing = [!notes.trim() && [msg("Notes"), "input-catatan-evaluasi"], !evidence.trim() && [msg("Reference"), "input-evidence-reference"], running && !confirmed && [msg("konfirmasi periode berjalan"), "checkbox-finalize-running"]].filter((item) => item !== false);
     if (missing.length) {
       setError(t("Lengkapi {fields} sebelum finalisasi.", { fields: missing.map(([field]) => t(field)).join(", ") }));

@@ -89,7 +89,7 @@ Kartu Planka: **[QA] Pengujian Phase 1**
 | TC ID | Skenario | Jenis | Status | Dependency / BLOCKED bila |
 |---|---|---|---|---|
 | TC-D4-002-01 | Test KPI mengikuti position employee | Positif | Not Run | Staging |
-| TC-D4-002-02 | Test tepat 5 Core KPI sesuai position | Positif | Not Run | Staging |
+| TC-D4-002-02 | Test jumlah Core KPI mengikuti set KPI position (definisi D1 atau katalog D4) dengan total bobot 100 | Positif | Not Run | Staging |
 | TC-D4-002-03 | Test bobot KPI sesuai baseline | Positif | Not Run | O2 (migrasi KPI V5.1 belum diterapkan) |
 | TC-D4-002-04 | Test total bobot = 100% | Positif | Not Run | Staging |
 | TC-D4-002-05 | Test total bobot selain 100% ditolak | Negatif | Not Run | Staging |
@@ -113,6 +113,10 @@ Kartu Planka: **[QA] Pengujian Phase 1**
 | TC-D4-002-23 | Test KPI gap total = Total KPI − 85 di list Performance Review, detail (Ringkasan) dan profil People Dashboard | Positif | Not Run | Staging: O5 |
 | TC-D4-002-24 | Test scorecard 1–5 (V3.1/V5.1) tidak dikonversi: gap tampil `n/a (skala 1–5)`, kolom Gap per baris tidak muncul | Negatif | Not Run | Staging |
 | TC-D4-002-25 | Test Actual dengan nol di depan (BUG-FN-D4-001): ketik atau tempel `00085` → field menulis `85`, Weighted dan Gap dihitung dari 85; `00000` → `0` dan Save ditolak "Di luar rentang: isi 1 sampai 100."; `150` tetap tidak bisa diketik | Negatif | Not Run | Staging: O5 |
+| TC-D4-002-26 | Test position yang dipetakan D1 (HR Manager, JP011) di periode 2026-11 ke atas memakai KPI `d1_kpi_definitions`: nama dan bobot sama dengan D1, helper Position KPI di Performance Review dan field Catalog di Daily KPI berbunyi `Definisi KPI D1 JP011 · skala 1–100` (EN `D1 KPI definition JP011 · scale 1–100`); periode 2026-10 tetap KPI V5.1 | Positif | Not Run | Migrasi 20261124130000 (izin PO) |
+| TC-D4-002-27 | Test position yang belum dipetakan D1 (Accounting Associate 1 (Billing)) tetap memakai peran katalog D4 V6 dengan helper `Katalog D4 V6, posisi belum dipetakan D1 · skala 1–100` | Positif | Not Run | Migrasi 20261124130000 (izin PO) |
+| TC-D4-002-28 | Test set KPI D1 dengan 3 KPI (IT, JP031): form dan Daily KPI menampilkan 3 baris, total dihitung dari 3 baris; API dan trigger menolak jumlah baris yang berbeda dari katalog (422) | Positif | Not Run | Migrasi 20261124130000 (izin PO) |
+| TC-D4-002-29 | Test view `d4_kpi_scores_for_d1`: HR, Manager, dan Management membaca semua skor; Employee hanya skornya sendiri; `anon` ditolak; Daily KPI yang dikoreksi hanya muncul dengan skor terbaru; setiap baris punya `kpi_id` D1 | Positif | Not Run | Migrasi 20261124130000 (izin PO) |
 
 ### TC-D4-003 · FR-D4-003 Competency Gap
 
@@ -233,7 +237,7 @@ Keputusan 8 Nov 2026: pegawai mengisi skornya sendiri per hari; skor periode dik
 
 | TC ID | Skenario | Jenis | Status | Dependency / BLOCKED bila |
 |---|---|---|---|---|
-| TC-D4-008-01 | Test Employee menyimpan skor 5 Core KPI hari ini di `/daily-kpi`; total dan gap terhitung, entri muncul di "This period" | Positif | Not Run | Staging: O7 |
+| TC-D4-008-01 | Test Employee menyimpan skor semua Core KPI posisinya hari ini di `/daily-kpi`; total dan gap terhitung, entri muncul di "This period" | Positif | Not Run | Staging: O7 |
 | TC-D4-008-02 | Test koreksi: menyimpan lagi tanggal yang sama menambah entri baru dan hanya entri terbaru yang dihitung | Positif | Not Run | Staging: O7 |
 | TC-D4-008-03 | Test tanggal besok dan tanggal periode sebelumnya ditolak (form, API 422, RLS) | Negatif | Not Run | Staging: O7 |
 | TC-D4-008-04 | Test skor kosong, 0, 101 atau desimal ditolak (form, API 422, trigger) | Negatif | Not Run | Staging: O7 |

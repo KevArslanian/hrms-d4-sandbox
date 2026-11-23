@@ -6,7 +6,14 @@ export type RoleKpiRow = {
   readonly target: string | null;
   readonly weight_percent: number;
   readonly source_version: string;
+  /** View d4_kpi_catalog_rows (20261124130000): "D1" for d1_kpi_definitions, "D4" for the D4 catalog. Absent before it. */
+  readonly kpi_source?: "D1" | "D4";
+  readonly d1_job_code?: string | null;
 };
+
+/** A KPI set D4 can score: at least one KPI and weights totalling 100. D1 decides how many (24 Nov 2026). */
+export const scorableSet = (rows: readonly { weight_percent: number }[]) =>
+  rows.length > 0 && rows.reduce((sum, row) => sum + row.weight_percent, 0) === 100;
 
 /** A catalog version and the first period (YYYY-MM) it applies to; table d4_kpi_catalog_versions. */
 export interface KpiCatalogVersion {
@@ -108,17 +115,55 @@ export function roleForPosition(catalog: KpiCatalog, positionId: string | null |
   return catalog.positionRoles.find((item) => item.position_id === positionId)?.role_order ?? 0;
 }
 
+/**
+ * Where a position's KPI come from: "D1" (d1_kpi_definitions), "D4-unmapped" (a D4 role kept until D1 maps the
+ * position) or "D4" (a version without D1 roles, or the views of 20261124130000 not applied yet).
+ */
+export function kpiSourceOf(catalog: Rows, roleOrder: number): "D1" | "D4-unmapped" | "D4" {
+  if (indicatorsFor(catalog, roleOrder)[0]?.kpi_source === "D1") return "D1";
+  return catalog.rows.some((row) => row.kpi_source === "D1") ? "D4-unmapped" : "D4";
+}
+
 /** First period scored 1–100 (catalog V6). Mirrors supabase/migrations/20261017130000_d4_kpi_scale_100_v6.sql. */
 export const KPI_V6_EFFECTIVE_FROM = "2026-11";
 const KPI_V6_CATALOG: readonly RoleKpiRow[] = KPI_V51_CATALOG.map((row) => ({ ...row, target: KPI_TARGET, source_version: "V6" }));
 
-/** V5.1 up to 2026-10 and V6 (1–100) from 2026-11, positions mapped by title. Local preview and tests only; live data comes from the tables above. */
+const v51Role = (role: number) => KPI_V51_CATALOG.filter((row) => row.role_order === role).map((row) => [row.kpi_name, row.weight_percent] as const);
+/**
+ * D1 positions mapped to a D3 position on 24 Nov 2026 and their KPI in d1_kpi_definitions, matched to the local
+ * preview's positions by title. Billing (JP003, four KPI) is not mapped live yet, so the preview keeps its D4 role too.
+ */
+const D1_SAMPLE: readonly { job: string; title: string; kpis: readonly (readonly [string, number])[] }[] = [
+  { job: "JP002", title: "Manager of Accounting", kpis: v51Role(10) },
+  { job: "JP007", title: "Tax Manager", kpis: v51Role(10) },
+  { job: "JP011", title: "HR Manager", kpis: [["Time-to-Fill Vacancy", 25], ["Onboarding Completion", 20], ["Performance Evaluation Completion", 20], ["Training Completion Rate", 20], ["HR Administration SLA", 15]] },
+  { job: "JP017", title: "Manager of Customer Success", kpis: v51Role(9) },
+  { job: "JP032", title: "Sales Administration Associate", kpis: v51Role(9) },
+];
+/** Same rule as the view d4_kpi_d1_catalog: 1000 + the digits of the D1 job code. */
+const d1RoleOrder = (job: string) => 1000 + Number(job.replace(/\D/g, ""));
+const KPI_D1_SAMPLE: readonly RoleKpiRow[] = D1_SAMPLE.flatMap(({ job, title, kpis }) => kpis.map(([kpi_name, weight_percent], index) => ({
+  role_order: d1RoleOrder(job), role_name: title, indicator_order: index + 1, kpi_name, target: KPI_TARGET, weight_percent,
+  source_version: "V6", kpi_source: "D1" as const, d1_job_code: job,
+})));
+
+/**
+ * V5.1 up to 2026-10 and V6 (1–100) from 2026-11, positions mapped by title; in V6 a position D1 covers gets its D1 KPI.
+ * Local preview and tests only; live data comes from the views of 20261124130000.
+ */
 export function seedCatalogSet(positions: readonly { id: string; title: string }[]): KpiCatalogSet {
-  const rows = [...KPI_V51_CATALOG, ...KPI_V6_CATALOG];
+  const rows = [...KPI_V51_CATALOG, ...KPI_V6_CATALOG.map((row) => ({ ...row, kpi_source: "D4" as const })), ...KPI_D1_SAMPLE];
   const roleOf = (position: { title: string }) => roleForPositionTitle({ rows: KPI_V51_CATALOG }, position.title);
+  const d1Of = (position: { title: string }) => D1_SAMPLE.find((item) => item.title === position.title);
   return {
     versions: [{ source_version: "V5.1", effective_from: "2000-01" }, { source_version: "V6", effective_from: KPI_V6_EFFECTIVE_FROM }], rows,
-    positionRoles: ["V5.1", "V6"].flatMap((version) => positions.map((position) => ({ source_version: version, position_id: position.id, role_order: roleOf(position) }))).filter((item) => item.role_order > 0),
+    positionRoles: positions.flatMap((position) => {
+      const d1 = d1Of(position);
+      return [
+        { source_version: "V5.1", position_id: position.id, role_order: roleOf(position) },
+        { source_version: "V6", position_id: position.id, role_order: d1 ? d1RoleOrder(d1.job) : roleOf(position) },
+      ];
+    }).filter((item) => item.role_order > 0),
   };
 }
 

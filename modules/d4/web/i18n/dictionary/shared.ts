@@ -85,7 +85,7 @@ export const shared = {
   "Notifications ({count})": { id: "Notifikasi ({count})" },
   "Tidak ada notifikasi.": { en: "No notifications." },
   "Daily KPI hari ini belum diisi": { en: "Today's Daily KPI is not filled in yet" },
-  "Isi skor lima Core KPI Anda sebelum pulang.": { en: "Enter your five Core KPI scores before you leave." },
+  "Isi skor Core KPI Anda sebelum pulang.": { en: "Enter your Core KPI scores before you leave." },
   "Isi sekarang": { en: "Fill in now" },
   "{people} pegawai belum punya training": { en: "Employees without training: {people}" },
   "{count} development requirement terbuka menunggu training.": { en: "Open development requirements waiting for training: {count}." },

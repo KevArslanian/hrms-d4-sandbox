@@ -179,7 +179,7 @@ function dailyReminder(snapshot: Snapshot, catalog: KpiCatalogSet | null, t: Tra
   if (!periodCatalog || !roleForPosition(periodCatalog, me?.positionId)) return null;
   const day = today();
   if (snapshot.kpiDaily.some((entry) => entry.employeeId === snapshot.actorEmployeeId && entry.entryDate === day)) return null;
-  return { id: `daily-kpi-${snapshot.actorEmployeeId}-${day}`, title: t("Daily KPI hari ini belum diisi"), text: t("Isi skor lima Core KPI Anda sebelum pulang."), href: "/daily-kpi", action: t("Isi sekarang") };
+  return { id: `daily-kpi-${snapshot.actorEmployeeId}-${day}`, title: t("Daily KPI hari ini belum diisi"), text: t("Isi skor Core KPI Anda sebelum pulang."), href: "/daily-kpi", action: t("Isi sekarang") };
 }
 
 /** PST 2 (Kei): HR and managers see who still needs training without opening the dashboard first. */
