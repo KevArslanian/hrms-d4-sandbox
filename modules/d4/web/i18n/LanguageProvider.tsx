@@ -8,7 +8,15 @@ export function translator(language: Language): Translate {
   return Object.assign((text: string, vars?: TextVars) => interpolate(DICTIONARY[text]?.[language] ?? text, vars), { language });
 }
 
-type LanguageValue = { language: Language; setLanguage: (language: Language) => void; t: Translate };
+// Display text -> source text, so a data-testid built from a label is the same in both languages (UI-D4-001 §6:
+// Katalon XPaths use those ids). The first key wins when two keys share a translation; pass an explicit testId there.
+const SOURCES = new Map<string, string>();
+for (const [key, entry] of Object.entries(DICTIONARY)) for (const shown of [entry.id, entry.en]) if (shown && !SOURCES.has(shown)) SOURCES.set(shown, key);
+
+/** The text a label had before translation. Use it, not the shown label, wherever a data-testid is derived from text. */
+export const sourceText = (shown: string) => SOURCES.get(shown) ?? shown;
+
+type LanguageValue ={ language: Language; setLanguage: (language: Language) => void; t: Translate };
 
 const LanguageContext = createContext<LanguageValue>({ language: DEFAULT_LANGUAGE, setLanguage: () => {}, t: translator(DEFAULT_LANGUAGE) });
 

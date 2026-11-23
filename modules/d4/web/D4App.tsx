@@ -3,15 +3,17 @@
 import type { ReactNode } from "react";
 import type { Language } from "../shared/text";
 import { D4DataProvider, useD4 } from "./data/D4DataProvider";
-import { LanguageProvider } from "./i18n/LanguageProvider";
+import { LanguageProvider, useLanguage } from "./i18n/LanguageProvider";
 import { AppShell } from "./ui/AppShell";
 import { LoadingView, StateView, Toasts } from "./ui/layout";
 import { Button } from "./ui/primitives";
 
 function Gate({ children }: { children: ReactNode }) {
   const { status, error, reload } = useD4();
+  const { t } = useLanguage();
   if (status === "loading") return <LoadingView />;
-  if (status === "error") return <StateView kind="error" title="Data D4 gagal dimuat" text={error} action={<Button onClick={reload}>Try again</Button>} />;
+  // A server message has no dictionary entry and shows as sent; the provider's own fallback is a key.
+  if (status === "error") return <StateView kind="error" title={t("Data D4 gagal dimuat")} text={t(error)} action={<Button onClick={reload}>{t("Try again")}</Button>} />;
   return <>{children}</>;
 }
 
