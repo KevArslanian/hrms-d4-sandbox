@@ -38,7 +38,8 @@ export function TrainingListPage() {
   const [search, setSearch] = useState(() => params.get("q") ?? "");
   const [department, setDepartment] = useState("");
   const [period, setPeriod] = useState("");
-  const [status, setStatus] = useState("");
+  // The People Dashboard "Training in progress" dialog links here with ?status=In%20Progress.
+  const [status, setStatus] = useState(() => params.get("status") ?? "");
   const [progressFor, setProgressFor] = useState<string | null>(null);
   const [savedId, setSavedId] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());

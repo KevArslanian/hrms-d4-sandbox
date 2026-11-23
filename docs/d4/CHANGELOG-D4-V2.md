@@ -405,6 +405,21 @@ Sumber: dua kartu bug terbuka di board Planka Squad D4 (QA, 17 Nov 2026) dan cat
 - **People Dashboard: skala di judul kolom.** Kolom Total KPI di tabel People Dashboard kini berjudul **Total KPI (/100)** dan barisnya hanya menulis angka, sama dengan daftar Performance Review sejak 22 Nov. Baris yang tersimpan dengan skala lain (V5.1, 1–5) tetap menulis "/ 5". Aturannya kini satu fungsi bersama, `listScore`. `selectors.ts`, `DashboardPages.tsx`, `PerformancePages.tsx`
 - **Belum diubah:** tabel This period dan Daily entries di halaman Daily KPI masih menulis "/ 100" per baris. Tidak ada laporan untuk tabel itu, jadi dibiarkan sampai ada keputusan.
 
+## Kartu ringkasan People Dashboard bisa dibuka · 23 Nov 2026
+
+Sumber: saran Pak Emanuel ke Skuad 4 (17 Nov 2026), "bisa dilihat di mana siapa yang butuh training?", diingatkan lagi oleh Gebby pada 23 Nov.
+
+- **Employees** melompat ke tabel pegawai di bawahnya.
+- **Need training** membuka daftar pegawai yang punya development requirement belum selesai. Tiap requirement menampilkan training terakhirnya selain Cancelled, atau "Belum punya training". Training yang Completed ikut menampilkan hasilnya, sehingga Not Passed tidak terbaca selesai. HR dan Manager bisa langsung **Create Training** untuk requirement tanpa training, atau **Update Progress** untuk training yang Planned atau In Progress.
+- **Training in progress** membuka daftar training In Progress per pegawai, masing-masing dengan **Update Progress**.
+- **Performance Review complete** membuka daftar periode yang ditampilkan: Belum direview lebih dulu (**Finalize** bila sudah ada skor Compiled dari Daily KPI, **Add Performance Review** bila belum), lalu Data tidak valid, lalu Sudah direview dengan Total KPI dan kategorinya. Pegawai yang posisinya tidak punya KPI disebut di catatan bawah.
+- Form aksi menggantikan daftar selama terbuka. Setelah Save atau Cancel, dialog kembali ke daftar, dan Save menambahkan pemberitahuan "tersimpan" dengan link View Detail. Tidak pernah ada dua dialog bertumpuk.
+- Angka kartu dan isi daftarnya berasal dari satu fungsi (`tileMembers` di `summary.ts`), jadi keduanya tidak bisa berbeda. Kartu bernilai 0 tidak bisa diklik. Kartu Performance Review tetap bisa dibuka selama ada pegawai yang bisa direview, karena isinya dimulai dari yang belum direview.
+- Tombol aksi mengikuti aturan halaman sumbernya: hanya HR dan Manager, tidak di baris diri sendiri, dan tidak untuk Director yang read-only.
+- Footer dialog menautkan halaman lengkapnya: Development Requirement, Training Tracking dengan filter In Progress (`/training?status=In%20Progress`, yang kini dibaca halaman Training), dan Performance Review untuk periode itu.
+- Form Performance Review kini menerima periode awal. Add Performance Review dari dashboard membuka periode yang sedang ditampilkan dashboard, bukan selalu bulan ini.
+- Dicek di mode pratinjau pada lebar 1440, 768, dan 390 px, juga dengan keyboard: Enter membuka daftar, Escape menutup, dan fokus kembali ke kartu. Menyimpan dari dialog belum dicoba.
+
 ## Belum selesai
 
 | Item | Alasan | Langkah berikut |
