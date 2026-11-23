@@ -94,10 +94,12 @@ export function PerformanceListPage() {
       columns={[
         { key: "employee", header: "Employee", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
         { key: "position", header: "Position / Department", wrap: true, optional: true, cell: (row) => <><span className="block">{row.position}</span><span className="block text-xs text-ink-3">{departmentOf(snapshot, row.employee)?.name ?? "—"}</span></> },
-        { key: "period", header: "Period", cell: (row) => formatPeriod(row.period) },
+        // With a period filter every row shows that period, so the column only appears without one (24 Nov 2026).
+        ...(period ? [] : [{ key: "period", header: "Period", cell: (row: Row) => formatPeriod(row.period) }]),
         // The scale sits in the header once instead of "/ 100" on every row (PST 2); a row on the other scale keeps its own.
         { key: "total", header: `Total KPI (/${listScale})`, className: "tabular-nums", cell: (row) => row.scorecard ? <span className="font-semibold">{listScore(row.scorecard.overallScore, row.scorecard.definitionVersion, listScale)}</span>
-          : row.compiled ? <><span className="block font-semibold">{listScore(row.compiled.total, row.compiled.definitionVersion, listScale)}</span><span data-testid="compiled-days" className="block whitespace-normal text-xs text-ink-3">from {row.compiled.days.length} daily {row.compiled.days.length === 1 ? "entry" : "entries"}</span></>
+          // The number of daily entries stays in Finalize from Daily KPI: in the list it read the same on every row (24 Nov 2026).
+          : row.compiled ? <span className="font-semibold">{listScore(row.compiled.total, row.compiled.definitionVersion, listScale)}</span>
           // The small lines may wrap (the score stays on one line), so they do not widen the table past the Status badge.
           : row.evaluation ? <span data-testid="legacy-evaluation" className="whitespace-normal text-xs text-ink-3">Old evaluation, no KPI score</span>
           : row.hasKpi ? "—" : <span className="whitespace-normal text-xs text-ink-3">Not in catalog {catalog?.version} yet</span> },
