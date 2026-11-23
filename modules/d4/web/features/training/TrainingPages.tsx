@@ -72,7 +72,7 @@ export function TrainingListPage() {
   // Bulk progress is for trainings still running; a finished one takes its decision per person from its Next step.
   const selectable = (item: TrainingVersion) => (item.status === "Planned" || item.status === "In Progress") && canAssess(snapshot, item.employeeId);
   const rowLabel = (item: TrainingVersion) => `${employeeById(snapshot, item.employeeId)?.fullName ?? "—"} · ${item.activity}`;
-  const bulkTrainings = rows.filter((item) => selected.has(item.trainingId) && selectable(item)).map((item) => ({ key: item.trainingId, label: rowLabel(item), status: item.status }));
+  const bulkTrainings = rows.filter((item) => selected.has(item.trainingId) && selectable(item)).map((item) => ({ key: item.trainingId, label: rowLabel(item), detail: `${formatDate(item.date, language)} · ${statusLabel(item.status)}`, status: item.status }));
 
   return <>
     <PageHeader title="Training Tracking" subtitle={t("Pantau training dan development dari requirement sumber sampai hasilnya.")}
