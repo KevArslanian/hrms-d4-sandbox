@@ -137,25 +137,33 @@ function MyDailyKpi({ team }: { team: boolean }) {
   const compiled = compileDaily(snapshot.kpiDaily ?? [], snapshot.actorEmployeeId, period);
   const missed = missedWorkingDays(period, today(), new Set(days.map((entry) => entry.entryDate)));
   const todayOpen = !savedFor(today());
+  const entryFields = <>
+    <DateField label={t("Date")} testId="daily-date" required min={`${period}-01`} max={today()} value={date} onChange={(event) => chooseDate(event.target.value)} />
+    <ReadOnlyField label={t("Position KPI")} testId="daily-role" value={indicators[0].role_name} />
+    <ReadOnlyField label={t("Catalog")} testId="daily-catalog" value={catalogText(catalog, roleOrder, t)} />
+  </>;
   return <>
     <Card title={t("My KPI today")} testId="my-daily-kpi">
       <form onSubmit={submit} noValidate className="space-y-5">
         {/* A forgotten day can still be filled until the month ends: each one opens that date in this form.
             One notice covers today too (B5, interview D4 14 Oct 2026: everyone scores their KPI every day before going home). */}
         {missed.length > 0
-          ? <div data-testid="daily-missed" className="space-y-3 rounded-xl bg-warning-bg px-4 py-3 text-xs leading-5 text-warning">
-            <div>
+          ? <div data-testid="daily-missed" className="space-y-4">
+            <div className="rounded-xl bg-warning-bg px-4 py-3 text-xs leading-5 text-warning">
               <p data-testid={todayOpen ? "daily-reminder" : undefined} className="font-semibold">{todayOpen ? t("Daily KPI hari ini dan {count} hari kerja lain bulan ini belum diisi.", { count: missed.length }) : t("{count} hari kerja bulan ini belum diisi.", { count: missed.length })}</p>
               <p>{t("Pilih tanggal yang belum diisi untuk mengisinya, sampai akhir {period}. Lewati hari libur.", { period: formatPeriod(period, language) })}</p>
             </div>
-            <MonthDays period={period} missed={missed} todayOpen={todayOpen} selected={date} onPick={chooseDate} />
+            {/* Kei, 24 Nov 2026: the calendar alone left the right side empty. On a wide screen the fields it fills sit beside it,
+                so the picked date shows up in Date right next to where it was clicked. */}
+            <div className="grid gap-4 md:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] md:items-start">
+              <MonthDays period={period} missed={missed} todayOpen={todayOpen} selected={date} onPick={chooseDate} />
+              <div className="grid gap-4 sm:grid-cols-3 md:grid-cols-1">{entryFields}</div>
+            </div>
           </div>
-          : date === today() && todayOpen && <div data-testid="daily-reminder"><Notice tone="warning">{t("Daily KPI hari ini belum diisi. Isi sebelum pulang.")}</Notice></div>}
-        <div className="grid gap-4 sm:grid-cols-3">
-          <DateField label={t("Date")} testId="daily-date" required min={`${period}-01`} max={today()} value={date} onChange={(event) => chooseDate(event.target.value)} />
-          <ReadOnlyField label={t("Position KPI")} testId="daily-role" value={indicators[0].role_name} />
-          <ReadOnlyField label={t("Catalog")} testId="daily-catalog" value={catalogText(catalog, roleOrder, t)} />
-        </div>
+          : <>
+            {date === today() && todayOpen && <div data-testid="daily-reminder"><Notice tone="warning">{t("Daily KPI hari ini belum diisi. Isi sebelum pulang.")}</Notice></div>}
+            <div className="grid gap-4 sm:grid-cols-3">{entryFields}</div>
+          </>}
         {existing && (opened.correcting
           ? <div data-testid="daily-correction-rule"><Notice>{t("Anda sedang mengoreksi entri {date}. Entri bulan ini bisa Anda koreksi sampai akhir {period}; nilai sebelumnya tetap tercatat di History.", { date: formatDate(date, language), period: formatPeriod(period, language) })}</Notice></div>
           : <div data-testid="daily-already-saved"><Notice>{t("Daily KPI {date} sudah tersimpan dengan total {total}. Menyimpan form ini akan mengoreksinya. Untuk mulai dari skor yang tersimpan, pilih Correct di tabel This period di bawah.", { date: formatDate(date, language), total: formatScore(existing.overallScore, max) })}</Notice></div>)}
@@ -397,6 +405,12 @@ export function DailyKpiHistoryPage({ employeeId }: { employeeId: string }) {
 const shortDay = (day: string, language: Language) => new Date(`${day}T12:00:00Z`).toLocaleDateString(language === "en" ? "en-GB" : "id-ID", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
 const weekdayOf = (day: string) => new Date(`${day}T12:00:00Z`).getUTCDay();
 
+// Calendar marks, shared by the cells and their legend.
+const PICKED = "rounded-lg bg-primary-600 font-semibold text-white";
+const TODAY = "rounded-full font-semibold text-primary-600 ring-1 ring-inset ring-primary-500";
+const DOT = "absolute bottom-1 left-1/2 size-1 -translate-x-1/2 rounded-full bg-warning";
+const SWATCH = "relative inline-flex size-5 shrink-0 items-center justify-center text-[10px] tabular-nums";
+
 /** Working days up to today in Monday–Friday columns, so a gap lines up under its weekday; filled days stay as context. */
 function MonthDays({ period, missed, todayOpen, selected, onPick }: { period: string; missed: readonly string[]; todayOpen: boolean; selected: string; onPick: (day: string) => void }) {
   const { t, language } = useLanguage();
@@ -407,17 +421,33 @@ function MonthDays({ period, missed, todayOpen, selected, onPick }: { period: st
   const locale = language === "en" ? "en-GB" : "id-ID";
   // 2 to 6 Nov 2026 is a Monday-to-Friday week, used only for the localized column names.
   const weekdays = [2, 3, 4, 5, 6].map((day) => new Date(Date.UTC(2026, 10, day, 12)).toLocaleDateString(locale, { weekday: "short", timeZone: "UTC" }));
-  return <div role="group" aria-label={t("Hari kerja {period}", { period: formatPeriod(period, language) })} className="grid max-w-sm grid-cols-5 gap-1.5 text-center">
-    {weekdays.map((name) => <span key={name} aria-hidden="true" className="font-semibold">{name}</span>)}
-    {days.map((day, index) => {
-      const style = index === 0 ? { gridColumnStart: weekdayOf(day) } : undefined;
-      const isToday = day === now;
-      // Today is marked by a dot under its number, so it stays recognizable after another day is picked.
-      const mark = isToday && <span aria-hidden="true" className="absolute bottom-1 left-1/2 size-1 -translate-x-1/2 rounded-full bg-current" />;
-      return open.has(day)
-        ? <button key={day} type="button" style={style} data-testid={isToday ? "daily-today" : `missed-${day}`} aria-label={isToday ? `${shortDay(day, language)}, ${t("Today")}` : shortDay(day, language)} aria-pressed={day === selected} onClick={() => onPick(day)}
-          className={cx("relative h-10 rounded-lg font-semibold tabular-nums focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 sm:h-8", day === selected ? "bg-primary-600 text-white" : "bg-surface text-ink hover:bg-primary-50 hover:text-primary-600")}>{Number(day.slice(8))}{mark}</button>
-        : <span key={day} style={style} className="relative inline-flex h-10 items-center justify-center gap-0.5 tabular-nums text-ink-2 sm:h-8"><Check aria-hidden="true" className="size-3" />{Number(day.slice(8))}{mark}<span className="sr-only">, {t("Filled")}</span></span>;
-    })}
+  // Same panel as the Base Calendar of the class design system (PISD 5277:644) and the DateField calendar: white, thin line,
+  // month on top, cells without boxes; selected is a filled square, today a ring, so both stay readable when they differ.
+  return <div className="w-full max-w-sm rounded-2xl border border-line bg-surface p-3">
+    <p className="mb-1 px-1 text-sm font-semibold text-ink">{formatPeriod(period, language)}</p>
+    <div role="group" aria-label={t("Hari kerja {period}", { period: formatPeriod(period, language) })} className="grid grid-cols-5 gap-0.5 text-center text-sm">
+      {weekdays.map((name) => <span key={name} aria-hidden="true" className="py-1 text-[11px] font-semibold text-ink-3">{name}</span>)}
+      {days.map((day, index) => {
+        const style = index === 0 ? { gridColumnStart: weekdayOf(day) } : undefined;
+        const isToday = day === now, picked = day === selected;
+        const mark = cx("relative inline-flex size-9 items-center justify-center tabular-nums sm:size-8", picked ? PICKED : isToday ? TODAY : "rounded-lg");
+        return open.has(day)
+          ? <button key={day} type="button" style={style} data-testid={isToday ? "daily-today" : `missed-${day}`} aria-pressed={picked} onClick={() => onPick(day)}
+            aria-label={[shortDay(day, language), isToday && t("Today"), t("Not filled")].filter(Boolean).join(", ")}
+            className="group flex h-10 items-center justify-center rounded-lg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary-500 sm:h-9">
+            <span className={cx(mark, !picked && !isToday && "font-semibold text-ink group-hover:bg-primary-50 group-hover:text-primary-600", !picked && isToday && "group-hover:bg-primary-50")}>
+              {Number(day.slice(8))}<span aria-hidden="true" className={cx(DOT, picked && "bg-white")} /></span></button>
+          : <span key={day} style={style} className="flex h-10 items-center justify-center text-ink-3 sm:h-9">
+            <span className={cx(mark, "gap-0.5")}><Check aria-hidden="true" className="size-3" />{Number(day.slice(8))}</span><span className="sr-only">, {t("Filled")}</span></span>;
+      })}
+    </div>
+    {/* Requested 24 Nov 2026: marks that cannot be misread. Each state has its own shape and is named here; the yellow dot
+        matches the notice above, and the blue square is the date open in the form, not a saved one. */}
+    <ul aria-hidden="true" data-testid="daily-calendar-legend" className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5 border-t border-line px-1 pt-2.5 text-xs text-ink-2">
+      <li className="inline-flex items-center gap-1.5"><span className={SWATCH}><span className="size-1.5 rounded-full bg-warning" /></span>{t("Not filled")}</li>
+      <li className="inline-flex items-center gap-1.5"><span className={cx(SWATCH, "text-ink-3")}><Check className="size-3" /></span>{t("Filled")}</li>
+      <li className="inline-flex items-center gap-1.5"><span className={cx(SWATCH, TODAY)} />{t("Today")}</li>
+      <li className="inline-flex items-center gap-1.5"><span className={cx(SWATCH, PICKED)} />{t("Dibuka di form")}</li>
+    </ul>
   </div>;
 }
