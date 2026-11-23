@@ -499,6 +499,15 @@ Permintaan: data KPI D4 tidak lagi dummy, melainkan diambil dari KPI Definition 
   - **Diuji di Postgres 16 lokal** dengan salinan policy INSERT yang aktif pada 20 Nov (13 kasus). Sebelum migrasi, 12 kasus diterima. Itu termasuk manager menilai KPI sendiri, HR mengevaluasi diri sendiri, dan akun PENDING ber-POS-HR menambah training. Sesudah migrasi, 8 kasus menulis catatan sendiri atau memakai akun PENDING ditolak. Penilaian dan riwayat untuk pegawai lain tetap diterima. Mendaftar sebagai PENDING tetap diterima karena tabel itu milik B2.
   - Pada 20 Nov, semua baris `b2_register` yang dibaca D4 berstatus APPROVED atau PROVISIONED, jadi tidak ada akun aktif yang kehilangan akses.
 
+## Daftar di form bulk bisa dicentang · 24 Nov 2026
+
+- Update Progress (Training Tracking) dan Add Training dari Development Requirement sebelumnya hanya menampilkan lima baris pertama lalu "dan N lainnya". Kini semua yang dipilih tampil sebagai checkbox dalam daftar yang bisa digulir, dan semuanya tercentang di awal. Melepas centang mengeluarkan baris itu dari simpanan kali ini tanpa kembali ke tabel; tombol Save mengikuti jumlahnya.
+- Baris training memuat tanggal dan status di bawah namanya, karena satu pegawai bisa punya beberapa training dengan nama yang sama.
+- Baris yang tidak dicentang tidak disimpan dan tetap terpilih di tabel.
+- Testid `bulk-targets` tetap; tiap baris `bulk-target-<id>`. Judulnya "{n} dari {total} training dipilih" / "{n} of {total} trainings selected".
+- Dicek di mode pratinjau: Update Progress dengan 1 dari 2 training (hanya Kak Ismi yang berubah jadi In Progress), Add Training 2 dari 3 requirement, ID dan EN, 375 px tanpa scroll horizontal.
+- `modules/d4/web/features/training/BulkModals.tsx`, `TrainingPages.tsx`, `modules/d4/web/data/bulk.ts`, `modules/d4/web/i18n/dictionary/shared.ts`
+
 ## Belum selesai
 
 | Item | Alasan | Langkah berikut |
