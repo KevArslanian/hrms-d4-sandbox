@@ -108,12 +108,14 @@ const mobileLabel = "max-md:p-0 max-md:before:mb-1 max-md:before:block max-md:be
 const inputStyle = "h-9 w-full rounded-2xl border border-ink-3 px-3 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/15 text-sm";
 
 /** Performance Review (FR-D4-001 v3.1): five Core KPI, notes and evidence in one form with one Save. */
-export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: string; onClose: () => void; onSaved?: (id: string) => void }) {
+/** `period`: the period the form opens on, e.g. the one the People Dashboard shows; this month when empty or not given. */
+export function KpiFormModal({ employeeId, period: startAt, onClose, onSaved }: { employeeId?: string; period?: string; onClose: () => void; onSaved?: (id: string) => void }) {
   const snapshot = useSnapshot();
   const { catalog: catalogSet, run, busy } = useD4();
   const { t, language } = useLanguage();
   const actor = employeeById(snapshot, snapshot.actorEmployeeId);
-  const [period, setPeriod] = useState(thisMonth());
+  const startPeriod = startAt || thisMonth();
+  const [period, setPeriod] = useState(startPeriod);
   // The KPI set follows the catalog version in force for the chosen period.
   const catalog = catalogSet && period ? catalogFor(catalogSet, period) : null;
   const max = scaleMaxOf(catalog?.version);
@@ -133,11 +135,11 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
     const version = catalogSet && at ? catalogFor(catalogSet, at)?.version : undefined;
     return saved && saved.roleOrder === role && saved.definitionVersion === version && saved.lines.length === 5 ? saved : undefined;
   };
-  const startSaved = employeeId ? savedFor(employeeId, thisMonth(), suggest(employeeId)) : undefined;
+  const startSaved = employeeId ? savedFor(employeeId, startPeriod, suggest(employeeId)) : undefined;
 
   const [employee, setEmployee] = useState(employeeId ?? "");
   const [roleOrder, setRoleOrder] = useState(() => employeeId ? suggest(employeeId) : 0);
-  const [daily, setDaily] = useState(() => employeeId && !startSaved ? compiledFor(employeeId, thisMonth(), suggest(employeeId)) : null);
+  const [daily, setDaily] = useState(() => employeeId && !startSaved ? compiledFor(employeeId, startPeriod, suggest(employeeId)) : null);
   const [lines, setLines] = useState<KpiAssessmentLine[]>(() => startSaved ? startSaved.lines.map((line) => ({ ...line })) : withDaily(linesFor(employeeId ? suggest(employeeId) : 0), daily));
   const [date, setDate] = useState(today());
   // The evaluator is the signed-in user; the server stores that name and ignores the form value.
