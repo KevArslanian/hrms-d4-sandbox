@@ -43,7 +43,7 @@ const OBJECTIVE_EXAMPLE = msg("Contoh: Naikkan Perencanaan Strategi & Anggaran d
 
 function MethodField({ value, onChange, helper }: { value: string; onChange: (value: string) => void; helper?: string }) {
   const { t } = useLanguage();
-  return <SuggestField label={t("Method")} testId="method" maxLength={120} value={value} onChange={onChange} suggestions={DEVELOPMENT_METHODS} helper={helper} />;
+  return <SuggestField label={t("Method")} testId="method" maxLength={120} value={value} onChange={onChange} suggestions={DEVELOPMENT_METHODS} helper={helper} placeholder={t("Select or type a method")} />;
 }
 
 /** Q13: the PIC (penanggung jawab) is picked from the employee list and stored by name. B13: it is required. */

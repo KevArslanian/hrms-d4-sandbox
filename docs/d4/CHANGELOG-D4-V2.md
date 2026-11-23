@@ -532,6 +532,11 @@ PR #63 menjawab masukan ini pada 20 Nov, tetapi sebelum digabung, PR #65, #68, #
 - Dicek di mode pratinjau pada 1225, 768, dan 375 px dalam ID dan EN: memilih 10 dan 12 Nov, hover, menyimpan 10 Nov sampai jadi centang dan jumlah turun dari 16 ke 15, tanpa scroll ke samping.
 - `modules/d4/web/features/daily/DailyKpiPages.tsx`
 
+## Kolom Metode menunjukkan bahwa ia punya pilihan · 24 Nov 2026
+
+- Di Add Development Requirement dan Retraining, kolom Metode kosong tampak seperti kotak rusak di samping dropdown PIC. Kini kolom itu menampilkan "Pilih atau ketik metode" (EN "Select or type a method") dan panah dropdown yang berputar saat daftar terbuka. Isian bebas tetap boleh.
+- `modules/d4/web/ui/forms.tsx` (`SuggestField` menerima `placeholder`), `DevelopmentModals.tsx`.
+
 ## Belum selesai
 
 | Item | Alasan | Langkah berikut |
