@@ -140,7 +140,7 @@ export function DataTable<T>({ rows: sorted, columns, rowKey, actions, emptyTitl
 
   return <section className="min-w-0 overflow-hidden rounded-2xl border border-line bg-surface shadow-card">
     {selection && chosen.length > 0 && <div data-testid="selection-bar" className={cx("flex flex-wrap items-center gap-3 border-b border-line bg-primary-50 py-3", cellX)}>
-      <span data-testid="selection-count" className="text-sm font-semibold text-ink">{t("{count} {noun} selected", { count: chosen.length, noun: things })}</span>
+      <span data-testid="selection-count" className="text-sm font-semibold text-ink">{t("{count} {noun} selected", { count: chosen.length, noun: t(noun, { count: chosen.length }) })}</span>
       {selection.actions}
       <button type="button" data-testid="btn-clear-selection" onClick={() => selection.onChange(new Set())}
         className="ml-auto rounded-lg px-2 py-1.5 text-xs font-semibold text-primary-600 hover:underline focus-visible:outline-2 focus-visible:outline-primary-500">{t("Clear selection")}</button>
@@ -188,7 +188,7 @@ export function DataTable<T>({ rows: sorted, columns, rowKey, actions, emptyTitl
     </div>}
     {rows.length > 0 && <footer className={cx("flex flex-wrap items-center justify-between gap-3 border-t border-line py-3 text-xs text-ink-2", cellX)}>
       <div className="flex flex-wrap items-center gap-3">
-        <span data-testid="table-count">{t("Showing {first}–{last} of {total} {noun}", { first, last: Math.min(current * pageSize, rows.length), total: rows.length, noun: things })}</span>
+        <span data-testid="table-count">{t("Showing {first}–{last} of {total} {noun}", { first, last: Math.min(current * pageSize, rows.length), total: rows.length, noun: t(noun, { count: rows.length }) })}</span>
         {/* Picker first, then its unit ("10 per page"), as in the reference of 24 Nov 2026. */}
         <span className="flex items-center gap-2.5 text-sm"><PageSizeSelect value={pageSize} onChange={(size) => { setPageSize(size); setPage(1); }} />{t("per page")}</span>
       </div>
