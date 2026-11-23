@@ -334,8 +334,8 @@ export function DateField({ label, testId, required, error, helper, className, v
 }
 
 /** Free text with suggestions shown in the same list style as the dropdowns (the browser's datalist popup cannot be styled). */
-export function SuggestField({ label, testId, required, error, helper, className, value, onChange, suggestions, maxLength }: Common & {
-  value: string; onChange: (value: string) => void; suggestions: readonly string[]; maxLength?: number;
+export function SuggestField({ label, testId, required, error, helper, className, value, onChange, suggestions, maxLength, placeholder }: Common & {
+  value: string; onChange: (value: string) => void; suggestions: readonly string[]; maxLength?: number; placeholder?: string;
 }) {
   const id = useId(), listId = useId();
   const wrapper = useRef<HTMLDivElement>(null);
@@ -360,7 +360,7 @@ export function SuggestField({ label, testId, required, error, helper, className
     <div ref={wrapper} className="relative" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}>
       <input id={id} data-testid={`input-${testId ?? slug(sourceText(label))}`} role="combobox" aria-expanded={shown} aria-controls={listId} aria-autocomplete="list"
         aria-activedescendant={shown && active >= 0 ? `${listId}-${active}` : undefined} aria-invalid={Boolean(error)} aria-describedby={error || helper ? `${id}-message` : undefined}
-        autoComplete="off" required={required} maxLength={maxLength} value={value} className={control}
+        autoComplete="off" required={required} maxLength={maxLength} value={value} placeholder={placeholder} className={cx(control, "pr-9")}
         onFocus={() => setOpen(true)} onClick={() => setOpen(true)} onChange={(event) => { onChange(event.target.value); setOpen(true); setActive(-1); }}
         onKeyDown={(event) => {
           if (event.key === "ArrowDown" || event.key === "ArrowUp") {
@@ -370,6 +370,8 @@ export function SuggestField({ label, testId, required, error, helper, className
           } else if (event.key === "Enter" && shown && active >= 0) { event.preventDefault(); pick(matches[active]); }
           else if (event.key === "Escape" && shown) { event.stopPropagation(); setOpen(false); }
         }} />
+      {/* Without the dropdown's chevron an empty field next to a dropdown read as a broken box, not a list (24 Nov 2026). */}
+      <ChevronDown aria-hidden="true" className={cx("pointer-events-none absolute right-3 top-3 size-4 text-ink-3 transition-transform", shown && "rotate-180")} />
       {shown && <ul ref={panel} id={listId} role="listbox" aria-label={label} className="fixed z-30 overflow-y-auto rounded-2xl border border-line bg-surface p-1.5 text-sm shadow-card">
         {matches.map((item, index) => <li key={item} id={`${listId}-${index}`} role="option" aria-selected={item === value}>
           <button type="button" tabIndex={-1} onMouseDown={(event) => event.preventDefault()} onClick={() => pick(item)}
