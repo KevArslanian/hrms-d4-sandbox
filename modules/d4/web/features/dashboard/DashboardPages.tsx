@@ -103,8 +103,7 @@ function PeopleDashboard() {
         { key: "employee", header: "Employee", cell: (row) => <PersonCell name={row.employee.fullName} code={row.employee.employeeId} /> },
         // Position and department share one column so the nine summary columns fit at 1440px.
         { key: "position", header: "Position / Department", wrap: true, secondary: true, cell: (row) => <><span className="block">{row.position}</span><span className="block text-xs text-ink-3">{departmentOf(snapshot, row.employee)?.name ?? "—"}</span></> },
-        // Every row shows the period chosen in the filter, so the column only earns its space on wide screens.
-        { key: "period", header: "Period", secondary: true, cell: (row) => formatPeriod(row.period) },
+        // No Period column: every row shows the period chosen in the filter, which the filter bar already says (24 Nov 2026).
         { key: "kpi", header: `Total KPI (/${listScale})`, className: "tabular-nums", cell: (row) => <ScoreCell scorecard={row.scorecard} compiled={row.compiled} listScale={listScale} /> },
         { key: "gap", header: "Competency", cell: (row) => <StatusBadge status={row.gap} /> },
         { key: "needs", header: "Open dev.", className: "tabular-nums", secondary: true, cell: (row) => row.openNeeds || "—" },

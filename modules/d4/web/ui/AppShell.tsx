@@ -11,6 +11,7 @@ import { createD4BrowserClient } from "../../supabase/client";
 import { useD4 } from "../data/D4DataProvider";
 import { endPreviewSession } from "../data/preview-session";
 import { canWrite, developmentNeeds, needsTraining, thisMonth, today, visibleEmployees, type Snapshot } from "../data/selectors";
+import { LanguageToggle } from "../i18n/LanguageToggle";
 import { Button, cx, slug } from "./primitives";
 
 // People Dashboard first: it is the HR landing page and the summary the other five pages feed (decision 13 Nov 2026).
@@ -312,6 +313,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <p data-testid="header-breadcrumb" className="hidden flex-1 truncate text-xs text-ink-2 sm:block">HRMS / {current?.label ?? "Performance & Training"}</p>
         <span className="flex-1 sm:hidden" />
         {mode === "fixture" && <span className="hidden rounded-full bg-warning-bg px-2.5 py-1 text-[11px] font-semibold text-warning md:inline">Pratinjau · data contoh</span>}
+        <LanguageToggle />
         <NotificationBell />
         <span aria-hidden="true" className="h-8 w-px bg-line" />
         <div className="flex items-center gap-2.5">

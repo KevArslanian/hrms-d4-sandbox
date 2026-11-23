@@ -4,6 +4,7 @@ import { compareCompetencies } from "../../competency/service";
 import type { CompetencyAssessment, CompetencyFinding, CompetencyOverallStatus } from "../../competency/types";
 import type { DevelopmentNeedVersion, DevelopmentSourceType } from "../../development/types";
 import type { PerformanceEvaluation } from "../../performance/types";
+import type { Language } from "../../shared/text";
 import type { EmployeeReference } from "../../shared/types";
 import { localMonth, localToday, passedTrainingCount, pendingDecision, reassessmentOf, retrainedAt, revisionNumber } from "../../shared/rules";
 import { latestDevelopment, latestTraining, type D4LiveSnapshot, type KpiAssessment } from "../../supabase/types";
@@ -292,29 +293,32 @@ export function trainingSource(snapshot: Snapshot, record: TrainingVersion) {
   return developmentById(snapshot, record.developmentNeedId);
 }
 
-// en-US month names ("Sep", not en-GB "Sept"), in day-month-year order: "12 Oct 2026", "Sep 2026".
+// en-US month names ("Sep", not en-GB "Sept"), in day-month-year order: "12 Oct 2026", "Sep 2026". Indonesian differs
+// in four months only (Mei, Agu, Okt, Des). Without a language (server, tests) the output stays the English one.
 const MONTH_UTC = new Intl.DateTimeFormat("en-US", { month: "short", timeZone: "UTC" });
 const MONTH_LOCAL = new Intl.DateTimeFormat("en-US", { month: "short" });
+const MONTH_UTC_ID = new Intl.DateTimeFormat("id-ID", { month: "short", timeZone: "UTC" });
+const MONTH_LOCAL_ID = new Intl.DateTimeFormat("id-ID", { month: "short" });
 
-export function formatPeriod(period: string | undefined): string {
+export function formatPeriod(period: string | undefined, language?: Language | null): string {
   if (!period) return "—";
   const date = new Date(`${period.slice(0, 7)}-01T00:00:00Z`);
-  return Number.isNaN(date.getTime()) ? period : `${MONTH_UTC.format(date)} ${date.getUTCFullYear()}`;
+  return Number.isNaN(date.getTime()) ? period : `${(language === "id" ? MONTH_UTC_ID : MONTH_UTC).format(date)} ${date.getUTCFullYear()}`;
 }
 
-export function formatDate(value: string | undefined): string {
+export function formatDate(value: string | undefined, language?: Language | null): string {
   if (!value) return "—";
   const date = new Date(value.length === 10 ? `${value}T12:00:00` : value);
-  return Number.isNaN(date.getTime()) ? value : `${date.getDate()} ${MONTH_LOCAL.format(date)} ${date.getFullYear()}`;
+  return Number.isNaN(date.getTime()) ? value : `${date.getDate()} ${(language === "id" ? MONTH_LOCAL_ID : MONTH_LOCAL).format(date)} ${date.getFullYear()}`;
 }
 
 const TIME_LOCAL = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit" });
 
 /** Date and local time of a save, so changes on the same day can be told apart. A plain date stays a date. */
-export function formatDateTime(value: string | undefined): string {
-  if (!value || value.length === 10) return formatDate(value);
+export function formatDateTime(value: string | undefined, language?: Language | null): string {
+  if (!value || value.length === 10) return formatDate(value, language);
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : `${formatDate(value)}, ${TIME_LOCAL.format(date)}`;
+  return Number.isNaN(date.getTime()) ? value : `${formatDate(value, language)}, ${TIME_LOCAL.format(date)}`;
 }
 
 /** How long a change is labelled in a list. One day for every viewer: D4 keeps no per-user "last seen" time. */
