@@ -2,7 +2,7 @@
 
 import { CheckCircle2, CircleAlert } from "lucide-react";
 import { useState, type FormEvent } from "react";
-import { catalogFor, indicatorsFor, KPI_TARGET, roleForPosition, targetOf, type KpiCatalog, type KpiCatalogSet } from "../../../kpi/catalog";
+import { catalogFor, indicatorsFor, KPI_TARGET, kpiSourceOf, roleForPosition, scorableSet, targetOf, type KpiCatalog, type KpiCatalogSet } from "../../../kpi/catalog";
 import { compileDaily, type DailyCompilation } from "../../../kpi/daily";
 import { HIGH_ABOVE, performanceBand, scaleMaxOf, typedScore, UNDER_BELOW } from "../../../kpi/scale";
 import type { KpiAssessmentLine } from "../../../supabase/types";
@@ -14,6 +14,14 @@ import { useLanguage } from "../../i18n/LanguageProvider";
 import { DateField, FormError, FormModal, ModalActions, ReadOnlyField, RevisionConfirm, SearchSelectField, TextAreaField, TextField } from "../../ui/forms";
 import { cx, Notice, StatusBadge } from "../../ui/primitives";
 
+/** Where the KPI set comes from: a D1 KPI definition, a D4 role kept until D1 maps the position, or the D4 catalog. */
+export function catalogText(catalog: KpiCatalog, roleOrder: number, t: Translate = plainText) {
+  const max = scaleMaxOf(catalog.version);
+  const source = kpiSourceOf(catalog, roleOrder);
+  if (source === "D1") return t("Definisi KPI D1 {code} · skala 1–{max}", { code: indicatorsFor(catalog, roleOrder)[0]?.d1_job_code ?? "", max });
+  if (source === "D4-unmapped") return t("Katalog D4 {version}, posisi belum dipetakan D1 · skala 1–{max}", { version: catalog.version, max });
+  return t("KPI Scorecard {version} · skala 1–{max}", { version: catalog.version, max });
+}
 /** FR-02.11: positions without a KPI role in the catalog get no scorecard; no mapping is invented for them. */
 export const noKpiText = (version?: string, t: Translate = plainText) => version ? t("Posisi ini belum memiliki KPI di katalog {version}. Hubungi HR.", { version }) : t("Belum ada katalog KPI yang berlaku untuk periode ini. Hubungi HR.");
 
@@ -28,9 +36,12 @@ export function weighted(line: Pick<KpiAssessmentLine, "weight_percent" | "raw_s
   return validScore(line.raw_score, max) ? line.weight_percent * (line.raw_score ?? 0) / 100 : null;
 }
 
-/** Total of five scored lines, rounded to 2 decimals like the trigger d4_calculate_kpi_assessment; null until all five are valid. */
+/**
+ * Total of a whole KPI set (weights 100), rounded to 2 decimals like the trigger d4_calculate_kpi_assessment;
+ * null until every line is valid. The weights stand in for the old "five lines" check now that D1 sets the count.
+ */
 export function scorecardTotal(lines: readonly Pick<KpiAssessmentLine, "weight_percent" | "raw_score">[], max = 5) {
-  if (lines.length !== 5 || !lines.every((line) => validScore(line.raw_score, max))) return null;
+  if (!scorableSet(lines) || !lines.every((line) => validScore(line.raw_score, max))) return null;
   return Math.round(lines.reduce((sum, line) => sum + (weighted(line, max) ?? 0), 0) * 100) / 100;
 }
 
@@ -96,7 +107,7 @@ export function SavedScore({ before, now, testId }: { before: number | null; now
  */
 export function totalComparison(saved: number, now: number | null, t: Translate = plainText) {
   const savedTotal = t("Saved total {saved}", { saved: saved.toFixed(2) });
-  if (now === null) return `${savedTotal}. ${t("Isi kelima Actual untuk melihat total baru.")}`;
+  if (now === null) return `${savedTotal}. ${t("Isi semua Actual untuk melihat total baru.")}`;
   const diff = Math.round((now - saved) * 100) / 100;
   const newTotal = t("New total {now}", { now: now.toFixed(2) });
   if (diff === 0) return `${savedTotal} · ${newTotal} · ${t("sama dengan yang tersimpan")}`;
@@ -107,7 +118,7 @@ export function totalComparison(saved: number, now: number | null, t: Translate 
 const mobileLabel = "max-md:p-0 max-md:before:mb-1 max-md:before:block max-md:before:text-[11px] max-md:before:font-semibold max-md:before:uppercase max-md:before:tracking-[0.04em] max-md:before:text-ink-3 max-md:before:content-[attr(data-label)]";
 const inputStyle = "h-9 w-full rounded-2xl border border-ink-3 px-3 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/15 text-sm";
 
-/** Performance Review (FR-D4-001 v3.1): five Core KPI, notes and evidence in one form with one Save. */
+/** Performance Review (FR-D4-001 v3.1): the position's Core KPI, notes and evidence in one form with one Save. */
 /** `period`: the period the form opens on, e.g. the one the People Dashboard shows; this month when empty or not given. */
 export function KpiFormModal({ employeeId, period: startAt, onClose, onSaved }: { employeeId?: string; period?: string; onClose: () => void; onSaved?: (id: string) => void }) {
   const snapshot = useSnapshot();
@@ -133,7 +144,8 @@ export function KpiFormModal({ employeeId, period: startAt, onClose, onSaved }: 
   const savedFor = (id: string, at: string, role: number) => {
     const saved = id && at ? latestForPeriod(snapshot.kpiAssessments ?? [], id, at) : undefined;
     const version = catalogSet && at ? catalogFor(catalogSet, at)?.version : undefined;
-    return saved && saved.roleOrder === role && saved.definitionVersion === version && saved.lines.length === 5 ? saved : undefined;
+    const count = catalogSet && at ? indicatorsFor(catalogFor(catalogSet, at) ?? { rows: [] }, role).length : 0;
+    return saved && saved.roleOrder === role && saved.definitionVersion === version && saved.lines.length === count ? saved : undefined;
   };
   const startSaved = employeeId ? savedFor(employeeId, startPeriod, suggest(employeeId)) : undefined;
 
@@ -201,9 +213,9 @@ export function KpiFormModal({ employeeId, period: startAt, onClose, onSaved }: 
     event.preventDefault();
     setTouched(true);
     if (!employee) { setError(t("Lengkapi employee sebelum menyimpan.")); return; }
-    if (!roleOrder || lines.length !== 5 || totalWeight !== 100) { setError(t("KPI untuk posisi ini belum tersedia di katalog; penilaian tidak dapat disimpan.")); return; }
+    if (!roleOrder || !lines.length || totalWeight !== 100) { setError(t("KPI untuk posisi ini belum tersedia di katalog; penilaian tidak dapat disimpan.")); return; }
     if (lines.some((line) => !line.kpi_name.trim())) { setError(t("Setiap Core KPI wajib diberi nama.")); return; }
-    if (!allScored || !period || !date) { setError(t("Lengkapi periode, tanggal evaluasi, dan Actual 1–{max} untuk kelima KPI.", { max })); return; }
+    if (!allScored || !period || !date) { setError(t("Lengkapi periode, tanggal evaluasi, dan Actual 1–{max} untuk setiap KPI.", { max })); return; }
     if (period > thisMonth()) { setError(t(FUTURE_PERIOD)); return; }
     if (!notes.trim()) { setError(t("Notes wajib diisi.")); return; }
     if (!evidence.trim()) { setError(t("Reference wajib diisi.")); return; }
@@ -217,7 +229,7 @@ export function KpiFormModal({ employeeId, period: startAt, onClose, onSaved }: 
     if (result.ok) { onSaved?.(result.value); onClose(); } else setError(result.error);
   }
 
-  return <FormModal size="lg" title="Performance Review" description={t("Lima Core KPI dari katalog {version} sesuai posisi pegawai (nama bisa diubah, bobot dan target tetap), lalu Notes dan Reference, disimpan sekaligus dengan Save.", { version: catalog?.version ?? "" })} onClose={onClose}
+  return <FormModal size="lg" title="Performance Review" description={t("Core KPI posisi pegawai dari katalog {version} (nama bisa diubah, bobot dan target tetap), lalu Notes dan Reference, disimpan sekaligus dengan Save.", { version: catalog?.version ?? "" })} onClose={onClose}
     footer={<ModalActions onCancel={onClose} busy={busy} submitLabel={t("Save")} disabled={(Boolean(employee) && !lines.length) || revisionUsed} />}>
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />
@@ -228,7 +240,8 @@ export function KpiFormModal({ employeeId, period: startAt, onClose, onSaved }: 
         <DateField label={t("Period")} testId="period" required month max={thisMonth()} helper={t("Boleh periode lalu, untuk penilaian yang terlambat dicatat.")} value={period} onChange={(event) => choosePeriod(event.target.value)} error={touched && !period ? t("Period wajib diisi.") : touched && period > thisMonth() ? t(FUTURE_PERIOD) : undefined} />
         <ReadOnlyField label={t("Position")} testId="position" value={position?.title ?? "—"} />
         <ReadOnlyField label={t("Department")} testId="department" value={departmentOf(snapshot, selected)?.name ?? "—"} />
-        <ReadOnlyField label={t("Position KPI")} testId="kpi-jabatan" value={!employee ? "—" : roleName ?? (catalog ? t("Not in catalog {version} yet", { version: catalog.version }) : t("No KPI catalog for this period"))} />
+        <ReadOnlyField label={t("Position KPI")} testId="kpi-jabatan" value={!employee ? "—" : roleName ?? (catalog ? t("Not in catalog {version} yet", { version: catalog.version }) : t("No KPI catalog for this period"))}
+          helper={employee && roleName && catalog ? catalogText(catalog, roleOrder, t) : undefined} />
         <DateField label={t("Evaluation date")} testId="evaluation-date" required min={period ? `${period}-01` : undefined} max={today()} helper={t("Hari penilaian dilakukan: dari awal periode sampai hari ini.")} value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? t("Date wajib diisi.") : touched && date > today() ? t("Tidak boleh lebih dari hari ini.") : touched && periodDateError(period, date, t) || undefined} />
         <ReadOnlyField label={t("Evaluator")} testId="evaluator" value={evaluator || "—"} className="sm:col-span-2" helper={t("Otomatis akun yang menyimpan, supaya penilaian tidak tercatat atas nama orang lain.")} />
       </div>

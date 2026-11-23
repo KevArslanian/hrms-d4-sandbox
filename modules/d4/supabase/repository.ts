@@ -223,7 +223,7 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
   async saveKpiAssessment(input: KpiAssessmentInput): Promise<string> {
     await this.requireUser();
     if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(input.period)) throw new ApiError("VALIDATION_FAILED", "Periode penilaian wajib diisi.");
-    if (input.lines.length !== 5) throw new ApiError("VALIDATION_FAILED", "Penilaian harus memiliki lima indikator KPI.");
+    if (!input.lines.length) throw new ApiError("VALIDATION_FAILED", "Penilaian harus memiliki indikator KPI.");
     const result = await this.client.from("d4_kpi_assessments").insert({
       // V3.1 rows predate the definition_version column; only send it for newer catalogs.
       ...(input.definitionVersion === "V3.1" ? {} : { definition_version: input.definitionVersion }),

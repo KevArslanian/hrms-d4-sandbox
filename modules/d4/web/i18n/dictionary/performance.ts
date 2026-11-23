@@ -2,9 +2,9 @@ import type { Dictionary } from "./types";
 
 export const performance = {
   // Performance Review list
-  "Lima Core KPI dan Notes per pegawai dan periode, dalam satu penilaian.": {
-    en: "Five Core KPI and Notes per employee and period, in one review.",
-    id: "Lima Core KPI dan Catatan per pegawai dan periode, dalam satu penilaian.",
+  "Core KPI dan Notes per pegawai dan periode, dalam satu penilaian.": {
+    en: "Core KPI and Notes per employee and period, in one review.",
+    id: "Core KPI dan Catatan per pegawai dan periode, dalam satu penilaian.",
   },
   "Add Performance Review": { id: "Tambah Performance Review" },
   "Ubah kata kunci atau reset filter untuk melihat semua pegawai.": { en: "Change the search or reset the filters to see all employees." },
@@ -59,9 +59,9 @@ export const performance = {
   },
   "Realisation: {text}": { id: "Realisasi: {text}" },
   // Add Performance Review modal
-  "Lima Core KPI dari katalog {version} sesuai posisi pegawai (nama bisa diubah, bobot dan target tetap), lalu Notes dan Reference, disimpan sekaligus dengan Save.": {
-    en: "Five Core KPI from catalog {version} for the employee's position (names can be changed, weights and targets are fixed), then Notes and Reference, all saved at once with Save.",
-    id: "Lima Core KPI dari katalog {version} sesuai posisi pegawai (nama bisa diubah, bobot dan target tetap), lalu Catatan dan Referensi, disimpan sekaligus dengan Simpan.",
+  "Core KPI posisi pegawai dari katalog {version} (nama bisa diubah, bobot dan target tetap), lalu Notes dan Reference, disimpan sekaligus dengan Save.": {
+    en: "The Core KPI of the employee's position from catalog {version} (names can be changed, weights and targets are fixed), then Notes and Reference, all saved at once with Save.",
+    id: "Core KPI posisi pegawai dari katalog {version} (nama bisa diubah, bobot dan target tetap), lalu Catatan dan Referensi, disimpan sekaligus dengan Simpan.",
   },
   "Posisi ini belum memiliki KPI di katalog {version}. Hubungi HR.": { en: "This position has no KPI in catalog {version} yet. Contact HR." },
   "Belum ada katalog KPI yang berlaku untuk periode ini. Hubungi HR.": { en: "No KPI catalog applies to this period yet. Contact HR." },
@@ -93,7 +93,9 @@ export const performance = {
   "Lower than saved ({diff})": { id: "Lebih rendah dari yang tersimpan ({diff})" },
   "Higher than saved (+{diff})": { id: "Lebih tinggi dari yang tersimpan (+{diff})" },
   "sama dengan yang tersimpan": { en: "same as saved" },
-  "Isi kelima Actual untuk melihat total baru.": { en: "Fill in all five Actual scores to see the new total.", id: "Isi kelima Aktual untuk melihat total baru." },
+  "Isi semua Actual untuk melihat total baru.": { en: "Fill in every Actual score to see the new total.", id: "Isi semua Aktual untuk melihat total baru." },
+  "Definisi KPI D1 {code} · skala 1–{max}": { en: "D1 KPI definition {code} · scale 1–{max}" },
+  "Katalog D4 {version}, posisi belum dipetakan D1 · skala 1–{max}": { en: "D4 catalog {version}, position not mapped by D1 yet · scale 1–{max}" },
   "Actual diisi skor 1–5: {scale}. Skor terbobot = bobot × Actual; total = jumlah skor terbobot. Catatan realisasi ditulis di Comment. Tidak ada label tercapai/tidak tercapai.": {
     en: "Actual takes a score of 1–5: {scale}. Weighted score = weight × Actual; total = sum of the weighted scores. Realisation notes go in Comment. There is no achieved/not achieved label.",
     id: "Aktual diisi skor 1–5: {scale}. Skor terbobot = bobot × Aktual; total = jumlah skor terbobot. Catatan realisasi ditulis di Komentar. Tidak ada label tercapai/tidak tercapai.",
@@ -120,9 +122,9 @@ export const performance = {
   },
   "KPI untuk posisi ini belum tersedia di katalog; penilaian tidak dapat disimpan.": { en: "This position has no KPI in the catalog yet; the review cannot be saved." },
   "Setiap Core KPI wajib diberi nama.": { en: "Every Core KPI needs a name." },
-  "Lengkapi periode, tanggal evaluasi, dan Actual 1–{max} untuk kelima KPI.": {
-    en: "Fill in the period, evaluation date and Actual 1–{max} for all five KPI.",
-    id: "Lengkapi periode, tanggal evaluasi, dan Aktual 1–{max} untuk kelima KPI.",
+  "Lengkapi periode, tanggal evaluasi, dan Actual 1–{max} untuk setiap KPI.": {
+    en: "Fill in the period, evaluation date and Actual 1–{max} for every KPI.",
+    id: "Lengkapi periode, tanggal evaluasi, dan Aktual 1–{max} untuk setiap KPI.",
   },
   "Tanggal evaluasi tidak boleh lebih dari hari ini.": { en: "The evaluation date cannot be later than today." },
   "Tidak boleh lebih dari hari ini.": { en: "Cannot be later than today." },

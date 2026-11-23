@@ -458,6 +458,39 @@ Sumber: saran Pak Emanuel ke Skuad 4 (17 Nov 2026), "bisa dilihat di mana siapa 
 - Dicek di mode pratinjau pada 375, sekitar 400, dan 1280 px dalam ID dan EN, termasuk menyimpan satu tanggal lalu melihatnya berubah jadi centang. Belum ada desain Figma untuk bagian ini; frame Daily KPI di Figma D4 V2 (302:2) tidak punya kotak pengingat.
 - `modules/d4/web/features/daily/DailyKpiPages.tsx`, `modules/d4/web/i18n/dictionary/daily.ts`
 
+## Core KPI dari definisi D1 · 24 Nov 2026
+
+Permintaan: data KPI D4 tidak lagi dummy, melainkan diambil dari KPI Definition D1, dan D1 bisa mengambil skor Daily KPI dan Performance Review dari D4. Keputusan Delta 24 Nov:
+- berlaku mulai periode November 2026;
+- jumlah KPI mengikuti D1 asal total bobotnya 100;
+- posisi yang belum dipetakan D1 memakai katalog D4 sementara.
+
+- **Katalog dari D1** (`supabase/migrations/20261124130000_d4_kpi_from_d1.sql`, **belum diterapkan, menunggu izin PO**):
+  - Posisi D3 yang dipetakan D1 lewat `d3_d1_position_mappings` memakai `d1_kpi_definitions`. Syaratnya: posisi D1 Active, KPI aktif, dan total bobot 100.
+  - Nomor perannya 1000 + digit job code (JP011 → 1011), supaya tidak bentrok dengan peran D4 1–10.
+  - Di live 24 Nov ada 8 posisi yang memenuhi: tujuh dengan 5 KPI dan IT dengan 3 KPI. Posisi lain tetap memakai peran katalog D4 V6.
+  - View `d4_kpi_catalog_rows` dan `d4_kpi_position_roles` menggabungkan katalog D4 dan D1. Trigger skor dan policy Daily KPI membaca view itu.
+  - Trigger juga menyimpan `d1_kpi_id` di setiap baris, sehingga skor tetap tertaut ke KPI D1 walau namanya diubah.
+- **Jumlah KPI bebas, bobot tetap 100:** aturan "tepat 5" dihapus di constraint, trigger, server (`kpi-assessments`, `kpi-daily`), repository, fixture, form, Finalize, ringkasan dashboard, dan view MID `20261116120000` (yang juga belum diterapkan). Total scorecard di form baru muncul setelah semua baris terisi dan bobot set-nya 100.
+- **Untuk D1:** view `d4_kpi_scores_for_d1` memuat semua kolom `d1_kpi_scores` dengan nama dan tipe yang sama (dicek di live 24 Nov), ditambah kolom D4. Isinya satu baris per KPI untuk setiap Daily KPI (koreksi terbaru per tanggal) dan setiap Performance Review yang completed. Kolomnya ada di API-D4-001 §8.
+  - Yang bisa membaca: HR, Manager, Management, pemilik data, dan `service_role`. `anon` tidak punya akses.
+- **Sumber KPI terlihat di layar:**
+  - Daily KPI menampilkan sumbernya di field Catalog; Performance Review menampilkannya di bawah Position KPI. Isinya `Definisi KPI D1 JP011 · skala 1–100`, `Katalog D4 V6, posisi belum dipetakan D1 · skala 1–100`, atau `KPI Scorecard V5.1 · skala 1–5`, dalam ID dan EN.
+  - Teks yang menyebut "lima/5 Core KPI" diganti.
+- **Urutan rilis:** aplikasi boleh di-deploy sebelum migrasi. Selama view belum ada (PGRST205), loader katalog kembali membaca tabel, jadi production tidak berubah sampai migrasi diterapkan. Langkah, cek, dan rollback ada di MIGRATION-RUNBOOK-D4, bagian "KPI dari D1".
+- **Uji:**
+  - Migrasi diuji di Postgres 16 lokal dengan kasus T1–T15. T15 memastikan `id` view D1 unik per baris.
+  - Ada 9 tes vitest baru:
+    - set 3 KPI diterima dan set 5 baris ditolak di API Performance Review dan Daily KPI;
+    - lewat view, Daily KPI HR Manager tersimpan dengan peran 1011 dan Performance Review Tax Manager dengan peran 1007, sedangkan peran D4 lamanya ditolak;
+    - peran D1 dan label sumber, posisi yang belum dipetakan, `scorableSet`, serta loader view dan fallback ke tabel.
+
+    Total 648 tes lulus.
+  - Preview lokal 24 Nov: Daily KPI Mrs. Maya (HR Manager) menampilkan 5 KPI HR dari D1. Setelah Save, totalnya 84,50, sama dengan hitungan manual. Performance Review Kak Ismi (Billing) menampilkan peran D4 dengan label belum dipetakan. Dicek di lebar desktop 1225 px (ID dan EN) dan di 375 px untuk form Performance Review.
+  - Fixture preview mengikuti live: Billing belum dipetakan.
+  - TC-D4-002-26 s.d. 29.
+- `modules/d4/kpi/catalog.ts`, `modules/d4/server/kpi-catalog/`, `kpi-assessments/`, `kpi-daily/`, `modules/d4/supabase/repository.ts`, `modules/d4/web/data/fixture-source.ts`, `modules/d4/web/features/{kpi,daily,dashboard,performance}/`, kamus i18n, `AppShell.tsx`
+
 ## Belum selesai
 
 | Item | Alasan | Langkah berikut |
@@ -469,7 +502,7 @@ Sumber: saran Pak Emanuel ke Skuad 4 (17 Nov 2026), "bisa dilihat di mana siapa 
 | Cakupan Manager (O7) | Manager masih melihat semua employee; butuh data atasan dari D3 | Keputusan PO + `supervisor_id` dari D3 |
 | Sisa setelah migrasi D4 | Ketujuh migrasi dan katalog V5.1 sudah diterapkan 10 Nov (lihat [MIGRATION-RUNBOOK-D4.md](MIGRATION-RUNBOOK-D4.md), bagian "Status"). Aturan akses sudah diuji di database dan scorecard V5.1 di periode V6 sudah dihapus. Yang belum: login UI dengan akun Director dan Employee | Uji dengan akun dari PO: Director tanpa tombol simpan untuk data orang lain, dan Employee ditolak mengisi tanggal besok |
 | Konfirmasi alur Daily KPI | Dibangun dengan asumsi: pegawai isi sendiri, HR memvalidasi rata-rata periode | Konfirmasi klien; bila skor periode harus otomatis tanpa HR, ubah Performance Review |
-| Definisi KPI dari D1 | Sejak 10 Nov, 7 dari 14 posisi pegawai lengkap di D1. Sisanya (Sales Executive, Tax Associate, Cash Associate, Billing, General Director, IT, Field Agent) menunggu keputusan PO. | Keputusan PO atas daftar dari D1, persetujuan Pak Gema (B24), lalu sepakati apakah D4 membaca KPI dari D1 |
+| Definisi KPI dari D1 | D4 sudah membaca KPI dari D1 di kode dan migrasi `20261124130000` (24 Nov), tetapi migrasinya belum diterapkan. Di live, 8 posisi sudah lengkap. Field Agent dipetakan tanpa KPI. Billing, General Director, Cash Associate, dan posisi lain belum dipetakan sehingga tetap memakai katalog D4. | Izin PO untuk menerapkan migrasi, lalu D1 memetakan dan melengkapi posisi yang tersisa |
 | Volume Daily KPI di snapshot | Snapshot memuat semua entri harian (sekitar 20 per pegawai per bulan) di setiap halaman; cukup untuk sandbox, tetapi tumbuh tanpa batas | Batasi ke periode berjalan + filter periode di API sebelum produksi |
 | Alert ke MID, input level kompetensi, Employee ID di `/register` | Milik squad lain (MID, D3, B2) atau kontraknya belum ada | Koordinasi lintas squad |
 | Kolom `review_status` (O8) dan unique index per periode/gap (O9) | Butuh migrasi Supabase bersama | Persetujuan PO/Back End |

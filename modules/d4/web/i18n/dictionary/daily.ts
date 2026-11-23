@@ -3,8 +3,8 @@ import type { Dictionary } from "./types";
 export const daily = {
   // Page header and notices
   "Daily KPI belum tersedia karena database belum diperbarui (migrasi 20261108130000). Menu lain tetap bisa dipakai.": { en: "Daily KPI is not available yet because the database has not been updated (migration 20261108130000). Other menus still work." },
-  "Skor harian lima Core KPI per pegawai. Compiled score periode menjadi titik awal Performance Review.": { en: "Daily scores of the five Core KPI per employee. The period's compiled score is the starting point of the Performance Review." },
-  "Isi skor lima Core KPI Anda untuk hari ini. Compiled score sebulan menjadi titik awal Performance Review dari HR.": { en: "Score your five Core KPI for today. The month's compiled score is the starting point of HR's Performance Review." },
+  "Skor harian Core KPI per pegawai. Compiled score periode menjadi titik awal Performance Review.": { en: "Daily scores of the Core KPI per employee. The period's compiled score is the starting point of the Performance Review." },
+  "Isi skor Core KPI Anda untuk hari ini. Compiled score sebulan menjadi titik awal Performance Review dari HR.": { en: "Score your Core KPI for today. The month's compiled score is the starting point of HR's Performance Review." },
   // My KPI today
   "My KPI today": { id: "KPI saya hari ini" },
   "Akun Anda belum memiliki posisi aktif, jadi KPI-nya belum bisa ditentukan. Hubungi HR.": { en: "Your account has no active position yet, so its KPI cannot be set. Contact HR." },
