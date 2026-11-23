@@ -16,12 +16,13 @@ import { Card, Notice, SavedNotice, slug, statusLabel, StatusBadge } from "../..
 import { LineComment, targetLabel, weighted } from "../kpi/KpiFormModal";
 import type { DailyCompilation } from "../../../kpi/daily";
 import { HIGH_ABOVE, performanceBand, scaleMaxOf, UNDER_BELOW } from "../../../kpi/scale";
-import { averageScores, BANDS, COMPETENCY_ORDER, competencySlices, dashboardAlerts, defaultPeriod, employeeHistory, gapRanking, matchesDashboardFilters, openNeedCount, performanceSlices, profilePeriod, reviewCounts, validScorecard, withoutKpiRole, type AssignTarget, type DashboardRow, type Slice } from "./summary";
+import { averageScores, BANDS, COMPETENCY_ORDER, competencySlices, dashboardAlerts, defaultPeriod, employeeHistory, gapRanking, matchesDashboardFilters, openNeedCount, performanceSlices, profilePeriod, reviewCounts, trainingsInProgress, validScorecard, withoutKpiRole, type AssignTarget, type Slice } from "./summary";
+import { DASHBOARD_TABLE_ID, SummaryTiles, type SummaryRow } from "./SummaryTiles";
 import { DevelopmentFormModal } from "../development/DevelopmentModals";
 import { useUrlFilters } from "./url-filters";
 
 /** `notPassed`: the latest training is Completed but Not Passed, "awaiting" until HR records a follow-up (K2). */
-type Row = DashboardRow & { position: string; period?: string; openNeeds: number; training?: string; notPassed?: "awaiting" | "followed"; trainingInProgress: boolean; compiled: DailyCompilation | null };
+type Row = SummaryRow & { training?: string; notPassed?: "awaiting" | "followed" };
 
 /** One period per employee: the selected period, else the latest started scorecard, else the latest started evaluation (FR-06.1). */
 function periodData(snapshot: D4LiveSnapshot, employeeId: string, period: string) {
@@ -65,14 +66,14 @@ function PeopleDashboard() {
       openNeeds: openNeedCount(snapshot, employee.id),
       training: latest?.status,
       notPassed: latest?.status === "Completed" && latest.result === "Not Passed" ? (followUpOf(trainingHistory(snapshot, latest.trainingId)) ? "followed" as const : "awaiting" as const) : undefined,
-      trainingInProgress: employeeTrainings.some((item) => item.status === "In Progress"),
+      trainingInProgress: trainingsInProgress(snapshot, employee.id).length > 0,
     };
   }).filter((row) => includesText(employeeSearchText(snapshot, row.employee), search) && (!position || row.employee.positionId === position) && (!department || row.employee.departmentId === department)
     && matchesDashboardFilters(row, { band, competency, training }))
     // Compiled (waiting for HR) first, then without a Performance Review for the period, then reviewed.
     .sort(byProgress((row) => row.compiled ? 0 : row.scorecard ? 2 : 1, (row) => row.employee.fullName)), [snapshot, search, position, department, shown, band, competency, training]);
 
-  const noKpi = withoutKpiRole(snapshot, rows, catalog).length;
+  const noKpi = withoutKpiRole(snapshot, rows, catalog);
   const profileHref = (row: Row) => `/dashboard/employee/${row.employee.id}${row.period ? `?period=${row.period}` : ""}`;
 
   return <>
@@ -88,15 +89,17 @@ function PeopleDashboard() {
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label="Competency status" testId="all-competency-status" value={competency} onChange={set("competency")} options={COMPETENCY_ORDER.map((item) => ({ value: item, label: item }))} />}
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label="Training status" testId="all-training-status" value={training} onChange={set("training")} options={["Planned", "In Progress", "Completed", "Cancelled"].map((item) => ({ value: item, label: statusLabel(item) }))} />}
     </FilterBar>
-    <SummaryStrip rows={rows} period={shown} noKpi={noKpi} />
+    <SummaryTiles snapshot={snapshot} rows={rows} period={shown} noKpi={noKpi} />
     {snapshot.role !== "EMPLOYEE" && rows.length > 0 && <>
       <div className="grid gap-6 xl:grid-cols-3">
-        <PerformanceCard rows={rows} catalog={catalog} noKpi={noKpi} />
+        <PerformanceCard rows={rows} catalog={catalog} noKpi={noKpi.length} />
         <CompetencyCard rows={rows} />
         <GapRankingCard snapshot={snapshot} rows={rows} />
       </div>
       <AlertsCard snapshot={snapshot} rows={rows} period={shown} />
     </>}
+    {/* The Employees tile jumps here; the margin keeps the table header clear of the sticky top bar. */}
+    <div id={DASHBOARD_TABLE_ID} tabIndex={-1} className="scroll-mt-20 outline-none">
     <DataTable<Row> rows={rows} noun="employees" rowKey={(row) => row.employee.id}
       emptyTitle="Tidak ada pegawai yang cocok" emptyText={snapshot.role === "EMPLOYEE" ? "Ubah kata kunci atau periode, lalu coba lagi." : "Ubah kata kunci, filter, atau periode, lalu coba lagi."}
       columns={[
@@ -117,31 +120,8 @@ function PeopleDashboard() {
         { label: "View Detail", testId: "view-detail", icon: <Eye />, href: profileHref(row) },
         { label: "View Performance Review", testId: "view-penilaian", icon: <Target />, href: row.scorecard ? `/performance/scorecard/${row.scorecard.id}` : `/performance/history/${row.employee.id}` },
       ]} />} />
+    </div>
   </>;
-}
-
-/** Headline counts over the rows currently listed (mentor review, 14 Oct 2026). */
-function SummaryStrip({ rows, period, noKpi }: { rows: readonly Row[]; period: string; noKpi: number }) {
-  const reviewed = rows.filter((row) => row.scorecard && validScorecard(row.scorecard)).length;
-  // K4: employees whose position has no KPI can never be reviewed, so they are not part of the share HR can complete.
-  const reviewable = rows.length - noKpi;
-  const compiled = rows.filter((row) => row.compiled).length;
-  // Order set by the client (interview 13 Nov 2026, 0:32:14): Employees, Need training, Training in progress, and
-  // Performance Review complete last. Completion of the period's reviews stays a plain integer for Katalon.
-  const tiles = [
-    { key: "total", label: "Employees", value: rows.length, hint: "sesuai filter" },
-    // UAT-19: the partner asked for "jumlah karyawan yang butuh training"; testId summary-dev stays for Katalon.
-    { key: "dev", label: "Need training", hint: "punya development requirement yang belum selesai", value: rows.filter((row) => row.openNeeds > 0).length },
-    { key: "training", label: "Training in progress", value: rows.filter((row) => row.trainingInProgress).length, hint: "punya training In Progress" },
-    { key: "kpi", label: "Performance Review complete", value: reviewed, hint: `dari ${reviewable} pegawai yang bisa direview (${reviewable ? Math.round((reviewed / reviewable) * 100) : 0}%) · ${formatPeriod(period)}${compiled ? ` · ${compiled} Compiled, menunggu finalisasi` : ""}` },
-  ];
-  return <section aria-label="Summary" data-testid="dashboard-summary" className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-    {tiles.map((tile) => <div key={tile.key} data-testid={`summary-${tile.key}`} className="rounded-2xl border border-line bg-surface p-5 shadow-card">
-      <p className="text-xs font-semibold uppercase tracking-[0.04em] text-ink-3">{tile.label}</p>
-      <p className="mt-2 font-display text-3xl font-semibold tabular-nums text-ink">{tile.value}</p>
-      <p data-testid={`summary-${tile.key}-hint`} className="mt-1 text-xs text-ink-3">{tile.hint}</p>
-    </div>)}
-  </section>;
 }
 
 const BAND_COLORS: Record<string, string> = {
