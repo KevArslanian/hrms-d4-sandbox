@@ -157,4 +157,12 @@ export const performance = {
   },
   "Finalize now anyway": { id: "Tetap finalisasi sekarang" },
   "Centang dulu untuk memfinalisasi periode yang masih berjalan.": { en: "Tick the box first to finalize a period that is still running." },
+  "Hanya periode yang terbuka: bulan ini dan bulan lalu, atau periode lama yang dibuka kembali oleh HR.": { en: "Open periods only: this month and last month, or an older period HR has reopened." },
+  "bulan ini": { en: "this month" },
+  "bulan lalu": { en: "last month" },
+  "dibuka kembali": { en: "reopened" },
+  "Periode ini sudah ditutup. Penilaian hanya bisa disimpan di periode yang terbuka; HR dapat membuka kembali periode lama.": { en: "This period is closed. A review can only be saved in an open period; HR can reopen an older one." },
+  "Penilaian D4 dimulai dari periode September 2026.": { en: "D4 reviews start from the September 2026 period." },
+  "Otomatis tanggal hari ini saat disimpan, jadi penilaian tidak bisa dicatat mundur.": { en: "Set to today when saved, so a review cannot be back-dated." },
+  "Periode {period} sudah ditutup, jadi form dibuka di {open}. HR dapat membuka kembali periode lama bila penilaiannya terlambat.": { en: "{period} is closed, so the form opens on {open}. HR can reopen an older period for a late review." },
 } satisfies Dictionary;
