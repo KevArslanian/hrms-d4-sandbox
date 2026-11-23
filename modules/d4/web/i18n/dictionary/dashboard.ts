@@ -92,6 +92,8 @@ export const dashboard = {
   "Gap tanpa development requirement": { en: "Gap without development requirement" },
   "gap kompetensi belum dibuatkan development requirement.": { en: "competency gaps have no development requirement yet.", enOne: "competency gap has no development requirement yet." },
   "Belum punya training": { en: "No training yet" },
+  "{count} requirement belum punya training.": { en: "{count} requirements have no training yet." },
+  "Create training for all ({count})": { id: "Buat training untuk semua ({count})" },
   "development requirement terbuka menunggu training.": { en: "open development requirements are waiting for training.", enOne: "open development requirement is waiting for training." },
   "Pilih requirement-nya di Development Requirement, lalu Add Training (bisa beberapa sekaligus).": {
     en: "Select the requirements in Development Requirement, then Add Training (several at once is fine).",
