@@ -100,7 +100,8 @@ Aturan yang dipakai: sebuah keputusan tidak boleh hanya bersandar pada selera pe
 - Training tidak bisa dibuat tanpa requirement, sehingga setiap training punya alasan. [Klien] FR-D4-005 dan FR-D4-007.
 - Status requirement dihitung dari training di putaran berjalan: tanpa training Identified, semua Planned menjadi Planned, selain itu In Progress. Aturan ini satu fungsi (`statusFromTrainings`) yang dipakai API dan preview. P1.
 - **Completed hanya dengan bukti:** training Passed lalu keputusan Meets requirement, dengan level di D3 yang sudah memenuhi. Training yang selesai belum tentu menutup gap, jadi lulus training tidak otomatis menutup requirement. [Klien] transkrip 00:25:28, dicatat di OBJECTIVE-COMPETENCY-GAP ("Tidak otomatis"); diuji oleh TC-D4-005-15.
-- Passed tetapi gap belum tertutup, atau Not Passed: Retraining (training ulang, status kembali Planned) atau Other follow-up dengan catatan.
+- Not Passed: Retraining (training ulang, status kembali Planned) atau Other follow-up dengan catatan.
+- Passed: Retraining baru bisa dipilih di langkah reassessment, bila penilaian kompetensi yang disimpan sesudah hasil Passed masih menunjukkan gap. Level sebelum training tidak dipakai sebagai bukti. [Klien] transkrip 14 Okt part 2, 00:51:27 dan 00:53:31.
 
 ### Langkah 6 · Close as Met
 

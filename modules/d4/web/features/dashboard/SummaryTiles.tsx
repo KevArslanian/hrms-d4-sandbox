@@ -12,6 +12,8 @@ import { FinalizeDailyModal } from "../kpi/FinalizeDailyModal";
 import { KpiFormModal } from "../kpi/KpiFormModal";
 import { TrainingFormModal, TrainingProgressModal } from "../training/TrainingModals";
 import { latestTrainingOf, openNeedsOf, tileMembers, trainingsInProgress, type DashboardRow, type TileRow } from "./summary";
+import { msg } from "../../../shared/text";
+import { useLanguage } from "../../i18n/LanguageProvider";
 
 export type SummaryRow = TileRow & { position: string; period?: string; compiled: DailyCompilation | null };
 type TileKey = "dev" | "training" | "kpi";
@@ -32,6 +34,7 @@ const textLink = "hover:text-primary-600 hover:underline";
  * stacks two dialogs and never loses their place.
  */
 export function SummaryTiles({ snapshot, rows, period, noKpi }: { snapshot: Snapshot; rows: readonly SummaryRow[]; period: string; noKpi: readonly DashboardRow[] }) {
+  const { t, language } = useLanguage();
   const members = tileMembers(rows, noKpi);
   const [open, setOpen] = useState<TileKey | null>(null);
   const [action, setAction] = useState<Action | null>(null);
@@ -43,13 +46,13 @@ export function SummaryTiles({ snapshot, rows, period, noKpi }: { snapshot: Snap
   // Order set by the client (interview 13 Nov 2026, 0:32:14): Employees, Need training, Training in progress, and
   // Performance Review complete last. Completion of the period's reviews stays a plain integer for Katalon.
   const tiles = [
-    { key: "total", label: "Employees", value: rows.length, hint: "sesuai filter", opens: rows.length > 0 },
+    { key: "total", label: t("Employees"), value: rows.length, hint: t("sesuai filter"), opens: rows.length > 0 },
     // UAT-19: the partner asked for "jumlah karyawan yang butuh training"; testId summary-dev stays for Katalon.
-    { key: "dev", label: "Need training", value: members.dev.length, hint: "punya development requirement yang belum selesai", opens: members.dev.length > 0 },
-    { key: "training", label: "Training in progress", value: members.training.length, hint: "punya training In Progress", opens: members.training.length > 0 },
+    { key: "dev", label: t("Need training"), value: members.dev.length, hint: t("punya development requirement yang belum selesai"), opens: members.dev.length > 0 },
+    { key: "training", label: t("Training in progress"), value: members.training.length, hint: t("punya training In Progress"), opens: members.training.length > 0 },
     // Opens while anyone can be reviewed, since the list starts with who is still waiting for a review.
-    { key: "kpi", label: "Performance Review complete", value: reviewed, opens: reviewable > 0,
-      hint: `dari ${reviewable} pegawai yang bisa direview (${reviewable ? Math.round((reviewed / reviewable) * 100) : 0}%) · ${formatPeriod(period)}${compiled ? ` · ${compiled} Compiled, menunggu finalisasi` : ""}` },
+    { key: "kpi", label: t("Performance Review complete"), value: reviewed, opens: reviewable > 0,
+      hint: `${t("dari {count} pegawai yang bisa direview ({percent}%)", { count: reviewable, percent: reviewable ? Math.round((reviewed / reviewable) * 100) : 0 })} · ${formatPeriod(period, language)}${compiled ? ` · ${t("{count} Compiled, menunggu finalisasi", { count: compiled })}` : ""}` },
   ] as const;
 
   const show = (key: TileKey) => { setSaved(null); setOpen(key); };
@@ -58,7 +61,7 @@ export function SummaryTiles({ snapshot, rows, period, noKpi }: { snapshot: Snap
   const notice = (text: string, href: string) => setSaved({ text, href });
 
   return <>
-    <section aria-label="Summary" data-testid="dashboard-summary" className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+    <section aria-label={t("Summary")} data-testid="dashboard-summary" className="grid grid-cols-2 gap-4 xl:grid-cols-4">
       {tiles.map((tile) => {
         const body = <>
           <span className="flex items-start justify-between gap-2">
@@ -82,34 +85,36 @@ export function SummaryTiles({ snapshot, rows, period, noKpi }: { snapshot: Snap
     </TileDialog>}
 
     {action?.kind === "training" && <TrainingFormModal employeeId={action.employeeId} developmentNeedId={action.needId} onClose={back}
-      onSaved={(id) => notice(`Training untuk ${action.name} tersimpan.`, `/training/${id}`)} />}
+      onSaved={(id) => notice(t("Training untuk {name} tersimpan.", { name: action.name }), `/training/${id}`)} />}
     {action?.kind === "progress" && <TrainingProgressModal trainingId={action.trainingId} onClose={back}
-      onSaved={() => notice(`Progress training ${action.name} tersimpan.`, `/training/${action.trainingId}`)} />}
+      onSaved={() => notice(t("Progress training {name} tersimpan.", { name: action.name }), `/training/${action.trainingId}`)} />}
     {action?.kind === "review" && <KpiFormModal employeeId={action.employeeId} period={period} onClose={back}
-      onSaved={(id) => notice(`Performance Review ${action.name} tersimpan.`, `/performance/scorecard/${id}`)} />}
+      onSaved={(id) => notice(t("Performance Review {name} tersimpan.", { name: action.name }), `/performance/scorecard/${id}`)} />}
     {action?.kind === "finalize" && <FinalizeDailyModal employeeId={action.employeeId} period={period} compiled={action.compiled} onClose={back}
-      onSaved={(id) => notice(`Performance Review ${action.name} tersimpan dari Daily KPI.`, `/performance/scorecard/${id}`)} />}
+      onSaved={(id) => notice(t("Performance Review {name} tersimpan dari Daily KPI.", { name: action.name }), `/performance/scorecard/${id}`)} />}
   </>;
 }
 
 type Members = ReturnType<typeof tileMembers<SummaryRow>>;
 
-const DIALOGS: Record<TileKey, { title: (period: string) => string; page: (period: string) => string; pageLabel: string }> = {
-  dev: { title: () => "Need training", page: () => "/development", pageLabel: "Open Development Requirement" },
-  training: { title: () => "Training in progress", page: () => "/training?status=In%20Progress", pageLabel: "Open Training Tracking" },
-  kpi: { title: (period) => `Performance Review ${formatPeriod(period)}`, page: (period) => period ? `/performance?period=${period}` : "/performance", pageLabel: "Open Performance Review" },
+// Titles and labels are dictionary keys; TileDialog translates them and fills {period}.
+const DIALOGS: Record<TileKey, { title: string; page: (period: string) => string; pageLabel: string }> = {
+  dev: { title: msg("Need training"), page: () => "/development", pageLabel: msg("Open Development Requirement") },
+  training: { title: msg("Training in progress"), page: () => "/training?status=In%20Progress", pageLabel: msg("Open Training Tracking") },
+  kpi: { title: msg("Performance Review {period}"), page: (period) => period ? `/performance?period=${period}` : "/performance", pageLabel: msg("Buka Performance Review") },
 };
 
 function TileDialog({ tile, period, members, reviewable, onClose, children }: { tile: TileKey; period: string; members: Members; reviewable: number; onClose: () => void; children: ReactNode }) {
+  const { t, language } = useLanguage();
   const dialog = DIALOGS[tile];
   // Need training and Training in progress are the state today, so only the review list names the period.
-  const description = tile === "dev" ? `${members.dev.length} pegawai sesuai filter punya development requirement yang belum selesai.`
-    : tile === "training" ? `${members.training.length} pegawai sesuai filter punya training In Progress.`
-    : `${members.reviewed.length} dari ${reviewable} pegawai sesuai filter sudah direview.`;
-  return <FormModal title={dialog.title(period)} description={description} size="lg" onClose={onClose}
+  const description = tile === "dev" ? t("{count} pegawai sesuai filter punya development requirement yang belum selesai.", { count: members.dev.length })
+    : tile === "training" ? t("{count} pegawai sesuai filter punya training In Progress.", { count: members.training.length })
+    : t("{reviewed} dari {count} pegawai sesuai filter sudah direview.", { reviewed: members.reviewed.length, count: reviewable });
+  return <FormModal title={t(dialog.title, { period: formatPeriod(period, language) })} description={description} size="lg" onClose={onClose}
     footer={<>
-      <ButtonLink href={dialog.page(period)} testId={`summary-page-${tile}`} icon={<ArrowUpRight aria-hidden="true" className="size-4" />}>{dialog.pageLabel}</ButtonLink>
-      <Button data-testid="btn-summary-close" onClick={onClose}>Close</Button>
+      <ButtonLink href={dialog.page(period)} testId={`summary-page-${tile}`} icon={<ArrowUpRight aria-hidden="true" className="size-4" />}>{t(dialog.pageLabel)}</ButtonLink>
+      <Button data-testid="btn-summary-close" onClick={onClose}>{t("Close")}</Button>
     </>}>
     <div data-testid={`summary-dialog-${tile}`}>{children}</div>
   </FormModal>;
@@ -125,7 +130,8 @@ function Person({ row }: { row: SummaryRow }) {
 }
 
 function Empty() {
-  return <p data-testid="summary-dialog-empty" className="text-sm text-ink-3">Tidak ada pegawai lagi di daftar ini.</p>;
+  const { t } = useLanguage();
+  return <p data-testid="summary-dialog-empty" className="text-sm text-ink-3">{t("Tidak ada pegawai lagi di daftar ini.")}</p>;
 }
 
 /** One line under a person: what the item is on the left, its action on the right; wraps under it on phones. */
@@ -136,6 +142,7 @@ function Item({ testId, children, action }: { testId: string; children: ReactNod
 }
 
 function NeedList({ snapshot, rows, onAction }: { snapshot: Snapshot; rows: readonly SummaryRow[]; onAction: (action: Action) => void }) {
+  const { t } = useLanguage();
   if (!rows.length) return <Empty />;
   return <ul className="divide-y divide-line">
     {rows.map((row) => {
@@ -147,14 +154,14 @@ function NeedList({ snapshot, rows, onAction }: { snapshot: Snapshot; rows: read
             const training = latestTrainingOf(snapshot, need);
             const running = training && (training.status === "Planned" || training.status === "In Progress");
             return <Item key={need.needId} testId={`summary-need-${need.needId}`}
-              action={writer && !training ? <Button variant="secondary" data-testid={`btn-summary-create-training-${need.needId}`} onClick={() => onAction({ kind: "training", employeeId: row.employee.id, needId: need.needId, name: row.employee.fullName })}>Create Training</Button>
-                : writer && running ? <Button variant="secondary" data-testid={`btn-summary-update-progress-${training.trainingId}`} onClick={() => onAction({ kind: "progress", trainingId: training.trainingId, name: row.employee.fullName })}>Update Progress</Button>
+              action={writer && !training ? <Button variant="secondary" data-testid={`btn-summary-create-training-${need.needId}`} onClick={() => onAction({ kind: "training", employeeId: row.employee.id, needId: need.needId, name: row.employee.fullName })}>{t("Create Training")}</Button>
+                : writer && running ? <Button variant="secondary" data-testid={`btn-summary-update-progress-${training.trainingId}`} onClick={() => onAction({ kind: "progress", trainingId: training.trainingId, name: row.employee.fullName })}>{t("Update Progress")}</Button>
                 : undefined}>
               <Link href={`/development/${need.needId}`} className={cx("text-sm text-ink", textLink)}>{need.objective}</Link>
               <span className="mt-1 flex flex-wrap items-center gap-2 text-xs text-ink-3">
                 {/* A Completed training shows its result, so a Not Passed one does not read as done (Q16). */}
                 {training ? <><StatusBadge status={training.status} />{training.status === "Completed" && training.result && <span className={cx("font-semibold", training.result === "Not Passed" ? "text-warning" : "text-success")}>{training.result}</span>}<Link href={`/training/${training.trainingId}`} className={cx("min-w-0 truncate", textLink)}>{training.activity}</Link></>
-                  : <span className="font-semibold text-warning">Belum punya training</span>}
+                  : <span className="font-semibold text-warning">{t("Belum punya training")}</span>}
               </span>
             </Item>;
           })}
@@ -165,15 +172,16 @@ function NeedList({ snapshot, rows, onAction }: { snapshot: Snapshot; rows: read
 }
 
 function TrainingList({ snapshot, rows, onAction }: { snapshot: Snapshot; rows: readonly SummaryRow[]; onAction: (action: Action) => void }) {
+  const { t, language } = useLanguage();
   if (!rows.length) return <Empty />;
   return <ul className="divide-y divide-line">
     {rows.map((row) => <li key={row.employee.id} data-testid={`summary-person-${row.employee.id}`} className="py-4 first:pt-0 last:pb-0">
       <Person row={row} />
       <ul className="mt-2 space-y-2">
         {trainingsInProgress(snapshot, row.employee.id).map((training) => <Item key={training.trainingId} testId={`summary-training-${training.trainingId}`}
-          action={canAssess(snapshot, row.employee.id) ? <Button variant="secondary" data-testid={`btn-summary-update-progress-${training.trainingId}`} onClick={() => onAction({ kind: "progress", trainingId: training.trainingId, name: row.employee.fullName })}>Update Progress</Button> : undefined}>
+          action={canAssess(snapshot, row.employee.id) ? <Button variant="secondary" data-testid={`btn-summary-update-progress-${training.trainingId}`} onClick={() => onAction({ kind: "progress", trainingId: training.trainingId, name: row.employee.fullName })}>{t("Update Progress")}</Button> : undefined}>
           <Link href={`/training/${training.trainingId}`} className={cx("text-sm text-ink", textLink)}>{training.activity}</Link>
-          <span className="mt-1 block text-xs text-ink-3">{formatDate(training.date)}</span>
+          <span className="mt-1 block text-xs text-ink-3">{formatDate(training.date, language)}</span>
         </Item>)}
       </ul>
     </li>)}
@@ -189,6 +197,7 @@ function Section({ title, count, testId, children }: { title: string; count: num
 
 /** Waiting for a review first, since that is where the work is; then scorecards to fix, then the ones done. */
 function ReviewList({ snapshot, period, members, onAction }: { snapshot: Snapshot; period: string; members: Members; onAction: (action: Action) => void }) {
+  const { t, language } = useLanguage();
   const row = (item: SummaryRow, right: ReactNode) => <li key={item.employee.id} data-testid={`summary-person-${item.employee.id}`} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-3">
     <div className="min-w-0 flex-1 basis-56"><Person row={item} /></div>
     <div className="flex flex-wrap items-center gap-3">{right}</div>
@@ -196,33 +205,33 @@ function ReviewList({ snapshot, period, members, onAction }: { snapshot: Snapsho
   const scorecardLink = (item: SummaryRow, label: string) => item.scorecard && <Link href={`/performance/scorecard/${item.scorecard.id}`} className="inline-flex items-center gap-1 text-sm font-semibold text-primary-600 hover:underline">{label}<ArrowUpRight aria-hidden="true" className="size-4" /></Link>;
   if (!members.notReviewed.length && !members.invalid.length && !members.reviewed.length) return <Empty />;
   return <>
-    {members.notReviewed.length > 0 && <Section title="Belum direview" count={members.notReviewed.length} testId="summary-review-missing">
+    {members.notReviewed.length > 0 && <Section title={t("Belum direview")} count={members.notReviewed.length} testId="summary-review-missing">
       {members.notReviewed.map((item) => {
         const writer = canAssess(snapshot, item.employee.id);
         const name = item.employee.fullName;
         const compiled = item.compiled;
         return row(item, compiled ? <>
           <span className="inline-flex items-center gap-2 text-sm tabular-nums text-ink">{formatScorecard({ overallScore: compiled.total, definitionVersion: compiled.definitionVersion })}<StatusBadge status="Compiled" /></span>
-          {writer && <Button variant="secondary" data-testid={`btn-summary-finalize-${item.employee.id}`} onClick={() => onAction({ kind: "finalize", employeeId: item.employee.id, compiled, name })}>Finalize</Button>}
-        </> : writer ? <Button variant="secondary" data-testid={`btn-summary-add-review-${item.employee.id}`} onClick={() => onAction({ kind: "review", employeeId: item.employee.id, name })}>Add Performance Review</Button>
-          : <span className="text-sm text-ink-3">Belum ada</span>);
+          {writer && <Button variant="secondary" data-testid={`btn-summary-finalize-${item.employee.id}`} onClick={() => onAction({ kind: "finalize", employeeId: item.employee.id, compiled, name })}>{t("Finalize")}</Button>}
+        </> : writer ? <Button variant="secondary" data-testid={`btn-summary-add-review-${item.employee.id}`} onClick={() => onAction({ kind: "review", employeeId: item.employee.id, name })}>{t("Add Performance Review")}</Button>
+          : <span className="text-sm text-ink-3">{t("Belum ada")}</span>);
       })}
     </Section>}
-    {members.invalid.length > 0 && <Section title="Data tidak valid" count={members.invalid.length} testId="summary-review-invalid">
+    {members.invalid.length > 0 && <Section title={t("Data tidak valid")} count={members.invalid.length} testId="summary-review-invalid">
       {members.invalid.map((item) => row(item, <>
-        <span className="text-xs text-danger">KPI tidak lima atau bobot tidak 100%</span>
-        {scorecardLink(item, "View")}
+        <span className="text-xs text-danger">{t("KPI tidak lima atau bobot tidak 100%")}</span>
+        {scorecardLink(item, t("View"))}
       </>))}
     </Section>}
-    {members.reviewed.length > 0 && <Section title="Sudah direview" count={members.reviewed.length} testId="summary-review-done">
+    {members.reviewed.length > 0 && <Section title={t("Sudah direview")} count={members.reviewed.length} testId="summary-review-done">
       {members.reviewed.map((item) => {
         const band = item.scorecard && performanceBand(item.scorecard.overallScore, item.scorecard.definitionVersion);
         return row(item, <>
           <span className="inline-flex items-center gap-2 text-sm font-semibold tabular-nums text-ink">{item.scorecard && formatScorecard(item.scorecard)}{band && <StatusBadge status={band} />}</span>
-          {scorecardLink(item, "View")}
+          {scorecardLink(item, t("View"))}
         </>);
       })}
     </Section>}
-    {members.noKpi.length > 0 && <div className="mt-6"><Notice>{members.noKpi.length} pegawai tidak punya KPI di katalog {formatPeriod(period)}, jadi tidak bisa direview dan tidak dihitung: {members.noKpi.map((item) => item.employee.fullName).join(", ")}.</Notice></div>}
+    {members.noKpi.length > 0 && <div className="mt-6"><Notice>{t("{count} pegawai tidak punya KPI di katalog {period}, jadi tidak bisa direview dan tidak dihitung: {names}.", { count: members.noKpi.length, period: formatPeriod(period, language), names: members.noKpi.map((item) => item.employee.fullName).join(", ") })}</Notice></div>}
   </>;
 }

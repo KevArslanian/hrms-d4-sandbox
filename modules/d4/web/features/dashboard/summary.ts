@@ -4,6 +4,7 @@ import { roleForPosition, type KpiCatalog } from "../../../kpi/catalog";
 import { allTopScores, bandRun, dailyEntriesOf } from "../../../kpi/daily";
 import { HIGH_ABOVE, performanceBand, scaleMaxOf, UNDER_BELOW, type PerformanceBand } from "../../../kpi/scale";
 import { completedAt, followUpOf, isDirectorPosition, localMonth, localToday, retrainedAt } from "../../../shared/rules";
+import { plainText, type Translate } from "../../../shared/text";
 import type { EmployeeReference } from "../../../shared/types";
 import type { KpiAssessment } from "../../../supabase/types";
 import { currentGap, developmentHistory, formatDate, formatPeriod, formatScorecard, needsOf, needsTraining, pendingCompilation, positionById, positionTitle, revisionChanges, scorecardsOf, trainingHistory, trainingsOf, type Snapshot } from "../../data/selectors";
@@ -199,7 +200,7 @@ export const unfinalizedPeriods = (snapshot: Snapshot, employeeId: string, today
  * month. `dailyCatalog` is the catalog of that period: only employees with a KPI role are expected to fill Daily KPI.
  * An alert about one person links to the list narrowed to them (`?q=<name>`, K15).
  */
-export function dashboardAlerts(snapshot: Snapshot, rows: readonly DashboardRow[], dailyCatalog: KpiCatalog | null = null, period = "", today = localMonth()): DashboardAlert[] {
+export function dashboardAlerts(snapshot: Snapshot, rows: readonly DashboardRow[], dailyCatalog: KpiCatalog | null = null, period = "", today = localMonth(), t: Translate = plainText): DashboardAlert[] {
   const found = { under: [] as string[], unfinalized: [] as string[], completedGap: [] as string[], notPassed: [] as string[], noPlan: [] as string[], noPic: [] as string[], dailyUnder: [] as string[], dailyHigh: [] as string[], dailyAllTop: [] as string[], noDaily: [] as string[], noTraining: [] as string[] };
   const assign: AssignTarget[] = [];
   let unfinalizedPeriod = "";
@@ -244,17 +245,17 @@ export function dashboardAlerts(snapshot: Snapshot, rows: readonly DashboardRow[
     }
   }
   const alerts: (Omit<DashboardAlert, "count" | "people"> & { list: string[]; period?: string })[] = [
-    { key: "under-performance", list: found.under, assign, title: "Under Performance", href: "/performance", period, detail: `pegawai di bawah 80 pada ${period ? formatPeriod(period) : "periode ini"}.`, action: "Tindak lanjuti dengan Assign training: development requirement dari Performance Review-nya." },
-    { key: "daily-not-finalized", list: found.unfinalized, title: "Daily KPI belum difinalisasi", href: "/performance", period: unfinalizedPeriod, detail: "pegawai punya skor Compiled dari Daily KPI periode yang sudah berakhir, belum menjadi Performance Review.", action: "Finalize from Daily KPI di Performance Review periode itu." },
-    { key: "completed-gap-open", list: found.completedGap, title: "Completed, gap masih terbuka", href: "/training", detail: "development requirement Completed atau training Passed, tetapi belum ada penilaian kompetensi baru yang menunjukkan level terpenuhi.", action: "Catat hasil reassessment di detail training." },
-    { key: "training-not-passed", list: found.notPassed, title: "Training Not Passed", label: "Awaiting follow-up", href: "/training", detail: "development requirement dengan training terakhir Not Passed dan belum ada tindak lanjut.", action: "Catat Retraining atau Other follow-up di detail training." },
-    { key: "gap-no-requirement", list: found.noPlan, title: "Gap tanpa development requirement", href: "/competency", detail: "gap kompetensi belum dibuatkan development requirement." },
-    { key: "requirement-no-training", list: found.noTraining, title: "Belum punya training", href: "/development", detail: "development requirement terbuka menunggu training.", action: "Pilih requirement-nya di Development Requirement, lalu Add Training (bisa beberapa sekaligus)." },
-    { key: "daily-under", list: found.dailyUnder, title: "Daily KPI Under Performance 3 hari", href: "/daily-kpi", detail: `pegawai dengan total Daily KPI di bawah ${UNDER_BELOW} pada tiga entri terakhir berturut-turut di ${formatPeriod(today)}.`, action: "Panggil pegawai ini untuk ditindaklanjuti." },
-    { key: "daily-high", list: found.dailyHigh, title: "Daily KPI High Performance 3 hari", href: "/daily-kpi", detail: `pegawai dengan total Daily KPI di atas ${HIGH_ABOVE} pada tiga entri terakhir berturut-turut di ${formatPeriod(today)}.`, action: "Panggil pegawai ini untuk mengonfirmasi capaiannya." },
-    { key: "daily-all-top", list: found.dailyAllTop, title: "Daily KPI terisi 100 semua", href: "/daily-kpi", detail: `pegawai mengisi 100 untuk kelima KPI pada entri Daily KPI di ${formatPeriod(today)}.`, action: "Periksa kewajaran skor itu bersama pegawai." },
-    { key: "daily-missing", list: found.noDaily, title: "Belum mengisi Daily KPI", href: "/daily-kpi", detail: `pegawai dengan KPI di katalog belum punya entri Daily KPI di ${formatPeriod(today)}.` },
-    { key: "requirement-no-pic", list: found.noPic, title: "Tanpa PIC", href: "/development", detail: "development requirement terbuka belum punya PIC." },
+    { key: "under-performance", list: found.under, assign, title: "Under Performance", href: "/performance", period, detail: period ? t("pegawai di bawah 80 pada {period}.", { period: formatPeriod(period, t.language), count: found.under.length }) : t("pegawai di bawah 80 pada periode ini.", { count: found.under.length }), action: t("Tindak lanjuti dengan Assign training: development requirement dari Performance Review-nya.") },
+    { key: "daily-not-finalized", list: found.unfinalized, title: t("Daily KPI belum difinalisasi"), href: "/performance", period: unfinalizedPeriod, detail: t("pegawai punya skor Compiled dari Daily KPI periode yang sudah berakhir, belum menjadi Performance Review.", { count: found.unfinalized.length }), action: t("Finalize from Daily KPI di Performance Review periode itu.") },
+    { key: "completed-gap-open", list: found.completedGap, title: t("Completed, gap masih terbuka"), href: "/training", detail: t("development requirement Completed atau training Passed, tetapi belum ada penilaian kompetensi baru yang menunjukkan level terpenuhi.", { count: found.completedGap.length }), action: t("Catat hasil reassessment di detail training.") },
+    { key: "training-not-passed", list: found.notPassed, title: "Training Not Passed", label: t("Awaiting follow-up"), href: "/training", detail: t("development requirement dengan training terakhir Not Passed dan belum ada tindak lanjut.", { count: found.notPassed.length }), action: t("Catat Retraining atau Other follow-up di detail training.") },
+    { key: "gap-no-requirement", list: found.noPlan, title: t("Gap tanpa development requirement"), href: "/competency", detail: t("gap kompetensi belum dibuatkan development requirement.", { count: found.noPlan.length }) },
+    { key: "requirement-no-training", list: found.noTraining, title: t("Belum punya training"), href: "/development", detail: t("development requirement terbuka menunggu training.", { count: found.noTraining.length }), action: t("Pilih requirement-nya di Development Requirement, lalu Add Training (bisa beberapa sekaligus).") },
+    { key: "daily-under", list: found.dailyUnder, title: t("Daily KPI Under Performance 3 hari"), href: "/daily-kpi", detail: t("pegawai dengan total Daily KPI di bawah {limit} pada tiga entri terakhir berturut-turut di {period}.", { limit: UNDER_BELOW, period: formatPeriod(today, t.language), count: found.dailyUnder.length }), action: t("Panggil pegawai ini untuk ditindaklanjuti.") },
+    { key: "daily-high", list: found.dailyHigh, title: t("Daily KPI High Performance 3 hari"), href: "/daily-kpi", detail: t("pegawai dengan total Daily KPI di atas {limit} pada tiga entri terakhir berturut-turut di {period}.", { limit: HIGH_ABOVE, period: formatPeriod(today, t.language), count: found.dailyHigh.length }), action: t("Panggil pegawai ini untuk mengonfirmasi capaiannya.") },
+    { key: "daily-all-top", list: found.dailyAllTop, title: t("Daily KPI terisi 100 semua"), href: "/daily-kpi", detail: t("pegawai mengisi 100 untuk kelima KPI pada entri Daily KPI di {period}.", { period: formatPeriod(today, t.language), count: found.dailyAllTop.length }), action: t("Periksa kewajaran skor itu bersama pegawai.") },
+    { key: "daily-missing", list: found.noDaily, title: t("Belum mengisi Daily KPI"), href: "/daily-kpi", detail: t("pegawai dengan KPI di katalog belum punya entri Daily KPI di {period}.", { period: formatPeriod(today, t.language), count: found.noDaily.length }) },
+    { key: "requirement-no-pic", list: found.noPic, title: t("Tanpa PIC"), href: "/development", detail: t("development requirement terbuka belum punya PIC.", { count: found.noPic.length }) },
   ];
   return alerts.filter((item) => item.list.length).map(({ list, period: at, href, ...item }) => {
     const people = [...new Set(list)];
@@ -274,36 +275,36 @@ const dayOf = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : loc
  * development and training revision. Each entry links to its source page. D4 keeps no position history table, so
  * past positions appear only through position change assessments.
  */
-export function employeeHistory(snapshot: Snapshot, employeeId: string): HistoryEntry[] {
+export function employeeHistory(snapshot: Snapshot, employeeId: string, t: Translate = plainText): HistoryEntry[] {
   const entries: HistoryEntry[] = [];
   for (const item of snapshot.competency) {
     if (item.employeeId !== employeeId) continue;
-    const position = positionTitle(snapshot, item.positionId, item.positionTitle);
+    const position = positionTitle(snapshot, item.positionId, item.positionTitle, t);
     const roleChange = item.context === "role-change";
     entries.push({ id: `competency-${item.id}`, kind: "competency", day: item.effectiveDate, createdAt: item.createdAt, actor: item.actor,
-      date: `${roleChange ? "Efektif " : ""}${formatDate(item.effectiveDate)}`, status: item.overallStatus, href: `/competency/${employeeId}/history`,
-      title: roleChange ? `Position change assessment · ${position}` : `Competency assessment · ${position}`,
-      body: [`${item.findings.length} requirement · ${item.findings.filter((finding) => finding.status === "Gap").length} gap`, item.assessedWith?.trim() && `Dinilai bersama ${item.assessedWith.trim()}`].filter(Boolean).join(" · ") });
+      date: roleChange ? t("Efektif {date}", { date: formatDate(item.effectiveDate, t.language) }) : formatDate(item.effectiveDate, t.language), status: item.overallStatus, href: `/competency/${employeeId}/history`,
+      title: roleChange ? t("Position change assessment · {position}", { position }) : t("Competency assessment · {position}", { position }),
+      body: [t("{requirements} requirement · {gaps} gap", { requirements: item.findings.length, gaps: item.findings.filter((finding) => finding.status === "Gap").length }), item.assessedWith?.trim() && t("Dinilai bersama {name}", { name: item.assessedWith.trim() })].filter(Boolean).join(" · ") });
   }
   for (const item of scorecardsOf(snapshot, employeeId)) {
     const on = item.evaluationDate || item.createdAt;
     entries.push({ id: `performance-${item.id}`, kind: "performance", day: dayOf(on), createdAt: item.createdAt, actor: item.actor,
-      date: `${formatPeriod(item.period)} · ${formatDate(on)}`, status: performanceBand(item.overallScore, item.definitionVersion) ?? undefined,
-      title: `Performance Review ${formatPeriod(item.period)} · ${formatScorecard(item)}`, body: `Evaluator ${item.evaluatorName || "—"}`, href: `/performance/scorecard/${item.id}` });
+      date: `${formatPeriod(item.period, t.language)} · ${formatDate(on, t.language)}`, status: performanceBand(item.overallScore, item.definitionVersion) ?? undefined,
+      title: `Performance Review ${formatPeriod(item.period, t.language)} · ${formatScorecard(item)}`, body: `Evaluator ${item.evaluatorName || "—"}`, href: `/performance/scorecard/${item.id}` });
   }
   for (const need of needsOf(snapshot, employeeId)) {
     const versions = developmentHistory(snapshot, need.needId);
     versions.forEach((version, index) => entries.push({ id: `development-${version.id}`, kind: "development", day: dayOf(version.createdAt), createdAt: version.createdAt,
-      actor: version.actor, date: formatDate(version.createdAt), status: version.status, href: `/development/${need.needId}`,
+      actor: version.actor, date: formatDate(version.createdAt, t.language), status: version.status, href: `/development/${need.needId}`,
       title: `Development Requirement rev. ${version.revision}: ${version.objective}`,
-      body: [...revisionChanges(version, versions[index + 1]), version.notes].filter(Boolean).join(" · ") || undefined }));
+      body: [...revisionChanges(version, versions[index + 1], t), version.notes].filter(Boolean).join(" · ") || undefined }));
   }
   for (const training of trainingsOf(snapshot, employeeId)) {
     for (const version of trainingHistory(snapshot, training.trainingId)) {
       entries.push({ id: `training-${version.id}`, kind: "training", day: dayOf(version.createdAt), createdAt: version.createdAt, actor: version.actor,
-        date: formatDate(version.createdAt), status: version.status, href: `/training/${training.trainingId}`,
+        date: formatDate(version.createdAt, t.language), status: version.status, href: `/training/${training.trainingId}`,
         title: `Training v${version.revision}: ${version.activity}`,
-        body: [version.result && `Result: ${version.result}`, version.followUp && `Follow-up: ${version.followUp}`, version.notes].filter(Boolean).join(" · ") || undefined });
+        body: [version.result && t("Result: {result}", { result: version.result }), version.followUp && t("Follow-up: {followUp}", { followUp: version.followUp }), version.notes].filter(Boolean).join(" · ") || undefined });
     }
   }
   return entries.sort((a, b) => b.day.localeCompare(a.day) || b.createdAt.localeCompare(a.createdAt));

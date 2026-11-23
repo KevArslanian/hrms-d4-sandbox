@@ -6,6 +6,8 @@ import type { KpiCatalogSet } from "../../kpi/catalog";
 import { createD4BrowserClient } from "../../supabase/client";
 import type { D4LiveSnapshot } from "../../supabase/types";
 import { ApiError } from "../../shared/errors";
+import { msg } from "../../shared/text";
+import { useLanguage } from "../i18n/LanguageProvider";
 import { apiSource, D4RequestError } from "./api-source";
 import type { D4DataSource } from "./source";
 
@@ -32,6 +34,9 @@ type D4Data = {
 
 const Context = createContext<D4Data | null>(null);
 
+// Kept untranslated in state and translated where it is shown (D4App), so the load effect does not depend on the language.
+const LOAD_FAILED = msg("Gagal memuat data D4.");
+
 export function useD4() {
   const value = useContext(Context);
   if (!value) throw new Error("useD4 must be used inside D4DataProvider");
@@ -47,6 +52,7 @@ export function useSnapshot() {
 
 export function D4DataProvider({ children, mode }: { children: ReactNode; mode: "live" | "fixture" }) {
   const router = useRouter();
+  const { t } = useLanguage();
   // The fixture source is loaded on demand. The NODE_ENV check is inlined at build time, so production
   // bundles drop this import and never contain the fictional records.
   const source = useMemo<Promise<D4DataSource>>(() => process.env.NODE_ENV === "development" && mode === "fixture"
@@ -75,7 +81,7 @@ export function D4DataProvider({ children, mode }: { children: ReactNode; mode: 
     }).catch((cause: unknown) => {
       if (!active) return;
       setStatus("error");
-      setError(cause instanceof Error ? cause.message : "Gagal memuat data D4.");
+      setError(cause instanceof Error ? cause.message : LOAD_FAILED);
       // Session expired: leave the loading screen and go to /login. The stale session is cleared first, because
       // the proxy sends a still-signed-in user from /login back to /dashboard and the two pages would bounce.
       if (cause instanceof D4RequestError && cause.status === 401) {
@@ -87,7 +93,7 @@ export function D4DataProvider({ children, mode }: { children: ReactNode; mode: 
   }, [source, router, attempt]);
 
   const run = useCallback(async <T,>(operation: (data: D4DataSource) => Promise<T>, successText: string | ((value: T) => string), options?: { refreshInBackground?: boolean }): Promise<Result<T>> => {
-    if (writing.current) return { ok: false, error: "Penyimpanan sebelumnya masih diproses." };
+    if (writing.current) return { ok: false, error: t("Penyimpanan sebelumnya masih diproses.") };
     writing.current = true;
     setBusy(true);
     let data: D4DataSource;
@@ -96,11 +102,11 @@ export function D4DataProvider({ children, mode }: { children: ReactNode; mode: 
       data = await source;
       value = await operation(data);
     } catch (cause) {
-      let message = cause instanceof Error ? cause.message : "Gagal menyimpan.";
+      let message = cause instanceof Error ? cause.message : t("Gagal menyimpan.");
       // 409: a newer record was saved elsewhere (another tab or device). Load it, so the next save builds on it.
       const conflict = (cause instanceof D4RequestError && cause.status === 409) || (cause instanceof ApiError && cause.code === "CONFLICT");
       if (conflict) {
-        try { setSnapshot(await (await source).loadSnapshot()); message = `${message} Data terbaru sudah dimuat; periksa lalu simpan lagi.`; } catch { /* the save error above still stands */ }
+        try { setSnapshot(await (await source).loadSnapshot()); message = t("{message} Data terbaru sudah dimuat; periksa lalu simpan lagi.", { message }); } catch { /* the save error above still stands */ }
       }
       pushToast("error", message);
       writing.current = false;
@@ -114,7 +120,7 @@ export function D4DataProvider({ children, mode }: { children: ReactNode; mode: 
         setSnapshot(await data.loadSnapshot());
         pushToast("success", success);
       } catch {
-        pushToast("error", `${success} Namun data terbaru gagal dimuat; muat ulang halaman sebelum menyimpan lagi.`);
+        pushToast("error", t("{success} Namun data terbaru gagal dimuat; muat ulang halaman sebelum menyimpan lagi.", { success }));
       }
       writing.current = false;
       setBusy(false);
@@ -123,7 +129,7 @@ export function D4DataProvider({ children, mode }: { children: ReactNode; mode: 
     // form closes once the write is in; saving stays locked (busy) until the new data has arrived.
     if (!options?.refreshInBackground) await refresh;
     return { ok: true, value };
-  }, [source, pushToast]);
+  }, [source, pushToast, t]);
 
   const value = useMemo<D4Data>(() => ({
     mode, status, error, snapshot, catalog, busy, run, toasts,

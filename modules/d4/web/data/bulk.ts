@@ -1,4 +1,5 @@
 import type { TrainingCompletion, TrainingDecision } from "../../shared/rules";
+import { plainText, type Translate } from "../../shared/text";
 import type { TrainingStatus } from "../../training/types";
 import type { D4DataSource } from "./source";
 
@@ -29,8 +30,9 @@ export function requireSome(outcome: BulkOutcome): BulkOutcome {
   return outcome;
 }
 
-export const bulkSummary = (outcome: BulkOutcome, what: string) =>
-  outcome.failed.length ? `${outcome.done.length} ${what} tersimpan, ${outcome.failed.length} gagal.` : `${outcome.done.length} ${what} tersimpan.`;
+export const bulkSummary = (outcome: BulkOutcome, what: string, t: Translate = plainText) => outcome.failed.length
+  ? t("{done} {what} tersimpan, {failed} gagal.", { done: outcome.done.length, what, failed: outcome.failed.length })
+  : t("{done} {what} tersimpan.", { done: outcome.done.length, what });
 
 export type BulkTarget = { key: string; label: string };
 export type BulkNeed = BulkTarget & { employeeId: string };
