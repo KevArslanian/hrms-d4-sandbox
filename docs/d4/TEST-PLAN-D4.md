@@ -117,6 +117,10 @@ Kartu Planka: **[QA] Pengujian Phase 1**
 | TC-D4-002-27 | Test position yang belum dipetakan D1 (Accounting Associate 1 (Billing)) tetap memakai peran katalog D4 V6 dengan helper `Katalog D4 V6, posisi belum dipetakan D1 · skala 1–100` | Positif | Not Run | Migrasi 20261124130000 (izin PO) |
 | TC-D4-002-28 | Test set KPI D1 dengan 3 KPI (IT, JP031): form dan Daily KPI menampilkan 3 baris, total dihitung dari 3 baris; API dan trigger menolak jumlah baris yang berbeda dari katalog (422) | Positif | Not Run | Migrasi 20261124130000 (izin PO) |
 | TC-D4-002-29 | Test view `d4_kpi_scores_for_d1`: HR, Manager, dan Management membaca semua skor; Employee hanya skornya sendiri; `anon` ditolak; Daily KPI yang dikoreksi hanya muncul dengan skor terbaru; setiap baris punya `kpi_id` D1 | Positif | Not Run | Migrasi 20261124130000 (izin PO) |
+| TC-D4-002-30 | Test Period di form Performance Review hanya berisi periode terbuka: pada 24 Nov 2026 "Nov 2026 · bulan ini" dan "Okt 2026 · bulan lalu" | Positif | Not Run | |
+| TC-D4-002-31 | Test periode tertutup (Sep 2026 pada 24 Nov) ditolak API dengan 422 "Periode ini sudah ditutup…", sebelum aturan revisi; Finalize from Daily KPI untuk periode itu menampilkan peringatan dan tombol Finalize nonaktif | Negatif | Not Run | |
+| TC-D4-002-32 | Test Evaluation date terkunci di hari ini (`input-evaluation-date` nonaktif); API menyimpan hari penyimpanan (WIB) walau body mengirim tanggal lain | Negatif | Not Run | |
+| TC-D4-002-33 | Test HR membuka kembali Sep 2026 sampai 30 Nov: periode muncul di form sebagai "dibuka kembali" dan bisa disimpan; baris baru dengan tanggal kemarin menutupnya lagi; Manager ditolak RLS | Positif | Not Run | Migrasi 20261124150000 (izin PO) |
 
 ### TC-D4-003 · FR-D4-003 Competency Gap
 

@@ -227,3 +227,45 @@ Migrasi `20261124130000_d4_kpi_from_d1.sql`. Isinya: mulai periode 2026-11, KPI 
   2. Jalankan ulang isi fungsi `d4_current_kpi_role` dari `20261108130000` dan `d4_calculate_kpi_assessment` dari `20261017130000`.
   3. `drop view public.d4_kpi_position_roles, public.d4_kpi_catalog_rows, public.d4_kpi_d1_position_roles, public.d4_kpi_d1_catalog;`
   4. Kembalikan tiga constraint (5 baris, `role_order` 1..10) hanya jika belum ada scorecard atau entri harian dengan jumlah baris lain. Aplikasi otomatis kembali membaca tabel begitu view hilang.
+
+## Periode terbuka dan tertutup (24 Nov 2026): belum diterapkan
+
+Migrasi `20261124150000_d4_period_reopenings.sql`. Isinya:
+- tabel `d4_period_reopenings` (insert-only; HR menambah baris atas namanya sendiri, semua role D4 membaca);
+- fungsi `d4_period_is_open(period, today)`;
+- trigger `*_open_period` pada `d4_kpi_assessments` dan `d4_performance_evaluations`. Trigger ini menolak periode tertutup dan mengisi `evaluation_date` dengan hari ini (WIB).
+
+**Butuh izin PO.**
+
+- **Yang sudah berlaku tanpa migrasi, begitu aplikasi di-deploy:**
+  - API dan form memakai aturan default: bulan berjalan dan bulan lalu terbuka.
+  - Tanggal evaluasi selalu hari penyimpanan.
+  - Tanpa tabel, tidak ada periode lama yang bisa dibuka kembali.
+- **Dampak di live (dicek read-only, 24 Nov 2026):**
+  - Scorecard tersimpan: 2026-01 1 baris, 2026-09 18, 2026-10 45, 2026-11 31. Evaluasi lama: 2026-10 2 baris. Tidak ada yang diubah.
+  - Mulai deploy, Performance Review baru atau revisi untuk September ditolak. Oktober tertutup pada 1 Desember.
+  - Skrip Katalon yang menyimpan Performance Review untuk periode lama akan mendapat 422. Pakai periode berjalan, atau buka kembali periodenya setelah migrasi diterapkan.
+- **Diuji lokal:** Postgres 16, kasus T1–T10 lulus:
+  - matriks aturan, termasuk 1 Desember dan pergantian tahun;
+  - tanggal evaluasi mundur diganti hari ini;
+  - periode tertutup, belum mulai, dan sebelum September ditolak di kedua tabel;
+  - Manager tidak bisa membuka periode, dan HR tidak bisa memakai nama orang lain;
+  - periode di bawah 2026-09, `open_until` sebelum awal periode, dan alasan pendek ditolak;
+  - tidak ada UPDATE atau DELETE;
+  - Employee membaca, `anon` ditolak;
+  - baris terbaru menutup periode lagi.
+- **Urutan:** deploy aplikasi lebih dulu, lalu terapkan file ini dalam satu transaksi. Catat di `supabase_migrations.schema_migrations` dengan `created_by = 'd4-runbook'`.
+- **Membuka kembali periode (setelah migrasi, oleh HR atau PO):** belum ada layar di aplikasi. Jalankan dengan akun HR, atau di SQL Editor dengan `actor_employee_id` diisi id HR yang meminta:
+
+  ```sql
+  insert into public.d4_period_reopenings (period, open_until, reason, actor_employee_id)
+  values ('2026-09', '2026-11-30', 'Penilaian September terlambat dicatat', '<uuid HR>');
+  -- Menutup lebih awal: tambah baris baru dengan open_until kemarin.
+  ```
+- **Cek sesudah (read-only):**
+
+  ```sql
+  select p, public.d4_period_is_open(p) from (values ('2026-09'), ('2026-10'), ('2026-11'), ('2026-12')) v(p);
+  -- Hasil 24 Nov tanpa pembukaan: f, t, t, f.
+  ```
+- **Rollback:** hapus trigger `d4_kpi_assessments_open_period` dan `d4_performance_evaluations_open_period`, lalu fungsi `d4_require_open_period` dan `d4_period_is_open`, lalu tabel `d4_period_reopenings`.
