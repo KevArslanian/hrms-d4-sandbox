@@ -1,8 +1,10 @@
 "use client";
 
 import { Check, ChevronDown, ChevronLeft, ChevronRight, MoveHorizontal, SearchX } from "lucide-react";
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { pinJustSaved } from "../data/selectors";
+import { useLanguage } from "../i18n/LanguageProvider";
 import { cx } from "./primitives";
 
 export type Column<T> = {
@@ -36,6 +38,16 @@ export type Selection<T> = {
 
 const PAGE_SIZES = [10, 20, 50, 100] as const;
 
+// Below 640 px a row is a card: on a 390 px phone the pinned name and ⋮ columns left about 110 px for everything else.
+// Only one of the two layouts is rendered, so test ids stay unique; the server and tests (no matchMedia) get the table.
+const PHONE = "(max-width: 639px)";
+const onPhoneChange = (listener: () => void) => {
+  const query = typeof window !== "undefined" && window.matchMedia ? window.matchMedia(PHONE) : null;
+  query?.addEventListener("change", listener);
+  return () => query?.removeEventListener("change", listener);
+};
+const isPhone = () => typeof window !== "undefined" && Boolean(window.matchMedia?.(PHONE).matches);
+
 // The ⋮ column stays pinned to the right edge, so row actions remain reachable when long names push the table wider than the screen.
 // Its edge shadow shows only while columns are actually scrolled underneath it.
 const stickyAction = "sticky right-0 z-[1] transition-shadow group-data-[covered=true]:shadow-[-8px_0_8px_-8px_rgba(15,35,66,0.18)]";
@@ -61,7 +73,7 @@ export function pageWindow(current: number, count: number): (number | "gap")[] {
  * Standard D4 table: caps header, 56 px rows, ⋮ action column last, pagination bottom right.
  * Clicking a row opens its detail page (same as "View Detail" in the menu).
  */
-export function DataTable<T>({ rows: sorted, columns, rowKey, actions, emptyTitle, emptyText, noun, label, highlightKey, selection }: {
+export function DataTable<T>({ rows: sorted, columns, rowKey, actions, emptyTitle, emptyText, noun, label, justSaved, selection }: {
   rows: readonly T[];
   columns: Column<T>[];
   rowKey: (row: T) => string;
@@ -71,12 +83,17 @@ export function DataTable<T>({ rows: sorted, columns, rowKey, actions, emptyTitl
   noun: string;
   /** Accessible name of the table; defaults to the noun ("Employees"). */
   label?: string;
-  /** Row just saved by the page: shown first and marked, since its new status may sort it pages away. */
-  highlightKey?: string;
+  /** Row just saved by the page, taken from its unfiltered rows: shown first and marked whatever the filters (pinJustSaved). */
+  justSaved?: T;
   selection?: Selection<T>;
 }) {
-  const pinned = highlightKey ? sorted.find((row) => rowKey(row) === highlightKey) : undefined;
-  const rows = pinned ? [pinned, ...sorted.filter((row) => row !== pinned)] : sorted;
+  const { t } = useLanguage();
+  const rows = pinJustSaved(sorted, rowKey, justSaved);
+  const things = t(noun);
+  const tableLabel = label ?? things.charAt(0).toUpperCase() + things.slice(1);
+  const phone = useSyncExternalStore(onPhoneChange, isPhone, () => false);
+  const cards = phone && rows.length > 0;
+  const pinned = justSaved && rows[0];
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   // Other rows (a search or filter) start again at page 1; a re-render with the same rows (toast, saved edit) keeps the page.
@@ -105,7 +122,7 @@ export function DataTable<T>({ rows: sorted, columns, rowKey, actions, emptyTitl
     observer.observe(el);
     if (el.firstElementChild) observer.observe(el.firstElementChild);
     return () => observer.disconnect();
-  }, []);
+  }, [cards]);
   // Keys selected among the current rows; a selection hidden by a filter is not acted on.
   const selectableKeys = selection ? rows.filter(selection.selectable).map(rowKey) : [];
   const chosen = selection ? selectableKeys.filter((key) => selection.selected.has(key)) : [];
@@ -123,21 +140,23 @@ export function DataTable<T>({ rows: sorted, columns, rowKey, actions, emptyTitl
 
   return <section className="min-w-0 overflow-hidden rounded-2xl border border-line bg-surface shadow-card">
     {selection && chosen.length > 0 && <div data-testid="selection-bar" className={cx("flex flex-wrap items-center gap-3 border-b border-line bg-primary-50 py-3", cellX)}>
-      <span data-testid="selection-count" className="text-sm font-semibold text-ink">{chosen.length} {noun} selected</span>
+      <span data-testid="selection-count" className="text-sm font-semibold text-ink">{t("{count} {noun} selected", { count: chosen.length, noun: t(noun, { count: chosen.length }) })}</span>
       {selection.actions}
       <button type="button" data-testid="btn-clear-selection" onClick={() => selection.onChange(new Set())}
-        className="ml-auto rounded-lg px-2 py-1.5 text-xs font-semibold text-primary-600 hover:underline focus-visible:outline-2 focus-visible:outline-primary-500">Clear selection</button>
+        className="ml-auto rounded-lg px-2 py-1.5 text-xs font-semibold text-primary-600 hover:underline focus-visible:outline-2 focus-visible:outline-primary-500">{t("Clear selection")}</button>
     </div>}
+    {cards && <PhoneRows rows={visible} columns={columns} rowKey={rowKey} actions={actions} pinned={pinned} things={things} label={tableLabel}
+      selection={selection && { ...selection, toggle, toggleAll, allChosen, some: chosen.length > 0 && !allChosen, none: !selectableKeys.length }} />}
     {/* Stays while the table is wider than the screen, so it does not jump away as the user scrolls. */}
-    {wide && <p data-testid="table-scroll-hint" className={cx("flex items-center gap-1.5 border-b border-line py-2 text-xs text-ink-2", cellX)}><MoveHorizontal aria-hidden="true" className="size-4 shrink-0" />Scroll sideways to see all columns</p>}
-    <div ref={scroller} onScroll={measure} data-covered={covered} data-scrolled={scrolled} className="group overflow-x-auto">
-      <table data-testid="data-table" aria-label={label ?? noun.charAt(0).toUpperCase() + noun.slice(1)} className="w-full min-w-[640px] text-left text-sm">
+    {!cards && wide && <p data-testid="table-scroll-hint" className={cx("flex items-center gap-1.5 border-b border-line py-2 text-xs text-ink-2", cellX)}><MoveHorizontal aria-hidden="true" className="size-4 shrink-0" />{t("Scroll sideways to see all columns")}</p>}
+    {!cards && <div ref={scroller} onScroll={measure} data-covered={covered} data-scrolled={scrolled} className="group overflow-x-auto">
+      <table data-testid="data-table" aria-label={tableLabel} className="w-full min-w-[640px] text-left text-sm">
         <thead className="bg-app">
           <tr>{columns.map((column, index) => <th key={column.key} scope="col" className={cx(cellX, "py-3 text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3", index === 0 && cx(stickyFirst, "bg-app"), secondaryCell(column), column.className)}>
             {index === 0 && selection ? <span className="flex items-center gap-3">
-              <SelectBox testId="checkbox-select-all" label={`Select all ${noun}`} checked={allChosen} indeterminate={chosen.length > 0 && !allChosen} disabled={!selectableKeys.length} onChange={toggleAll} />{column.header}
+              <SelectBox testId="checkbox-select-all" label={t("Select all {noun}", { noun: things })} checked={allChosen} indeterminate={chosen.length > 0 && !allChosen} disabled={!selectableKeys.length} onChange={toggleAll} />{column.header}
             </span> : column.header}</th>)}
-            {actions && <th scope="col" className={cx(stickyAction, cellX, "w-16 bg-app py-3 text-right text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3")}>Actions</th>}</tr>
+            {actions && <th scope="col" className={cx(stickyAction, cellX, "w-16 bg-app py-3 text-right text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3")}>{t("Actions")}</th>}</tr>
         </thead>
         <tbody>
           {visible.map((row) => {
@@ -146,11 +165,11 @@ export function DataTable<T>({ rows: sorted, columns, rowKey, actions, emptyTitl
             // Rows are not clickable: details open only from the ⋮ menu (View Detail / View History).
             return <tr key={rowKey(row)} data-testid={`row-${rowKey(row)}`} data-highlighted={marked || undefined} className={cx("h-14 border-t border-line", marked ? "bg-primary-50 [&_.text-ink-3]:text-ink-2" : "hover:bg-primary-50/40")}>
               {columns.map((column, index) => {
-                const content = <>{column.cell(row)}{marked && index === 0 && <span data-testid="row-just-saved" className="mt-1 inline-block rounded-full bg-primary-600 px-2 py-0.5 text-[11px] font-semibold text-white">Just saved</span>}</>;
+                const content = <>{column.cell(row)}{marked && index === 0 && <span data-testid="row-just-saved" className="mt-1 inline-block rounded-full bg-primary-600 px-2 py-0.5 text-[11px] font-semibold text-white">{t("Just saved")}</span>}</>;
                 return <td key={column.key} data-testid={`cell-${column.key}`} className={cx(cellX, "py-3 align-middle text-ink", index === 0 && cx(stickyFirst, cellBg), !column.wrap && "whitespace-nowrap", secondaryCell(column), column.className)}>
                   {index === 0 && selection ? <div className="flex items-start gap-3">
                     {/* A row that cannot be selected keeps the space, so the names stay aligned. */}
-                    {selection.selectable(row) ? <SelectBox testId={`checkbox-row-${rowKey(row)}`} label={`Select ${selection.rowLabel(row)}`} checked={selection.selected.has(rowKey(row))} onChange={(on) => toggle(rowKey(row), on)} />
+                    {selection.selectable(row) ? <SelectBox testId={`checkbox-row-${rowKey(row)}`} label={t("Select {row}", { row: selection.rowLabel(row) })} checked={selection.selected.has(rowKey(row))} onChange={(on) => toggle(rowKey(row), on)} />
                       : <span aria-hidden="true" className="size-4 shrink-0" />}
                     <div className="min-w-0">{content}</div>
                   </div> : content}
@@ -166,29 +185,68 @@ export function DataTable<T>({ rows: sorted, columns, rowKey, actions, emptyTitl
         <p className="text-sm font-semibold text-ink">{emptyTitle}</p>
         <p className="max-w-md text-xs text-ink-3">{emptyText}</p>
       </div>}
-    </div>
+    </div>}
     {rows.length > 0 && <footer className={cx("flex flex-wrap items-center justify-between gap-3 border-t border-line py-3 text-xs text-ink-2", cellX)}>
       <div className="flex flex-wrap items-center gap-3">
-        <span data-testid="table-count">Showing {first}–{Math.min(current * pageSize, rows.length)} of {rows.length} {noun}</span>
-        <span className="flex items-center gap-1.5">Rows per page<PageSizeSelect value={pageSize} onChange={(size) => { setPageSize(size); setPage(1); }} /></span>
+        <span data-testid="table-count">{t("Showing {first}–{last} of {total} {noun}", { first, last: Math.min(current * pageSize, rows.length), total: rows.length, noun: t(noun, { count: rows.length }) })}</span>
+        {/* Picker first, then its unit ("10 per page"), as in the reference of 24 Nov 2026. */}
+        <span className="flex items-center gap-2.5 text-sm"><PageSizeSelect value={pageSize} onChange={(size) => { setPageSize(size); setPage(1); }} />{t("per page")}</span>
       </div>
-      <nav aria-label="Pagination" className="flex items-center gap-1">
-        <button type="button" data-testid="btn-page-prev" aria-label="Previous page" disabled={current === 1} onClick={() => setPage(current - 1)} className="inline-flex size-8 items-center justify-center rounded-lg border border-line bg-surface disabled:opacity-40"><ChevronLeft className="size-4" /></button>
+      <nav aria-label={t("Pagination")} className="flex items-center gap-1">
+        <button type="button" data-testid="btn-page-prev" aria-label={t("Previous page")} disabled={current === 1} onClick={() => setPage(current - 1)} className="inline-flex size-8 items-center justify-center rounded-lg border border-line bg-surface disabled:opacity-40"><ChevronLeft className="size-4" /></button>
         {pageWindow(current, pageCount).map((number, index) => number === "gap" ? <span key={`gap-${index}`} aria-hidden="true" className="px-1 text-ink-3">…</span> :
           <button key={number} type="button" data-testid={`btn-page-${number}`} aria-current={number === current ? "page" : undefined} onClick={() => setPage(number)}
             className={cx("inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 font-semibold", number === current ? "bg-primary-600 text-white" : "border border-line bg-surface text-ink")}>{number}</button>)}
-        <button type="button" data-testid="btn-page-next" aria-label="Next page" disabled={current === pageCount} onClick={() => setPage(current + 1)} className="inline-flex size-8 items-center justify-center rounded-lg border border-line bg-surface disabled:opacity-40"><ChevronRight className="size-4" /></button>
+        <button type="button" data-testid="btn-page-next" aria-label={t("Next page")} disabled={current === pageCount} onClick={() => setPage(current + 1)} className="inline-flex size-8 items-center justify-center rounded-lg border border-line bg-surface disabled:opacity-40"><ChevronRight className="size-4" /></button>
       </nav>
     </footer>}
   </section>;
 }
 
+/** Phone layout of DataTable: the first column heads the card beside its checkbox and ⋮, the other columns follow as label and value. */
+function PhoneRows<T>({ rows, columns, rowKey, actions, pinned, things, label, selection }: {
+  rows: readonly T[]; columns: Column<T>[]; rowKey: (row: T) => string; actions?: (row: T) => ReactNode; pinned?: T | false; things: string; label: string;
+  selection?: Selection<T> & { toggle: (key: string, on: boolean) => void; toggleAll: () => void; allChosen: boolean; some: boolean; none: boolean };
+}) {
+  const { t } = useLanguage();
+  const [head, ...rest] = columns;
+  return <>
+    {selection && <div className={cx("flex items-center gap-3 border-b border-line bg-app py-2.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3", cellX)}>
+      <SelectBox testId="checkbox-select-all" label={t("Select all {noun}", { noun: things })} checked={selection.allChosen} indeterminate={selection.some} disabled={selection.none} onChange={selection.toggleAll} />{t("Select all")}
+    </div>}
+    {/* Compact copies (…-compact) stand in for columns a narrow table hides; a card shows every column, so they would repeat. */}
+    <ul data-testid="data-cards" aria-label={label} className="divide-y divide-line [&_[data-testid$=-compact]]:hidden">
+      {rows.map((row) => {
+        const key = rowKey(row);
+        const marked = row === pinned;
+        return <li key={key} data-testid={`row-${key}`} data-highlighted={marked || undefined} className={cx("py-3.5", cellX, marked && "bg-primary-50 [&_.text-ink-3]:text-ink-2")}>
+          <div className="flex items-start gap-3">
+            {selection && (selection.selectable(row)
+              ? <SelectBox testId={`checkbox-row-${key}`} label={t("Select {row}", { row: selection.rowLabel(row) })} checked={selection.selected.has(key)} onChange={(on) => selection.toggle(key, on)} />
+              : <span aria-hidden="true" className="size-4 shrink-0" />)}
+            <div className="min-w-0 flex-1 text-sm text-ink">{head.cell(row)}
+              {marked && <span data-testid="row-just-saved" className="mt-1 inline-block rounded-full bg-primary-600 px-2 py-0.5 text-[11px] font-semibold text-white">{t("Just saved")}</span>}</div>
+            {actions && <div className="-mr-2 -mt-1 shrink-0">{actions(row)}</div>}
+          </div>
+          <dl className={cx("mt-2.5 grid grid-cols-[minmax(0,7.5rem)_minmax(0,1fr)] gap-x-3 gap-y-2 text-sm", selection && "pl-7")}>
+            {rest.map((column) => <Fragment key={column.key}>
+              <dt className="pt-0.5 text-[11px] font-semibold uppercase leading-4 tracking-[0.04em] text-ink-3">{column.header}</dt>
+              <dd data-testid={`cell-${column.key}`} className="min-w-0 break-words text-ink">{column.cell(row)}</dd>
+            </Fragment>)}
+          </dl>
+        </li>;
+      })}
+    </ul>
+  </>;
+}
+
 /**
- * "Rows per page" picker in the same dropdown style as the filters instead of the OS-native <select>.
+ * Rows-per-page picker in the same dropdown style as the filters instead of the OS-native <select>.
  * Portalled with fixed position (like RowActionMenu) because the table card clips overflow.
  */
 function PageSizeSelect({ value, onChange }: { value: number; onChange: (size: number) => void }) {
-  const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
+  const { t } = useLanguage();
+  const [position, setPosition] = useState<{ top: number; left: number; width: number } | null>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const list = useRef<HTMLUListElement>(null);
   const listId = useId();
@@ -221,7 +279,7 @@ function PageSizeSelect({ value, onChange }: { value: number; onChange: (size: n
     const height = PAGE_SIZES.length * 36 + 12;
     // Opens upward: the picker sits in the table footer, usually near the bottom of the screen.
     const top = rect.top - height - 4 >= 8 ? rect.top - height - 4 : rect.bottom + 4;
-    setPosition({ top, left: rect.left });
+    setPosition({ top, left: rect.left, width: rect.width });
   }
 
   function onListKey(event: React.KeyboardEvent) {
@@ -233,12 +291,12 @@ function PageSizeSelect({ value, onChange }: { value: number; onChange: (size: n
   }
 
   return <>
-    <button ref={trigger} type="button" data-testid="select-page-size" aria-label="Rows per page" aria-haspopup="listbox" aria-expanded={open} aria-controls={open ? listId : undefined} onClick={toggle}
-      className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line-strong bg-surface pl-2.5 pr-2 font-semibold text-ink hover:border-primary-500 focus-visible:outline-2 focus-visible:outline-primary-500">
-      {value}<ChevronDown aria-hidden="true" className={cx("size-4 text-ink-3 transition-transform", open && "rotate-180")} />
+    <button ref={trigger} type="button" data-testid="select-page-size" aria-label={t("Rows per page")} aria-haspopup="listbox" aria-expanded={open} aria-controls={open ? listId : undefined} onClick={toggle}
+      className="inline-flex h-9 w-[84px] items-center justify-between rounded-lg border border-line bg-surface pl-3.5 pr-2 text-sm font-semibold text-ink hover:border-primary-500 focus-visible:outline-2 focus-visible:outline-primary-500">
+      {value}<ChevronDown aria-hidden="true" className={cx("size-4 text-ink-2 transition-transform", open && "rotate-180")} />
     </button>
-    {open && createPortal(<ul ref={list} id={listId} role="listbox" data-testid="options-page-size" aria-label="Rows per page" onKeyDown={onListKey}
-      style={{ top: position.top, left: position.left }} className="fixed z-[70] w-24 rounded-[10px] border border-line bg-surface p-1.5 text-sm shadow-card">
+    {open && createPortal(<ul ref={list} id={listId} role="listbox" data-testid="options-page-size" aria-label={t("Rows per page")} onKeyDown={onListKey}
+      style={{ top: position.top, left: position.left, width: position.width }} className="fixed z-[70] rounded-[10px] border border-line bg-surface p-1.5 text-sm shadow-card">
       {PAGE_SIZES.map((size) => <li key={size} role="option" aria-selected={size === value}>
         <button type="button" data-testid={`option-page-size-${size}`} onClick={() => { onChange(size); setPosition(null); trigger.current?.focus(); }}
           className={cx("flex h-9 w-full items-center gap-2 rounded-lg px-2.5 text-left text-ink hover:bg-primary-50 focus:bg-primary-50 focus:outline-none focus-visible:outline-2 focus-visible:outline-solid focus-visible:-outline-offset-2 focus-visible:outline-primary-600", size === value && "font-semibold text-primary-600")}>

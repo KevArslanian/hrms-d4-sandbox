@@ -4,6 +4,7 @@ import { compareCompetencies } from "../../competency/service";
 import type { CompetencyAssessment, CompetencyFinding, CompetencyOverallStatus } from "../../competency/types";
 import type { DevelopmentNeedVersion, DevelopmentSourceType } from "../../development/types";
 import type { PerformanceEvaluation } from "../../performance/types";
+import { msg, plainText, type Language, type Translate } from "../../shared/text";
 import type { EmployeeReference } from "../../shared/types";
 import { localMonth, localToday, passedTrainingCount, pendingDecision, reassessmentOf, retrainedAt, revisionNumber } from "../../shared/rules";
 import { latestDevelopment, latestTraining, type D4LiveSnapshot, type KpiAssessment } from "../../supabase/types";
@@ -85,11 +86,11 @@ export const positionById = (snapshot: Snapshot, id?: string | null) => id ? ind
  * Title of a saved assessment's position, which may have left the position master since (UI-008). Then the title
  * saved with the assessment is shown, so history still says which position was assessed.
  */
-export const positionTitle = (snapshot: Snapshot, id?: string | null, saved?: string | null) =>
-  positionById(snapshot, id)?.title ?? (saved?.trim() || "posisi tidak ada di master");
+export const positionTitle = (snapshot: Snapshot, id?: string | null, saved?: string | null, t: Translate = plainText) =>
+  positionById(snapshot, id)?.title ?? (saved?.trim() || t("posisi tidak ada di master"));
 export const departmentOf = (snapshot: Snapshot, employee?: EmployeeReference) => employee?.departmentId ? indexOf(snapshot).departments.get(employee.departmentId) : undefined;
 /** Header line shared by every detail/history page: position · employee ID · department. */
-export const employeeMeta = (snapshot: Snapshot, employee: EmployeeReference) => [positionOf(snapshot, employee)?.title ?? "No position yet", employee.employeeId, departmentOf(snapshot, employee)?.name ?? ""];
+export const employeeMeta = (snapshot: Snapshot, employee: EmployeeReference, t: Translate = plainText) => [positionOf(snapshot, employee)?.title ?? t("No position yet"), employee.employeeId, departmentOf(snapshot, employee)?.name ?? ""];
 
 // Copies, so a caller sorting the result never reorders the shared index.
 export function evaluationsOf(snapshot: Snapshot, employeeId: string): PerformanceEvaluation[] {
@@ -101,9 +102,9 @@ export function scorecardsOf(snapshot: Snapshot, employeeId: string): KpiAssessm
   return [...(indexOf(snapshot).scorecards.get(employeeId) ?? [])];
 }
 /** " · Revision n" for the second and later record of the same period; empty for the first. */
-export function revisionTag<T extends { id: string; employeeId: string; period: string; createdAt: string }>(records: readonly T[], record: T) {
+export function revisionTag<T extends { id: string; employeeId: string; period: string; createdAt: string }>(records: readonly T[], record: T, t: Translate = plainText) {
   const n = revisionNumber(records, record);
-  return n > 1 ? ` · Revision ${n}` : "";
+  return n > 1 ? ` · ${t("Revision {n}", { n })}` : "";
 }
 
 export const latestScorecard = (snapshot: Snapshot, employeeId: string) => scorecardsOf(snapshot, employeeId)[0];
@@ -112,6 +113,15 @@ export const latestScorecard = (snapshot: Snapshot, employeeId: string) => score
  * the first page. `rank` is 0 for the most urgent; rows of the same rank stay in name order.
  */
 export const byProgress = <T,>(rank: (row: T) => number, name: (row: T) => string) => (a: T, b: T) => rank(a) - rank(b) || name(a).localeCompare(name(b));
+/**
+ * Just saved (13 Nov 2026, one rule for every list since 17 Nov): the row a page just saved comes first until the page
+ * is left, also when the search, a filter or the history rule would leave it out, so a save never seems to vanish.
+ */
+export function pinJustSaved<T>(rows: readonly T[], rowKey: (row: T) => string, saved?: T): T[] {
+  if (!saved) return [...rows];
+  const key = rowKey(saved);
+  return [saved, ...rows.filter((row) => rowKey(row) !== key)];
+}
 /**
  * B6: the period score compiled from Daily KPI, shown without manual input until HR finalizes it into a scorecard.
  * Null once the period has a scorecard, which then takes over everywhere.
@@ -176,6 +186,9 @@ export const inTrainingOrPositionChange = (snapshot: Snapshot, employeeId: strin
 };
 
 export const trainingsOf = (snapshot: Snapshot, employeeId: string): readonly TrainingVersion[] => indexOf(snapshot).trainingsByEmployee.get(employeeId) ?? [];
+/** PST 2 (Kei): who still needs training = an open requirement with no training other than Cancelled. */
+export const needsTraining = (snapshot: Snapshot, need: DevelopmentNeedVersion) =>
+  need.status !== "Completed" && !trainingsOf(snapshot, need.employeeId).some((item) => item.developmentNeedId === need.needId && item.status !== "Cancelled");
 export const developmentById = (snapshot: Snapshot, needId: string) => developmentNeeds(snapshot).find((item) => item.needId === needId);
 export const trainingById = (snapshot: Snapshot, trainingId: string) => trainings(snapshot).find((item) => item.trainingId === trainingId);
 /** Every revision of a need, newest first. */
@@ -231,10 +244,10 @@ export function sourceFinding(snapshot: Snapshot, need: DevelopmentNeedVersion):
 }
 
 /** What a revision changed besides its status, for history lines: priority, method, PIC, reassessment. */
-export function revisionChanges(version: DevelopmentNeedVersion, previous?: DevelopmentNeedVersion): string[] {
+export function revisionChanges(version: DevelopmentNeedVersion, previous?: DevelopmentNeedVersion, t: Translate = plainText): string[] {
   const changes: string[] = [];
-  if (previous && version.priority !== previous.priority) changes.push(`Priority ${previous.priority} → ${version.priority}`);
-  if (previous && (version.method ?? "") !== (previous.method ?? "")) changes.push(`Method: ${previous.method || "—"} → ${version.method || "—"}`);
+  if (previous && version.priority !== previous.priority) changes.push(t("Priority {from} → {to}", { from: previous.priority, to: version.priority }));
+  if (previous && (version.method ?? "") !== (previous.method ?? "")) changes.push(t("Method: {from} → {to}", { from: previous.method || "—", to: version.method || "—" }));
   if (previous && (version.pic ?? "") !== (previous.pic ?? "")) changes.push(`PIC: ${previous.pic || "—"} → ${version.pic || "—"}`);
   if (version.reassessment) changes.push(`Reassessment: ${version.reassessment}`);
   return changes;
@@ -252,57 +265,60 @@ export const trainingHistory = (snapshot: Snapshot, trainingId: string) => snaps
 
 export const sourceTypeLabel: Record<DevelopmentSourceType, string> = {
   competency_gap: "Competency Gap",
-  role_change: "Position Change",
+  role_change: msg("Position Change"),
   performance_context: "Performance Review",
 };
 /** Q9: a new requirement starts from a competency gap; Position Change and Performance Review stay as other sources. */
 export const DEFAULT_SOURCE_TYPE: DevelopmentSourceType = "competency_gap";
 
 /** Resolves a development need's source reference to a readable label and a link to the source record (FR-D4-005). */
-export function describeSource(snapshot: Snapshot, need: Pick<DevelopmentNeedVersion, "sourceType" | "sourceRef" | "employeeId">): { label: string; href: string | null } {
+export function describeSource(snapshot: Snapshot, need: Pick<DevelopmentNeedVersion, "sourceType" | "sourceRef" | "employeeId">, t: Translate = plainText): { label: string; href: string | null } {
   if (need.sourceType === "competency_gap") {
     const requirement = snapshot.reference.positionRequirements.find((item) => item.id === need.sourceRef);
     const competency = snapshot.reference.competencies.find((item) => item.id === requirement?.competencyId);
-    return { label: competency ? `${competency.name} (min. level ${requirement?.minProficiencyLevel})` : "Competency requirement", href: `/competency/${need.employeeId}` };
+    return { label: competency ? t("{competency} (min. level {level})", { competency: competency.name, level: String(requirement?.minProficiencyLevel) }) : t("Competency requirement"), href: `/competency/${need.employeeId}` };
   }
   if (need.sourceType === "role_change") {
     const assessment = snapshot.competency.find((item) => item.id === need.sourceRef);
-    return { label: assessment ? `Position change assessment · ${formatDate(assessment.effectiveDate)}` : "Position change assessment", href: `/competency/${need.employeeId}/history` };
+    return { label: assessment ? t("Position change assessment · {date}", { date: formatDate(assessment.effectiveDate, t.language) }) : t("Position change assessment"), href: `/competency/${need.employeeId}/history` };
   }
   const assessment = snapshot.kpiAssessments?.find((item) => item.id === need.sourceRef);
-  if (assessment) return { label: `Performance Review ${formatPeriod(assessment.period)}`, href: `/performance/scorecard/${assessment.id}` };
+  if (assessment) return { label: `Performance Review ${formatPeriod(assessment.period, t.language)}`, href: `/performance/scorecard/${assessment.id}` };
   // Needs raised before FR-D4-001 v3.1 point at an older, separate evaluation.
   const evaluation = snapshot.performance.find((item) => item.id === need.sourceRef);
-  return { label: evaluation ? `Performance Review ${formatPeriod(evaluation.period)} (evaluasi lama)` : "Performance Review", href: evaluation ? `/performance/${evaluation.id}` : null };
+  return { label: evaluation ? t("Performance Review {period} (evaluasi lama)", { period: formatPeriod(evaluation.period, t.language) }) : "Performance Review", href: evaluation ? `/performance/${evaluation.id}` : null };
 }
 
 export function trainingSource(snapshot: Snapshot, record: TrainingVersion) {
   return developmentById(snapshot, record.developmentNeedId);
 }
 
-// en-US month names ("Sep", not en-GB "Sept"), in day-month-year order: "12 Oct 2026", "Sep 2026".
+// en-US month names ("Sep", not en-GB "Sept"), in day-month-year order: "12 Oct 2026", "Sep 2026". Indonesian differs
+// in four months only (Mei, Agu, Okt, Des). Without a language (server, tests) the output stays the English one.
 const MONTH_UTC = new Intl.DateTimeFormat("en-US", { month: "short", timeZone: "UTC" });
 const MONTH_LOCAL = new Intl.DateTimeFormat("en-US", { month: "short" });
+const MONTH_UTC_ID = new Intl.DateTimeFormat("id-ID", { month: "short", timeZone: "UTC" });
+const MONTH_LOCAL_ID = new Intl.DateTimeFormat("id-ID", { month: "short" });
 
-export function formatPeriod(period: string | undefined): string {
+export function formatPeriod(period: string | undefined, language?: Language | null): string {
   if (!period) return "—";
   const date = new Date(`${period.slice(0, 7)}-01T00:00:00Z`);
-  return Number.isNaN(date.getTime()) ? period : `${MONTH_UTC.format(date)} ${date.getUTCFullYear()}`;
+  return Number.isNaN(date.getTime()) ? period : `${(language === "id" ? MONTH_UTC_ID : MONTH_UTC).format(date)} ${date.getUTCFullYear()}`;
 }
 
-export function formatDate(value: string | undefined): string {
+export function formatDate(value: string | undefined, language?: Language | null): string {
   if (!value) return "—";
   const date = new Date(value.length === 10 ? `${value}T12:00:00` : value);
-  return Number.isNaN(date.getTime()) ? value : `${date.getDate()} ${MONTH_LOCAL.format(date)} ${date.getFullYear()}`;
+  return Number.isNaN(date.getTime()) ? value : `${date.getDate()} ${(language === "id" ? MONTH_LOCAL_ID : MONTH_LOCAL).format(date)} ${date.getFullYear()}`;
 }
 
 const TIME_LOCAL = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit" });
 
 /** Date and local time of a save, so changes on the same day can be told apart. A plain date stays a date. */
-export function formatDateTime(value: string | undefined): string {
-  if (!value || value.length === 10) return formatDate(value);
+export function formatDateTime(value: string | undefined, language?: Language | null): string {
+  if (!value || value.length === 10) return formatDate(value, language);
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : `${formatDate(value)}, ${TIME_LOCAL.format(date)}`;
+  return Number.isNaN(date.getTime()) ? value : `${formatDate(value, language)}, ${TIME_LOCAL.format(date)}`;
 }
 
 /** How long a change is labelled in a list. One day for every viewer: D4 keeps no per-user "last seen" time. */
@@ -318,27 +334,26 @@ export function formatScore(value: number | null | undefined, scale = 5): string
   return value === null || value === undefined ? "—" : `${value.toFixed(2)} / ${scale}`;
 }
 
+/**
+ * Score in a list whose column header carries the scale, "Total KPI (/100)" (PST 2): the bare number, written once per
+ * row without "/ 100". A row saved on the other scale keeps its own, so a 1–5 score is never read as out of 100.
+ */
+export const listScore = (value: number | null | undefined, version: string | null | undefined, listScale: number) =>
+  scaleMaxOf(version) === listScale ? value?.toFixed(2) ?? "—" : formatScore(value, scaleMaxOf(version));
+
 /** KPI gap as shown: signed, "n/a (skala 1–5)" for a 1–5 score, "—" without a score. */
-export function formatGap(score: number | null | undefined, definitionVersion?: string | null): string {
+export function formatGap(score: number | null | undefined, definitionVersion?: string | null, t: Translate = plainText): string {
   if (score === null || score === undefined) return "—";
   const gap = kpiGap(score, definitionVersion);
-  if (gap === null) return "n/a (skala 1–5)";
+  if (gap === null) return t("n/a (skala 1–5)");
   return `${gap > 0 ? "+" : ""}${Number.isInteger(gap) ? gap : gap.toFixed(2)}`;
 }
 
 /** "4.10 / 5" for a V5.1 scorecard, "82.50 / 100" for V6: every scorecard shows the scale it was saved under. */
 export const formatScorecard = (scorecard: { overallScore: number | null; definitionVersion?: string | null }): string => formatScore(scorecard.overallScore, scaleMaxOf(scorecard.definitionVersion));
 
-/**
- * A score in a table column headed "(1–100)": the scale is in the header, so a 1–100 score drops the " / 100" every row
- * repeated (dosen, 17 Nov 2026). A legacy 1–5 score keeps " / 5", so the two scales are never read as one.
- */
-export const formatScoreCell = (value: number | null | undefined, scale = 5): string =>
-  value === null || value === undefined ? "—" : scale === 100 ? value.toFixed(2) : formatScore(value, scale);
-export const SCORE_COLUMN = "(1–100)";
-
 /** Raw-score criteria from KPI Scorecard V3.1/V5.1 sheet "KPI Scoring Card"; shared by KPI and evaluation results. */
-export const SCORE_LABELS: Record<number, string> = { 1: "Very Poor", 2: "Poor", 3: "Fair", 4: "Good", 5: "Very Good" };
+export const SCORE_LABELS: Record<number, string> = { 1: msg("Very Poor"), 2: msg("Poor"), 3: msg("Fair"), 4: msg("Good"), 5: msg("Very Good") };
 
 export const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("");
 

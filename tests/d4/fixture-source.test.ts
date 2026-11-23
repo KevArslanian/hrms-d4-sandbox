@@ -98,7 +98,7 @@ describe("KPI scorecard (fixture)", () => {
 
   it("rejects an incomplete completed scorecard", async () => {
     const draft = await kpiDraft(ALFA, "2026-10");
-    await expect(source.createKpiAssessment({ ...draft, lines: draft.lines.map((line, index) => index ? line : { ...line, raw_score: null }) })).rejects.toThrow(/lima indikator KPI/);
+    await expect(source.createKpiAssessment({ ...draft, lines: draft.lines.map((line, index) => index ? line : { ...line, raw_score: null }) })).rejects.toThrow(/Semua indikator KPI harus dinilai/);
   });
 });
 
@@ -154,8 +154,21 @@ describe("development and training (fixture)", () => {
   });
 });
 
+// Retraining after a pass is the outcome of a reassessment (interview 14 Oct, part 2, 00:53:31): the Passed result is
+// saved first, then a competency assessment after it. Both are dated in the past, then the real clock resumes.
+async function passThenReassess(source: D4DataSource, trainingId: string) {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-11-20T03:00:00.000Z"));
+  await source.updateTraining(trainingId, "Completed", "Passed", "");
+  const snapshot = await source.loadSnapshot();
+  const employeeId = snapshot.trainingVersions.find((item) => item.trainingId === trainingId)!.employeeId;
+  vi.setSystemTime(new Date("2026-11-20T04:00:00.000Z"));
+  await source.saveCompetency({ employeeId, positionId: snapshot.reference.employees.find((item) => item.id === employeeId)!.positionId!, effectiveDate: "2026-11-23" });
+  vi.useRealTimers();
+}
+
 describe("development edit and reassessment (fixture)", () => {
-  afterEach(() => { vi.unstubAllEnvs(); });
+  afterEach(() => { vi.unstubAllEnvs(); vi.useRealTimers(); });
   const latest = async (needId: string) => latestDevelopment(await source.loadSnapshot()).find((item) => item.needId === needId)!;
 
   it("edits priority, method and PIC as a new revision and keeps them when a training moves the status", async () => {
@@ -168,6 +181,7 @@ describe("development edit and reassessment (fixture)", () => {
   });
 
   it("Retraining reopens the requirement for a new training; the next training moves it without the old decision", async () => {
+    await passThenReassess(source, "FIX-D4-TRN-001");
     const retrainingId = await source.completeTraining("FIX-D4-TRN-001", { result: "Passed", decision: "Retraining", notes: "Perlu diulang", activity: "Workshop ulang", date: "2026-10-01" });
     expect(await latest("FIX-D4-DEV-001")).toMatchObject({ status: "Planned", reassessment: "Retraining" });
     // The decision belongs to the revision that recorded it, not to the ones after it.

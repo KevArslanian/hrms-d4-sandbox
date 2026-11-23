@@ -1,12 +1,13 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { catalogFor, indicatorsFor, KPI_TARGET, KPI_V51_CATALOG, roleForPosition, roleForPositionTitle, rolesOf, seedCatalogSet, targetOf, type KpiCatalogSet } from "@/modules/d4/kpi/catalog";
+import { catalogFor, indicatorsFor, KPI_TARGET, KPI_V51_CATALOG, roleForPosition, roleForPositionTitle, rolesOf, scorableSet, seedCatalogSet, targetOf, type KpiCatalogSet } from "@/modules/d4/kpi/catalog";
+import { loadCatalogSet } from "@/modules/d4/server/kpi-catalog";
 import { d4ReferenceFixture } from "@/modules/d4/shared/fixtures";
 import { createFixtureSource } from "@/modules/d4/web/data/fixture-source";
 import type { D4DataSource } from "@/modules/d4/web/data/source";
 import { aboveScale, HIGH_ABOVE, performanceBand, scaleMaxOf, UNDER_BELOW } from "@/modules/d4/kpi/scale";
-import { actualInput, legacyRealisation, periodChange, scorecardTotal, weighted } from "@/modules/d4/web/features/kpi/KpiFormModal";
+import { actualInput, catalogText, legacyRealisation, periodChange, scorecardTotal, weighted } from "@/modules/d4/web/features/kpi/KpiFormModal";
 
 const catalog = { rows: KPI_V51_CATALOG };
 const ALFA = "d4000000-0000-4000-8000-000000000009"; // Finance Staff → role 10 (weights 25/25/20/15/15)
@@ -121,7 +122,7 @@ describe("KPI form: Actual is the score (Q4)", () => {
     expect(scorecardTotal(lines, max)).toBeNull();
   });
 
-  it("has no total until all five lines are scored", () => {
+  it("has no total for a partial set (weights below 100), whatever the line count", () => {
     expect(scorecardTotal(fromActual(["4", "4", "4", "4"]), 5)).toBeNull();
   });
 
@@ -284,5 +285,60 @@ describe("catalogFor: the catalog version follows the scorecard period", () => {
     expect(old.rows.every((row) => row.source_version === "V5.1")).toBe(true);
     expect(indicatorsFor(next, 9)[0].weight_percent).toBe(indicatorsFor(old, 9)[0].weight_percent + 5);
     expect([roleForPosition(old, "pos-a"), roleForPosition(next, "pos-a"), roleForPosition(next, "pos-b")]).toEqual([9, 10, 0]);
+  });
+});
+
+// 24 Nov 2026: from 2026-11 a mapped position's KPI come from D1 (d1_kpi_definitions); the rest keep their D4 role.
+describe("KPI from D1 (20261124130000)", () => {
+  const set = seedCatalogSet(d4ReferenceFixture.positions);
+  const positionOf = (title: string) => d4ReferenceFixture.positions.find((item) => item.title === title)!.id;
+
+  it("gives a mapped position its D1 role from 2026-11 and its D4 role before", () => {
+    const hr = positionOf("HR Manager");
+    const nov = catalogFor(set, "2026-11")!;
+    expect(roleForPosition(nov, hr)).toBe(1011); // 1000 + JP011
+    expect(indicatorsFor(nov, 1011).map((row) => row.kpi_name)).toEqual(["Time-to-Fill Vacancy", "Onboarding Completion", "Performance Evaluation Completion", "Training Completion Rate", "HR Administration SLA"]);
+    expect(catalogText(nov, 1011)).toBe("Definisi KPI D1 JP011 · skala 1–100");
+    expect(roleForPosition(catalogFor(set, "2026-10")!, hr)).toBeLessThan(1000);
+  });
+
+  it("keeps the D4 role of a position D1 has not mapped, and says so", () => {
+    const nov = catalogFor(set, "2026-11")!;
+    const billing = roleForPosition(nov, positionOf("Accounting Associate 1 (Billing)"));
+    expect(billing).toBe(FINANCE_ROLE);
+    expect(catalogText(nov, billing)).toBe("Katalog D4 V6, posisi belum dipetakan D1 · skala 1–100");
+    expect(catalogText(catalogFor(set, "2026-10")!, billing)).toBe("KPI Scorecard V5.1 · skala 1–5");
+  });
+
+  it("scores any number of KPI once the weights total 100", () => {
+    expect(scorableSet([{ weight_percent: 40 }, { weight_percent: 35 }, { weight_percent: 25 }])).toBe(true);
+    expect(scorableSet([{ weight_percent: 40 }, { weight_percent: 35 }])).toBe(false);
+    expect(scorableSet([])).toBe(false);
+    expect(scorecardTotal([{ weight_percent: 40, raw_score: 90 }, { weight_percent: 35, raw_score: 80 }, { weight_percent: 25, raw_score: 70 }], 100)).toBe(81.5);
+  });
+
+  describe("loadCatalogSet", () => {
+    const versions = [{ source_version: "V6", effective_from: "2026-11" }];
+    const view = [{ role_order: 1011, role_name: "HR Manager", indicator_order: 1, kpi_name: "Time-to-Fill Vacancy", target: "85", weight_percent: 100, source_version: "V6", kpi_source: "D1", d1_job_code: "JP011" }];
+    const table = [{ role_order: 10, role_name: "Finance & Administration", indicator_order: 1, kpi_name: "Invoice", target: null, weight_percent: 100, source_version: "V6" }];
+    const clientWith = (data: Record<string, unknown>) => ({
+      from: (name: string) => {
+        const result = data[name] === "missing" ? { data: null, error: { code: "PGRST205", message: "missing" } } : { data: data[name] ?? [], error: null };
+        const builder = { select: () => builder, order: () => builder, then: (resolve: (value: unknown) => void) => resolve(result) };
+        return builder;
+      },
+    }) as unknown as Parameters<typeof loadCatalogSet>[0];
+
+    it("reads the D1 views when they exist", async () => {
+      const loaded = await loadCatalogSet(clientWith({ d4_kpi_catalog_versions: versions, d4_kpi_catalog_rows: view, d4_kpi_position_roles: [{ source_version: "V6", position_id: "p", role_order: 1011 }], d4_kpi_role_catalog: table }));
+      expect(loaded.rows).toEqual(view);
+      expect(loaded.positionRoles[0].role_order).toBe(1011);
+    });
+
+    it("falls back to the D4 tables while the migration is not applied", async () => {
+      const loaded = await loadCatalogSet(clientWith({ d4_kpi_catalog_versions: versions, d4_kpi_catalog_rows: "missing", d4_kpi_position_roles: "missing", d4_kpi_role_catalog: table, d4_position_kpi_roles: [{ source_version: "V6", position_id: "p", role_order: 10 }] }));
+      expect(loaded.rows).toEqual(table);
+      expect(loaded.positionRoles[0].role_order).toBe(10);
+    });
   });
 });

@@ -36,7 +36,8 @@ People Dashboard: ringkasan semua langkah di atas, tanpa data sendiri.
 - **Siapa:** setiap pegawai yang posisinya punya peran KPI, termasuk HR dan Manager. Direktur tidak mengisi Daily KPI.
 - **Di mana:** menu **Daily KPI** → form "My KPI today".
 - **Isinya:** skor lima Core KPI hari itu. Tanggal boleh hari ini atau mundur di periode berjalan, tidak boleh di masa depan. Koreksi disimpan sebagai entri baru; entri terbaru per tanggal yang dipakai.
-- **Koreksi:** tombol **Correct** di tabel entri membuka hari itu di form, dengan skor tersimpan di bawah tiap field dan total tersimpan dibanding total baru. Semua entri dan koreksi terlihat di halaman **History** (KPI n: lama → baru).
+- **Form selalu mulai kosong:** saat halaman dibuka, setelah Save, dan saat tanggal dipilih, Score dan Comment kosong, juga untuk hari yang sudah terisi. Untuk hari seperti itu form memberi tahu bahwa menyimpan akan mengoreksi entri hari itu.
+- **Koreksi:** tombol **Correct** di tabel entri membuka hari itu di form dengan skor dan komentar tersimpan, skor tersimpan di bawah tiap field, dan total tersimpan dibanding total baru. Semua entri dan koreksi terlihat di halaman **History** (KPI n: lama → baru).
 - **Otomatis:** rata-rata periode (Compiled) dihitung dari entri harian. Alert X-24 muncul di dashboard bila Under atau High tiga entri berturut-turut, atau kelima KPI diisi 100.
 
 ### 2.2 Performance Review: HR/Manager memfinalkan periode
@@ -62,14 +63,14 @@ People Dashboard: ringkasan semua langkah di atas, tanpa data sendiri.
 - **Yang bisa diubah di sini:** Priority, Method, dan PIC lewat **Edit Requirement**.
 - **Yang tidak bisa diubah di sini:** status. Status mengikuti training (lihat 2.5). Tombol "Update Status" sudah dihapus pada 13 Nov 2026.
 - **Kolom Next step** menunjukkan langkah berikutnya beserta tombolnya: Create Training, keputusan Retraining atau Meets requirement, atau tautan ke training yang sedang berjalan. Aksi di kolom ini tidak diulang di menu ⋮.
-- **Urutan daftar:** High dulu, lalu Medium dan Low; di dalam satu prioritas yang paling baru di-update di atas. Kolom Last updated menunjukkan jam dan siapa yang mengubah; yang dibuat atau diubah dalam 24 jam terakhir diberi label New atau Updated. Requirement yang sudah Completed dan diputuskan tidak tampil sampai Status Completed dipilih di filter (wawancara 13 Nov 2026; tautan Show Completed dihapus atas masukan dosen 17 Nov 2026).
+- **Urutan daftar:** High dulu, lalu Medium dan Low; di dalam satu prioritas yang paling baru di-update di atas. Kolom Last updated menunjukkan jam dan siapa yang mengubah; yang dibuat atau diubah dalam 24 jam terakhir diberi label New atau Updated. Requirement yang sudah Completed dan diputuskan tidak tampil sampai Status Completed dipilih di Filter (wawancara 13 Nov 2026; tautan Show Completed dihapus 22 Nov karena masukan PST 2).
 - **Banyak requirement sekaligus:** centang beberapa baris (atau select all) → **Add Training** membuat satu training yang sama untuk setiap requirement terpilih.
 
 ### 2.5 Training Tracking: satu-satunya penulis progres
 
-- **Membuat training:** dari requirement → **Create Training**. Training Tracking tidak punya tombol Add sendiri, jadi setiap training selalu punya alasan.
+- **Membuat training:** dari requirement → **Create Training**, atau dari Training Tracking → **Add Training** untuk beberapa orang sekaligus (centang requirement terbuka mereka). Orang yang mau ikut training yang sama ditambahkan dari detail training → **Add Participants** (hanya untuk Planned atau In Progress). Setiap peserta tetap punya training sendiri yang terikat ke requirement-nya, jadi setiap training selalu punya alasan.
 - **Memperbarui progres:** menu **Training Tracking** → **Update Progress**. Dari Development Requirement, tombol **Update progress in Training** langsung membuka training aktifnya. Untuk banyak training sekaligus (misalnya satu angkatan field agent), centang barisnya lalu **Update Progress** di atas tabel: In Progress, atau Completed dengan satu Result dan satu keputusan. Baris yang ditolak aturan satu-barisnya tampil dengan alasannya dan tetap terpilih. Daftar tetap diurutkan per tahap; training yang dibuat atau diubah dalam 24 jam terakhir diberi label New atau Updated, dan kolom Last updated (layar 1400 px ke atas) menunjukkan jam serta siapa yang mengubah.
-- **Riwayat training (17 Nov 2026):** training yang sudah tidak butuh tindakan tidak tampil di daftar default, yaitu Completed yang hasilnya sudah diputuskan dan Cancelled. Training Completed yang masih menunggu follow-up atau reassessment tetap tampil. Keterangan di atas tabel menyebut jumlahnya dan mengarahkan ke filter Status (Completed atau Cancelled) untuk membukanya; detail dan History training tetap bisa dibuka.
+- **Riwayat training (17 Nov 2026):** training yang sudah tidak butuh tindakan tidak tampil di daftar default, yaitu Completed yang hasilnya sudah diputuskan dan Cancelled. Training Completed yang masih menunggu follow-up atau reassessment tetap tampil. Keterangan di bawah filter menyebut jumlahnya; untuk melihatnya, pilih Status Completed atau Cancelled di Filter; detail dan History training tetap bisa dibuka.
 - **Status requirement otomatis:**
 
 | Keadaan training di putaran berjalan | Status requirement |
@@ -81,7 +82,7 @@ People Dashboard: ringkasan semua langkah di atas, tanpa data sendiri.
 - **Menutup (Completed) hanya dengan bukti:**
   - training **Passed** lalu keputusan **Meets requirement** (level kompetensi di D3 harus sudah memenuhi); atau
   - **Close as Met** untuk requirement Competency Gap tanpa training terbuka, bila level sudah memenuhi (misalnya setelah coaching).
-- **Belum tertutup:** Passed tetapi gap belum tertutup → **Retraining**. Not Passed → **Retraining** atau **Other follow-up** dengan catatan. Retraining membuat training ulang (Planned) dan requirement kembali Planned.
+- **Belum tertutup:** Passed, lalu penilaian ulang di Competency Gap yang disimpan sesudah hasil Passed masih menunjukkan gap → **Retraining** dari Next step. Saat hasil Passed dicatat, pilihannya hanya Meets requirement atau Decide later (23 Nov 2026; wawancara 14 Okt, part 2, 00:53:31). Not Passed → **Retraining** atau **Other follow-up** dengan catatan. Retraining membuat training ulang (Planned) dan requirement kembali Planned.
 
 ### 2.6 People Dashboard: membaca, bukan menulis
 

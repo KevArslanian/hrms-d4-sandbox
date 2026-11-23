@@ -2,18 +2,28 @@
 
 import { CheckCircle2, CircleAlert } from "lucide-react";
 import { useState, type FormEvent } from "react";
-import { catalogFor, indicatorsFor, KPI_TARGET, roleForPosition, targetOf, type KpiCatalog, type KpiCatalogSet } from "../../../kpi/catalog";
+import { catalogFor, indicatorsFor, KPI_TARGET, kpiSourceOf, roleForPosition, scorableSet, targetOf, type KpiCatalog, type KpiCatalogSet } from "../../../kpi/catalog";
 import { compileDaily, type DailyCompilation } from "../../../kpi/daily";
-import { aboveScale, HIGH_ABOVE, performanceBand, scaleMaxOf, UNDER_BELOW } from "../../../kpi/scale";
+import { HIGH_ABOVE, performanceBand, scaleMaxOf, typedScore, UNDER_BELOW } from "../../../kpi/scale";
 import type { KpiAssessmentLine } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
 import { latestForPeriod, periodDateError, revisionsLeft } from "../../../shared/rules";
+import { msg, plainText, type Translate } from "../../../shared/text";
 import { assessableEmployees, departmentOf, employeeById, formatDate, formatGap, formatPeriod, positionOf, SCORE_LABELS, thisMonth, today } from "../../data/selectors";
+import { useLanguage } from "../../i18n/LanguageProvider";
 import { DateField, FormError, FormModal, ModalActions, ReadOnlyField, RevisionConfirm, SearchSelectField, TextAreaField, TextField } from "../../ui/forms";
 import { cx, Notice, StatusBadge } from "../../ui/primitives";
 
+/** Where the KPI set comes from: a D1 KPI definition, a D4 role kept until D1 maps the position, or the D4 catalog. */
+export function catalogText(catalog: KpiCatalog, roleOrder: number, t: Translate = plainText) {
+  const max = scaleMaxOf(catalog.version);
+  const source = kpiSourceOf(catalog, roleOrder);
+  if (source === "D1") return t("Definisi KPI D1 {code} · skala 1–{max}", { code: indicatorsFor(catalog, roleOrder)[0]?.d1_job_code ?? "", max });
+  if (source === "D4-unmapped") return t("Katalog D4 {version}, posisi belum dipetakan D1 · skala 1–{max}", { version: catalog.version, max });
+  return t("KPI Scorecard {version} · skala 1–{max}", { version: catalog.version, max });
+}
 /** FR-02.11: positions without a KPI role in the catalog get no scorecard; no mapping is invented for them. */
-export const noKpiText = (version?: string) => version ? `Posisi ini belum memiliki KPI di katalog ${version}. Hubungi HR.` : "Belum ada katalog KPI yang berlaku untuk periode ini. Hubungi HR.";
+export const noKpiText = (version?: string, t: Translate = plainText) => version ? t("Posisi ini belum memiliki KPI di katalog {version}. Hubungi HR.", { version }) : t("Belum ada katalog KPI yang berlaku untuk periode ini. Hubungi HR.");
 
 /** K6: the fixed target 85 is on the 1–100 scale, so a 1–5 scorecard (V3.1/V5.1) shows no target instead of "85". */
 export const targetLabel = (target: string | null | undefined, definitionVersion?: string | null) => scaleMaxOf(definitionVersion) === 100 && target ? target : "—";
@@ -26,9 +36,12 @@ export function weighted(line: Pick<KpiAssessmentLine, "weight_percent" | "raw_s
   return validScore(line.raw_score, max) ? line.weight_percent * (line.raw_score ?? 0) / 100 : null;
 }
 
-/** Total of five scored lines, rounded to 2 decimals like the trigger d4_calculate_kpi_assessment; null until all five are valid. */
+/**
+ * Total of a whole KPI set (weights 100), rounded to 2 decimals like the trigger d4_calculate_kpi_assessment;
+ * null until every line is valid. The weights stand in for the old "five lines" check now that D1 sets the count.
+ */
 export function scorecardTotal(lines: readonly Pick<KpiAssessmentLine, "weight_percent" | "raw_score">[], max = 5) {
-  if (lines.length !== 5 || !lines.every((line) => validScore(line.raw_score, max))) return null;
+  if (!scorableSet(lines) || !lines.every((line) => validScore(line.raw_score, max))) return null;
   return Math.round(lines.reduce((sum, line) => sum + (weighted(line, max) ?? 0), 0) * 100) / 100;
 }
 
@@ -49,9 +62,10 @@ export function legacyRealisation(line: Pick<KpiAssessmentLine, "actual" | "raw_
 
 /** Comment cell of a saved line; old realisation text stays readable here instead of in a separate column. */
 export function LineComment({ line }: { line: KpiAssessmentLine }) {
+  const { t } = useLanguage();
   const realisation = legacyRealisation(line);
   if (!realisation) return <>{line.comment || "—"}</>;
-  return <><span data-testid={`kpi-realisation-${line.indicator_order}`} title="Teks realisasi dari kolom Actual lama, sebelum Actual menjadi skor." className="block">Realisation: {realisation}</span>{line.comment && <span className="block">{line.comment}</span>}</>;
+  return <><span data-testid={`kpi-realisation-${line.indicator_order}`} title={t("Teks realisasi dari kolom Actual lama, sebelum Actual menjadi skor.")} className="block">{t("Realisation: {text}", { text: realisation })}</span>{line.comment && <span className="block">{line.comment}</span>}</>;
 }
 
 /** Blank lines of a KPI role in a catalog version; the evaluator fills Actual (the score) and Comment. */
@@ -76,13 +90,14 @@ export function periodChange(catalogSet: KpiCatalogSet | null, from: string, to:
   return { error: "", roleOrder, lines: blankLines(next, roleOrder) };
 }
 
-const FUTURE_PERIOD = "Period belum dimulai. Performance Review hanya untuk periode yang sudah berjalan.";
+const FUTURE_PERIOD = msg("Period belum dimulai. Performance Review hanya untuk periode yang sudah berjalan.");
 
 /** The saved score under an Actual field: "Saved: 78", or "78 → 80" once it differs, in words and not only in colour. */
 export function SavedScore({ before, now, testId }: { before: number | null; now: number | null; testId: string }) {
+  const { t } = useLanguage();
   const changed = before !== now;
   return <span data-testid={testId} data-changed={changed || undefined} className={cx("mt-1 block text-xs tabular-nums", changed ? "font-semibold text-ink" : "text-ink-3")}>
-    {changed ? `${before ?? "—"} → ${now ?? "—"}` : `Saved: ${before ?? "—"}`}
+    {changed ? `${before ?? "—"} → ${now ?? "—"}` : t("Saved: {score}", { score: before ?? "—" })}
   </span>;
 }
 
@@ -90,23 +105,28 @@ export function SavedScore({ before, now, testId }: { before: number | null; now
  * Saved total against the new one (R2): the evaluator sees at once whether the revision lowers the score, the worry the
  * lecturer named ("jangan sampai nilai saya yang baru lebih rendah"). Direction is written out, not shown by colour only.
  */
-export function totalComparison(saved: number, now: number | null) {
-  if (now === null) return `Saved total ${saved.toFixed(2)}. Isi kelima Actual untuk melihat total baru.`;
+export function totalComparison(saved: number, now: number | null, t: Translate = plainText) {
+  const savedTotal = t("Saved total {saved}", { saved: saved.toFixed(2) });
+  if (now === null) return `${savedTotal}. ${t("Isi semua Actual untuk melihat total baru.")}`;
   const diff = Math.round((now - saved) * 100) / 100;
-  if (diff === 0) return `Saved total ${saved.toFixed(2)} · New total ${now.toFixed(2)} · sama dengan yang tersimpan`;
-  return `Saved total ${saved.toFixed(2)} · New total ${now.toFixed(2)} · ${diff < 0 ? `Lower than saved (${diff.toFixed(2)})` : `Higher than saved (+${diff.toFixed(2)})`}`;
+  const newTotal = t("New total {now}", { now: now.toFixed(2) });
+  if (diff === 0) return `${savedTotal} · ${newTotal} · ${t("sama dengan yang tersimpan")}`;
+  return `${savedTotal} · ${newTotal} · ${diff < 0 ? t("Lower than saved ({diff})", { diff: diff.toFixed(2) }) : t("Higher than saved (+{diff})", { diff: diff.toFixed(2) })}`;
 }
 
 // Field label above the value on phones, where each KPI line is a card instead of a table row.
 const mobileLabel = "max-md:p-0 max-md:before:mb-1 max-md:before:block max-md:before:text-[11px] max-md:before:font-semibold max-md:before:uppercase max-md:before:tracking-[0.04em] max-md:before:text-ink-3 max-md:before:content-[attr(data-label)]";
 const inputStyle = "h-9 w-full rounded-2xl border border-ink-3 px-3 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/15 text-sm";
 
-/** Performance Review (FR-D4-001 v3.1): five Core KPI, notes and evidence in one form with one Save. */
-export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: string; onClose: () => void; onSaved?: (id: string) => void }) {
+/** Performance Review (FR-D4-001 v3.1): the position's Core KPI, notes and evidence in one form with one Save. */
+/** `period`: the period the form opens on, e.g. the one the People Dashboard shows; this month when empty or not given. */
+export function KpiFormModal({ employeeId, period: startAt, onClose, onSaved }: { employeeId?: string; period?: string; onClose: () => void; onSaved?: (id: string) => void }) {
   const snapshot = useSnapshot();
   const { catalog: catalogSet, run, busy } = useD4();
+  const { t, language } = useLanguage();
   const actor = employeeById(snapshot, snapshot.actorEmployeeId);
-  const [period, setPeriod] = useState(thisMonth());
+  const startPeriod = startAt || thisMonth();
+  const [period, setPeriod] = useState(startPeriod);
   // The KPI set follows the catalog version in force for the chosen period.
   const catalog = catalogSet && period ? catalogFor(catalogSet, period) : null;
   const max = scaleMaxOf(catalog?.version);
@@ -124,13 +144,14 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
   const savedFor = (id: string, at: string, role: number) => {
     const saved = id && at ? latestForPeriod(snapshot.kpiAssessments ?? [], id, at) : undefined;
     const version = catalogSet && at ? catalogFor(catalogSet, at)?.version : undefined;
-    return saved && saved.roleOrder === role && saved.definitionVersion === version && saved.lines.length === 5 ? saved : undefined;
+    const count = catalogSet && at ? indicatorsFor(catalogFor(catalogSet, at) ?? { rows: [] }, role).length : 0;
+    return saved && saved.roleOrder === role && saved.definitionVersion === version && saved.lines.length === count ? saved : undefined;
   };
-  const startSaved = employeeId ? savedFor(employeeId, thisMonth(), suggest(employeeId)) : undefined;
+  const startSaved = employeeId ? savedFor(employeeId, startPeriod, suggest(employeeId)) : undefined;
 
   const [employee, setEmployee] = useState(employeeId ?? "");
   const [roleOrder, setRoleOrder] = useState(() => employeeId ? suggest(employeeId) : 0);
-  const [daily, setDaily] = useState(() => employeeId && !startSaved ? compiledFor(employeeId, thisMonth(), suggest(employeeId)) : null);
+  const [daily, setDaily] = useState(() => employeeId && !startSaved ? compiledFor(employeeId, startPeriod, suggest(employeeId)) : null);
   const [lines, setLines] = useState<KpiAssessmentLine[]>(() => startSaved ? startSaved.lines.map((line) => ({ ...line })) : withDaily(linesFor(employeeId ? suggest(employeeId) : 0), daily));
   const [date, setDate] = useState(today());
   // The evaluator is the signed-in user; the server stores that name and ignores the form value.
@@ -191,84 +212,91 @@ export function KpiFormModal({ employeeId, onClose, onSaved }: { employeeId?: st
   async function submit(event: FormEvent) {
     event.preventDefault();
     setTouched(true);
-    if (!employee) { setError("Lengkapi employee sebelum menyimpan."); return; }
-    if (!roleOrder || lines.length !== 5 || totalWeight !== 100) { setError("KPI untuk posisi ini belum tersedia di katalog; penilaian tidak dapat disimpan."); return; }
-    if (lines.some((line) => !line.kpi_name.trim())) { setError("Setiap Core KPI wajib diberi nama."); return; }
-    if (!allScored || !period || !date) { setError(`Lengkapi periode, tanggal evaluasi, dan Actual 1–${max} untuk kelima KPI.`); return; }
-    if (period > thisMonth()) { setError(FUTURE_PERIOD); return; }
-    if (!notes.trim()) { setError("Notes wajib diisi."); return; }
-    if (!evidence.trim()) { setError("Reference wajib diisi."); return; }
-    if (date > today()) { setError("Tanggal evaluasi tidak boleh lebih dari hari ini."); return; }
-    if (periodDateError(period, date)) { setError(periodDateError(period, date)); return; }
-    if (revisionUsed) { setError("Performance Review periode ini sudah pernah direvisi; batasnya satu revisi per periode."); return; }
-    if (existing && !revise) { setError("Performance Review untuk periode ini sudah ada. Centang “Save as revision” atau pilih periode lain."); return; }
+    if (!employee) { setError(t("Lengkapi employee sebelum menyimpan.")); return; }
+    if (!roleOrder || !lines.length || totalWeight !== 100) { setError(t("KPI untuk posisi ini belum tersedia di katalog; penilaian tidak dapat disimpan.")); return; }
+    if (lines.some((line) => !line.kpi_name.trim())) { setError(t("Setiap Core KPI wajib diberi nama.")); return; }
+    if (!allScored || !period || !date) { setError(t("Lengkapi periode, tanggal evaluasi, dan Actual 1–{max} untuk setiap KPI.", { max })); return; }
+    if (period > thisMonth()) { setError(t(FUTURE_PERIOD)); return; }
+    if (!notes.trim()) { setError(t("Notes wajib diisi.")); return; }
+    if (!evidence.trim()) { setError(t("Reference wajib diisi.")); return; }
+    if (date > today()) { setError(t("Tanggal evaluasi tidak boleh lebih dari hari ini.")); return; }
+    if (periodDateError(period, date, t)) { setError(periodDateError(period, date, t)); return; }
+    if (revisionUsed) { setError(t("Performance Review periode ini sudah pernah direvisi; batasnya satu revisi per periode.")); return; }
+    if (existing && !revise) { setError(t("Performance Review untuk periode ini sudah ada. Centang “Save as revision” atau pilih periode lain.")); return; }
     setError("");
     const result = await run((source) => source.createKpiAssessment({ employeeId: employee, roleOrder, period, evaluationDate: date, evaluatorName: evaluator, status: "completed", lines, generalNotes: notes, evidenceReference: evidence.trim() || null, revisionOf: existing?.id ?? null }),
-      "Performance Review tersimpan.");
+      t("Performance Review tersimpan."));
     if (result.ok) { onSaved?.(result.value); onClose(); } else setError(result.error);
   }
 
-  return <FormModal size="lg" title="Performance Review" description={`Lima Core KPI dari katalog ${catalog?.version ?? ""} sesuai posisi pegawai (nama bisa diubah, bobot dan target tetap), lalu Notes dan Reference, disimpan sekaligus dengan Save.`} onClose={onClose}
-    footer={<ModalActions onCancel={onClose} busy={busy} submitLabel="Save" disabled={(Boolean(employee) && !lines.length) || revisionUsed} />}>
+  return <FormModal size="lg" title="Performance Review" description={t("Core KPI posisi pegawai dari katalog {version} (nama bisa diubah, bobot dan target tetap), lalu Notes dan Reference, disimpan sekaligus dengan Save.", { version: catalog?.version ?? "" })} onClose={onClose}
+    footer={<ModalActions onCancel={onClose} busy={busy} submitLabel={t("Save")} disabled={(Boolean(employee) && !lines.length) || revisionUsed} />}>
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />
       <div className="grid gap-4 sm:grid-cols-3">
-        <SearchSelectField label="Employee" testId="employee" required value={employee} onChange={(value) => chooseEmployee(value)} error={touched && !employee ? "Employee wajib diisi." : undefined} className="sm:col-span-2" placeholder="Select employee"
+        <SearchSelectField label={t("Employee")} testId="employee" required value={employee} onChange={(value) => chooseEmployee(value)} error={touched && !employee ? t("Employee wajib diisi.") : undefined} className="sm:col-span-2" placeholder={t("Select employee")}
           options={assessableEmployees(snapshot).map((item) => ({ value: item.id, label: `${item.fullName} · ${item.employeeId}` }))} />
-        <DateField label="Period" testId="period" required month max={thisMonth()} helper="Bulan KPI yang dinilai. Bisa periode sebelumnya, tidak bisa periode yang belum dimulai." value={period} onChange={(event) => choosePeriod(event.target.value)} error={touched && !period ? "Period wajib diisi." : touched && period > thisMonth() ? FUTURE_PERIOD : undefined} />
-        <ReadOnlyField label="Position" testId="position" value={position?.title ?? "—"} />
-        <ReadOnlyField label="Department" testId="department" value={departmentOf(snapshot, selected)?.name ?? "—"} />
-        <ReadOnlyField label="Position KPI" testId="kpi-jabatan" value={!employee ? "—" : roleName ?? (catalog ? `Not in catalog ${catalog.version} yet` : "No KPI catalog for this period")} />
-        <DateField label="Evaluation date" testId="evaluation-date" required min={period ? `${period}-01` : undefined} max={today()} helper="Hari penilaian dilakukan: dari awal periode sampai hari ini." value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? "Date wajib diisi." : touched && date > today() ? "Tidak boleh lebih dari hari ini." : touched && periodDateError(period, date) || undefined} />
-        <ReadOnlyField label="Evaluator" testId="evaluator" value={evaluator || "—"} className="sm:col-span-2"
-          helper="Otomatis akun yang sedang login dan tidak bisa diubah, supaya riwayat mencatat siapa yang benar-benar menilai." />
+        {/* Stella (PST 2) asked why Period and the date can be changed but Evaluator cannot; the answer sits under each field. */}
+        <DateField label={t("Period")} testId="period" required month max={thisMonth()} helper={t("Boleh periode lalu, untuk penilaian yang terlambat dicatat.")} value={period} onChange={(event) => choosePeriod(event.target.value)} error={touched && !period ? t("Period wajib diisi.") : touched && period > thisMonth() ? t(FUTURE_PERIOD) : undefined} />
+        <ReadOnlyField label={t("Position")} testId="position" value={position?.title ?? "—"} />
+        <ReadOnlyField label={t("Department")} testId="department" value={departmentOf(snapshot, selected)?.name ?? "—"} />
+        <ReadOnlyField label={t("Position KPI")} testId="kpi-jabatan" value={!employee ? "—" : roleName ?? (catalog ? t("Not in catalog {version} yet", { version: catalog.version }) : t("No KPI catalog for this period"))}
+          helper={employee && roleName && catalog ? catalogText(catalog, roleOrder, t) : undefined} />
+        <DateField label={t("Evaluation date")} testId="evaluation-date" required min={period ? `${period}-01` : undefined} max={today()} helper={t("Hari penilaian dilakukan: dari awal periode sampai hari ini.")} value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? t("Date wajib diisi.") : touched && date > today() ? t("Tidak boleh lebih dari hari ini.") : touched && periodDateError(period, date, t) || undefined} />
+        <ReadOnlyField label={t("Evaluator")} testId="evaluator" value={evaluator || "—"} className="sm:col-span-2" helper={t("Otomatis akun yang menyimpan, supaya penilaian tidak tercatat atas nama orang lain.")} />
       </div>
-      {daily && <div data-testid="daily-prefill"><Notice>Actual diisi dari rata-rata {daily.days.length} entri Daily KPI pegawai ini ({formatPeriod(period)}), dibulatkan. Periksa dan ubah bila perlu sebelum menyimpan.</Notice></div>}
+      {daily && <div data-testid="daily-prefill"><Notice>{t("Actual diisi dari rata-rata {count} entri Daily KPI pegawai ini ({period}), dibulatkan. Periksa dan ubah bila perlu sebelum menyimpan.", { count: daily.days.length, period: formatPeriod(period, language) })}</Notice></div>}
       {/* Up front, so the evaluator does not fill the whole form before learning it cannot be saved. */}
-      {revisionUsed && existing && <div data-testid="revision-limit"><Notice tone="warning">Performance Review {formatPeriod(period)} untuk pegawai ini sudah pernah direvisi (terakhir {existing.evaluatorName}, {formatDate(existing.evaluationDate)}). Batasnya satu revisi per periode, jadi periode ini tidak bisa disimpan lagi. Riwayatnya ada di halaman Performance Review pegawai.</Notice></div>}
+      {revisionUsed && existing && <div data-testid="revision-limit"><Notice tone="warning">{t("Performance Review {period} untuk pegawai ini sudah pernah direvisi (terakhir {evaluator}, {date}). Batasnya satu revisi per periode, jadi periode ini tidak bisa disimpan lagi. Riwayatnya ada di halaman Performance Review pegawai.", { period: formatPeriod(period, language), evaluator: existing.evaluatorName, date: formatDate(existing.evaluationDate, language) })}</Notice></div>}
 
-      {employee && !lines.length ? <Notice tone="warning">{position ? noKpiText(catalog?.version) : "Pegawai belum memiliki posisi aktif, jadi KPI-nya belum bisa ditentukan."}</Notice> : <div className="overflow-x-auto rounded-2xl border border-line">
+      {employee && !lines.length ? <Notice tone="warning">{position ? noKpiText(catalog?.version, t) : t("Pegawai belum memiliki posisi aktif, jadi KPI-nya belum bisa ditentukan.")}</Notice> : <div className="overflow-x-auto rounded-2xl border border-line">
         <table data-testid="kpi-lines-table" className="w-full text-left text-sm max-md:block md:min-w-[640px]">
           <thead className="bg-app text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3 max-md:hidden">
-            <tr><th className="w-10 px-3 py-2.5">No</th><th className="px-3 py-2.5">Core KPI</th><th className="w-20 px-3 py-2.5">Weight</th><th className="w-28 px-3 py-2.5 whitespace-nowrap">{`Actual 1–${max}`}</th>{max === 100 && <th className="w-24 px-3 py-2.5 whitespace-nowrap">{`Gap vs ${KPI_TARGET}`}</th>}<th className="w-24 px-3 py-2.5 text-right">Weighted</th></tr>
+            <tr><th className="w-10 px-3 py-2.5">No</th><th className="px-3 py-2.5">Core KPI</th><th className="w-20 px-3 py-2.5">{t("Weight")}</th><th className="w-28 px-3 py-2.5 whitespace-nowrap">{t("Actual 1–{max}", { max })}</th>{max === 100 && <th className="w-24 px-3 py-2.5 whitespace-nowrap">{`Gap vs ${KPI_TARGET}`}</th>}<th className="w-24 px-3 py-2.5 text-right">{t("Weighted")}</th></tr>
           </thead>
           {/* V1: Comment gets its own full-width row under each KPI, so the KPI name and the comment both have room. */}
           {lines.map((line, index) => <tbody key={`${roleOrder}-${line.indicator_order}`} data-testid={`kpi-line-${line.indicator_order}`} className="border-t border-line max-md:grid max-md:grid-cols-2 max-md:gap-3 max-md:p-4">
             <tr className="align-middle max-md:contents">
               <td data-label="No" className={cx("px-3 pt-2.5 text-ink-3", mobileLabel)}>{line.indicator_order}</td>
               <td data-label="Core KPI" className={cx("px-3 pt-2", mobileLabel, "max-md:col-span-2")}><input data-testid={`input-core-kpi-${line.indicator_order}`} aria-label={`Core KPI ${line.indicator_order}`} aria-invalid={touched && !line.kpi_name.trim()} maxLength={200} value={line.kpi_name} onChange={(event) => setLine(index, { kpi_name: event.target.value })} className={cx(inputStyle, "font-semibold aria-[invalid=true]:border-danger")} /></td>
-              <td data-label="Weight" className={cx("px-3 pt-2.5 tabular-nums", mobileLabel)}>{line.weight_percent}%</td>
-              <td data-label={`Actual 1–${max}`} className={cx("px-3 pt-2", mobileLabel)}><input type="number" inputMode="numeric" min={1} max={max} step={1} data-testid={`input-realisasi-${line.indicator_order}`} aria-label={`Actual ${line.kpi_name}`} aria-invalid={touched && !validScore(line.raw_score, max)} value={line.raw_score ?? ""} onChange={(event) => { if (!aboveScale(event.target.value, max)) setLine(index, actualInput(event.target.value)); }} className={cx(inputStyle, "tabular-nums aria-[invalid=true]:border-danger")} />
+              <td data-label={t("Weight")} className={cx("px-3 pt-2.5 tabular-nums", mobileLabel)}>{line.weight_percent}%</td>
+              <td data-label={t("Actual 1–{max}", { max })} className={cx("px-3 pt-2", mobileLabel)}><input type="number" inputMode="numeric" min={1} max={max} step={1} data-testid={`input-realisasi-${line.indicator_order}`} aria-label={t("Actual {kpi}", { kpi: line.kpi_name })} aria-invalid={touched && !validScore(line.raw_score, max)} value={line.raw_score ?? ""} onChange={(event) => {
+                // A number input keeps "00085" on screen while the state holds 85, so the cleaned text is written back.
+                const text = typedScore(event.target.value, max);
+                if (text === null) return;
+                if (text !== event.target.value) event.target.value = text;
+                setLine(index, actualInput(text));
+              }} className={cx(inputStyle, "tabular-nums aria-[invalid=true]:border-danger")} />
                 {basis?.lines[index] && <SavedScore before={basis.lines[index].raw_score} now={line.raw_score} testId={`saved-score-${line.indicator_order}`} />}</td>
-              {max === 100 && <td data-label={`Gap vs ${KPI_TARGET}`} data-testid={`kpi-gap-${line.indicator_order}`} className={cx("px-3 pt-2.5 tabular-nums text-ink-2", mobileLabel)}>{validScore(line.raw_score, max) ? formatGap(line.raw_score, catalog?.version) : "—"}</td>}
-              <td data-label="Weighted" className={cx("px-3 pt-2.5 text-right font-semibold tabular-nums", mobileLabel, "max-md:text-left")}>{weighted(line, max)?.toFixed(2) ?? "—"}</td>
+              {max === 100 && <td data-label={`Gap vs ${KPI_TARGET}`} data-testid={`kpi-gap-${line.indicator_order}`} className={cx("px-3 pt-2.5 tabular-nums text-ink-2", mobileLabel)}>{validScore(line.raw_score, max) ? formatGap(line.raw_score, catalog?.version, t) : "—"}</td>}
+              <td data-label={t("Weighted")} className={cx("px-3 pt-2.5 text-right font-semibold tabular-nums", mobileLabel, "max-md:text-left")}>{weighted(line, max)?.toFixed(2) ?? "—"}</td>
             </tr>
             <tr className="max-md:contents">
               <td aria-hidden="true" className="max-md:hidden" />
-              <td colSpan={max === 100 ? 5 : 4} data-label="Comment" className={cx("px-3 pb-2.5 pt-2", mobileLabel, "max-md:col-span-2")}><input data-testid={`input-komentar-${line.indicator_order}`} aria-label={`Comment ${line.kpi_name}`} maxLength={500} placeholder="Comment: catatan realisasi" value={line.comment} onChange={(event) => setLine(index, { comment: event.target.value })} className={inputStyle} /></td>
+              <td colSpan={max === 100 ? 5 : 4} data-label={t("Comment")} className={cx("px-3 pb-2.5 pt-2", mobileLabel, "max-md:col-span-2")}><input data-testid={`input-komentar-${line.indicator_order}`} aria-label={t("Comment {kpi}", { kpi: line.kpi_name })} maxLength={500} placeholder={t("Comment: catatan realisasi")} value={line.comment} onChange={(event) => setLine(index, { comment: event.target.value })} className={inputStyle} /></td>
             </tr>
           </tbody>)}
           <tfoot className="border-t border-line bg-app max-md:block">
-            <tr className="max-md:flex max-md:flex-wrap max-md:items-center max-md:gap-x-3"><td colSpan={2} className="px-3 py-3 font-semibold">Total <span className="ml-2 text-xs font-normal text-ink-3">{lines.length ? (totalWeight === 100 ? "Total bobot 100%" : "Total bobot harus 100%") : "Pilih pegawai untuk menampilkan KPI posisinya."}</span></td>
+            <tr className="max-md:flex max-md:flex-wrap max-md:items-center max-md:gap-x-3"><td colSpan={2} className="px-3 py-3 font-semibold">{t("Total")} <span className="ml-2 text-xs font-normal text-ink-3">{lines.length ? (totalWeight === 100 ? t("Total bobot 100%") : t("Total bobot harus 100%")) : t("Pilih pegawai untuk menampilkan KPI posisinya.")}</span></td>
               <td className="px-3 py-3"><span className={cx("inline-flex items-center gap-1 text-xs font-semibold", totalWeight === 100 ? "text-success" : "text-danger")}>{totalWeight === 100 ? <CheckCircle2 className="size-3.5" /> : <CircleAlert className="size-3.5" />}{lines.length ? `${totalWeight}%` : "—"}</span></td>
               <td className="max-md:hidden" />
-              {max === 100 && <td data-testid="kpi-gap-total" className="px-3 py-3 text-xs font-semibold tabular-nums text-ink-2">{total === null ? "" : `Gap ${formatGap(total, catalog?.version)}`}</td>}
+              {max === 100 && <td data-testid="kpi-gap-total" className="px-3 py-3 text-xs font-semibold tabular-nums text-ink-2">{total === null ? "" : `Gap ${formatGap(total, catalog?.version, t)}`}</td>}
               <td className="px-3 py-3 text-right font-display font-semibold text-base tabular-nums">{total === null ? "—" : `${total.toFixed(2)} / ${max}`}{band && <span data-testid="performance-band" className="mt-1 block text-right"><StatusBadge status={band} /></span>}</td></tr>
             {savedTotal !== null && <tr className="max-md:block"><td colSpan={max === 100 ? 6 : 5} data-testid="total-compare" className="px-3 pb-3 text-right text-xs text-ink-2 max-md:block max-md:text-left">
-              {totalComparison(savedTotal, total)}
+              {totalComparison(savedTotal, total, t)}
             </td></tr>}
           </tfoot>
         </table>
       </div>}
       <p className="text-xs text-ink-3">{max === 5
-        ? `Actual diisi skor 1–5: ${[1, 2, 3, 4, 5].map((value) => `${value} ${SCORE_LABELS[value]}`).join(" · ")}. Skor terbobot = bobot × Actual; total = jumlah skor terbobot. Catatan realisasi ditulis di Comment. Tidak ada label tercapai/tidak tercapai.`
-        : `Actual diisi skor 1–100 dengan target ${KPI_TARGET}. Di bawah ${UNDER_BELOW} = Under Performance, ${UNDER_BELOW}–${HIGH_ABOVE} = Average Performance, di atas ${HIGH_ABOVE} = High Performance. Skor terbobot = bobot × Actual; total = jumlah skor terbobot. Catatan realisasi ditulis di Comment.`}</p>
-      <TextAreaField label="Notes" testId="catatan-evaluasi" required maxLength={4000} value={notes} onChange={(event) => setNotes(event.target.value)} error={touched && !notes.trim() ? "Notes wajib diisi." : undefined}
-        helper="Kekuatan, hal yang perlu diperbaiki, dan rekomendasi pelatihan. Bisa menjadi dasar Development Requirement." />
-      <TextField label="Reference" testId="evidence-reference" required maxLength={500} value={evidence} onChange={(event) => setEvidence(event.target.value)} error={touched && !evidence.trim() ? "Reference wajib diisi." : undefined} helper="Nomor dokumen, tautan laporan, atau lokasi dokumen pencapaian KPI." />
+        ? t("Actual diisi skor 1–5: {scale}. Skor terbobot = bobot × Actual; total = jumlah skor terbobot. Catatan realisasi ditulis di Comment. Tidak ada label tercapai/tidak tercapai.", { scale: [1, 2, 3, 4, 5].map((value) => `${value} ${t(SCORE_LABELS[value])}`).join(" · ") })
+        : t("Actual diisi skor 1–100 dengan target {target}. Di bawah {under} = Under Performance, {under}–{high} = Average Performance, di atas {high} = High Performance. Skor terbobot = bobot × Actual; total = jumlah skor terbobot. Catatan realisasi ditulis di Comment.", { target: KPI_TARGET, under: UNDER_BELOW, high: HIGH_ABOVE })}</p>
+      <TextAreaField label={t("Notes")} testId="catatan-evaluasi" required maxLength={4000} value={notes} onChange={(event) => setNotes(event.target.value)} error={touched && !notes.trim() ? t("Notes wajib diisi.") : undefined}
+        helper={t("Kekuatan, hal yang perlu diperbaiki, dan rekomendasi pelatihan. Bisa menjadi dasar Development Requirement.")} />
+      <TextField label={t("Reference")} testId="evidence-reference" required maxLength={500} value={evidence} onChange={(event) => setEvidence(event.target.value)} error={touched && !evidence.trim() ? t("Reference wajib diisi.") : undefined} helper={t("Nomor dokumen, tautan laporan, atau lokasi dokumen pencapaian KPI.")} />
       {/* Last thing before Save: the evaluator confirms the revision after seeing what changed, not before filling the form. */}
-      {existing && !revisionUsed && <RevisionConfirm what="Performance Review" existing={`${existing.evaluatorName}, ${formatDate(existing.evaluationDate)}`} checked={revise} onChange={setRevise}
-        error={touched && !revise ? "Centang untuk menyimpan sebagai revisi, atau pilih periode lain." : undefined} />}
+      {existing && !revisionUsed && <RevisionConfirm what="Performance Review" existing={`${existing.evaluatorName}, ${formatDate(existing.evaluationDate, language)}`} checked={revise} onChange={setRevise}
+        error={touched && !revise ? t("Centang untuk menyimpan sebagai revisi, atau pilih periode lain.") : undefined} />}
     </form>
   </FormModal>;
 }

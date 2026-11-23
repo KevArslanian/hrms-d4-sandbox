@@ -4,6 +4,8 @@ import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Search, SlidersHo
 import { Children, createContext, isValidElement, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type InputHTMLAttributes, type KeyboardEvent as ReactKeyboardEvent, type ReactElement, type ReactNode, type TextareaHTMLAttributes } from "react";
 import { createPortal } from "react-dom";
 import { localToday } from "../../shared/rules";
+import type { Language } from "../../shared/text";
+import { sourceText, useLanguage } from "../i18n/LanguageProvider";
 import { Button, cx, slug } from "./primitives";
 
 const control = "h-10 w-full rounded-2xl border border-ink-3 bg-surface px-3 text-sm text-ink outline-none placeholder:text-ink-3 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/15 disabled:bg-muted disabled:text-ink-3 aria-[invalid=true]:border-danger";
@@ -21,6 +23,7 @@ const FilterPanelContext = createContext(false);
  * children (no fragment). A bar with a single dropdown keeps it in the row: a button for one choice is a wasted click.
  */
 export function FilterBar({ search, period, children, onReset, canReset }: { search?: ReactNode; period?: ReactNode; children?: ReactNode; onReset?: () => void; canReset?: boolean }) {
+  const { t } = useLanguage();
   const [open, setOpen] = useState(false);
   const panelId = useId();
   const button = useRef<HTMLButtonElement>(null);
@@ -31,7 +34,7 @@ export function FilterBar({ search, period, children, onReset, canReset }: { sea
   // Figma's #3b6ff5 is a shade darker here so white text reaches 4.5:1.
   const reset = onReset && canReset && <button type="button" data-testid="btn-filter-reset" onClick={onReset}
     className="ml-auto inline-flex h-10 items-center gap-1.5 rounded-[20px] bg-[#346af5] px-4 text-sm font-semibold text-white shadow-sm transition hover:shadow-[0_0_15px_2px_rgba(59,111,245,0.45)]">
-    <X aria-hidden="true" className="size-4" />Reset filter
+    <X aria-hidden="true" className="size-4" />{t("Reset filter")}
   </button>;
   return <div className="rounded-2xl border border-line bg-surface p-3 shadow-card">
     <div className="flex flex-wrap items-center gap-3">
@@ -39,8 +42,8 @@ export function FilterBar({ search, period, children, onReset, canReset }: { sea
       {period}
       {folded ? <button ref={button} type="button" data-testid="btn-filter" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen(!open)}
         className={cx("inline-flex h-10 shrink-0 items-center gap-2 rounded-2xl border bg-surface px-3 text-sm font-semibold text-ink hover:border-primary-500 focus-visible:outline-2 focus-visible:outline-primary-500", open ? "border-primary-500" : "border-ink-3")}>
-        <SlidersHorizontal aria-hidden="true" className="size-4" />Filter
-        {active > 0 && <span data-testid="filter-count" className="min-w-5 rounded-full bg-primary-600 px-1.5 text-center text-[11px] leading-5 text-white">{active}<span className="sr-only"> active</span></span>}
+        <SlidersHorizontal aria-hidden="true" className="size-4" />{t("Filter")}
+        {active > 0 && <span data-testid="filter-count" className="min-w-5 rounded-full bg-primary-600 px-1.5 text-center text-[11px] leading-5 text-white">{active}<span className="sr-only"> {t("active")}</span></span>}
       </button> : <>{children}{reset}</>}
     </div>
     {/* Reset sits in the panel, never beside the Filter button: appearing there it pushed Filter aside, and a second click
@@ -104,6 +107,7 @@ function SearchableSelect({ label, value, onChange, options, emptyLabel, testId,
   label: string; value: string; onChange: (value: string) => void; options: readonly Option[]; emptyLabel?: string; testId: string;
   triggerId?: string; invalid?: boolean; describedBy?: string; className?: string; wrapperClassName?: string; highlightActive?: boolean; disabled?: boolean; icon?: ReactNode;
 }) {
+  const { t } = useLanguage();
   const listId = useId(), ownId = useId();
   const buttonId = triggerId ?? ownId;
   const wrapper = useRef<HTMLDivElement>(null);
@@ -158,11 +162,11 @@ function SearchableSelect({ label, value, onChange, options, emptyLabel, testId,
     </button>
     {open && <div ref={panel} className="fixed z-30 flex flex-col rounded-2xl border border-line bg-surface p-1.5 shadow-card">
       {all.length >= SEARCH_FROM && <label className="relative mb-1.5 block">
-        <span className="sr-only">Search {label}</span>
+        <span className="sr-only">{t("Search {label}", { label })}</span>
         <Search aria-hidden="true" className="pointer-events-none absolute left-2.5 top-2.5 size-4 text-ink-3" />
         <input autoFocus data-search data-testid={testId.replace(/^(filter|input)-/, "search-")} role="combobox" aria-controls={listId} aria-expanded aria-autocomplete="list" value={query} onChange={(event) => setQuery(event.target.value)}
           onKeyDown={(event) => { const first = matches.find((option) => !option.disabled); if (event.key === "Enter" && first) { event.preventDefault(); pick(first.value); } }}
-          placeholder="Search…" className="h-9 w-full rounded-xl border border-line-strong bg-app pl-8 pr-2 text-sm text-ink outline-none placeholder:text-ink-3 focus:border-primary-500" />
+          placeholder={t("Search…")} className="h-9 w-full rounded-xl border border-line-strong bg-app pl-8 pr-2 text-sm text-ink outline-none placeholder:text-ink-3 focus:border-primary-500" />
       </label>}
       <ul id={listId} role="listbox" data-testid={testId.replace(/^(filter|input)-/, "options-")} aria-label={label} className="max-h-64 min-h-0 overflow-y-auto text-sm">
         {matches.length ? matches.map((option) => <li key={option.value || "empty"} role="option" aria-selected={option.value === value}>
@@ -170,8 +174,8 @@ function SearchableSelect({ label, value, onChange, options, emptyLabel, testId,
           <button type="button" disabled={option.disabled} onMouseDown={(event) => event.preventDefault()} onClick={() => pick(option.value)} className={cx("flex w-full items-center rounded-xl px-3 py-2 text-left text-ink hover:bg-muted focus:bg-muted focus:outline-none disabled:cursor-not-allowed disabled:text-ink-3 disabled:hover:bg-transparent", focusRing, option.value === value && "bg-selected font-semibold hover:bg-selected focus:bg-selected")}>
             {option.label}
           </button>
-        </li>) : <li className="px-2.5 py-2 text-ink-3">Tidak ada yang cocok</li>}
-        {hidden > 0 && <li data-testid={testId.replace(/^(filter|input)-/, "more-")} className="px-2.5 py-2 text-xs text-ink-3">+{hidden} lainnya, ketik untuk mempersempit</li>}
+        </li>) : <li className="px-2.5 py-2 text-ink-3">{t("Tidak ada yang cocok")}</li>}
+        {hidden > 0 && <li data-testid={testId.replace(/^(filter|input)-/, "more-")} className="px-2.5 py-2 text-xs text-ink-3">{t("+{hidden} lainnya, ketik untuk mempersempit", { hidden })}</li>}
       </ul>
     </div>}
   </div>;
@@ -183,13 +187,14 @@ function SearchableSelect({ label, value, onChange, options, emptyLabel, testId,
  * `emptyOption={false}` drops that choice for filters that always show one value (the dashboard period).
  */
 export function SelectFilter({ label, testId, value, onChange, options, emptyOption = true, icon }: { label: string; testId?: string; value: string; onChange: (value: string) => void; options: Option[]; emptyOption?: boolean; icon?: ReactNode }) {
+  const { t } = useLanguage();
   const inPanel = useContext(FilterPanelContext);
   const id = useId();
   // A fixed width keeps a lone filter on a second row from stretching across the bar; two per row on a phone.
   const width = "w-[calc(50%-6px)] sm:w-[180px]";
   const select = <SearchableSelect label={label} value={value} onChange={onChange} options={options} triggerId={inPanel ? id : undefined}
-    emptyLabel={emptyOption ? (inPanel ? "All" : `All ${label.toLowerCase()}`) : undefined}
-    testId={`filter-${testId ?? slug(label)}`} wrapperClassName={inPanel ? undefined : width} highlightActive={emptyOption} icon={icon} />;
+    emptyLabel={emptyOption ? (inPanel ? t("All") : t("All {label}", { label: label.toLowerCase() })) : undefined}
+    testId={`filter-${testId ?? slug(sourceText(label))}`} wrapperClassName={inPanel ? undefined : width} highlightActive={emptyOption} icon={icon} />;
   return inPanel ? <div className={width}><label htmlFor={id} className="mb-1.5 block text-xs font-semibold text-ink-2">{label}</label>{select}</div> : select;
 }
 
@@ -209,7 +214,7 @@ type Common = { label: string; testId?: string; required?: boolean; error?: stri
 export function TextField({ label, testId, required, error, helper, className, ...props }: Common & InputHTMLAttributes<HTMLInputElement>) {
   const id = useId();
   return <FieldShell {...{ label, required, error, helper, id, className }}>
-    <input id={id} data-testid={`input-${testId ?? slug(label)}`} aria-invalid={Boolean(error)} aria-describedby={error || helper ? `${id}-message` : undefined} required={required} {...props} className={control} />
+    <input id={id} data-testid={`input-${testId ?? slug(sourceText(label))}`} aria-invalid={Boolean(error)} aria-describedby={error || helper ? `${id}-message` : undefined} required={required} {...props} className={control} />
   </FieldShell>;
 }
 
@@ -225,18 +230,22 @@ export function SelectField({ label, testId, required, error, helper, className,
     ? [{ value: String(child.props.value ?? ""), label: Children.toArray(child.props.children).join(""), disabled: child.props.disabled }] : []);
   return <FieldShell {...{ label, required, error, helper, id, className }}>
     <SearchableSelect label={label} value={value} onChange={(next) => onChange({ target: { value: next } })} options={all.filter((option) => option.value !== "")}
-      emptyLabel={all.find((option) => option.value === "")?.label} testId={`input-${testId ?? slug(label)}`} triggerId={id} invalid={Boolean(error)}
+      emptyLabel={all.find((option) => option.value === "")?.label} testId={`input-${testId ?? slug(sourceText(label))}`} triggerId={id} invalid={Boolean(error)}
       describedBy={error || helper ? `${id}-message` : undefined} disabled={disabled} />
   </FieldShell>;
 }
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const WEEKDAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
+// Calendar names by language rather than by dictionary, like formatPeriod; Indonesian differs in Mei, Agu, Okt, Des.
+const MONTHS: Record<Language, string[]> = {
+  en: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+  id: ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"],
+};
+const WEEKDAYS: Record<Language, string[]> = { en: ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"], id: ["Sn", "Sl", "Rb", "Km", "Jm", "Sb", "Mg"] };
 const pad = (n: number) => String(n).padStart(2, "0");
 /** YYYY-MM-DD `days` after `date` (UTC arithmetic, so no time zone shifts the day). */
 const addDays = (date: string, days: number) => new Date(Date.parse(`${date}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
 const addMonths = (month: string, by: number) => { const [y, m] = month.split("-").map(Number); return new Date(Date.UTC(y, m - 1 + by, 1)).toISOString().slice(0, 7); };
-const readable = (value: string) => value.length === 7 ? `${MONTHS[Number(value.slice(5)) - 1]} ${value.slice(0, 4)}` : `${Number(value.slice(8))} ${MONTHS[Number(value.slice(5, 7)) - 1]} ${value.slice(0, 4)}`;
+const readable = (value: string, language: Language) => value.length === 7 ? `${MONTHS[language][Number(value.slice(5)) - 1]} ${value.slice(0, 4)}` : `${Number(value.slice(8))} ${MONTHS[language][Number(value.slice(5, 7)) - 1]} ${value.slice(0, 4)}`;
 
 /**
  * Date (YYYY-MM-DD) or, with `month`, period (YYYY-MM) picker in the dropdown style. The browser's own calendar
@@ -247,6 +256,7 @@ const readable = (value: string) => value.length === 7 ? `${MONTHS[Number(value.
 export function DateField({ label, testId, required, error, helper, className, value, onChange, min, max, month }: Common & {
   value: string; onChange: (event: { target: { value: string } }) => void; min?: string; max?: string; month?: boolean;
 }) {
+  const { t, language } = useLanguage();
   const id = useId();
   const wrapper = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLDivElement>(null);
@@ -260,7 +270,7 @@ export function DateField({ label, testId, required, error, helper, className, v
   const outside = (item: string) => Boolean((lo && item < lo) || (hi && item > hi));
   const view = month ? cursor.slice(0, 4) : cursor.slice(0, 7);
   const cells = month
-    ? MONTHS.map((_, index) => `${view}-${pad(index + 1)}`)
+    ? MONTHS[language].map((_, index) => `${view}-${pad(index + 1)}`)
     : (() => {
         const first = `${view}-01`, lead = (new Date(`${first}T00:00:00Z`).getUTCDay() + 6) % 7;
         const length = new Date(Date.UTC(Number(view.slice(0, 4)), Number(view.slice(5)), 0)).getUTCDate();
@@ -295,29 +305,29 @@ export function DateField({ label, testId, required, error, helper, className, v
         if (event.key === "Escape" && open) { event.stopPropagation(); closeToTrigger(); }
         else if (open && keys[event.key] && event.target !== event.currentTarget.querySelector("button")) { event.preventDefault(); keys[event.key](); }
       }}>
-      <button type="button" id={id} data-testid={`input-${testId ?? slug(label)}`} aria-haspopup="dialog" aria-expanded={open}
+      <button type="button" id={id} data-testid={`input-${testId ?? slug(sourceText(label))}`} aria-haspopup="dialog" aria-expanded={open}
         aria-describedby={error || helper ? `${id}-message` : undefined} onClick={() => { setCursor(value || unit(today)); setOpen(!open); }}
         className={cx(control, "flex items-center justify-between gap-2 text-left", !value && "text-ink-2", error && "border-danger")}>
-        <span className="truncate">{value ? readable(value) : month ? "Select period" : "Select date"}</span>
+        <span className="truncate">{value ? readable(value, language) : month ? t("Select period") : t("Select date")}</span>
         <CalendarDays aria-hidden="true" className="size-4 shrink-0 text-ink-3" />
       </button>
-      {open && <div ref={panel} role="dialog" aria-label={label} tabIndex={-1} data-testid={`calendar-${testId ?? slug(label)}`} className="fixed z-30 rounded-2xl border border-line bg-surface p-3 shadow-card outline-none">
+      {open && <div ref={panel} role="dialog" aria-label={label} tabIndex={-1} data-testid={`calendar-${testId ?? slug(sourceText(label))}`} className="fixed z-30 rounded-2xl border border-line bg-surface p-3 shadow-card outline-none">
         <div className="mb-2 flex items-center justify-between">
-          <button type="button" aria-label={month ? "Previous year" : "Previous month"} data-testid="calendar-prev" onMouseDown={(event) => event.preventDefault()} onClick={() => page(-1)} className={navButton}><ChevronLeft className="size-4" /></button>
-          <span className="text-sm font-semibold text-ink">{month ? view : readable(view)}</span>
-          <button type="button" aria-label={month ? "Next year" : "Next month"} data-testid="calendar-next" onMouseDown={(event) => event.preventDefault()} onClick={() => page(1)} className={navButton}><ChevronRight className="size-4" /></button>
+          <button type="button" aria-label={month ? t("Previous year") : t("Previous month")} data-testid="calendar-prev" onMouseDown={(event) => event.preventDefault()} onClick={() => page(-1)} className={navButton}><ChevronLeft className="size-4" /></button>
+          <span className="text-sm font-semibold text-ink">{month ? view : readable(view, language)}</span>
+          <button type="button" aria-label={month ? t("Next year") : t("Next month")} data-testid="calendar-next" onMouseDown={(event) => event.preventDefault()} onClick={() => page(1)} className={navButton}><ChevronRight className="size-4" /></button>
         </div>
-        {!month && <div className="grid grid-cols-7 text-center text-[11px] font-semibold text-ink-3">{WEEKDAYS.map((day) => <span key={day} className="py-1">{day}</span>)}</div>}
+        {!month && <div className="grid grid-cols-7 text-center text-[11px] font-semibold text-ink-3">{WEEKDAYS[language].map((day) => <span key={day} className="py-1">{day}</span>)}</div>}
         <div className={cx("grid gap-0.5 text-sm", month ? "grid-cols-3" : "grid-cols-7")}>
           {cells.map((cell, index) => cell ? <button key={cell} type="button" data-cell={cell} data-testid={`${month ? "month" : "day"}-${cell}`} tabIndex={cell === cursor ? 0 : -1}
-            disabled={outside(cell)} aria-pressed={cell === value} aria-label={readable(cell)} onMouseDown={(event) => event.preventDefault()} onClick={() => pick(cell)}
+            disabled={outside(cell)} aria-pressed={cell === value} aria-label={readable(cell, language)} onMouseDown={(event) => event.preventDefault()} onClick={() => pick(cell)}
             className={cx("rounded-xl text-ink hover:bg-muted focus:bg-muted focus:outline-none disabled:cursor-not-allowed disabled:text-line-strong disabled:hover:bg-transparent", focusRing, month ? "h-10" : "h-9",
               cell === unit(today) && "ring-1 ring-inset ring-primary-500", cell === value && "bg-selected font-semibold hover:bg-selected focus:bg-selected")}>
-            {month ? MONTHS[Number(cell.slice(5)) - 1] : Number(cell.slice(8))}
+            {month ? MONTHS[language][Number(cell.slice(5)) - 1] : Number(cell.slice(8))}
           </button> : <span key={`lead-${index}`} />)}
         </div>
         {!outside(unit(today)) && <button type="button" data-testid="calendar-today" onMouseDown={(event) => event.preventDefault()} onClick={() => pick(unit(today))}
-          className={cx("mt-2 w-full rounded-xl px-3 py-2 text-sm font-semibold text-primary-600 hover:bg-muted focus:bg-muted focus:outline-none", focusRing)}>{month ? "This month" : "Today"}</button>}
+          className={cx("mt-2 w-full rounded-xl px-3 py-2 text-sm font-semibold text-primary-600 hover:bg-muted focus:bg-muted focus:outline-none", focusRing)}>{month ? t("This month") : t("Today")}</button>}
       </div>}
     </div>
   </FieldShell>;
@@ -348,7 +358,7 @@ export function SuggestField({ label, testId, required, error, helper, className
   }, [shown]);
   return <FieldShell {...{ label, required, error, helper, id, className }}>
     <div ref={wrapper} className="relative" onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false); }}>
-      <input id={id} data-testid={`input-${testId ?? slug(label)}`} role="combobox" aria-expanded={shown} aria-controls={listId} aria-autocomplete="list"
+      <input id={id} data-testid={`input-${testId ?? slug(sourceText(label))}`} role="combobox" aria-expanded={shown} aria-controls={listId} aria-autocomplete="list"
         aria-activedescendant={shown && active >= 0 ? `${listId}-${active}` : undefined} aria-invalid={Boolean(error)} aria-describedby={error || helper ? `${id}-message` : undefined}
         autoComplete="off" required={required} maxLength={maxLength} value={value} className={control}
         onFocus={() => setOpen(true)} onClick={() => setOpen(true)} onChange={(event) => { onChange(event.target.value); setOpen(true); setActive(-1); }}
@@ -376,7 +386,7 @@ export function SuggestField({ label, testId, required, error, helper, className
 export function SearchSelectField({ label, testId, required, error, helper, className, value, onChange, options, placeholder }: Common & { value: string; onChange: (value: string) => void; options: readonly Option[]; placeholder: string }) {
   const id = useId();
   return <FieldShell {...{ label, required, error, helper, id, className }}>
-    <SearchableSelect label={label} value={value} onChange={onChange} options={[...options].sort((a, b) => a.label.localeCompare(b.label))} emptyLabel={placeholder} testId={`input-${testId ?? slug(label)}`}
+    <SearchableSelect label={label} value={value} onChange={onChange} options={[...options].sort((a, b) => a.label.localeCompare(b.label))} emptyLabel={placeholder} testId={`input-${testId ?? slug(sourceText(label))}`}
       triggerId={id} invalid={Boolean(error)} describedBy={error || helper ? `${id}-message` : undefined} />
   </FieldShell>;
 }
@@ -385,14 +395,14 @@ export function TextAreaField({ label, testId, required, error, helper, classNam
   const id = useId();
   return <FieldShell {...{ label, required, error, helper, id, className }}>
     {/* 2000 is the server limit of notes; a field with a larger one (general notes, 4000) passes its own. */}
-    <textarea id={id} data-testid={`input-${testId ?? slug(label)}`} aria-invalid={Boolean(error)} aria-describedby={error || helper ? `${id}-message` : undefined} required={required} rows={3} maxLength={2000} {...props} className={cx(control, "h-auto py-2.5")} />
+    <textarea id={id} data-testid={`input-${testId ?? slug(sourceText(label))}`} aria-invalid={Boolean(error)} aria-describedby={error || helper ? `${id}-message` : undefined} required={required} rows={3} maxLength={2000} {...props} className={cx(control, "h-auto py-2.5")} />
   </FieldShell>;
 }
 
 /** A few choices that should all stay visible (fewer than five): radio buttons instead of a dropdown. */
 export function RadioField({ label, testId, required, error, helper, className, value, onChange, options }: Common & { value: string; onChange: (value: string) => void; options: readonly (Option & { description?: string; testId?: string })[] }) {
   const id = useId();
-  const name = testId ?? slug(label);
+  const name = testId ?? slug(sourceText(label));
   return <fieldset data-testid={`input-${name}`} aria-invalid={Boolean(error)} aria-describedby={error || helper ? `${id}-message` : undefined} className={cx("min-w-0", className)}>
     <legend className="mb-1.5 block text-sm font-semibold text-ink-2">{label}{required && <span className="text-danger"> *</span>}</legend>
     <div className="grid gap-2 sm:grid-cols-2">{options.map((option) => <label key={option.value} className="flex cursor-pointer items-start gap-2.5 rounded-[10px] border border-line-strong px-3 py-2.5 has-[:checked]:border-primary-500 has-[:checked]:bg-primary-50 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary-500/15 has-[:disabled]:cursor-not-allowed has-[:disabled]:bg-muted has-[:disabled]:opacity-70">
@@ -406,10 +416,10 @@ export function RadioField({ label, testId, required, error, helper, className, 
 
 // Same border and corner as a disabled input: without them it read as a dropdown with its border missing (practice with
 // Mas Bram, 13 Nov 2026). The muted fill still says it cannot be changed.
-export function ReadOnlyField({ label, testId, value, helper, className }: { label: string; testId?: string; value: ReactNode; helper?: string; className?: string }) {
+export function ReadOnlyField({ label, testId, value, className, helper }: { label: string; testId?: string; value: ReactNode; className?: string; helper?: string }) {
   return <div className={cx("min-w-0", className)}>
     <p className="mb-1.5 text-sm font-semibold text-ink-2">{label}</p>
-    <div data-testid={`readonly-${testId ?? slug(label)}`} className="flex min-h-10 items-center rounded-2xl border border-ink-3 bg-muted px-3 text-sm text-ink">{value}</div>
+    <div data-testid={`readonly-${testId ?? slug(sourceText(label))}`} className="flex min-h-10 items-center rounded-2xl border border-ink-3 bg-muted px-3 text-sm text-ink">{value}</div>
     {helper && <p className="mt-1.5 text-xs text-ink-3">{helper}</p>}
   </div>;
 }
@@ -419,12 +429,15 @@ export function ReadOnlyField({ label, testId, value, helper, className }: { lab
  * revision of it, so a second record never silently replaces the one shown on the page.
  */
 export function RevisionConfirm({ what, existing, checked, onChange, error }: { what: string; existing: string; checked: boolean; onChange: (checked: boolean) => void; error?: string }) {
+  const { t } = useLanguage();
   const id = useId();
+  // {revision} is left unfilled by t, so the bold word can be set between the two halves.
+  const [before, after] = t("{what} untuk periode ini sudah ada ({existing}). Menyimpan akan membuat {revision}; versi sebelumnya tetap ada di riwayat.", { what, existing }).split("{revision}");
   return <div className={cx("rounded-xl border px-4 py-3 text-xs leading-5", error ? "border-danger bg-danger-bg" : "border-warning/30 bg-warning-bg")}>
-    <p className="text-warning">{what} untuk periode ini sudah ada ({existing}). Menyimpan akan membuat <strong>revisi</strong>; versi sebelumnya tetap ada di riwayat.</p>
+    <p className="text-warning">{before}<strong>{t("revisi")}</strong>{after}</p>
     <label htmlFor={id} className="mt-2 flex items-center gap-2 font-semibold text-ink">
       <input id={id} type="checkbox" data-testid="checkbox-revision" checked={checked} onChange={(event) => onChange(event.target.checked)} className="size-4 accent-primary-600" />
-      Save as revision
+      {t("Save as revision")}
     </label>
     {error && <p className="mt-1 text-danger">{error}</p>}
   </div>;
@@ -448,6 +461,7 @@ export function FormModal({ title, description, size = "md", onClose, children, 
   children: ReactNode;
   footer: ReactNode;
 }) {
+  const { t } = useLanguage();
   const dialog = useRef<HTMLDivElement>(null);
   const titleId = useId();
   // Callers pass an inline onClose, so it changes on every parent render. Keeping it in a ref lets the
@@ -484,17 +498,17 @@ export function FormModal({ title, description, size = "md", onClose, children, 
       className={cx("relative flex max-h-[88vh] w-full flex-col rounded-2xl bg-surface shadow-modal", size === "lg" ? "max-w-[880px]" : "max-w-[640px]")}>
       <header className="flex items-start justify-between gap-4 border-b border-line px-6 py-5">
         <div><h2 id={titleId} data-testid="modal-title" className="font-display font-semibold text-lg text-ink">{title}</h2>{description && <p className="mt-1 text-xs text-ink-3">{description}</p>}</div>
-        <button type="button" data-testid="btn-modal-close" aria-label="Close" onClick={requestClose} className="rounded-lg p-1.5 text-ink-3 hover:bg-muted hover:text-ink"><X className="size-5" /></button>
+        <button type="button" data-testid="btn-modal-close" aria-label={t("Close")} onClick={requestClose} className="rounded-lg p-1.5 text-ink-3 hover:bg-muted hover:text-ink"><X className="size-5" /></button>
       </header>
       <div data-modal-body className="min-h-0 flex-1 overflow-y-auto px-6 py-5"><ModalDirtyContext.Provider value={markDirty}>{children}</ModalDirtyContext.Provider></div>
       <footer className="flex flex-wrap justify-end gap-3 border-t border-line px-6 py-4"><ModalCloseContext.Provider value={requestClose}>{footer}</ModalCloseContext.Provider></footer>
       {confirming && <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-ink/30 p-6">
         <div role="alertdialog" data-testid="modal-discard-confirm" aria-labelledby={`${titleId}-discard`} className="w-full max-w-sm rounded-2xl bg-surface p-6 shadow-modal">
-          <h3 id={`${titleId}-discard`} className="font-display font-semibold text-base text-ink">Discard changes?</h3>
-          <p className="mt-1.5 text-sm text-ink-3">Data yang sudah diisi tidak akan disimpan.</p>
+          <h3 id={`${titleId}-discard`} className="font-display font-semibold text-base text-ink">{t("Buang perubahan?")}</h3>
+          <p className="mt-1.5 text-sm text-ink-3">{t("Data yang sudah diisi tidak akan disimpan.")}</p>
           <div className="mt-5 flex justify-end gap-3">
-            <Button variant="secondary" data-testid="btn-discard-keep" autoFocus onClick={() => setConfirming(false)}>Keep editing</Button>
-            <Button variant="danger" data-testid="btn-discard-confirm" onClick={() => closeRef.current()}>Discard</Button>
+            <Button variant="secondary" data-testid="btn-discard-keep" autoFocus onClick={() => setConfirming(false)}>{t("Keep editing")}</Button>
+            <Button variant="danger" data-testid="btn-discard-confirm" onClick={() => closeRef.current()}>{t("Discard")}</Button>
           </div>
         </div>
       </div>}
@@ -503,11 +517,12 @@ export function FormModal({ title, description, size = "md", onClose, children, 
 }
 
 export function ModalActions({ onCancel, busy, submitLabel, secondary, disabled = false }: { onCancel: () => void; busy: boolean; submitLabel: string; secondary?: ReactNode; disabled?: boolean }) {
+  const { t } = useLanguage();
   const requestClose = useContext(ModalCloseContext);
   return <>
-    <Button variant="secondary" data-testid="btn-modal-cancel" onClick={requestClose ?? onCancel}>Cancel</Button>
+    <Button variant="secondary" data-testid="btn-modal-cancel" onClick={requestClose ?? onCancel}>{t("Cancel")}</Button>
     {secondary}
-    <Button type="submit" form="d4-modal-form" data-testid="btn-modal-submit" disabled={busy || disabled}>{busy ? "Menyimpan…" : submitLabel}</Button>
+    <Button type="submit" form="d4-modal-form" data-testid="btn-modal-submit" disabled={busy || disabled}>{busy ? t("Menyimpan…") : submitLabel}</Button>
   </>;
 }
 

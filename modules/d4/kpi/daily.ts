@@ -19,13 +19,13 @@ export interface DailyCompilation {
   readonly roleOrder: number;
   /** Days that count: the latest day's KPI role only, so a mid-period position change does not mix two KPI sets. */
   readonly days: readonly KpiDailyEntry[];
-  /** Average raw score per indicator (order 1–5), rounded to a whole number: the scorecard stores integer scores. */
+  /** Average raw score per indicator, rounded to a whole number: the scorecard stores integer scores. */
   readonly scores: readonly number[];
   /** Weighted total of the rounded scores, the same number HR's scorecard will show when saved from them. */
   readonly total: number;
 }
 
-/** Compiles an employee's daily entries of a period into the five scores HR's Performance Review starts from. */
+/** Compiles an employee's daily entries of a period into the per-KPI scores HR's Performance Review starts from. */
 export function compileDaily(entries: readonly KpiDailyEntry[], employeeId: string, period: string): DailyCompilation | null {
   const all = dailyEntriesOf(entries, employeeId, period);
   const latest = all.at(-1);

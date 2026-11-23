@@ -19,6 +19,16 @@ export const scaleMaxOf = (definitionVersion?: string | null): 5 | 100 =>
  */
 export const aboveScale = (typed: string, max: number) => Number(typed.trim()) > max;
 
+/**
+ * Text a score field keeps of a keystroke or paste, or null to refuse it (BUG-FN-D4-001). Zeros in front of another digit
+ * are dropped as they are typed, so "00085" reads "85" and "00000" reads "0"; a lone 0 stays visible and is refused on
+ * Save with the 1–max range. Above the scale is refused as before. Performance Review and Daily KPI share this rule.
+ */
+export function typedScore(typed: string, max: number): string | null {
+  const text = typed.trimStart().replace(/^0+(?=\d)/, "");
+  return aboveScale(text, max) ? null : text;
+}
+
 /** Interview D4 (14 Oct 2026): below 80 is Under Performance, 80–85 is Average Performance, above 85 is High Performance. */
 export const UNDER_BELOW = 80;
 export const HIGH_ABOVE = 85;

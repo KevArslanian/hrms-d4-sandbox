@@ -1,11 +1,11 @@
 import { compareCompetencies } from "../../competency/service";
 import { developmentFixtureVersions } from "../../development/fixtures";
-import { catalogFor, indicatorsFor, KPI_V51_CATALOG, roleForPosition, seedCatalogSet, targetOf } from "../../kpi/catalog";
+import { catalogFor, indicatorsFor, KPI_V51_CATALOG, roleForPosition, scorableSet, seedCatalogSet, targetOf } from "../../kpi/catalog";
 import { scaleMaxOf } from "../../kpi/scale";
 import { performanceFixtureRecords } from "../../performance/fixtures";
 import { validatePerformanceInput } from "../../performance/validation";
 import { d4ReferenceFixture } from "../../shared/fixtures";
-import { assertDailyDate, assertGapAssessed, assertPicFilled, canFillDaily, closeGapBlockedReason, closeGapNotes, openTrainingCount, trainingSyncRevision, localMonth, localToday, assertTrainingDate, assertNeedOpen, assertNoOpenNeed, assertTrainingResult, assertNotFutureDate, assertEvaluationInPeriod, assertNotSelf, assertPeriodRevision, assertTrainingChange, nextDevelopmentRevision, planTrainingCompletion, retrainingNotes } from "../../shared/rules";
+import { assertDailyDate, assertGapAssessed, assertPicFilled, canFillDaily, closeGapBlockedReason, closeGapNotes, openTrainingCount, trainingSyncRevision, localMonth, localToday, assertTrainingDate, assertNeedOpen, assertNoOpenNeed, assertTrainingResult, assertNotFutureDate, assertEvaluationInPeriod, assertNotSelf, assertPeriodRevision, assertTrainingChange, nextDevelopmentRevision, lastAssessedAt, planTrainingCompletion, retrainingNotes } from "../../shared/rules";
 import type { D4LiveSnapshot, KpiAssessment, KpiAssessmentLine, KpiDailyEntry } from "../../supabase/types";
 import { latestDevelopment, latestTraining } from "../../supabase/types";
 import { trainingFixtureVersions } from "../../training/fixtures";
@@ -58,7 +58,7 @@ function dailyFixture(): KpiDailyEntry[] {
   return people.flatMap(([employeeId, totals]) => {
     const roleOrder = roleForPosition(periodCatalog, d4ReferenceFixture.employees.find((item) => item.id === employeeId)?.positionId);
     const indicators = indicatorsFor(periodCatalog, roleOrder);
-    if (indicators.length !== 5) return [];
+    if (!scorableSet(indicators)) return [];
     return days.map((entryDate, index) => {
       const lines = indicators.map((row) => ({ indicator_order: row.indicator_order, kpi_name: row.kpi_name, weight_percent: row.weight_percent, target: targetOf(row), actual: String(totals[index]), raw_score: totals[index], comment: "" }));
       return { id: `FIX-D4-DAILY-${employeeId.slice(-2)}-${index + 1}`, definitionVersion: periodCatalog.version, employeeId, entryDate, period, roleOrder, roleName: indicators[0].role_name, lines, overallScore: total(lines), createdAt: `${entryDate}T10:00:00.000Z` };
@@ -197,10 +197,10 @@ export function createFixtureSource(): D4DataSource {
       const periodCatalog = catalogFor(seedCatalogSet(state.reference.positions), input.period);
       if (!periodCatalog) throw new Error(`Belum ada katalog KPI yang berlaku untuk periode ${input.period}.`);
       const indicators = indicatorsFor(periodCatalog, input.roleOrder);
-      if (indicators.length !== 5) throw new Error("Role KPI tidak ditemukan di katalog.");
+      if (!scorableSet(indicators) || input.lines.length !== indicators.length) throw new Error("Role KPI tidak ditemukan di katalog.");
       const employee = state.reference.employees.find((item) => item.id === input.employeeId);
       if (roleForPosition(periodCatalog, employee?.positionId) !== input.roleOrder) throw new Error("Set KPI yang dipilih bukan milik posisi pegawai ini.");
-      if (input.status === "completed" && input.lines.some((line) => line.raw_score === null)) throw new Error("Kelima indikator KPI harus dinilai sebelum diselesaikan.");
+      if (input.status === "completed" && input.lines.some((line) => line.raw_score === null)) throw new Error("Semua indikator KPI harus dinilai sebelum diselesaikan.");
       const maxScore = scaleMaxOf(periodCatalog.version);
       if (input.lines.some((line) => line.raw_score !== null && (!Number.isInteger(line.raw_score) || line.raw_score < 1 || line.raw_score > maxScore))) throw new Error(`Actual setiap indikator harus bilangan bulat 1 sampai ${maxScore}.`);
       const id = newId("FIX-D4-KPI");
@@ -219,7 +219,7 @@ export function createFixtureSource(): D4DataSource {
       if (!periodCatalog) throw new Error(`Belum ada katalog KPI yang berlaku untuk periode ${period}.`);
       const roleOrder = roleForPosition(periodCatalog, state.reference.employees.find((item) => item.id === state.actorEmployeeId)?.positionId);
       const indicators = indicatorsFor(periodCatalog, roleOrder);
-      if (!roleOrder || indicators.length !== 5) throw new Error(`Posisi Anda belum memiliki KPI di katalog ${periodCatalog.version}. Hubungi HR.`);
+      if (!roleOrder || !scorableSet(indicators)) throw new Error(`Posisi Anda belum memiliki KPI di katalog ${periodCatalog.version}. Hubungi HR.`);
       const maxScore = scaleMaxOf(periodCatalog.version);
       const lines = indicators.map((row, index) => {
         const score = draft.lines[index]?.raw_score;
@@ -304,6 +304,7 @@ export function createFixtureSource(): D4DataSource {
         trainingId, history: state.trainingVersions.filter((item) => item.trainingId === trainingId), need,
         needHistory: state.developmentVersions.filter((item) => item.needId === current.developmentNeedId), latestNeeds: needs, latestTrainings: latestTraining(state),
         finding: comparison?.findings.find((item) => item.requirementId === need?.sourceRef), at: at(0),
+        assessedAt: employee ? lastAssessedAt(state.competency, employee.id, employee.positionId) : undefined,
       });
       const trainingVersions = [...state.trainingVersions], developmentVersions = [...state.developmentVersions], competency = [...state.competency];
       if (plan.training) trainingVersions.unshift({ ...current, id: newId("FIX-D4-TRN-V"), revision: current.revision + 1, status: "Completed", result: input.result, notes: input.notes.trim(),
