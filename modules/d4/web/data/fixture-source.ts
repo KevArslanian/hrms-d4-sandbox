@@ -5,7 +5,7 @@ import { scaleMaxOf } from "../../kpi/scale";
 import { performanceFixtureRecords } from "../../performance/fixtures";
 import { validatePerformanceInput } from "../../performance/validation";
 import { d4ReferenceFixture } from "../../shared/fixtures";
-import { assertDailyDate, assertGapAssessed, assertPicFilled, canFillDaily, closeGapBlockedReason, closeGapNotes, openTrainingCount, trainingSyncRevision, localMonth, localToday, assertTrainingDate, assertNeedOpen, assertNoOpenNeed, assertTrainingResult, assertNotFutureDate, assertEvaluationInPeriod, assertNotSelf, assertPeriodRevision, assertTrainingChange, nextDevelopmentRevision, lastAssessedAt, planTrainingCompletion, retrainingNotes } from "../../shared/rules";
+import { assertDailyDate, assertGapAssessed, assertPicFilled, canFillDaily, closeGapBlockedReason, closeGapNotes, openTrainingCount, trainingSyncRevision, localMonth, localToday, assertTrainingDate, assertNeedOpen, assertNoOpenNeed, assertTrainingResult, assertNotSelf, assertPeriodOpen, assertPeriodRevision, assertTrainingChange, nextDevelopmentRevision, lastAssessedAt, planTrainingCompletion, retrainingNotes } from "../../shared/rules";
 import type { D4LiveSnapshot, KpiAssessment, KpiAssessmentLine, KpiDailyEntry } from "../../supabase/types";
 import { latestDevelopment, latestTraining } from "../../supabase/types";
 import { trainingFixtureVersions } from "../../training/fixtures";
@@ -121,6 +121,7 @@ function initialSnapshot(): D4LiveSnapshot {
       assessment("FIX-D4-KPI-002", alfa, 10, "2026-06", [3, 4, 4, 3, 3], "completed"),
     ],
     kpiDaily: dailyFixture(),
+    periodReopenings: [],
     performance: performanceFixtureRecords,
     competency: [{
       id: "FIX-D4-COMP-ASSESS-001", source: "local-demo", employeeId: alfa, positionId: finance, effectiveDate: "2026-09-21",
@@ -175,11 +176,11 @@ export function createFixtureSource(): D4DataSource {
     async loadKpiCatalog() { return seedCatalogSet(state.reference.positions); },
     async createEvaluation({ revisionOf, ...draft }) {
       assertWriter();
-      const input = { ...draft, evaluator: actorName() };
+      // Same as the API: the evaluation date is the saved day, and only an open period takes a new record.
+      const input = { ...draft, evaluationDate: localToday(), evaluator: actorName() };
       validatePerformanceInput(input);
       assertNotSelf(state.actorEmployeeId, input.employeeId);
-      assertNotFutureDate(input.evaluationDate);
-      assertEvaluationInPeriod(input.period, input.evaluationDate);
+      assertPeriodOpen(input.period, state.periodReopenings ?? []);
       assertPeriodRevision(state.performance, input.employeeId, input.period, revisionOf, "Evaluation");
       const id = newId("FIX-D4-PERF");
       update({ performance: [{ ...input, id, source: "local-demo", createdAt: now(), actor: actorName() }, ...state.performance] });
@@ -187,10 +188,9 @@ export function createFixtureSource(): D4DataSource {
     },
     async createKpiAssessment({ revisionOf, ...draft }) {
       assertWriter();
-      const input = { ...draft, evidenceReference: draft.evidenceReference?.trim() || null, evaluatorName: actorName() };
+      const input = { ...draft, evaluationDate: localToday(), evidenceReference: draft.evidenceReference?.trim() || null, evaluatorName: actorName() };
       assertNotSelf(state.actorEmployeeId, input.employeeId);
-      assertNotFutureDate(input.evaluationDate);
-      assertEvaluationInPeriod(input.period, input.evaluationDate);
+      assertPeriodOpen(input.period, state.periodReopenings ?? []);
       assertPeriodRevision(state.kpiAssessments ?? [], input.employeeId, input.period, revisionOf, "Scorecard");
       if (!input.generalNotes.trim()) throw new Error("Notes wajib diisi.");
       if (!input.evidenceReference) throw new Error("Reference wajib diisi.");

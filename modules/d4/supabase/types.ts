@@ -1,6 +1,7 @@
 import type { CompetencyAssessment } from "../competency/types";
 import type { DevelopmentNeedVersion } from "../development/types";
 import type { PerformanceEvaluation } from "../performance/types";
+import type { PeriodReopening } from "../shared/rules";
 import type { ReferenceDataSnapshot } from "../shared/types";
 import type { TrainingVersion } from "../training/types";
 
@@ -74,6 +75,8 @@ export interface D4LiveSnapshot {
   readonly kpiAssessments?: readonly KpiAssessment[];
   /** Undefined until migration 20261108130000 creates d4_kpi_daily_entries. */
   readonly kpiDaily?: readonly KpiDailyEntry[];
+  /** Older periods HR reopened; empty until migration 20261124150000 creates d4_period_reopenings. */
+  readonly periodReopenings?: readonly PeriodReopening[];
   readonly performance: readonly PerformanceEvaluation[];
   readonly competency: readonly CompetencyAssessment[];
   readonly developmentVersions: readonly DevelopmentNeedVersion[];
