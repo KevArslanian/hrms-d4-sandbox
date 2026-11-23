@@ -491,6 +491,14 @@ Permintaan: data KPI D4 tidak lagi dummy, melainkan diambil dari KPI Definition 
   - TC-D4-002-26 s.d. 29.
 - `modules/d4/kpi/catalog.ts`, `modules/d4/server/kpi-catalog/`, `kpi-assessments/`, `kpi-daily/`, `modules/d4/supabase/repository.ts`, `modules/d4/web/data/fixture-source.ts`, `modules/d4/web/features/{kpi,daily,dashboard,performance}/`, kamus i18n, `AppShell.tsx`
 
+## Celah RLS: registrasi belum disetujui dan menilai diri sendiri · 20 Nov 2026
+
+- **Migrasi `20261120120000_d4_rls_approved_and_not_self.sql`, belum diterapkan: perlu izin PO.** Menutup dua aturan yang selama ini hanya dicek API. Akun yang sudah login bisa memanggil PostgREST langsung dengan sesi dari cookie browser.
+  - **Identitas D4 hanya dari registrasi yang disetujui.** Hanya baris `b2_register` dengan status APPROVED atau PROVISIONED yang memberi employee id dan role (`d4_current_employee_uuid`, `d4_current_role`). Sebelumnya, baris PENDING dengan posisi POS-HR langsung menjadi HR di D4. Policy INSERT B2 `Izinkan authenticated insert register` (`check (true)`) membuat siapa pun yang login bisa membuat baris itu sendiri. Policy tersebut milik B2 dan perlu ditutup oleh B2.
+  - **Tidak boleh menulis catatan HR milik sendiri.** Policy INSERT KPI, performance, competency, development requirement, training, dan riwayat requirement/training sekarang menolak `employee_id` yang sama dengan penulisnya. Aturan ini sama dengan `assertNotSelf` (SR-D4-EMP-23). Daily KPI tetap diisi sendiri dan tidak diubah.
+  - **Diuji di Postgres 16 lokal** dengan salinan policy INSERT yang aktif pada 20 Nov (13 kasus). Sebelum migrasi, 12 kasus diterima. Itu termasuk manager menilai KPI sendiri, HR mengevaluasi diri sendiri, dan akun PENDING ber-POS-HR menambah training. Sesudah migrasi, 8 kasus menulis catatan sendiri atau memakai akun PENDING ditolak. Penilaian dan riwayat untuk pegawai lain tetap diterima. Mendaftar sebagai PENDING tetap diterima karena tabel itu milik B2.
+  - Pada 20 Nov, semua baris `b2_register` yang dibaca D4 berstatus APPROVED atau PROVISIONED, jadi tidak ada akun aktif yang kehilangan akses.
+
 ## Belum selesai
 
 | Item | Alasan | Langkah berikut |
