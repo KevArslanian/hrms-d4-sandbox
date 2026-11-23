@@ -23,8 +23,8 @@ export const shared = {
   "days": { id: "hari", enOne: "day" },
   "requirements": { id: "requirement", enOne: "requirement" },
   "trainings": { id: "training", enOne: "training" },
-  "requirement dipilih": { en: "selected requirements", enOne: "selected requirement" },
-  "training dipilih": { en: "selected trainings", enOne: "selected training" },
+  "{count} dari {total} requirement dipilih": { en: "{count} of {total} requirements selected" },
+  "{count} dari {total} training dipilih": { en: "{count} of {total} trainings selected" },
   // Words used by several feature folders
   "Actions for {name}": { id: "Aksi untuk {name}" },
   "Actual": { id: "Aktual" },

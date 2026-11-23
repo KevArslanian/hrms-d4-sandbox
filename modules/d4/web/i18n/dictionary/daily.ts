@@ -71,6 +71,7 @@ export const daily = {
   "{filled} / {total} days": { id: "{filled} / {total} hari" },
   "Filled": { id: "Sudah diisi" },
   "Not filled": { id: "Belum diisi" },
+  "Dibuka di form": { en: "Open in the form" },
   "Last entry": { id: "Entri terakhir" },
   "Compiled score / Gap vs {target}": { id: "Compiled score / Gap dari {target}" },
   // Employee entries and history pages
