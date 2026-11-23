@@ -405,6 +405,12 @@ export function DailyKpiHistoryPage({ employeeId }: { employeeId: string }) {
 const shortDay = (day: string, language: Language) => new Date(`${day}T12:00:00Z`).toLocaleDateString(language === "en" ? "en-GB" : "id-ID", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
 const weekdayOf = (day: string) => new Date(`${day}T12:00:00Z`).getUTCDay();
 
+// Calendar marks, shared by the cells and their legend.
+const PICKED = "rounded-lg bg-primary-600 font-semibold text-white";
+const TODAY = "rounded-full font-semibold text-primary-600 ring-1 ring-inset ring-primary-500";
+const DOT = "absolute bottom-1 left-1/2 size-1 -translate-x-1/2 rounded-full bg-warning";
+const SWATCH = "relative inline-flex size-5 shrink-0 items-center justify-center text-[10px] tabular-nums";
+
 /** Working days up to today in Monday–Friday columns, so a gap lines up under its weekday; filled days stay as context. */
 function MonthDays({ period, missed, todayOpen, selected, onPick }: { period: string; missed: readonly string[]; todayOpen: boolean; selected: string; onPick: (day: string) => void }) {
   const { t, language } = useLanguage();
@@ -424,15 +430,24 @@ function MonthDays({ period, missed, todayOpen, selected, onPick }: { period: st
       {days.map((day, index) => {
         const style = index === 0 ? { gridColumnStart: weekdayOf(day) } : undefined;
         const isToday = day === now, picked = day === selected;
-        const mark = cx("inline-flex size-9 items-center justify-center tabular-nums sm:size-8",
-          picked ? "rounded-lg bg-primary-600 font-semibold text-white" : isToday ? "rounded-full font-semibold text-primary-600 ring-1 ring-inset ring-primary-500" : "rounded-lg");
+        const mark = cx("relative inline-flex size-9 items-center justify-center tabular-nums sm:size-8", picked ? PICKED : isToday ? TODAY : "rounded-lg");
         return open.has(day)
-          ? <button key={day} type="button" style={style} data-testid={isToday ? "daily-today" : `missed-${day}`} aria-label={isToday ? `${shortDay(day, language)}, ${t("Today")}` : shortDay(day, language)} aria-pressed={picked} onClick={() => onPick(day)}
+          ? <button key={day} type="button" style={style} data-testid={isToday ? "daily-today" : `missed-${day}`} aria-pressed={picked} onClick={() => onPick(day)}
+            aria-label={[shortDay(day, language), isToday && t("Today"), t("Not filled")].filter(Boolean).join(", ")}
             className="group flex h-10 items-center justify-center rounded-lg focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary-500 sm:h-9">
-            <span className={cx(mark, !picked && !isToday && "font-semibold text-ink group-hover:bg-primary-50 group-hover:text-primary-600", !picked && isToday && "group-hover:bg-primary-50")}>{Number(day.slice(8))}</span></button>
+            <span className={cx(mark, !picked && !isToday && "font-semibold text-ink group-hover:bg-primary-50 group-hover:text-primary-600", !picked && isToday && "group-hover:bg-primary-50")}>
+              {Number(day.slice(8))}<span aria-hidden="true" className={cx(DOT, picked && "bg-white")} /></span></button>
           : <span key={day} style={style} className="flex h-10 items-center justify-center text-ink-3 sm:h-9">
             <span className={cx(mark, "gap-0.5")}><Check aria-hidden="true" className="size-3" />{Number(day.slice(8))}</span><span className="sr-only">, {t("Filled")}</span></span>;
       })}
     </div>
+    {/* Requested 24 Nov 2026: marks that cannot be misread. Each state has its own shape and is named here; the yellow dot
+        matches the notice above, and the blue square is the date open in the form, not a saved one. */}
+    <ul aria-hidden="true" data-testid="daily-calendar-legend" className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5 border-t border-line px-1 pt-2.5 text-xs text-ink-2">
+      <li className="inline-flex items-center gap-1.5"><span className={SWATCH}><span className="size-1.5 rounded-full bg-warning" /></span>{t("Not filled")}</li>
+      <li className="inline-flex items-center gap-1.5"><span className={cx(SWATCH, "text-ink-3")}><Check className="size-3" /></span>{t("Filled")}</li>
+      <li className="inline-flex items-center gap-1.5"><span className={cx(SWATCH, TODAY)} />{t("Today")}</li>
+      <li className="inline-flex items-center gap-1.5"><span className={cx(SWATCH, PICKED)} />{t("Dibuka di form")}</li>
+    </ul>
   </div>;
 }
