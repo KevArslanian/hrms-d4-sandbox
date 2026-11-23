@@ -97,6 +97,12 @@ export const shared = {
   "Tidak": { en: "No" },
   "Iya": { en: "Yes" },
   "Logging out...": { id: "Sedang logout..." },
+  // Automatic logout after inactivity (IdleLogout)
+  "Sesi akan berakhir": { en: "Your session is about to end" },
+  "Anda tidak aktif selama {minutes} menit. Anda akan logout otomatis pukul {time}.": { en: "You have been inactive for {minutes} minutes. You will be logged out automatically at {time}." },
+  "{seconds} detik": { en: "{seconds} seconds" },
+  "Logout sekarang": { en: "Log out now" },
+  "Tetap masuk": { en: "Stay signed in" },
   // Page states, timeline, toasts
   "Breadcrumb": { id: "Jejak navigasi" },
   "Back to My Performance": { id: "Kembali ke Kinerja Saya" },

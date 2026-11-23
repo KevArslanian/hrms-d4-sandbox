@@ -558,6 +558,20 @@ Dari rekaman asistensi 21 Nov dan audio 24 Nov 2026.
 - TC-D4-005-17 dan TC-D4-006-27. Dicek di mode pratinjau: dua requirement baru untuk Desty → tombol "Buat training untuk semua (2)" → Save → "2 training tersimpan"; Update Progress 4 training dengan Passed + Meets requirement → 2 ditandai beserta alasannya dan Save menjadi "Simpan 2 Training".
 - `BulkModals.tsx`, `SummaryTiles.tsx`, `summary.ts`, `completion.ts`, `fixture-source.ts`, kamus `shared.ts` dan `dashboard.ts`.
 
+## Logout otomatis saat tidak aktif · 24 Nov 2026
+
+Asistensi 21 Nov 2026: setiap departemen harus logout otomatis bila pengguna terlalu lama AFK, dengan notifikasi, dan waktunya mengikuti WIB/WITA/WIT karena pegawai bisa berpindah pulau.
+
+- **Batas 30 menit, peringatan 1 menit sebelumnya.** Dialog "Sesi akan berakhir" menyebut jam logout dan menghitung mundur. **Tetap masuk** melanjutkan sesi; **Logout sekarang** keluar saat itu juga. Gerakan mouse saat dialog terbuka tidak dihitung, jadi sesi hanya berlanjut lewat tombol.
+- **Semua tab dihitung bersama.** Waktu aktivitas terakhir disimpan di `localStorage` (`d4-last-activity`), jadi bekerja di satu tab menjaga tab lain tetap login. Laptop yang bangun dari sleep melewati batas langsung logout.
+- **Jam mengikuti zona perangkat**: WIB, WITA, WIT, atau GMT±n di luar Indonesia (`zoneLabel` di `modules/d4/web/data/idle.ts`).
+- **Halaman login menjelaskan**: "Anda logout otomatis pukul 14:35 WITA karena tidak aktif selama 30 menit." Pesan hilang setelah login lagi.
+- Angka 30 menit dan 60 detik adalah konstanta `IDLE_LIMIT_MS` dan `IDLE_WARNING_MS`, belum dikonfirmasi mas Bram. Berlaku juga di mode pratinjau.
+- Tile **Pegawai** di People Dashboard kini memakai panah ke bawah (`summary-total-jump`), karena tile itu melompat ke tabel, bukan membuka daftar seperti tiga tile lain.
+- Belum: logout manual seharusnya kembali ke landing page HRMS, tetapi URL landing page belum ada. Untuk sementara tetap ke `/login`.
+- TC-D4-SEC-10. Dicek di mode pratinjau dengan jam halaman dimajukan: dialog muncul pada menit 29 dengan "04:44 WIB", Tetap masuk menutupnya, menit 30 membawa ke `/login` dengan pesan, dan pesan hilang setelah login lagi.
+- `modules/d4/web/ui/IdleLogout.tsx`, `modules/d4/web/data/idle.ts`, `AppShell.tsx`, `app/login/page.tsx`, `SummaryTiles.tsx`, kamus `shared.ts`.
+
 ## Belum selesai
 
 | Item | Alasan | Langkah berikut |
