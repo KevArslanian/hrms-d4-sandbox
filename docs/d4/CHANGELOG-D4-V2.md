@@ -513,6 +513,25 @@ PR #63 menjawab masukan ini pada 20 Nov, tetapi sebelum digabung, PR #65, #68, #
 - **Daily KPI yang lupa diisi lebih dari sehari.** Sudah di PR #65, lalu menjadi kalender Sen–Jum di PR #70 (`daily-missed`, `missed-YYYY-MM-DD`). Tombol `btn-fill-missed-<tanggal>` dari PR #63 tidak dipakai.
 - **Bahasa judul dialog konfirmasi.** Sudah lewat toggle bahasa (PR #69 dan #72): judul dan tombol mengikuti bahasa yang dipilih, misalnya "Buang perubahan?" di ID dan "Discard changes?" di EN.
 
+## Daftar di form bulk bisa dicentang · 24 Nov 2026
+
+- Update Progress (Training Tracking) dan Add Training dari Development Requirement sebelumnya hanya menampilkan lima baris pertama lalu "dan N lainnya". Kini semua yang dipilih tampil sebagai checkbox dalam daftar yang bisa digulir, dan semuanya tercentang di awal. Melepas centang mengeluarkan baris itu dari simpanan kali ini tanpa kembali ke tabel; tombol Save mengikuti jumlahnya.
+- Baris training memuat tanggal dan status di bawah namanya, karena satu pegawai bisa punya beberapa training dengan nama yang sama.
+- Baris yang tidak dicentang tidak disimpan dan tetap terpilih di tabel.
+- Testid `bulk-targets` tetap; tiap baris `bulk-target-<id>`. Judulnya "{n} dari {total} training dipilih" / "{n} of {total} trainings selected".
+- Dicek di mode pratinjau: Update Progress dengan 1 dari 2 training (hanya Kak Ismi yang berubah jadi In Progress), Add Training 2 dari 3 requirement, ID dan EN, 375 px tanpa scroll horizontal.
+- `modules/d4/web/features/training/BulkModals.tsx`, `TrainingPages.tsx`, `modules/d4/web/data/bulk.ts`, `modules/d4/web/i18n/dictionary/shared.ts`
+
+## Kalender Daily KPI mengikuti design system · 24 Nov 2026
+
+- **Kotak kuning hanya berisi pengingat.** Kalender keluar dari kotak itu dan menjadi panel putih bergaris tipis dengan judul bulan, mengikuti komponen Base Calendar di Design System kelas (PISD, node `5277:644`) dan popup DateField di aplikasi. Sebelumnya kotak putih bertumpuk di atas latar kuning.
+- **Sel tanpa kotak, seperti Base Calendar.** Tanggal yang belum diisi bertulisan tebal dengan hover biru muda. Tanggal terpilih berupa kotak biru `primary-600` bersudut 8 px. Hari ini ditandai cincin biru (pengganti titik), jadi tetap terlihat saat tanggal lain dipilih. Hari yang sudah diisi tetap redup dengan centang (`text-ink-3`, kontras 4,76:1 di putih).
+- **Penanda yang tidak bisa salah baca.** Tiap keadaan punya bentuk sendiri dan dijelaskan di keterangan bawah kalender (`daily-calendar-legend`): titik kuning = belum diisi (warnanya sama dengan kotak pengingat, kontras 5,35:1), centang = sudah diisi, cincin = hari ini, kotak biru = tanggal yang sedang dibuka di form. Kotak biru diberi nama "Dibuka di form" agar tidak terbaca sebagai sudah tersimpan. Pembaca layar mendengar "Rab, 11 Nov, Belum diisi".
+- **Sisi kanan tidak kosong lagi** (masukan Kei). Mulai 768 px, field Tanggal, KPI posisi, dan Katalog berada di kanan kalender, jadi tanggal yang diklik langsung terlihat di sebelahnya. Di bawah 768 px urutannya ke bawah.
+- Testid tetap: `daily-missed`, `daily-reminder`, `missed-YYYY-MM-DD`, `daily-today`, `input-daily-date`. TC-D4-008-22 diperbarui.
+- Dicek di mode pratinjau pada 1225, 768, dan 375 px dalam ID dan EN: memilih 10 dan 12 Nov, hover, menyimpan 10 Nov sampai jadi centang dan jumlah turun dari 16 ke 15, tanpa scroll ke samping.
+- `modules/d4/web/features/daily/DailyKpiPages.tsx`
+
 ## Belum selesai
 
 | Item | Alasan | Langkah berikut |
