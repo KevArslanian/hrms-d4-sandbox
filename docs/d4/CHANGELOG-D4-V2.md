@@ -417,6 +417,21 @@ Sumber: pertanyaan 23 Nov "kalau Passed kenapa ada Retraining", yang juga disoro
 - Tes: `training-completion` (aturan dan alur dua langkah), `development-next-step`, `fixture-source`, `api.test` (422 tanpa tulis). TC-D4-005-16.
 - `rules.ts`, `TrainingModals.tsx`, `BulkModals.tsx`, `TrainingPages.tsx`, `DevelopmentPages.tsx`, `CompetencyPages.tsx`, `server/training-records/index.ts`, `fixture-source.ts`
 
+## Kartu ringkasan People Dashboard bisa dibuka · 23 Nov 2026
+
+Sumber: saran Pak Emanuel ke Skuad 4 (17 Nov 2026), "bisa dilihat di mana siapa yang butuh training?", diingatkan lagi oleh Gebby pada 23 Nov.
+
+- **Employees** melompat ke tabel pegawai di bawahnya.
+- **Need training** membuka daftar pegawai yang punya development requirement belum selesai. Tiap requirement menampilkan training terakhirnya selain Cancelled, atau "Belum punya training". Training yang Completed ikut menampilkan hasilnya, sehingga Not Passed tidak terbaca selesai. HR dan Manager bisa langsung **Create Training** untuk requirement tanpa training, atau **Update Progress** untuk training yang Planned atau In Progress.
+- **Training in progress** membuka daftar training In Progress per pegawai, masing-masing dengan **Update Progress**.
+- **Performance Review complete** membuka daftar periode yang ditampilkan: Belum direview lebih dulu (**Finalize** bila sudah ada skor Compiled dari Daily KPI, **Add Performance Review** bila belum), lalu Data tidak valid, lalu Sudah direview dengan Total KPI dan kategorinya. Pegawai yang posisinya tidak punya KPI disebut di catatan bawah.
+- Form aksi menggantikan daftar selama terbuka. Setelah Save atau Cancel, dialog kembali ke daftar, dan Save menambahkan pemberitahuan "tersimpan" dengan link View Detail. Tidak pernah ada dua dialog bertumpuk.
+- Angka kartu dan isi daftarnya berasal dari satu fungsi (`tileMembers` di `summary.ts`), jadi keduanya tidak bisa berbeda. Kartu bernilai 0 tidak bisa diklik. Kartu Performance Review tetap bisa dibuka selama ada pegawai yang bisa direview, karena isinya dimulai dari yang belum direview.
+- Tombol aksi mengikuti aturan halaman sumbernya: hanya HR dan Manager, tidak di baris diri sendiri, dan tidak untuk Director yang read-only.
+- Footer dialog menautkan halaman lengkapnya: Development Requirement, Training Tracking dengan filter In Progress (`/training?status=In%20Progress`, yang kini dibaca halaman Training), dan Performance Review untuk periode itu.
+- Form Performance Review kini menerima periode awal. Add Performance Review dari dashboard membuka periode yang sedang ditampilkan dashboard, bukan selalu bulan ini.
+- Dicek di mode pratinjau pada lebar 1440, 768, dan 390 px, juga dengan keyboard: Enter membuka daftar, Escape menutup, dan fokus kembali ke kartu. Menyimpan dari dialog belum dicoba.
+
 ## Paginasi, info berulang, dan toggle bahasa · 24 Nov 2026
 
 - **Pemilih baris per halaman** mengikuti contoh yang dibagikan di kelas: `[10 ▾] per page` di kanan bawah tabel, pemilih di depan labelnya. Pilihannya 10, 20, 50, 100. Testid tidak berubah (`select-page-size`, `options-page-size`).
@@ -429,6 +444,7 @@ Sumber: pertanyaan 23 Nov "kalau Passed kenapa ada Retraining", yang juga disoro
   - Yang tidak diterjemahkan: nama modul, kosakata workflow, nama KPI dan kompetensi, data tersimpan, nilai filter, dan pesan dari server (bahasa Indonesia). Detailnya di UI-D4-001 §6.
   - Bahasa Inggris memakai bentuk tunggal saat jumlahnya 1 ("1 employee has", bukan "1 employees have"), lewat `enOne` di kamus.
   - Testid tidak berubah antarbahasa. Dicek di browser 24 Nov: set `data-testid` di enam halaman list, detail training, profil pegawai, dan modal Performance Review identik di ID dan EN. Diff kode juga tidak mengubah satu pun testid literal.
+  - Kartu ringkasan dashboard dan tiga dialognya (PR #68, masuk main lebih dulu) ikut diterjemahkan saat main digabung ke cabang ini. Testid dialog Need training, Training in progress, dan Performance Review identik di ID dan EN.
   - Tes baru `tests/d4/i18n.test.ts`: setiap teks yang dilewatkan ke `t(...)` punya entri kamus, tiap teks hanya ada di satu file fitur, placeholder terjemahan sama dengan sumbernya, dan bentuk tunggal Inggris dipakai saat jumlahnya 1. TC-D4-UIQ-15 s.d. 19.
 - `modules/d4/web/i18n/`, `modules/d4/shared/text.ts`, `app/(d4)/layout.tsx`, `app/not-found.tsx`, `DataTable.tsx`, `selectors.ts`, `rules.ts`, `bulk.ts`, dan halaman serta modal di `modules/d4/web/features/`
 

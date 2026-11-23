@@ -120,7 +120,37 @@ export function gapRanking(snapshot: Snapshot, rows: readonly DashboardRow[]) {
  * each need that is not Completed. Retraining reopens a need as Planned, so it counts again; a Completed need still
  * awaiting reassessment does not, because its training is done.
  */
-export const openNeedCount = (snapshot: Snapshot, employeeId: string) => needsOf(snapshot, employeeId).filter((need) => need.status !== "Completed").length;
+export const openNeedsOf = (snapshot: Snapshot, employeeId: string) => needsOf(snapshot, employeeId).filter((need) => need.status !== "Completed");
+export const openNeedCount = (snapshot: Snapshot, employeeId: string) => openNeedsOf(snapshot, employeeId).length;
+
+/** Latest training of a requirement that is not Cancelled, by training date; undefined while it has none (PST 2). */
+export const latestTrainingOf = (snapshot: Snapshot, need: DevelopmentNeedVersion) => trainingsOf(snapshot, need.employeeId)
+  .filter((item) => item.developmentNeedId === need.needId && item.status !== "Cancelled")
+  .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))[0];
+
+/** Trainings of one employee still In Progress, behind the "Training in progress" tile. */
+export const trainingsInProgress = (snapshot: Snapshot, employeeId: string) => trainingsOf(snapshot, employeeId).filter((item) => item.status === "In Progress");
+
+/** Row fields the summary tiles count on, worked out once per row by the dashboard. */
+export type TileRow = DashboardRow & { openNeeds: number; trainingInProgress: boolean };
+
+/**
+ * The people behind each summary tile (Pak Emanuel, 17 Nov 2026: "bisa dilihat di mana siapa yang butuh training?").
+ * A tile shows `list.length` and its dialog lists the same rows, so the two cannot disagree. Performance Review rows
+ * split four ways, each row once: valid scorecard (the tile's count), invalid scorecard (FR-06.9), no scorecard yet,
+ * and no KPI role in the catalog (K4), which can never be reviewed.
+ */
+export function tileMembers<T extends TileRow>(rows: readonly T[], noKpi: readonly DashboardRow[]) {
+  const unreviewable = new Set(noKpi.map((row) => row.employee.id));
+  return {
+    dev: rows.filter((row) => row.openNeeds > 0),
+    training: rows.filter((row) => row.trainingInProgress),
+    reviewed: rows.filter((row) => row.scorecard && validScorecard(row.scorecard)),
+    invalid: rows.filter((row) => row.scorecard && !validScorecard(row.scorecard)),
+    notReviewed: rows.filter((row) => !row.scorecard && !unreviewable.has(row.employee.id)),
+    noKpi: rows.filter((row) => !row.scorecard && unreviewable.has(row.employee.id)),
+  };
+}
 
 /**
  * Q14 (20 Oct 2026): when the training of a gap-based need finished, or undefined while it has not. A need counts once
@@ -205,13 +235,11 @@ export function dashboardAlerts(snapshot: Snapshot, rows: readonly DashboardRow[
       // Directors have a KPI role for their Performance Review but do not fill Daily KPI (decision 13 Nov 2026).
       if (!days.length && dailyCatalog && roleForPosition(dailyCatalog, row.employee.positionId) && !isDirectorPosition(positionById(snapshot, row.employee.positionId)?.code)) found.noDaily.push(name);
     }
-    const trainings = trainingsOf(snapshot, row.employee.id);
     for (const need of needs) {
       if (need.status === "Completed") continue;
       if (!need.pic?.trim()) found.noPic.push(name);
       if (needsTraining(snapshot, need)) found.noTraining.push(name);
-      const last = trainings.filter((item) => item.developmentNeedId === need.needId && item.status !== "Cancelled")
-        .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))[0];
+      const last = latestTrainingOf(snapshot, need);
       // Q16: waits for HR's follow-up. Retraining adds a newer training; any recorded follow-up clears it.
       if (last?.status === "Completed" && last.result === "Not Passed" && !followUpOf(trainingHistory(snapshot, last.trainingId))) found.notPassed.push(name);
     }
