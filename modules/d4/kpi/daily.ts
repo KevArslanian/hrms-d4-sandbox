@@ -1,4 +1,3 @@
-import { localToday } from "../shared/rules";
 import type { KpiAssessmentLine, KpiDailyEntry } from "../supabase/types";
 import { indicatorsFor, targetOf, type KpiCatalog } from "./catalog";
 import { performanceBand, scaleMaxOf, type PerformanceBand } from "./scale";
@@ -61,12 +60,6 @@ export function scorecardLinesFromDaily(catalog: KpiCatalog, compiled: DailyComp
   }));
 }
 
-/** Evaluation date of a finalized period: today in the running period, else its last day (never in the future). */
-export function finalizeDate(period: string, today = localToday()): string {
-  if (period === today.slice(0, 7)) return today;
-  const [year, month] = period.split("-").map(Number);
-  return `${period}-${String(new Date(Date.UTC(year, month, 0)).getUTCDate()).padStart(2, "0")}`;
-}
 
 /** One saved row of the daily history: its revision for that day, the row it replaced, and how many rows the day has. */
 export interface DailyHistoryItem {
