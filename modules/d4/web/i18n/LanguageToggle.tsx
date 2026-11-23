@@ -6,11 +6,11 @@ import { useLanguage } from "./LanguageProvider";
 
 // Each language names itself, so someone who cannot read the current one still finds theirs.
 const OPTIONS: { value: Language; label: string; name: string }[] = [
-  { value: "id", label: "ID", name: "Bahasa Indonesia" },
   { value: "en", label: "EN", name: "English" },
+  { value: "id", label: "ID", name: "Bahasa Indonesia" },
 ];
 
-/** ID | EN switch in the header, the same two choices as D3's LanguageToggle. */
+/** EN | ID switch in the header, the same two choices as D3's LanguageToggle. */
 export function LanguageToggle() {
   const { language, setLanguage, t } = useLanguage();
   return <div role="group" aria-label={t("Language")} data-testid="language-toggle" className="flex shrink-0 items-center rounded-lg border border-line bg-surface p-0.5">
