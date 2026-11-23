@@ -1,8 +1,7 @@
 import type { EvaluationInput } from "../../performance/types";
-import { assertEvaluationInPeriod, assertNotFutureDate, assertNotSelf, assertPeriodRevision, localMonth } from "../../shared/rules";
+import { assertNotSelf, assertPeriodOpen, assertPeriodRevision, localToday } from "../../shared/rules";
 import { ApiError, employeeFilter, enforce, field, optionalUuid, readJson } from "../_lib/http";
 import { d4Session, requireWriter } from "../_lib/session";
-import { FUTURE_PERIOD } from "../kpi-assessments";
 
 /** GET /api/d4/performance-evaluations?employee_id= — evaluation history, newest first. */
 export async function listEvaluations(request: Request) {
@@ -35,7 +34,8 @@ export async function createEvaluation(request: Request) {
   const input: EvaluationInput = {
     employeeId: field.uuid(body, "employeeId"),
     period: field.period(body, "period"),
-    evaluationDate: field.date(body, "evaluationDate", { required: completed }),
+    // Saved day in WIB, as on POST /api/d4/kpi-assessments: never back-dated.
+    evaluationDate: localToday(),
     evaluator,
     status,
     // Legacy columns of d4_performance_evaluations: FR-D4-001 defines no review label or aspects, so the API stores neutral values.
@@ -49,9 +49,7 @@ export async function createEvaluation(request: Request) {
   };
   if (!input.evidenceReference) throw new ApiError("VALIDATION_FAILED", "Reference wajib diisi.");
   enforce(() => assertNotSelf(access.employeeId, input.employeeId));
-  if (input.period > localMonth()) throw new ApiError("VALIDATION_FAILED", FUTURE_PERIOD);
-  enforce(() => assertNotFutureDate(input.evaluationDate));
-  enforce(() => assertEvaluationInPeriod(input.period, input.evaluationDate));
+  enforce(() => assertPeriodOpen(input.period, snapshot.periodReopenings ?? []));
   enforce(() => assertPeriodRevision(snapshot.performance, input.employeeId, input.period, optionalUuid(body, "revisionOf"), "Evaluation"));
   return { id: await repository.savePerformance(input, snapshot.reference) };
 }

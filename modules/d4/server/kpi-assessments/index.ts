@@ -1,12 +1,12 @@
 import { catalogFor, indicatorsFor, roleForPosition, scorableSet, targetOf } from "../../kpi/catalog";
 import { scaleMaxOf } from "../../kpi/scale";
 import type { KpiAssessmentLine } from "../../supabase/types";
-import { assertEvaluationInPeriod, assertNotFutureDate, assertNotSelf, assertPeriodRevision, localMonth } from "../../shared/rules";
+import { assertNotSelf, assertPeriodOpen, assertPeriodRevision, localToday, PERIOD_NOT_STARTED } from "../../shared/rules";
 import { ApiError, employeeFilter, enforce, field, optionalUuid, readJson } from "../_lib/http";
 import { loadCatalogSet } from "../kpi-catalog";
 import { d4Session, requireWriter } from "../_lib/session";
 
-export const FUTURE_PERIOD = "Period belum dimulai. Performance Review hanya untuk periode yang sudah berjalan.";
+export const FUTURE_PERIOD = PERIOD_NOT_STARTED;
 
 /** GET /api/d4/kpi-assessments?employee_id= — KPI scorecards, newest first. */
 export async function listAssessments(request: Request) {
@@ -47,6 +47,8 @@ export async function createAssessment(request: Request) {
   const evaluatorName = reference.employees.find((item) => item.id === access.employeeId)?.fullName;
   if (!evaluatorName) throw new ApiError("FORBIDDEN", "Akun ini belum terhubung ke data pegawai.");
   enforce(() => assertNotSelf(access.employeeId, employeeId));
+  // Before the revision rule: "already saved, save as a revision" would send HR to a revision that is refused too.
+  enforce(() => assertPeriodOpen(period, snapshot.periodReopenings ?? []));
   enforce(() => assertPeriodRevision(snapshot.kpiAssessments ?? [], employeeId, period, optionalUuid(body, "revisionOf"), "Scorecard"));
   if (roleForPosition(catalog, employee.positionId) !== roleOrder) throw new ApiError("VALIDATION_FAILED", "Set KPI yang dipilih bukan milik posisi pegawai ini.");
   if (!scorableSet(indicators)) throw new ApiError("VALIDATION_FAILED", "Role KPI tidak ditemukan di katalog, atau total bobotnya tidak 100%.");
@@ -69,11 +71,9 @@ export async function createAssessment(request: Request) {
   // Interview D4 (14 Oct 2026): evidence is required.
   const evidenceReference = field.text(body, "evidenceReference", { required: false, max: 500 }).trim();
   if (!evidenceReference) throw new ApiError("VALIDATION_FAILED", "Reference wajib diisi.");
-  const evaluationDate = field.date(body, "evaluationDate", { required: status === "completed" });
-  // K7: checked before the date rule, whose "before the start of the period" message misleads for a future period.
-  if (period > localMonth()) throw new ApiError("VALIDATION_FAILED", FUTURE_PERIOD);
-  enforce(() => assertNotFutureDate(evaluationDate));
-  enforce(() => assertEvaluationInPeriod(period, evaluationDate));
+  // The evaluation date is the day it is saved (WIB), whatever the client sends: a back-dated review reads as written
+  // earlier than it was (lecturer review, 24 Nov 2026). Set here, not checked, so a form left open past midnight still saves.
+  const evaluationDate = localToday();
   const id = await repository.saveKpiAssessment({
     definitionVersion: catalog.version,
     employeeId, roleOrder, roleName: indicators[0].role_name,

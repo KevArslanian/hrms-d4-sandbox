@@ -25,6 +25,9 @@ async function kpiDraft(employeeId: string, period: string, patch: Partial<KpiAs
 }
 
 describe("performance evaluation (fixture)", () => {
+  // Mid-October: September (last month) and October are open, November has not started (open/closed periods, 24 Nov 2026).
+  beforeEach(() => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-10-15T03:00:00Z")); });
+  afterEach(() => { vi.useRealTimers(); });
   it("saves a first evaluation and stores the signed-in actor as evaluator", async () => {
     const id = await source.createEvaluation(evaluation({ evaluator: "Nama Palsu" }));
     const saved = (await source.loadSnapshot()).performance.find((item) => item.id === id)!;
@@ -43,7 +46,7 @@ describe("performance evaluation (fixture)", () => {
   });
 
   it("rejects revisionOf when nothing exists for the period", async () => {
-    await expect(source.createEvaluation(evaluation({ period: "2026-08", revisionOf: "FIX-D4-PERF-001" }))).rejects.toThrow(/tidak cocok/);
+    await expect(source.createEvaluation(evaluation({ period: "2026-10", revisionOf: "FIX-D4-PERF-001" }))).rejects.toThrow(/tidak cocok/);
   });
 
   it("rejects self-evaluation", async () => {
@@ -59,26 +62,39 @@ describe("performance evaluation (fixture)", () => {
   it.each([
     ["empty notes", { generalNotes: "  " }],
     ["bad period", { period: "2026-13" }],
-    ["missing date", { evaluationDate: "" }],
   ])("rejects invalid input: %s", async (_name, patch) => {
     await expect(source.createEvaluation(evaluation(patch as Partial<EvaluationDraft>))).rejects.toThrow();
   });
 
   it("rejects an evaluation for a period that has not started (D4-FN-01)", async () => {
-    await expect(source.createEvaluation(evaluation({ period: "2026-12", evaluationDate: "2026-10-01" }))).rejects.toThrow("Tanggal evaluasi tidak boleh sebelum awal periode.");
-    await expect(source.createKpiAssessment(await kpiDraft(ALFA, "2026-11", { evaluationDate: "2026-10-01" }))).rejects.toThrow(/awal periode/);
+    await expect(source.createEvaluation(evaluation({ period: "2026-12" }))).rejects.toThrow("Period belum dimulai.");
+    await expect(source.createKpiAssessment(await kpiDraft(ALFA, "2026-11"))).rejects.toThrow(/belum dimulai/);
     const snapshot = await source.loadSnapshot();
     expect(snapshot.performance.some((item) => item.period === "2026-12")).toBe(false);
     expect(snapshot.kpiAssessments!.some((item) => item.period === "2026-11")).toBe(false);
   });
 
+  it("refuses a period before D4 records start, and a closed one", async () => {
+    await expect(source.createEvaluation(evaluation({ period: "2026-08" }))).rejects.toThrow(/September 2026/);
+    vi.setSystemTime(new Date("2026-11-24T03:00:00Z"));
+    await expect(source.createEvaluation(evaluation())).rejects.toThrow(/sudah ditutup/);
+  });
+
+  it("stores the saved day as the evaluation date, ignoring the one sent", async () => {
+    const id = await source.createEvaluation(evaluation({ evaluationDate: "2026-09-01" }));
+    expect((await source.loadSnapshot()).performance.find((item) => item.id === id)?.evaluationDate).toBe("2026-10-15");
+  });
+
   it("saves an evaluation without a score (scores live in the KPI Scorecard)", async () => {
-    const id = await source.createEvaluation(evaluation({ period: "2026-08", overallScore: null }));
+    const id = await source.createEvaluation(evaluation({ period: "2026-10", overallScore: null }));
     expect((await source.loadSnapshot()).performance.find((item) => item.id === id)?.overallScore).toBeNull();
   });
 });
 
 describe("KPI scorecard (fixture)", () => {
+  // Mid-October: September (last month) and October are open, November has not started (open/closed periods, 24 Nov 2026).
+  beforeEach(() => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-10-15T03:00:00Z")); });
+  afterEach(() => { vi.useRealTimers(); });
   it("saves a new period and computes the weighted total", async () => {
     const id = await source.createKpiAssessment(await kpiDraft(ALFA, "2026-10"));
     const saved = (await source.loadSnapshot()).kpiAssessments!.find((item) => item.id === id)!;

@@ -184,6 +184,8 @@ describe("saved scorecard total (fixture source, mirrors the DB trigger d4_calcu
   }
 
   it("saves a V6 period on the 1–100 scale and totals it with the same formula", async () => {
+    // November: both November (V6) and October (V5.1) are still open.
+    vi.setSystemTime(new Date("2026-11-20T03:00:00Z"));
     const scores = [90, 80, 70, 85, 100]; // weights 25/25/20/15/15
     const lines = indicatorsFor(catalog, FINANCE_ROLE).map((row, index) => ({
       indicator_order: row.indicator_order, kpi_name: row.kpi_name, weight_percent: row.weight_percent, target: "", actual: "", raw_score: scores[index], comment: "",
@@ -195,6 +197,7 @@ describe("saved scorecard total (fixture source, mirrors the DB trigger d4_calcu
     expect(saved.overallScore).toBe(84.25); // 22.5 + 20 + 14 + 12.75 + 15
     expect(performanceBand(saved.overallScore, saved.definitionVersion)).toBe("Average Performance");
     await expect(source.createKpiAssessment({ ...base, period: "2026-10", lines })).rejects.toThrow("1 sampai 5");
+    vi.setSystemTime(new Date("2026-12-20T03:00:00Z"));
     await expect(source.createKpiAssessment({ ...base, period: "2026-12", lines: lines.map((line) => ({ ...line, raw_score: 101 })) })).rejects.toThrow("1 sampai 100");
   });
 
@@ -217,6 +220,7 @@ describe("saved scorecard total (fixture source, mirrors the DB trigger d4_calcu
   });
 
   it("stores the catalog target, not the one in the request", async () => {
+    vi.setSystemTime(new Date("2026-11-20T03:00:00Z"));
     const lines = indicatorsFor(catalog, FINANCE_ROLE).map((row) => ({
       indicator_order: row.indicator_order, kpi_name: row.kpi_name, weight_percent: row.weight_percent, target: "999", actual: "", raw_score: 4, comment: "",
     }));
