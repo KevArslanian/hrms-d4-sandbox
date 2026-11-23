@@ -414,7 +414,7 @@ function MonthDays({ period, missed, todayOpen, selected, onPick }: { period: st
       const mark = isToday && <span aria-hidden="true" className="absolute bottom-1 left-1/2 size-1 -translate-x-1/2 rounded-full bg-current" />;
       return open.has(day)
         ? <button key={day} type="button" style={style} data-testid={isToday ? "daily-today" : `missed-${day}`} aria-label={isToday ? `${shortDay(day, language)}, ${t("Today")}` : shortDay(day, language)} aria-pressed={day === selected} onClick={() => onPick(day)}
-          className={cx("relative h-10 rounded-lg border font-semibold tabular-nums sm:h-8", day === selected ? "border-primary-500 bg-primary-50 text-primary-600" : "border-line bg-surface text-ink hover:border-primary-500")}>{Number(day.slice(8))}{mark}</button>
+          className={cx("relative h-10 rounded-lg font-semibold tabular-nums focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 sm:h-8", day === selected ? "bg-primary-600 text-white" : "bg-surface text-ink hover:bg-primary-50 hover:text-primary-600")}>{Number(day.slice(8))}{mark}</button>
         : <span key={day} style={style} className="relative inline-flex h-10 items-center justify-center gap-0.5 tabular-nums text-ink-2 sm:h-8"><Check aria-hidden="true" className="size-3" />{Number(day.slice(8))}{mark}<span className="sr-only">, {t("Filled")}</span></span>;
     })}
   </div>;
