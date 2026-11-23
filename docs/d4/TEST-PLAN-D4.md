@@ -26,11 +26,11 @@ Di luar cakupan: sertifikasi/renewal, trigger performance-gap formal, dan reasse
 | US-D4-005 / FR-D4-005 Training Tracking | TC-D4-005 | 16 (1 baru: Retraining sesudah Passed) | [QA] Pengujian Phase 3 |
 | US-D4-006 / FR-D4-006 Dashboard KPI Orang | TC-D4-006 | 26 (3 baru: skala di judul kolom, kartu ringkasan) | [QA] Pengujian Phase 3 |
 | FR-D4-007 / TR-D4-001 Keterhubungan data | TC-D4-007 | 9 | [QA] Pengujian Integration, Security, Validation & UI Quality |
-| Daily KPI (wawancara D4, 14 Okt 2026) | TC-D4-008 | 21 (baru) | [QA] Pengujian Phase 1 |
+| Daily KPI (wawancara D4, 14 Okt 2026) | TC-D4-008 | 22 (baru) | [QA] Pengujian Phase 1 |
 | TR-D4-002 Security & audit | TC-D4-SEC | 9 | idem |
 | TR-D4-002 Validation & UI quality | TC-D4-UIQ | 19 (1 baru: pola filter; 5 baru: bahasa, paginasi, info berulang) | idem |
 | Skenario lintas fitur | TS-D4-001 s.d. 003 | 3 | [QA] TS-D4-00x (list To Do List QA) |
-| **Total** | | **161** | |
+| **Total** | | **162** | |
 
 Semua FR dan TR yang dapat diuji punya minimal satu TC positif dan satu TC negatif.
 
@@ -248,7 +248,7 @@ Keputusan 8 Nov 2026: pegawai mengisi skornya sendiri per hari; skor periode dik
 | TC-D4-008-09 | Test pegawai dengan Daily KPI tanpa scorecard periode itu tampil Compiled (total, jumlah entri, gap) di Performance Review dan People Dashboard, tanpa input manual | Positif | Not Run | Staging: O7 |
 | TC-D4-008-10 | Test Finalize from Daily KPI: skor read-only, Notes dan Reference wajib, simpan membuat scorecard periode dengan total = skor kompilasi, lalu status menjadi Completed | Positif | Not Run | Staging: O5, O7 |
 | TC-D4-008-11 | Test Finalize tidak tersedia untuk diri sendiri, Employee, dan Management; grafik dan ringkasan dashboard tidak menghitung skor Compiled | Negatif | Not Run | Staging: O7, O8 |
-| TC-D4-008-12 | Test pengingat B5: pegawai yang belum mengisi hari ini melihat "Daily KPI hari ini belum diisi. Isi sebelum pulang."; setelah menyimpan, pengingat hilang | Positif | Not Run | Staging: O7 |
+| TC-D4-008-12 | Test pengingat B5: pegawai yang belum mengisi hari ini melihat "Daily KPI hari ini belum diisi. Isi sebelum pulang." (atau "Daily KPI hari ini dan N hari kerja lain bulan ini belum diisi." bila ada hari kerja lain yang terlewat); setelah menyimpan, pengingat hari ini hilang | Positif | Not Run | Staging: O7 |
 | TC-D4-008-13 | Test lonceng notifikasi: badge menghitung pengingat (Employee: "1") dan panel terbuka sendiri sekali untuk setiap kumpulan pengingat yang baru, selama Daily KPI hari ini belum diisi; "Isi sekarang" membuka `/daily-kpi`; setelah diisi, badge hilang; Simulasi Employee langsung membuka `/daily-kpi` | Positif | Not Run | Staging: O7 |
 | TC-D4-008-14 | Test kolom Category di tabel entri harian: Under/Average/High Performance per hari untuk skala 1–100, "—" untuk 1–5 | Positif | Not Run | Staging: O5, O7 |
 | TC-D4-008-15 | Test mengisi hari sebelumnya di periode berjalan (bukan tanggal 1): entri kemarin tersimpan, Days filled bertambah, skor kompilasi memakai rata-rata semua hari | Positif | Not Run | Staging: O7 |
@@ -258,6 +258,7 @@ Keputusan 8 Nov 2026: pegawai mengisi skornya sendiri per hari; skor periode dik
 | TC-D4-008-19 | Test lonceng "Belum punya training" (PST 2): sebagai HR, buat satu requirement terbuka tanpa training atau batalkan training satu-satunya; lonceng menampilkan "1 pegawai belum punya training", panel terbuka sendiri, "Buat training" membuka `/development`, dan alert **Belum punya training** muncul di People Dashboard. Sebagai Employee dan Management, pengingat ini tidak muncul | Positif | Not Run | – |
 | TC-D4-008-20 | Test Score dengan nol di depan (BUG-FN-D4-001): ketik `0`, `0`, `8`, `5` → field menulis `85`; tempel `0085` → `85`; `00000` → `0` dan Save ditolak dengan pesan rentang 1–100 | Negatif | Not Run | Staging: O7 |
 | TC-D4-008-21 | Test form kosong (BUG-FN-D4-002): setelah Save, Score dan Comment kosong; membuka lagi `/daily-kpi` atau memilih tanggal yang sudah terisi tetap memberi form kosong dengan pemberitahuan "sudah tersimpan dengan total …" dan tombol **Save correction**; **Correct** di tabel This period memuat skor dan komentar tersimpan beserta "Saved: N"; History tetap menampilkan semua entri | Positif | Not Run | Staging: O7 |
+| TC-D4-008-22 | Test kalender hari terlewat: dengan beberapa hari kerja bulan ini belum diisi, satu kotak kuning menampilkan kolom Sen–Jum, satu baris per minggu, dari tanggal 1 sampai hari ini; hari yang belum diisi berupa tombol (`missed-YYYY-MM-DD`, hari ini `daily-today` dengan titik), hari yang sudah diisi redup dengan centang; menekan tanggal membuka tanggal itu di form dan menandainya terpilih (latar biru penuh, teks putih), berbeda dari hover yang berlatar biru muda; setelah Save tanggal itu berubah jadi centang dan jumlah di kalimat berkurang satu; di 375 px tidak ada scroll ke samping dan tinggi sel 40 px | Positif | Not Run | Staging: O7 |
 
 ### TC-D4-SEC · TR-D4-002 Security & audit
 
