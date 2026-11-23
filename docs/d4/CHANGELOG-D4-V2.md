@@ -513,6 +513,15 @@ PR #63 menjawab masukan ini pada 20 Nov, tetapi sebelum digabung, PR #65, #68, #
 - **Daily KPI yang lupa diisi lebih dari sehari.** Sudah di PR #65, lalu menjadi kalender Sen–Jum di PR #70 (`daily-missed`, `missed-YYYY-MM-DD`). Tombol `btn-fill-missed-<tanggal>` dari PR #63 tidak dipakai.
 - **Bahasa judul dialog konfirmasi.** Sudah lewat toggle bahasa (PR #69 dan #72): judul dan tombol mengikuti bahasa yang dipilih, misalnya "Buang perubahan?" di ID dan "Discard changes?" di EN.
 
+## Kalender Daily KPI mengikuti design system · 24 Nov 2026
+
+- **Kotak kuning hanya berisi pengingat.** Kalender keluar dari kotak itu dan menjadi panel putih bergaris tipis dengan judul bulan, mengikuti komponen Base Calendar di Design System kelas (PISD, node `5277:644`) dan popup DateField di aplikasi. Sebelumnya kotak putih bertumpuk di atas latar kuning.
+- **Sel tanpa kotak, seperti Base Calendar.** Tanggal yang belum diisi bertulisan tebal dengan hover biru muda. Tanggal terpilih berupa kotak biru `primary-600` bersudut 8 px. Hari ini ditandai cincin biru (pengganti titik), jadi tetap terlihat saat tanggal lain dipilih. Hari yang sudah diisi tetap redup dengan centang (`text-ink-3`, kontras 4,76:1 di putih).
+- **Sisi kanan tidak kosong lagi** (masukan Kei). Mulai 768 px, field Tanggal, KPI posisi, dan Katalog berada di kanan kalender, jadi tanggal yang diklik langsung terlihat di sebelahnya. Di bawah 768 px urutannya ke bawah.
+- Testid tetap: `daily-missed`, `daily-reminder`, `missed-YYYY-MM-DD`, `daily-today`, `input-daily-date`. TC-D4-008-22 diperbarui.
+- Dicek di mode pratinjau pada 1225, 768, dan 375 px dalam ID dan EN: memilih 10 dan 12 Nov, hover, menyimpan 10 Nov sampai jadi centang dan jumlah turun dari 16 ke 15, tanpa scroll ke samping.
+- `modules/d4/web/features/daily/DailyKpiPages.tsx`
+
 ## Belum selesai
 
 | Item | Alasan | Langkah berikut |
