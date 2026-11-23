@@ -14,6 +14,7 @@ import { endPreviewSession } from "../data/preview-session";
 import { canWrite, developmentNeeds, needsTraining, thisMonth, today, visibleEmployees, type Snapshot } from "../data/selectors";
 import { useLanguage } from "../i18n/LanguageProvider";
 import { LanguageToggle } from "../i18n/LanguageToggle";
+import { IdleLogout } from "./IdleLogout";
 import { Button, cx, slug } from "./primitives";
 
 // People Dashboard first: it is the HR landing page and the summary the other five pages feed (decision 13 Nov 2026).
@@ -302,6 +303,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [menuOpen]);
 
   return <div className="min-h-screen bg-app">
+    <IdleLogout />
     <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[90] focus:rounded-lg focus:bg-surface focus:px-4 focus:py-2">{t("Skip to content")}</a>
     {menuOpen && <button type="button" aria-label={t("Close menu")} tabIndex={-1} className="fixed inset-0 z-30 bg-ink/40 lg:hidden" onClick={closeMenu} />}
     {/* Closed on a phone it is also invisible, so Tab does not walk through links that are off screen. Visibility is part of
