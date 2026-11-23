@@ -5,7 +5,11 @@ import { DEFAULT_LANGUAGE, interpolate, LANGUAGE_COOKIE, type Language, type Tex
 import { DICTIONARY } from "./dictionary";
 
 export function translator(language: Language): Translate {
-  return Object.assign((text: string, vars?: TextVars) => interpolate(DICTIONARY[text]?.[language] ?? text, vars), { language });
+  return Object.assign((text: string, vars?: TextVars) => {
+    const entry = DICTIONARY[text];
+    const singular = language === "en" && vars?.count === 1 ? entry?.enOne : undefined;
+    return interpolate(singular ?? entry?.[language] ?? text, vars);
+  }, { language });
 }
 
 // Display text -> source text, so a data-testid built from a label is the same in both languages (UI-D4-001 §6:

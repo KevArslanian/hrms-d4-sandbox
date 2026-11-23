@@ -35,7 +35,7 @@ describe("D4 language dictionary", () => {
 
   it("gives every entry a translation with the same placeholders", () => {
     const wrong = Object.entries(DICTIONARY).filter(([text, entry]) => (!entry.en && !entry.id)
-      || [entry.en, entry.id].some((value) => value !== undefined && placeholders(value).join() !== placeholders(text).join()));
+      || [entry.en, entry.id, entry.enOne].some((value) => value !== undefined && placeholders(value).join() !== placeholders(text).join()));
     expect(wrong.map(([text]) => text)).toEqual([]);
   });
 
@@ -43,5 +43,12 @@ describe("D4 language dictionary", () => {
     expect(translator("en")("No such text {n}", { n: 3 })).toBe("No such text 3");
     expect(plainText("Showing {first} of {total}", { first: 1, total: 2 })).toBe("Showing 1 of 2");
     expect(plainText.language).toBeNull();
+  });
+
+  it("uses the English singular for a count of one", () => {
+    const en = translator("en");
+    expect(en("{count} pegawai belum punya kategori.", { count: 1 })).toBe("1 employee has no category yet.");
+    expect(en("{count} pegawai belum punya kategori.", { count: 2 })).toBe("2 employees have no category yet.");
+    expect(translator("id")("{count} saved reviews", { count: 1 })).toBe("1 penilaian tersimpan");
   });
 });

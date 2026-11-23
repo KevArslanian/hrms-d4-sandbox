@@ -133,6 +133,7 @@ export const shared = {
   "Next year": { id: "Tahun berikutnya" },
   "Next month": { id: "Bulan berikutnya" },
   "This month": { id: "Bulan ini" },
+  "Today": { id: "Hari ini" },
   // Form modal
   "{what} untuk periode ini sudah ada ({existing}). Menyimpan akan membuat {revision}; versi sebelumnya tetap ada di riwayat.": { en: "{what} for this period already exists ({existing}). Saving creates a {revision}; the previous version stays in the history." },
   "revisi": { en: "revision" },

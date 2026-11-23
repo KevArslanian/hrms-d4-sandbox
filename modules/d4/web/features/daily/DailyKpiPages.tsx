@@ -314,8 +314,8 @@ function TeamDailyKpi() {
         { key: "days", header: t("Days filled (/{days})", { days: workingDays }), className: "tabular-nums", optional: true, cell: daysFilled },
         // R1: who has not filled today is visible at laptop widths; a closed period shows its last entry instead.
         running
-          ? { key: "today", header: t("Today"), cell: (row) => <>{row.last === today() ? <span data-testid="today-filled" className="text-ink-2">Filled</span>
-            : <span data-testid="today-missing" className={weekend ? "text-ink-3" : "font-semibold text-danger"}>Not filled</span>}{daysCompact(row)}</> }
+          ? { key: "today", header: t("Today"), cell: (row) => <>{row.last === today() ? <span data-testid="today-filled" className="text-ink-2">{t("Filled")}</span>
+            : <span data-testid="today-missing" className={weekend ? "text-ink-3" : "font-semibold text-danger"}>{t("Not filled")}</span>}{daysCompact(row)}</> }
           : { key: "last", header: t("Last entry"), cell: (row) => <>{formatDate(row.last, language)}{daysCompact(row)}</> },
         // The gap sits under the score, so the table keeps room for the status badge on laptop widths.
         { key: "score", header: t("Compiled score / Gap vs {target}", { target: KPI_TARGET }), className: "tabular-nums", cell: (row) => row.compiled ? <><span className="block font-semibold">{formatScore(row.compiled.total, scaleMaxOf(row.compiled.definitionVersion))}</span>

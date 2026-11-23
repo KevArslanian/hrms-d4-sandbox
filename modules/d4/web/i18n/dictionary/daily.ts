@@ -49,7 +49,7 @@ export const daily = {
   "Belum ada entri": { en: "No entries yet" },
   "Belum ada skor harian di periode ini.": { en: "No daily scores in this period yet." },
   "Corrected once": { id: "Dikoreksi sekali" },
-  "Corrected {count} times": { id: "Dikoreksi {count} kali" },
+  "Corrected {count} times": { id: "Dikoreksi {count} kali", enOne: "Corrected {count} time" },
   "Gap vs {target}": { id: "Gap dari {target}" },
   "Category": { id: "Kategori" },
   "Score per KPI": { id: "Skor per KPI" },
@@ -67,7 +67,8 @@ export const daily = {
   "Ubah kata kunci atau periode. Hanya pegawai dengan KPI di katalog yang tampil.": { en: "Change the search or the period. Only employees with a KPI in the catalog are shown." },
   "Days filled (/{days})": { id: "Hari terisi (/{days})" },
   "{filled} / {total} days": { id: "{filled} / {total} hari" },
-  "Today": { id: "Hari ini" },
+  "Filled": { id: "Sudah diisi" },
+  "Not filled": { id: "Belum diisi" },
   "Last entry": { id: "Entri terakhir" },
   "Compiled score / Gap vs {target}": { id: "Compiled score / Gap dari {target}" },
   // Employee entries and history pages

@@ -32,7 +32,7 @@ export const performance = {
   "Recorded by {actor} · {date}": { id: "Dicatat oleh {actor} · {date}" },
   "Related records": { id: "Data terkait" },
   "{count} saved review": { id: "{count} penilaian tersimpan" },
-  "{count} saved reviews": { id: "{count} penilaian tersimpan" },
+  "{count} saved reviews": { id: "{count} penilaian tersimpan", enOne: "{count} saved review" },
   "Performance Review history": { id: "Riwayat Performance Review" },
   "Pegawai ini belum memiliki Performance Review.": { en: "This employee has no Performance Review yet." },
   "Catalog {version} · Evaluator {name}": { id: "Katalog {version} · Penilai {name}" },
@@ -75,6 +75,7 @@ export const performance = {
   "Actual diisi dari rata-rata {count} entri Daily KPI pegawai ini ({period}), dibulatkan. Periksa dan ubah bila perlu sebelum menyimpan.": {
     en: "Actual is filled from the average of this employee's {count} Daily KPI entries ({period}), rounded. Check and change it if needed before saving.",
     id: "Aktual diisi dari rata-rata {count} entri Daily KPI pegawai ini ({period}), dibulatkan. Periksa dan ubah bila perlu sebelum menyimpan.",
+    enOne: "Actual is filled from this employee's {count} Daily KPI entry ({period}). Check and change it if needed before saving.",
   },
   "Performance Review {period} untuk pegawai ini sudah pernah direvisi (terakhir {evaluator}, {date}). Batasnya satu revisi per periode, jadi periode ini tidak bisa disimpan lagi. Riwayatnya ada di halaman Performance Review pegawai.": {
     en: "This employee's Performance Review {period} has already been revised (last by {evaluator}, {date}). The limit is one revision per period, so this period cannot be saved again. Its history is on the employee's Performance Review page.",
@@ -138,6 +139,7 @@ export const performance = {
   "Skor {period} dikompilasi dari {count} entri Daily KPI {name}. Skor tidak diubah di sini; tambahkan Notes dan Reference lalu simpan.": {
     en: "The {period} scores are compiled from {count} Daily KPI entries of {name}. Scores are not changed here; add Notes and Reference, then save.",
     id: "Skor {period} dikompilasi dari {count} entri Daily KPI {name}. Skor tidak diubah di sini; tambahkan Catatan dan Referensi lalu simpan.",
+    enOne: "The {period} scores are compiled from {count} Daily KPI entry of {name}. Scores are not changed here; add Notes and Reference, then save.",
   },
   "Finalize": { id: "Finalisasi" },
   "Days compiled": { id: "Hari dikompilasi" },

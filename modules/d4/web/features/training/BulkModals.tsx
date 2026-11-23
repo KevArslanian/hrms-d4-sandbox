@@ -91,7 +91,7 @@ export function BulkTrainingModal({ needs, choices, initial, title = "Add Traini
     if (missing.length) { setError(t("Lengkapi {fields} sebelum menyimpan.", { fields: missing.join(", ") })); return; }
     setError("");
     let outcome: BulkOutcome | undefined;
-    const saved = await run(async (source) => requireSome(outcome = await addTrainingToNeeds(source, targets, { activity, date, status, notes })), (value) => bulkSummary(value, "training"));
+    const saved = await run(async (source) => requireSome(outcome = await addTrainingToNeeds(source, targets, { activity, date, status, notes })), (value) => bulkSummary(value, "training", t));
     settle(saved.ok ? saved.value : outcome, saved.ok ? "" : saved.error);
   }
   /** Every refused row is listed with its reason, also when none was saved; a write error without rows is shown as is. */
@@ -173,7 +173,7 @@ export function BulkProgressModal({ trainings, onClose, onDone }: { trainings: r
       ? { status, result: result as TrainingCompletion["result"], decision: decision as TrainingDecision | typeof DECIDE_LATER, notes, ...(retraining ? { activity, date } : {}) }
       : { status, notes };
     let outcome: BulkOutcome | undefined;
-    const saved = await run(async (source) => requireSome(outcome = await updateTrainings(source, trainings, change)), (value) => bulkSummary(value, "training"), BACKGROUND);
+    const saved = await run(async (source) => requireSome(outcome = await updateTrainings(source, trainings, change)), (value) => bulkSummary(value, "training", t), BACKGROUND);
     settle(saved.ok ? saved.value : outcome, saved.ok ? "" : saved.error);
   }
   /** Same as in BulkTrainingModal: refused rows stay listed and selected, a fully saved batch closes the form. */

@@ -91,7 +91,9 @@ export const training = {
   "Disalin juga ke catatan training ulang.": { en: "Also copied to the new training's notes." },
   // Bulk Add Training, Add Participants and bulk Update Progress
   "Save {count} Training": { id: "Simpan {count} Training" },
-  "Save {count} Trainings": { id: "Simpan {count} Training" },
+  "{done} {what} tersimpan, {failed} gagal.": { en: "{done} {what} saved, {failed} failed." },
+  "{done} {what} tersimpan.": { en: "{done} {what} saved." },
+  "Save {count} Trainings": { id: "Simpan {count} Training", enOne: "Save {count} Training" },
   "{count} tidak tersimpan dan masih dipilih. Perbaiki lalu simpan lagi, atau pilih keputusan lain:": { en: "{count} not saved and still selected. Fix them and save again, or choose another decision:" },
   "Belum ada development requirement terbuka yang bisa diberi training. Pegawai yang mau ikut perlu requirement dulu: buat lewat Add Requirement di Development Requirement.": { en: "There is no open development requirement to add a training to. An employee who wants to join needs a requirement first: create one with Add Requirement in Development Requirement.", id: "Belum ada development requirement terbuka yang bisa diberi training. Pegawai yang mau ikut perlu requirement dulu: buat lewat Tambah Requirement di Development Requirement." },
   "Requirements": { id: "Requirement" },
