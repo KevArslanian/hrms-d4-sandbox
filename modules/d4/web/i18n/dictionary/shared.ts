@@ -25,6 +25,9 @@ export const shared = {
   "trainings": { id: "training", enOne: "training" },
   "{count} dari {total} requirement dipilih": { en: "{count} of {total} requirements selected" },
   "{count} dari {total} training dipilih": { en: "{count} of {total} trainings selected" },
+  "Tidak ikut disimpan: {reason}": { en: "Not saved: {reason}" },
+  "{count} training tidak memenuhi syarat untuk pilihan ini dan tidak ikut disimpan. Alasannya ada di daftar; hapus centangnya atau ubah pilihan.": { en: "{count} trainings do not qualify for this choice and will not be saved. The reason is in the list; untick them or change the choice." },
+  "Tidak ada training yang bisa diproses dengan pilihan ini. Hapus centang yang bermasalah atau ubah pilihannya.": { en: "No training can be processed with this choice. Untick the ones flagged or change the choice." },
   // Words used by several feature folders
   "Actions for {name}": { id: "Aksi untuk {name}" },
   "Actual": { id: "Aktual" },
