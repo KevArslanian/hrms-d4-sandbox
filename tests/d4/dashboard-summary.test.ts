@@ -4,7 +4,7 @@ import type { KpiAssessment } from "@/modules/d4/supabase/types";
 import type { TrainingVersion } from "@/modules/d4/training/types";
 import { currentCompetencyStatus, currentGap, employeeSearchText, includesText, positionOf, type Snapshot } from "@/modules/d4/web/data/selectors";
 import { catalogFor, seedCatalogSet } from "@/modules/d4/kpi/catalog";
-import { averageScores, competencySlices, dashboardAlerts, defaultPeriod, employeeHistory, gapRanking, performanceSlices, profilePeriod, reviewCounts, withoutKpiRole, type DashboardRow } from "@/modules/d4/web/features/dashboard/summary";
+import { averageScores, competencySlices, dashboardAlerts, defaultPeriod, employeeHistory, gapRanking, latestTrainingOf, openNeedsOf, performanceSlices, profilePeriod, reviewCounts, tileMembers, trainingsInProgress, withoutKpiRole, type DashboardRow } from "@/modules/d4/web/features/dashboard/summary";
 
 async function hrSnapshot(): Promise<Snapshot> {
   vi.stubEnv("NEXT_PUBLIC_D4_FIXTURE_ROLE", "HR");
@@ -143,12 +143,49 @@ describe("People Dashboard charts", () => {
     const retrained = { ...notPassed, trainingVersions: [...notPassed.trainingVersions, training("T2", "2026-10-20", "Planned", "")] };
     expect(keys(retrained)).not.toContain("training-not-passed");
 
-    // Dosen 17 Nov 2026: who needs training. An open requirement without a training, a cancelled one does not count.
-    expect(keys(noPic)).toContain("requirement-no-training");
-    const cancelled = { ...noPic, trainingVersions: [training("T3", "2026-10-05", "Cancelled", "")] };
-    expect(keys(cancelled)).toContain("requirement-no-training");
-    expect(keys(notPassed)).not.toContain("requirement-no-training");
+    // PST 2 (Kei): an open requirement without a running or finished training is who still needs training.
+    const waiting = { ...noNeeds, developmentVersions: [need("Planned")] };
+    expect(keys(waiting)).toContain("requirement-no-training");
+    // The "Need training" tile counts every open requirement, so this narrower alert must not reuse that name.
+    expect(dashboardAlerts(waiting, rowsOf(waiting)).find((alert) => alert.key === "requirement-no-training")?.title).toBe("Belum punya training");
+    expect(keys({ ...waiting, trainingVersions: [training("T3", "2026-10-01", "Cancelled", "")] })).toContain("requirement-no-training");
+    expect(keys({ ...waiting, trainingVersions: [training("T4", "2026-10-01", "Planned", "")] })).not.toContain("requirement-no-training");
     expect(keys(completed)).not.toContain("requirement-no-training");
+  });
+});
+
+describe("summary tiles open the people they count (Pak Emanuel, 17 Nov 2026)", () => {
+  const ids = (list: readonly DashboardRow[]) => list.map((row) => row.employee.id);
+
+  it("puts every row in one Performance Review group, and the training tiles list the rows they count", () => {
+    const row = (id: string, openNeeds: number, trainingInProgress: boolean, card?: KpiAssessment) => ({ employee: employee(id), gap: "Gap", openNeeds, trainingInProgress, scorecard: card });
+    const rows = [row("a", 0, false, scorecard(90, "V6")), row("b", 2, true, scorecard(90, "V6", 4)), row("c", 1, false), row("d", 0, true)];
+    const members = tileMembers(rows, [rows[3]]);
+    expect(ids(members.reviewed)).toEqual(["a"]);
+    expect(ids(members.invalid)).toEqual(["b"]);
+    expect(ids(members.notReviewed)).toEqual(["c"]);
+    expect(ids(members.noKpi)).toEqual(["d"]);
+    expect(ids(members.dev)).toEqual(["b", "c"]);
+    expect(ids(members.training)).toEqual(["b", "d"]);
+  });
+
+  it("shows each open requirement with its latest training that is not Cancelled, and only trainings still In Progress", async () => {
+    const base = await hrSnapshot();
+    const target = base.reference.employees[0];
+    const need = (needId: string, status: DevelopmentNeedVersion["status"]): DevelopmentNeedVersion => ({ ...base.developmentVersions[0], id: needId, needId, revision: 1, employeeId: target.id, status });
+    const training = (id: string, trainingId: string, revision: number, date: string, status: TrainingVersion["status"]): TrainingVersion => ({
+      ...(base.trainingVersions[0] as TrainingVersion), id, trainingId, revision, employeeId: target.id, developmentNeedId: "N-OPEN", date, status, result: "", createdAt: `${date}T08:00:00.000Z`,
+    });
+    const snapshot = { ...base, developmentVersions: [need("N-OPEN", "Planned"), need("N-DONE", "Completed")], trainingVersions: [
+      training("T1", "T1", 1, "2026-10-01", "Completed"), training("T2", "T2", 1, "2026-10-20", "Planned"), training("T3", "T3", 1, "2026-10-25", "Cancelled"),
+      // A training that was In Progress and is now Completed is no longer in progress.
+      training("T4a", "T4", 1, "2026-10-05", "In Progress"), training("T4b", "T4", 2, "2026-10-05", "Completed"),
+    ] };
+    expect(openNeedsOf(snapshot, target.id).map((item) => item.needId)).toEqual(["N-OPEN"]);
+    expect(latestTrainingOf(snapshot, need("N-OPEN", "Planned"))?.trainingId).toBe("T2");
+    expect(latestTrainingOf({ ...snapshot, trainingVersions: [training("T3", "T3", 1, "2026-10-25", "Cancelled")] }, need("N-OPEN", "Planned"))).toBeUndefined();
+    expect(trainingsInProgress(snapshot, target.id)).toEqual([]);
+    expect(trainingsInProgress({ ...snapshot, trainingVersions: [training("T4a", "T4", 1, "2026-10-05", "In Progress")] }, target.id).map((item) => item.trainingId)).toEqual(["T4"]);
   });
 });
 

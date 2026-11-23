@@ -120,14 +120,14 @@ Catatan: seed live tidak membuat competency assessment, jadi "Last saved" kosong
 | --- | --- | --- | --- | --- |
 | 1 | Menu **Development Requirement** | Filter: All departments, All sources, All status, All periods. Fixture: Alfa "Raise administrative accuracy…" (High, Planned, sumber Competency Gap); Charlie (Medium, In Progress). Live: seed "Perkuat ketelitian dokumen operasional" (Performance Evaluation, Identified; isi data seed tetap bahasa Indonesia) | "Setiap kebutuhan development wajib punya sumber: gap kompetensi, perubahan posisi, atau hasil evaluasi." | Tabel kosong: buat satu lewat **Add Requirement** (Source type Performance Evaluation, Source reference = evaluasi dari langkah 4.1.3) |
 | 2 | Buka requirement Alfa / employee demo | Kartu "Source (traceability)" yang tertaut ke sumbernya, dan "Linked training" | "Klik sumbernya dan kita kembali ke gap atau evaluasi asalnya. Inilah jejak kenapa training ini ada." | – |
-| 3 | **Update progress in Training** → Update Progress ke **In Progress** → Save, lalu kembali ke requirement | Status requirement ikut menjadi In Progress dengan catatan "Mengikuti Training Tracking."; "Revision history" bertambah satu | "Progres hanya ditulis di Training Tracking. Requirement mengikutinya, jadi tidak ada dua status yang bisa bertentangan." | Belum ada training: **Create Training** dulu (requirement menjadi Planned) |
+| 3 | **Update progress in Training** → Update Progress ke **In Progress** → Save, lalu kembali ke requirement | Status requirement ikut menjadi In Progress dengan catatan "Mengikuti Training Tracking."; "Development Requirement history" bertambah satu | "Progres hanya ditulis di Training Tracking. Requirement mengikutinya, jadi tidak ada dua status yang bisa bertentangan." | Belum ada training: **Create Training** dulu (requirement menjadi Planned) |
 
 ### 4.5 Training Tracking (HR, 1:15)
 
 | # | Klik | Data yang muncul | Yang diucapkan | Fallback |
 | --- | --- | --- | --- | --- |
 | 1 | Menu **Training Tracking** | Filter: All departments, All periods, All status. Fixture: "Administrative Accuracy Workshop" (Alfa, 8 Oct 2026, Planned), "Safety Operations Briefing" (Charlie, 1 Oct 2026, In Progress). Live: seed "Workshop Akurasi Dokumen & Administrasi" (Planned) | "Training selalu terhubung ke development requirement. Tidak ada training tanpa alasan." | Kosong: buka requirement yang masih terbuka di Development Requirement → **Create Training** (Training Tracking tidak punya tombol Add Training) |
-| 2 | Buka training Alfa / employee demo → **Update Progress** → In Progress → **Save Progress** | Status In Progress dan entri baru di "Status history" | "Kalau status mundur, misalnya dari Completed ke Planned, alasan wajib diisi." | – |
+| 2 | Buka training Alfa / employee demo → **Update Progress** → In Progress → **Save Progress** | Status In Progress dan entri baru di "Training history" | "Kalau status mundur, misalnya dari Completed ke Planned, alasan wajib diisi." | – |
 | 3 | Tunjuk notice kuning | "A Completed training does not automatically mark the competency gap as met…" | "Selesai training tidak berarti gap tertutup. Gap baru tertutup setelah reassessment oleh manusia." | – |
 
 ### 4.6 People Dashboard (HR, 1:00)

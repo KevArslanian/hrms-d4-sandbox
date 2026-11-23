@@ -53,15 +53,13 @@ describe("workingDaysSoFar (R1)", () => {
   });
 });
 
-// Dosen 17 Nov 2026: "kalau lupa isinya lebih dari 1 hari?" The form shows the working days still empty this month.
-describe("missedWorkingDays", () => {
-  it("lists empty weekdays of the running month before today", () => {
-    // November 2026: the 2nd is a Monday; the 7th and 8th are a weekend.
-    expect(missedWorkingDays("2026-11", "2026-11-10", new Set(["2026-11-02", "2026-11-04"]))).toEqual(["2026-11-03", "2026-11-05", "2026-11-06", "2026-11-09"]);
+describe("missed Daily KPI days (lecturer, 22 Nov 2026)", () => {
+  it("lists the empty working days before today, oldest first, without weekends", () => {
+    // Fri 20, Sat 21, Sun 22 Nov 2026: the weekend is not a missed day, today has its own reminder.
+    expect(missedWorkingDays("2026-11", "2026-11-23", new Set(["2026-11-03", "2026-11-04", "2026-11-05", "2026-11-06", "2026-11-09", "2026-11-10", "2026-11-11", "2026-11-12", "2026-11-13", "2026-11-16", "2026-11-17", "2026-11-18", "2026-11-19"])))
+      .toEqual(["2026-11-02", "2026-11-20"]);
   });
-
-  it("leaves out today, and a past or future period", () => {
-    expect(missedWorkingDays("2026-11", "2026-11-02", new Set())).toEqual([]);
-    expect(missedWorkingDays("2026-10", "2026-11-10", new Set())).toEqual([]);
+  it("offers nothing outside the running period, which can no longer be filled", () => {
+    expect(missedWorkingDays("2026-10", "2026-11-23", new Set())).toEqual([]);
   });
 });

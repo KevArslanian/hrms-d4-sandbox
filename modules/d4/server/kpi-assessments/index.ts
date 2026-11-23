@@ -1,4 +1,4 @@
-import { catalogFor, indicatorsFor, roleForPosition, targetOf } from "../../kpi/catalog";
+import { catalogFor, indicatorsFor, roleForPosition, scorableSet, targetOf } from "../../kpi/catalog";
 import { scaleMaxOf } from "../../kpi/scale";
 import type { KpiAssessmentLine } from "../../supabase/types";
 import { assertEvaluationInPeriod, assertNotFutureDate, assertNotSelf, assertPeriodRevision, localMonth } from "../../shared/rules";
@@ -25,7 +25,7 @@ export async function getAssessment(id: string) {
 
 /**
  * POST /api/d4/kpi-assessments — the catalog version is the one in force for the period, and the KPI role must be
- * the one HR mapped to the employee's position in that version (FR-02.1/FR-02.11) and the five lines must match it exactly (name, order, weight = 100 %). Weighted and total scores are calculated by the
+ * the one mapped to the employee's position in that version (FR-02.1/FR-02.11; D1's KPI since 20261124130000) and the lines must match it exactly (count, order, weight = 100 %). Weighted and total scores are calculated by the
  * database trigger. Since Q4 the form's Actual is the raw score (`raw_score`); `actual` is stored as sent, and text in it
  * from an older client is shown as realisation in Comment.
  */
@@ -49,8 +49,8 @@ export async function createAssessment(request: Request) {
   enforce(() => assertNotSelf(access.employeeId, employeeId));
   enforce(() => assertPeriodRevision(snapshot.kpiAssessments ?? [], employeeId, period, optionalUuid(body, "revisionOf"), "Scorecard"));
   if (roleForPosition(catalog, employee.positionId) !== roleOrder) throw new ApiError("VALIDATION_FAILED", "Set KPI yang dipilih bukan milik posisi pegawai ini.");
-  if (indicators.length !== 5 || indicators.reduce((sum, row) => sum + row.weight_percent, 0) !== 100) throw new ApiError("VALIDATION_FAILED", "Role KPI tidak ditemukan di katalog, atau total bobotnya tidak 100%.");
-  if (!Array.isArray(body.lines) || body.lines.length !== 5) throw new ApiError("VALIDATION_FAILED", "Scorecard harus memiliki lima indikator KPI.");
+  if (!scorableSet(indicators)) throw new ApiError("VALIDATION_FAILED", "Role KPI tidak ditemukan di katalog, atau total bobotnya tidak 100%.");
+  if (!Array.isArray(body.lines) || body.lines.length !== indicators.length) throw new ApiError("VALIDATION_FAILED", `Scorecard harus memiliki ${indicators.length} indikator KPI sesuai katalog.`);
   const lines: KpiAssessmentLine[] = indicators.map((indicator, index) => {
     const raw = (body.lines as unknown[])[index] as Record<string, unknown> | null;
     if (!raw) throw new ApiError("VALIDATION_FAILED", `Indikator ${index + 1} wajib diisi.`);
@@ -80,7 +80,7 @@ export async function createAssessment(request: Request) {
     period, evaluationDate,
     evaluatorName,
     status, lines,
-    // FR-D4-001 v3.1: one Penilaian Kinerja = five KPI + notes + evidence, all required.
+    // FR-D4-001 v3.1: one Penilaian Kinerja = the position's KPI + notes + evidence, all required.
     generalNotes,
     evidenceReference,
   });

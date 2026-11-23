@@ -14,6 +14,6 @@ describe("total of a Performance Review revision against the saved one", () => {
     expect(totalComparison(82, 82)).toBe("Saved total 82.00 · New total 82.00 · sama dengan yang tersimpan");
   });
   it("keeps the saved total visible while a score is still empty", () => {
-    expect(totalComparison(82, null)).toBe("Saved total 82.00. Isi kelima Actual untuk melihat total baru.");
+    expect(totalComparison(82, null)).toBe("Saved total 82.00. Isi semua Actual untuk melihat total baru.");
   });
 });

@@ -4,8 +4,9 @@
 -- and the three performance categories. One row per period that has D4 data; MID picks the period it shows.
 --
 -- The counts follow the dashboard code (modules/d4/web/features/dashboard): every active B2 account with a name and a
--- login, the newest revision of each requirement and training, and the newest scorecard per employee and period with
--- five lines weighing 100%. Categories exist only on the 1-100 scale: < 80 Under, 80-85 Average, > 85 High.
+-- login, the newest revision of each requirement and training, and the newest scorecard per employee and period whose
+-- lines weigh 100% (any number of lines since 20261124130000: D1 positions have three to five KPI). Categories exist
+-- only on the 1-100 scale: < 80 Under, 80-85 Average, > 85 High.
 -- Aggregates only, no names or ids: any signed-in account may read it, anon may not.
 create or replace view public.d4_mid_hrms_summary as
 with employees as (
@@ -41,8 +42,7 @@ reviewed as (
   select s.period, s.overall_score,
     s.definition_version not in ('V3.1', 'V5.1') as scale_100
   from scorecards s
-  where jsonb_array_length(s.lines) = 5
-    and (select sum((line->>'weight_percent')::numeric) from jsonb_array_elements(s.lines) line) = 100
+  where (select sum((line->>'weight_percent')::numeric) from jsonb_array_elements(s.lines) line) = 100
 )
 select
   p.period,
