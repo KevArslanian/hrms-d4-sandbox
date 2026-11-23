@@ -171,7 +171,7 @@ export function TrainingDetailPage({ trainingId }: { trainingId: string }) {
             : pending === "follow-up"
             ? <Notice tone="warning"><strong>Awaiting follow-up.</strong> Hasil Not Passed wajib ditindaklanjuti HR: Retraining, atau Other follow-up (coaching, rotasi, eskalasi ke atasan) dengan catatan.</Notice>
             : <div className="space-y-3">
-                <p className="text-sm text-ink-2">Training Passed. Catat hasil reassessment: Meets requirement bila level kompetensinya sudah memenuhi, atau Retraining bila gap belum tertutup.</p>
+                <p className="text-sm text-ink-2">Training Passed. Catat hasil reassessment: Meets requirement bila level kompetensinya sudah memenuhi, atau Retraining bila penilaian ulang di Competency Gap sesudah training masih menunjukkan gap.</p>
                 {finding && <LevelLine finding={finding} employeeId={record.employeeId} />}
               </div>}
           {canAssess(snapshot, record.employeeId) && <div className="mt-4"><Button variant="primary" icon={pending === "reassessment" ? <Scale className="size-4" /> : <ListChecks className="size-4" />} onClick={() => setProgressOpen(true)}

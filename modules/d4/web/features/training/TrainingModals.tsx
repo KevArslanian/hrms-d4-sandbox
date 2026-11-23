@@ -6,7 +6,7 @@ import type { CompetencyFinding } from "../../../competency/types";
 import type { TrainingStatus } from "../../../training/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
 import { developmentById, developmentNeeds, employeeById, reassessmentFor, sourceFinding, today, trainingById, trainingDecision, trainingHistory, visibleEmployees } from "../../data/selectors";
-import { followUpOf, isTrainingRollback, meetsBlockedReason, TRAINING_RESULTS, type TrainingCompletion, type TrainingDecision } from "../../../shared/rules";
+import { completedAt, followUpOf, isTrainingRollback, lastAssessedAt, meetsBlockedReason, retrainingBlockedReason, TRAINING_RESULTS, type TrainingCompletion, type TrainingDecision } from "../../../shared/rules";
 import { DateField, FormError, FormModal, ModalActions, RadioField, ReadOnlyField, SearchSelectField, SelectField, TextAreaField, TextField } from "../../ui/forms";
 import { Notice, statusLabel } from "../../ui/primitives";
 
@@ -106,8 +106,9 @@ export function LevelLine({ finding, employeeId }: { finding: CompetencyFinding;
 
 /**
  * The one place a training is finished (Training Tracking). Picking Completed asks for the result and, in the same
- * save, HR's decision: Passed → Meets requirement (closes the requirement), Retraining or Decide later; Not Passed →
- * Retraining or Other follow-up (Q16). A training saved Completed without a decision reopens here from its Next step.
+ * save, HR's decision: Passed → Meets requirement (closes the requirement) or Decide later; Not Passed → Retraining or
+ * Other follow-up (Q16). A training saved Completed without a decision reopens here from its Next step, where a Passed
+ * one gets the reassessment: Meets requirement or Retraining (see retrainingBlockedReason).
  */
 export function TrainingProgressModal({ trainingId, onClose, onSaved }: { trainingId: string; onClose: () => void; onSaved?: () => void }) {
   const snapshot = useSnapshot();
@@ -134,11 +135,16 @@ export function TrainingProgressModal({ trainingId, onClose, onSaved }: { traini
   const blocked = meetsBlockedReason(finding);
   const retraining = deciding && decision === "Retraining", other = deciding && decision === "Other follow-up";
   const later = deciding && decision === LATER;
+  // Interview 14 Oct (part 2, 00:53:31): Retraining after a pass is the outcome of a reassessment, so it is offered
+  // only once the Passed result is saved; the save that records Passed has Meets requirement or Decide later.
+  const reassessing = pending === "reassessment";
+  const retrainingReason = need && reassessing ? retrainingBlockedReason(need, finding, completedAt(trainingHistory(snapshot, record.trainingId)),
+    lastAssessedAt(snapshot.competency, record.employeeId, employeeById(snapshot, record.employeeId)?.positionId)) : "";
   const options = result === "Passed" ? [
-    // PST 2: "Passed" beside a bare "Retraining" read as a contradiction; the labels say it is the gap that decides.
     { value: "Meets requirement", label: "Gap closed: Meets requirement", description: blocked ? "Belum bisa: level kompetensinya belum memenuhi. Perbarui dulu di data kompetensi pegawai (modul D3)." : "Gap tertutup. Requirement ditutup (Completed).", testId: "meets-requirement", disabled: Boolean(blocked) },
-    { value: "Retraining", label: "Gap still open: Retraining", description: "Lulus training, tetapi level kompetensinya masih di bawah requirement. Requirement dibuka lagi dan training ulang dibuat (Planned)." },
-    { value: LATER, label: LATER, description: "Hasil Passed disimpan sekarang. Keputusan dicatat nanti dari Next step, setelah level di data kompetensi pegawai (modul D3) diperbarui.", testId: "decide-later" },
+    ...(reassessing
+      ? [{ value: "Retraining", label: "Gap still open: Retraining", description: retrainingReason || "Penilaian ulang sesudah training masih menunjukkan level di bawah requirement. Requirement dibuka lagi dan training ulang dibuat (Planned).", testId: "retraining", disabled: Boolean(retrainingReason) }]
+      : [{ value: LATER, label: LATER, description: "Hasil Passed disimpan sekarang. Setelah kompetensinya dinilai ulang di Competency Gap, pilih Meets requirement atau Retraining dari Next step.", testId: "decide-later" }]),
   ] : FOLLOW_UP_OPTIONS;
   const saveResult = status === "Completed" ? result : "";
   const sameResult = status === record.status && saveResult === record.result;
@@ -156,7 +162,7 @@ export function TrainingProgressModal({ trainingId, onClose, onSaved }: { traini
     setError("");
     const saved = deciding && !later
       ? await run((source) => source.completeTraining(trainingId, { result: result as TrainingCompletion["result"], decision: decision as TrainingDecision, notes, ...(retraining ? { activity, date } : {}) }), DONE[`${result} · ${decision}`], BACKGROUND)
-      : await run((source) => source.updateTraining(trainingId, status, saveResult, notes), later ? "Training Completed (Passed). Catat hasil reassessment dari Next step setelah level di data kompetensi pegawai (modul D3) diperbarui." : "Progres training tersimpan sebagai versi baru.", BACKGROUND);
+      : await run((source) => source.updateTraining(trainingId, status, saveResult, notes), later ? "Training Completed (Passed). Setelah kompetensinya dinilai ulang di Competency Gap, catat Meets requirement atau Retraining dari Next step." : "Progres training tersimpan sebagai versi baru.", BACKGROUND);
     if (saved.ok) { onSaved?.(); onClose(); } else setError(saved.error);
   }
 

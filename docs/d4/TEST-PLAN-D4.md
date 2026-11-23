@@ -23,14 +23,14 @@ Di luar cakupan: sertifikasi/renewal, trigger performance-gap formal, dan reasse
 | US-D4-002 / FR-D4-002 KPI Scorecard | TC-D4-002 | 25 (3 baru: KPI gap; 1 baru: BUG-FN-D4-001) | [QA] Pengujian Phase 1 |
 | US-D4-003 / FR-D4-003 Competency Gap | TC-D4-003 | 12 | [QA] Pengujian Phase 2 |
 | US-D4-004 / FR-D4-004 Development Requirement | TC-D4-004 | 15 (3 baru) | [QA] Pengujian Phase 2 |
-| US-D4-005 / FR-D4-005 Training Tracking | TC-D4-005 | 15 | [QA] Pengujian Phase 3 |
+| US-D4-005 / FR-D4-005 Training Tracking | TC-D4-005 | 16 (1 baru: Retraining sesudah Passed) | [QA] Pengujian Phase 3 |
 | US-D4-006 / FR-D4-006 Dashboard KPI Orang | TC-D4-006 | 24 (1 baru: skala di judul kolom) | [QA] Pengujian Phase 3 |
 | FR-D4-007 / TR-D4-001 Keterhubungan data | TC-D4-007 | 9 | [QA] Pengujian Integration, Security, Validation & UI Quality |
 | Daily KPI (wawancara D4, 14 Okt 2026) | TC-D4-008 | 21 (baru) | [QA] Pengujian Phase 1 |
 | TR-D4-002 Security & audit | TC-D4-SEC | 9 | idem |
 | TR-D4-002 Validation & UI quality | TC-D4-UIQ | 14 (1 baru: pola filter) | idem |
 | Skenario lintas fitur | TS-D4-001 s.d. 003 | 3 | [QA] TS-D4-00x (list To Do List QA) |
-| **Total** | | **153** | |
+| **Total** | | **154** | |
 
 Semua FR dan TR yang dapat diuji punya minimal satu TC positif dan satu TC negatif.
 
@@ -176,6 +176,7 @@ Kartu Planka: **[QA] Pengujian Phase 3**
 | TC-D4-005-13 | Test filter status | Positif | Not Run | Staging |
 | TC-D4-005-14 | Test filter requirement sumber | Positif | Not Run | Staging |
 | TC-D4-005-15 | Test training selesai tidak otomatis menutup competency gap | Negatif | Not Run | Staging |
+| TC-D4-005-16 | Test Retraining sesudah Passed (23 Nov 2026): saat Completed + Passed dicatat, pilihannya hanya Gap closed: Meets requirement dan Decide later; di Next step, Gap still open: Retraining nonaktif dengan alasannya sampai penilaian Competency Gap disimpan sesudah hasil Passed dan levelnya masih di bawah requirement; setelah itu Retraining membuat training ulang Planned | Negatif | Not Run | Staging |
 
 ### TC-D4-006 · FR-D4-006 Dashboard KPI Orang
 

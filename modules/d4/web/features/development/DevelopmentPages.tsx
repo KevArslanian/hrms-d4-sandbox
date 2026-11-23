@@ -99,7 +99,7 @@ function NextStepCard({ snapshot, need, writer, ...handlers }: { snapshot: Snaps
       ? `Training "${step.training.activity}" Completed, tetapi hasilnya belum dicatat sebagai Passed atau Not Passed. Catat hasil dan keputusannya; status requirement mengikuti.`
       : step.decision === "follow-up"
       ? `Training "${step.training.activity}" Not Passed. Pilih Retraining (training ulang dibuat, status Planned) atau Other follow-up dengan catatan.`
-      : `Training "${step.training.activity}" Passed. Pilih Meets requirement bila level kompetensi sudah memenuhi, atau Retraining bila gap belum tertutup.`
+      : `Training "${step.training.activity}" Passed. Pilih Meets requirement bila level kompetensi sudah memenuhi, atau Retraining bila penilaian ulang di Competency Gap sesudah training masih menunjukkan gap.`
     : step.kind === "running"
       ? `${step.retraining ? "Retraining" : "Training"} berjalan: "${step.training.activity}" (${statusLabel(step.training.status)}). Perbarui progresnya di Training Tracking; setelah Completed, keputusan berikutnya muncul di sini.`
       : step.kind === "create"

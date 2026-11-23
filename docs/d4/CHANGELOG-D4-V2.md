@@ -405,6 +405,18 @@ Sumber: dua kartu bug terbuka di board Planka Squad D4 (QA, 17 Nov 2026) dan cat
 - **People Dashboard: skala di judul kolom.** Kolom Total KPI di tabel People Dashboard kini berjudul **Total KPI (/100)** dan barisnya hanya menulis angka, sama dengan daftar Performance Review sejak 22 Nov. Baris yang tersimpan dengan skala lain (V5.1, 1–5) tetap menulis "/ 5". Aturannya kini satu fungsi bersama, `listScore`. `selectors.ts`, `DashboardPages.tsx`, `PerformancePages.tsx`
 - **Belum diubah:** tabel This period dan Daily entries di halaman Daily KPI masih menulis "/ 100" per baris. Tidak ada laporan untuk tabel itu, jadi dibiarkan sampai ada keputusan.
 
+## Passed tidak langsung menawarkan Retraining · 23 Nov 2026
+
+Sumber: pertanyaan 23 Nov "kalau Passed kenapa ada Retraining", yang juga disorot PST 2 dan pada 22 Nov hanya dijawab dengan label. Dasarnya wawancara 14 Okt part 2: training Completed belum membuktikan gap tertutup (00:51:27), dan sesudah training ada reassessment, "Apakah harus dilakukan retraining? Ataukah sudah memenuhi?" (00:53:31).
+
+- **Saat hasil Passed dicatat** (Update Progress satuan dan bulk): pilihannya **Gap closed: Meets requirement** (tetap butuh level D3 yang memenuhi) atau **Decide later**. **Gap still open: Retraining** tidak ditawarkan lagi di sini. Sebelumnya Retraining bisa disimpan di Save yang sama dengan level sebelum training. Dicoba 23 Nov di data contoh: training Coretax Kak Dian, "current 3", dan training ulang langsung dibuat.
+- **Retraining sesudah Passed** ada di langkah reassessment, yaitu Next step untuk training Passed yang menunggu keputusan. Untuk requirement dari Competency Gap, pilihan ini aktif bila ada penilaian kompetensi yang disimpan di Competency Gap **sesudah** hasil Passed dan levelnya masih di bawah requirement. Data level D3 tidak punya tanggal, jadi penilaian yang disimpan di D4 menjadi satu-satunya bukti bertanggal. Bila level sudah memenuhi, yang aktif Meets requirement. Requirement dari role change atau performance context tidak punya data level di D4, jadi hanya syarat langkah reassessment yang berlaku.
+- **Satu aturan untuk layar dan server:** `retrainingBlockedReason` di `rules.ts`, dipakai `planTrainingCompletion` (API dan fixture) dan form Update Progress. Server menolak Retraining yang belum memenuhi syarat dengan 422 sebelum menulis apa pun.
+- **Akibatnya:** Retraining sesudah Passed butuh satu Save tambahan, yaitu penilaian di Competency Gap. Meets requirement dan alur Not Passed tidak berubah.
+- **Penilaian di hari yang sama:** bila penilaian dengan hasil sama sudah tersimpan hari itu sebelum hasil Passed dicatat, tombolnya menjadi Saved Today. Pesan Retraining dan tooltip tombol menyebut jalan keluarnya: isi **Assessed with** (misalnya atasannya), lalu penilaian tersimpan sebagai penilaian baru, di layar maupun di server. Dicoba 23 Nov di data contoh.
+- Tes: `training-completion` (aturan dan alur dua langkah), `development-next-step`, `fixture-source`, `api.test` (422 tanpa tulis). TC-D4-005-16.
+- `rules.ts`, `TrainingModals.tsx`, `BulkModals.tsx`, `TrainingPages.tsx`, `DevelopmentPages.tsx`, `CompetencyPages.tsx`, `server/training-records/index.ts`, `fixture-source.ts`
+
 ## Belum selesai
 
 | Item | Alasan | Langkah berikut |

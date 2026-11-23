@@ -172,7 +172,7 @@ export function CompetencyDetailPage({ employeeId }: { employeeId: string }) {
       {/* The next save sits apart from what was saved last, and its button sits right next to the field it sends. */}
       {canSave && <div className="mt-5 flex flex-wrap items-start gap-x-3 gap-y-2 border-t border-line pt-5">
         <AssessedWithField className="min-w-[240px] flex-[1_1_320px]" value={assessedWith} onChange={setAssessedWith} />
-        <Button icon={<Save className="size-4" />} className="sm:mt-[26px]" disabled={busy || savedToday} title={savedToday ? "Sudah disimpan hari ini dengan hasil yang sama." : undefined} onClick={saveSnapshot} data-testid="btn-save-assessment">{savedToday ? "Saved Today" : "Save Assessment"}</Button>
+        <Button icon={<Save className="size-4" />} className="sm:mt-[26px]" disabled={busy || savedToday} title={savedToday ? "Sudah disimpan hari ini dengan hasil yang sama. Untuk penilaian ulang sesudah training, isi Assessed with." : undefined} onClick={saveSnapshot} data-testid="btn-save-assessment">{savedToday ? "Saved Today" : "Save Assessment"}</Button>
       </div>}
     </Card>}
     <Card title="Requirement vs capability" testId="requirement-vs-capability" padded={false}>

@@ -125,8 +125,8 @@ export function BulkTrainingModal({ needs, choices, initial, title = "Add Traini
 
 const PASSED_OPTIONS = [
   { value: "Meets requirement", label: "Gap closed: Meets requirement", description: "Gap tertutup. Untuk requirement dari Competency Gap, hanya tersimpan bila level di data kompetensi (D3) sudah memenuhi.", testId: "meets-requirement" },
-  { value: "Retraining", label: "Gap still open: Retraining", description: "Lulus training, tetapi level kompetensinya masih di bawah requirement. Requirement dibuka lagi dan training ulang dibuat (Planned)." },
-  { value: DECIDE_LATER, label: DECIDE_LATER, description: "Hasil Passed disimpan sekarang; reassessment dicatat nanti dari Next step.", testId: "decide-later" },
+  // Retraining after a pass waits for the reassessment (interview 14 Oct, part 2, 00:53:31), so it is not offered here.
+  { value: DECIDE_LATER, label: DECIDE_LATER, description: "Hasil Passed disimpan sekarang. Setelah kompetensinya dinilai ulang di Competency Gap, pilih Meets requirement atau Retraining dari Next step.", testId: "decide-later" },
 ];
 const NOT_PASSED_OPTIONS = [
   { value: "Retraining", label: "Retraining", description: "Training ulang untuk requirement yang sama, dibuat dengan status Planned." },
@@ -158,7 +158,7 @@ export function BulkProgressModal({ trainings, onClose, onDone }: { trainings: r
     event.preventDefault();
     setTouched(true);
     if (completing && !result) { setError("Result wajib dipilih bila status Completed: Passed atau Not Passed."); return; }
-    if (completing && !decision) { setError(result === "Passed" ? "Pilih Competency after training: Gap closed, Gap still open, atau Decide later." : "Pilih tindak lanjut: Retraining atau Other follow-up."); return; }
+    if (completing && !decision) { setError(result === "Passed" ? "Pilih Competency after training: Gap closed atau Decide later." : "Pilih tindak lanjut: Retraining atau Other follow-up."); return; }
     const missing = [retraining && !activity.trim() && "training/activity", retraining && !date && "date", other && !notes.trim() && "notes"].filter(Boolean);
     if (missing.length) { setError(`Lengkapi ${missing.join(", ")} sebelum menyimpan.`); return; }
     setError("");

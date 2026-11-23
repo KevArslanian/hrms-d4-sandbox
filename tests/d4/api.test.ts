@@ -574,13 +574,36 @@ describe("training completion in one save", () => {
   const RUNNING = "FIX-D4-TRN-002"; // Bu Dian, In Progress, gap requirement still at level 3 of 4
   const complete = (body: Record<string, unknown>, id = RUNNING) => call(trainingComplete.POST(post(body), params(id)));
 
-  it("Passed + Retraining writes the training, a competency snapshot, the requirement, then the next training", async () => {
+  // Retraining after a pass is the outcome of a reassessment (interview 14 Oct, part 2, 00:53:31): the Passed result
+  // already saved, and a competency assessment saved after it when `reassessed`.
+  const passed = (reassessed: boolean) => {
+    const running = snapshot.trainingVersions.find((item) => item.trainingId === RUNNING)!;
+    const positionId = snapshot.reference.employees.find((item) => item.id === running.employeeId)!.positionId!;
+    snapshot = { ...snapshot,
+      trainingVersions: [{ ...running, id: "TRN-V2-PASSED", revision: running.revision + 1, status: "Completed", result: "Passed", notes: "", createdAt: "2026-11-20T01:00:00.000Z" }, ...snapshot.trainingVersions],
+      competency: reassessed ? [{ id: "REASSESSED", source: "supabase", employeeId: running.employeeId, positionId, effectiveDate: "2026-11-20", context: "current-position", findings: [],
+        overallStatus: "Gap", createdAt: "2026-11-20T02:00:00.000Z", actor: "HR" }, ...snapshot.competency] : snapshot.competency };
+  };
+
+  it("Retraining after the reassessment writes a competency snapshot, the requirement, then the next training", async () => {
+    passed(true);
     const res = await complete({ result: "Passed", decision: "Retraining", notes: "Level belum naik", activity: "Coretax Reporting Clinic", date: "2026-11-24" });
     expect(res).toMatchObject({ status: 201, body: { data: { trainingId: RUNNING, decision: "Retraining" } } });
-    expect(writes.map((item) => item.method)).toEqual(["updateTraining", "saveCompetency", "updateDevelopment", "createTraining"]);
-    expect(writes[0].args).toEqual([RUNNING, "Completed", "Passed", "Level belum naik"]);
-    expect(writes[2].args[1]).toMatchObject({ status: "Planned", reassessment: "Retraining" });
-    expect(writes[3].args[0]).toMatchObject({ developmentNeedId: "FIX-D4-DEV-002", status: "Planned", activity: "Coretax Reporting Clinic", date: "2026-11-24" });
+    // The saved Passed result is not written again.
+    expect(writes.map((item) => item.method)).toEqual(["saveCompetency", "updateDevelopment", "createTraining"]);
+    expect(writes[1].args[1]).toMatchObject({ status: "Planned", reassessment: "Retraining" });
+    expect(writes[2].args[0]).toMatchObject({ developmentNeedId: "FIX-D4-DEV-002", status: "Planned", activity: "Coretax Reporting Clinic", date: "2026-11-24" });
+  });
+
+  it.each([
+    ["in the save that records Passed", null, /Retraining dipilih saat reassessment/],
+    ["before an assessment saved after the result", false, /Belum ada penilaian ulang/],
+  ])("refuses Retraining %s, before any write", async (_name, reassessed, message) => {
+    if (reassessed !== null) passed(reassessed);
+    const res = await complete({ result: "Passed", decision: "Retraining", notes: "", activity: "Coretax Reporting Clinic", date: "2026-11-24" });
+    expect(res.status).toBe(422);
+    expect(res.body.error?.message).toMatch(message);
+    expect(writes).toHaveLength(0);
   });
 
   it("refuses Meets requirement while the level is not met, before any write", async () => {

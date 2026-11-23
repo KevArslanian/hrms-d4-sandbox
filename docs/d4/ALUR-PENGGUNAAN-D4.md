@@ -82,7 +82,7 @@ People Dashboard: ringkasan semua langkah di atas, tanpa data sendiri.
 - **Menutup (Completed) hanya dengan bukti:**
   - training **Passed** lalu keputusan **Meets requirement** (level kompetensi di D3 harus sudah memenuhi); atau
   - **Close as Met** untuk requirement Competency Gap tanpa training terbuka, bila level sudah memenuhi (misalnya setelah coaching).
-- **Belum tertutup:** Passed tetapi gap belum tertutup → **Retraining**. Not Passed → **Retraining** atau **Other follow-up** dengan catatan. Retraining membuat training ulang (Planned) dan requirement kembali Planned.
+- **Belum tertutup:** Passed, lalu penilaian ulang di Competency Gap yang disimpan sesudah hasil Passed masih menunjukkan gap → **Retraining** dari Next step. Saat hasil Passed dicatat, pilihannya hanya Meets requirement atau Decide later (23 Nov 2026; wawancara 14 Okt, part 2, 00:53:31). Not Passed → **Retraining** atau **Other follow-up** dengan catatan. Retraining membuat training ulang (Planned) dan requirement kembali Planned.
 
 ### 2.6 People Dashboard: membaca, bukan menulis
 
