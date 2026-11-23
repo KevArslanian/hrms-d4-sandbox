@@ -417,6 +417,21 @@ Sumber: pertanyaan 23 Nov "kalau Passed kenapa ada Retraining", yang juga disoro
 - Tes: `training-completion` (aturan dan alur dua langkah), `development-next-step`, `fixture-source`, `api.test` (422 tanpa tulis). TC-D4-005-16.
 - `rules.ts`, `TrainingModals.tsx`, `BulkModals.tsx`, `TrainingPages.tsx`, `DevelopmentPages.tsx`, `CompetencyPages.tsx`, `server/training-records/index.ts`, `fixture-source.ts`
 
+## Paginasi, info berulang, dan toggle bahasa · 24 Nov 2026
+
+- **Pemilih baris per halaman** mengikuti contoh yang dibagikan di kelas: `[10 ▾] per page` di kanan bawah tabel, pemilih di depan labelnya. Pilihannya 10, 20, 50, 100. Testid tidak berubah (`select-page-size`, `options-page-size`).
+- **Info yang sama di setiap baris dihapus:**
+  - List Performance Review tidak lagi menulis "from 6 daily entries" di bawah skor. Kolom Period hanya muncul bila daftar tidak difilter ke satu periode.
+  - People Dashboard tidak lagi punya kolom Period; periodenya sudah ada di tombol Period.
+  - Tabel tim Daily KPI memindahkan jumlah hari kerja dan target 85 ke judul kolom: **Days filled (/N)** dan **Compiled score / Gap vs 85**. Selnya hanya berisi angka per pegawai.
+- **Toggle bahasa ID | EN** di topbar, default ID. Mengikuti keputusan diskusi kelas 21 Nov 2026: React Context API, terjemahan disimpan di frontend. Cookie dan localStorage `andima-hrms-language` sama dengan D3, jadi satu pilihan berlaku di kedua modul begitu domainnya sama. Server membaca cookie, sehingga halaman tidak berkedip dari bahasa lain saat dimuat.
+  - Semua layar D4 ikut diterjemahkan: label, teks bantuan, empty state, toast, aria-label, halaman 404, dan nama bulan (Mei, Agu, Okt, Des).
+  - Yang tidak diterjemahkan: nama modul, kosakata workflow, nama KPI dan kompetensi, data tersimpan, nilai filter, dan pesan dari server (bahasa Indonesia). Detailnya di UI-D4-001 §6.
+  - Bahasa Inggris memakai bentuk tunggal saat jumlahnya 1 ("1 employee has", bukan "1 employees have"), lewat `enOne` di kamus.
+  - Testid tidak berubah antarbahasa. Dicek di browser 24 Nov: set `data-testid` di enam halaman list, detail training, profil pegawai, dan modal Performance Review identik di ID dan EN. Diff kode juga tidak mengubah satu pun testid literal.
+  - Tes baru `tests/d4/i18n.test.ts`: setiap teks yang dilewatkan ke `t(...)` punya entri kamus, tiap teks hanya ada di satu file fitur, placeholder terjemahan sama dengan sumbernya, dan bentuk tunggal Inggris dipakai saat jumlahnya 1. TC-D4-UIQ-15 s.d. 19.
+- `modules/d4/web/i18n/`, `modules/d4/shared/text.ts`, `app/(d4)/layout.tsx`, `app/not-found.tsx`, `DataTable.tsx`, `selectors.ts`, `rules.ts`, `bulk.ts`, dan halaman serta modal di `modules/d4/web/features/`
+
 ## Belum selesai
 
 | Item | Alasan | Langkah berikut |
