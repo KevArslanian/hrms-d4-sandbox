@@ -62,6 +62,7 @@ export const development = {
   "Tulis kompetensi yang kurang, level targetnya, dan cara menutup gap.": { en: "Name the competency that falls short, its target level and how to close the gap." },
   "Contoh: Naikkan Perencanaan Strategi & Anggaran dari level 3 ke 4 melalui External training": { en: "Example: Raise Perencanaan Strategi & Anggaran from level 3 to 4 through External training" },
   "Select PIC": { id: "Pilih PIC" },
+  "Select or type a method": { id: "Pilih atau ketik metode" },
   "Penanggung jawab yang menindaklanjuti requirement ini, dipilih dari daftar pegawai.": { en: "The person who follows up this requirement, picked from the employee list." },
   "employee": { id: "pegawai" },
   "source reference": { id: "referensi sumber" },
