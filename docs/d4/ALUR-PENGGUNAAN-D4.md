@@ -36,7 +36,8 @@ People Dashboard: ringkasan semua langkah di atas, tanpa data sendiri.
 - **Siapa:** setiap pegawai yang posisinya punya peran KPI, termasuk HR dan Manager. Direktur tidak mengisi Daily KPI.
 - **Di mana:** menu **Daily KPI** → form "My KPI today".
 - **Isinya:** skor lima Core KPI hari itu. Tanggal boleh hari ini atau mundur di periode berjalan, tidak boleh di masa depan. Koreksi disimpan sebagai entri baru; entri terbaru per tanggal yang dipakai.
-- **Koreksi:** tombol **Correct** di tabel entri membuka hari itu di form, dengan skor tersimpan di bawah tiap field dan total tersimpan dibanding total baru. Semua entri dan koreksi terlihat di halaman **History** (KPI n: lama → baru).
+- **Form selalu mulai kosong:** saat halaman dibuka, setelah Save, dan saat tanggal dipilih, Score dan Comment kosong, juga untuk hari yang sudah terisi. Untuk hari seperti itu form memberi tahu bahwa menyimpan akan mengoreksi entri hari itu.
+- **Koreksi:** tombol **Correct** di tabel entri membuka hari itu di form dengan skor dan komentar tersimpan, skor tersimpan di bawah tiap field, dan total tersimpan dibanding total baru. Semua entri dan koreksi terlihat di halaman **History** (KPI n: lama → baru).
 - **Otomatis:** rata-rata periode (Compiled) dihitung dari entri harian. Alert X-24 muncul di dashboard bila Under atau High tiga entri berturut-turut, atau kelima KPI diisi 100.
 
 ### 2.2 Performance Review: HR/Manager memfinalkan periode

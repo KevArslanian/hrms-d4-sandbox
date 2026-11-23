@@ -17,7 +17,23 @@ export function scoreProblem(raw: string, max: number): string {
   return score < 1 || score > max ? `Di luar rentang: isi 1 sampai ${max}.` : "";
 }
 
-/** Typed values that differ from what is saved for the date; the server trims comments, so trailing spaces do not count. */
+export type DailyForm = { date: string; correcting: boolean; lines: DailyLine[] };
+
+/**
+ * What "My KPI today" shows for a date (BUG-FN-D4-002, QA 17 Nov 2026): empty Score and Comment when Daily KPI opens,
+ * after a Save and on a date pick, also for a day that already has an entry. Only Correct loads that day's saved scores
+ * and comments, so a correction still starts from what was saved.
+ */
+export function openDailyForm(date: string, saved?: KpiDailyEntry, correct = false): DailyForm {
+  const from = correct ? saved : undefined;
+  return {
+    date,
+    correcting: Boolean(from),
+    lines: Array.from({ length: 5 }, (_, index) => ({ score: from?.lines[index]?.raw_score?.toString() ?? "", comment: from?.lines[index]?.comment ?? "" })),
+  };
+}
+
+/** Typed values that differ from what the form opened with; the server trims comments, so trailing spaces do not count. */
 export const isDirty = (lines: readonly DailyLine[], saved: readonly DailyLine[]) =>
   lines.some((line, index) => line.score.trim() !== saved[index]?.score || line.comment.trim() !== saved[index]?.comment);
 

@@ -9,7 +9,7 @@ import type { PerformanceEvaluation } from "../../../performance/types";
 import type { EmployeeReference } from "../../../shared/types";
 import type { KpiAssessment } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { canAssess, canWrite, departmentOf, describeSource, developmentNeeds, employeeById, employeeMeta, employeeSearchText, evaluationsOf, formatDate, formatGap, formatPeriod, byProgress, formatScore, formatScorecard, includesText, latestScorecard, pendingCompilation, positionOf, revisionTag, scorecardsOf, thisMonth, visibleEmployees } from "../../data/selectors";
+import { canAssess, canWrite, departmentOf, describeSource, developmentNeeds, employeeById, employeeMeta, employeeSearchText, evaluationsOf, formatDate, formatGap, formatPeriod, byProgress, formatScorecard, includesText, latestScorecard, listScore, pendingCompilation, positionOf, revisionTag, scorecardsOf, thisMonth, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, PeriodFilter, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
@@ -76,7 +76,6 @@ export function PerformanceListPage() {
     && (!progress || rowStatus(row) === progress))
     .sort(byProgress(performanceRank, (row) => row.employee.fullName)), [all, snapshot, search, position, department, progress]);
   const listScale = scaleMaxOf(catalog?.version);
-  const listScore = (value: number | null, version?: string | null) => scaleMaxOf(version) === listScale ? value?.toFixed(2) ?? "—" : formatScore(value, scaleMaxOf(version));
 
   return <>
     <PageHeader title="Performance Review" subtitle="Lima Core KPI dan Notes per pegawai dan periode, dalam satu penilaian."
@@ -97,8 +96,8 @@ export function PerformanceListPage() {
         { key: "position", header: "Position / Department", wrap: true, optional: true, cell: (row) => <><span className="block">{row.position}</span><span className="block text-xs text-ink-3">{departmentOf(snapshot, row.employee)?.name ?? "—"}</span></> },
         { key: "period", header: "Period", cell: (row) => formatPeriod(row.period) },
         // The scale sits in the header once instead of "/ 100" on every row (PST 2); a row on the other scale keeps its own.
-        { key: "total", header: `Total KPI (/${listScale})`, className: "tabular-nums", cell: (row) => row.scorecard ? <span className="font-semibold">{listScore(row.scorecard.overallScore, row.scorecard.definitionVersion)}</span>
-          : row.compiled ? <><span className="block font-semibold">{listScore(row.compiled.total, row.compiled.definitionVersion)}</span><span data-testid="compiled-days" className="block whitespace-normal text-xs text-ink-3">from {row.compiled.days.length} daily {row.compiled.days.length === 1 ? "entry" : "entries"}</span></>
+        { key: "total", header: `Total KPI (/${listScale})`, className: "tabular-nums", cell: (row) => row.scorecard ? <span className="font-semibold">{listScore(row.scorecard.overallScore, row.scorecard.definitionVersion, listScale)}</span>
+          : row.compiled ? <><span className="block font-semibold">{listScore(row.compiled.total, row.compiled.definitionVersion, listScale)}</span><span data-testid="compiled-days" className="block whitespace-normal text-xs text-ink-3">from {row.compiled.days.length} daily {row.compiled.days.length === 1 ? "entry" : "entries"}</span></>
           // The small lines may wrap (the score stays on one line), so they do not widen the table past the Status badge.
           : row.evaluation ? <span data-testid="legacy-evaluation" className="whitespace-normal text-xs text-ink-3">Old evaluation, no KPI score</span>
           : row.hasKpi ? "—" : <span className="whitespace-normal text-xs text-ink-3">Not in catalog {catalog?.version} yet</span> },
