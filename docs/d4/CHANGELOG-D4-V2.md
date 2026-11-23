@@ -548,6 +548,16 @@ Review dosen 24 Nov 2026: periode penilaian dibuka dan ditutup, dan tanggal eval
 - **Dampak:** mulai deploy, September tertutup (18 scorecard tersimpan tetap bisa dilihat). Oktober tertutup pada 1 Desember.
 - TC-D4-002-30 s.d. 33. Diuji: unit test aturan (batas bulan, 1 Desember dalam WIB, pergantian tahun, pembukaan aktif dan kedaluwarsa, baris terbaru menang), API, mode pratinjau, dan migrasi di Postgres lokal.
 
+## Cek sebelum simpan di Update Progress massal, dan training untuk semua dari kartu · 24 Nov 2026
+
+Dari rekaman asistensi 21 Nov dan audio 24 Nov 2026.
+
+- **Update Progress massal memberi tahu lebih dulu.** Dulu training yang ditolak (misalnya Meets requirement padahal level D3 belum memenuhi) baru ketahuan setelah Save. Kini form menjalankan aturan yang sama dengan penyimpanan untuk tiap training yang dicentang. Yang akan ditolak diberi alasan di barisnya (`bulk-issue-<id>`), kotak `bulk-issues` menyebut jumlahnya, dan tombol Save hanya menghitung yang lolos. Training In Progress yang dipilih In Progress lagi tidak dihitung ditolak, karena memang dibiarkan.
+- Aturannya tidak disalin: `completionContext` di `modules/d4/web/data/completion.ts` dipakai simpan di mode pratinjau dan cek di form. Test `bulk-progress-check` membandingkan hasil cek dengan simpan sungguhan untuk setiap training terbuka di fixture.
+- **Kartu Need training: satu tombol untuk semua.** Bila ada dua atau lebih requirement terbuka tanpa training yang boleh ditulis pengguna, dialog kartu menampilkan "Buat training untuk semua (N)". Tombol itu membuka form Add Training massal yang sama dengan Development Requirement, lalu kembali ke daftar dengan jumlah yang tersimpan. Daftarnya dari `needsWithoutTraining` di `dashboard/summary.ts`.
+- TC-D4-005-17 dan TC-D4-006-27. Dicek di mode pratinjau: dua requirement baru untuk Desty → tombol "Buat training untuk semua (2)" → Save → "2 training tersimpan"; Update Progress 4 training dengan Passed + Meets requirement → 2 ditandai beserta alasannya dan Save menjadi "Simpan 2 Training".
+- `BulkModals.tsx`, `SummaryTiles.tsx`, `summary.ts`, `completion.ts`, `fixture-source.ts`, kamus `shared.ts` dan `dashboard.ts`.
+
 ## Belum selesai
 
 | Item | Alasan | Langkah berikut |
