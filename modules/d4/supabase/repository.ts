@@ -5,7 +5,7 @@ import type { DevelopmentNeedVersion, DevelopmentPriority, DevelopmentReassessme
 import type { EvaluationAspect, EvaluationInput, PerformanceEvaluation } from "../performance/types";
 import { validatePerformanceInput } from "../performance/validation";
 import { ApiError, databaseError, enforce } from "../shared/errors";
-import { retrainingNotes, type DevelopmentRevision, type TrainingFollowUpInput } from "../shared/rules";
+import { retrainingNotes, type DevelopmentRevision, type PeriodReopening, type TrainingFollowUpInput } from "../shared/rules";
 import type { ReferenceDataRepository } from "../shared/services";
 import type { ReferenceDataSnapshot } from "../shared/types";
 import type { TrainingFollowUp, TrainingStatus, TrainingVersion } from "../training/types";
@@ -44,6 +44,7 @@ interface RawRequirement { id: string; position_id: string; competency_id: strin
 interface RawSkill { id: string; employee_id: string; competency_id: string; proficiency_level: number; evidence_notes: string | null }
 interface RawKpi { id: string; employee_id: string; period: string; kpi_score: number; notes: string | null; created_at: string }
 interface RawKpiAssessment { id: string; definition_version?: string; employee_id: string; role_order: number; role_name: string; period: string; evaluation_date: string | null; evaluator_name: string; status: "draft" | "completed"; lines: unknown; overall_score: number | null; general_notes: string; evidence_reference?: string | null; actor_employee_id: string; created_at: string }
+interface RawReopening { period: string; open_until: string; reason: string; created_at: string }
 interface RawKpiDaily { id: string; employee_id: string; entry_date: string; period: string; definition_version: string; role_order: number; role_name: string; lines: unknown; overall_score: number | null; created_at: string }
 interface RawPerformance { id: string; employee_id: string; period: string; evaluation_date: string | null; evaluator_name_snapshot: string; status: "draft" | "completed"; review_status: PerformanceEvaluation["reviewStatus"]; overall_score: number | null; aspects: unknown; general_notes: string; evidence_reference: string | null; actor_employee_id: string; created_at: string }
 interface RawAssessment { id: string; employee_id: string; position_id: string; position_title_snapshot?: string | null; effective_date: string; context: CompetencyAssessment["context"]; overall_status: CompetencyOverallStatus; findings: unknown; assessed_with?: string | null; actor_employee_id: string; created_at: string }
@@ -118,7 +119,7 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
     // Access, reference data and records load in one parallel round instead of three sequential ones
     // (each round trip to the database counts). RLS already limits what the queries return, and access
     // is still checked before anything is returned.
-    const [{ data: access, error: accessError }, reference, [kpiResult, kpiAssessmentResult, performanceResult, assessmentResult, developmentResult, developmentVersionResult, trainingResult, trainingVersionResult, kpiDailyResult]] = await Promise.all([
+    const [{ data: access, error: accessError }, reference, [kpiResult, kpiAssessmentResult, performanceResult, assessmentResult, developmentResult, developmentVersionResult, trainingResult, trainingVersionResult, kpiDailyResult, reopeningResult]] = await Promise.all([
       this.client.from("d4_user_access").select("app_role,employee_id").eq("auth_user_id", user.id).maybeSingle(),
       this.loadReferenceData(),
       Promise.all([
@@ -134,6 +135,7 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
       // "*": naming follow_up would fail the whole snapshot before migration 20261020130000.
       allRows(() => this.client.from("d4_training_versions").select("*").order("created_at", { ascending: false }).order("id")),
       allRows(() => this.client.from("d4_kpi_daily_entries").select("id,employee_id,entry_date,period,definition_version,role_order,role_name,lines,overall_score,created_at").order("created_at", { ascending: false }).order("id")),
+      allRows(() => this.client.from("d4_period_reopenings").select("period,open_until,reason,created_at").order("created_at", { ascending: false }).order("id")),
     ])]);
     if (accessError) throw databaseError(accessError, "Hak akses");
     if (!access) throw new ApiError("FORBIDDEN", "Anda sudah login, tetapi akun ini belum punya akses ke data HRMS. Hubungi admin HRMS untuk mengaktifkan role Anda.");
@@ -151,6 +153,10 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
       roleOrder: row.role_order, roleName: row.role_name, lines: Array.isArray(row.lines) ? row.lines as KpiAssessmentLine[] : [],
       overallScore: row.overall_score === null ? null : Number(row.overall_score), createdAt: row.created_at,
     }));
+
+    // Before migration 20261124150000 no period is reopened: the default rule (this month and the last) still applies.
+    const periodReopenings: PeriodReopening[] = missingTable(reopeningResult.error) ? [] : (take(reopeningResult, "Period reopening") as RawReopening[])
+      .map((row) => ({ period: row.period, openUntil: row.open_until, reason: row.reason, createdAt: row.created_at }));
 
     const kpiAssessments: KpiAssessment[] = kpiAssessmentRows.map((row) => ({
       id: row.id, definitionVersion: row.definition_version ?? "V3.1", employeeId: row.employee_id, roleOrder: row.role_order, roleName: row.role_name,
@@ -207,7 +213,7 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
         actor: actorName(reference, version.actor_employee_id) }];
     });
     return { reference, role: access.app_role, actorEmployeeId: access.employee_id,
-      kpi, kpiAssessments, kpiDaily, performance, competency, developmentVersions, trainingVersions };
+      kpi, kpiAssessments, kpiDaily, periodReopenings, performance, competency, developmentVersions, trainingVersions };
   }
 
   async saveKpiDailyEntry(input: KpiDailyEntryInput): Promise<string> {

@@ -537,6 +537,17 @@ PR #63 menjawab masukan ini pada 20 Nov, tetapi sebelum digabung, PR #65, #68, #
 - Di Add Development Requirement dan Retraining, kolom Metode kosong tampak seperti kotak rusak di samping dropdown PIC. Kini kolom itu menampilkan "Pilih atau ketik metode" (EN "Select or type a method") dan panah dropdown yang berputar saat daftar terbuka. Isian bebas tetap boleh.
 - `modules/d4/web/ui/forms.tsx` (`SuggestField` menerima `placeholder`), `DevelopmentModals.tsx`.
 
+## Periode terbuka dan tertutup, tanggal evaluasi tidak bisa mundur · 24 Nov 2026
+
+Review dosen 24 Nov 2026: periode penilaian dibuka dan ditutup, dan tanggal evaluasi yang bisa dimundurkan dianggap celah integritas.
+
+- **Period hanya periode terbuka.** Form Performance Review tidak lagi memakai pemilih bulan bebas (dulu bisa sampai 2024). Pilihannya bulan ini dan bulan lalu, ditambah periode lama yang dibuka kembali HR. Pemanggil yang meminta periode tertutup, misalnya dari filter dashboard, membuka form di bulan ini dengan peringatan.
+- **Server ikut menolak.** `POST kpi-assessments` dan `performance-evaluations` menjawab 422 untuk periode tertutup, belum dimulai, atau sebelum September 2026, sebelum aturan revisi. Aturannya satu fungsi, `periodState` di `modules/d4/shared/rules.ts`, dipakai form, server, dan mode pratinjau.
+- **Evaluation date = hari penyimpanan.** Field-nya dikunci dan menampilkan hari ini. Server mengabaikan tanggal dari klien dan menyimpan hari ini (WIB). Finalize from Daily KPI juga memakai hari ini, tidak lagi tanggal terakhir periode. Test id `input-evaluation-date` tetap ada.
+- **Membuka kembali periode lama:** tabel `d4_period_reopenings` di migrasi `20261124150000` (belum diterapkan, butuh izin PO). Langkah dan SQL-nya ada di MIGRATION-RUNBOOK-D4. Layar HR untuk membuka periode belum dibuat.
+- **Dampak:** mulai deploy, September tertutup (18 scorecard tersimpan tetap bisa dilihat). Oktober tertutup pada 1 Desember.
+- TC-D4-002-30 s.d. 33. Diuji: unit test aturan (batas bulan, 1 Desember dalam WIB, pergantian tahun, pembukaan aktif dan kedaluwarsa, baris terbaru menang), API, mode pratinjau, dan migrasi di Postgres lokal.
+
 ## Belum selesai
 
 | Item | Alasan | Langkah berikut |

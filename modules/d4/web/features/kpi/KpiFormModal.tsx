@@ -7,11 +7,11 @@ import { compileDaily, type DailyCompilation } from "../../../kpi/daily";
 import { HIGH_ABOVE, performanceBand, scaleMaxOf, typedScore, UNDER_BELOW } from "../../../kpi/scale";
 import type { KpiAssessmentLine } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { latestForPeriod, periodDateError, revisionsLeft } from "../../../shared/rules";
-import { msg, plainText, type Translate } from "../../../shared/text";
+import { latestForPeriod, openPeriods, periodState, previousMonth, revisionsLeft } from "../../../shared/rules";
+import { plainText, type Translate } from "../../../shared/text";
 import { assessableEmployees, departmentOf, employeeById, formatDate, formatGap, formatPeriod, positionOf, SCORE_LABELS, thisMonth, today } from "../../data/selectors";
 import { useLanguage } from "../../i18n/LanguageProvider";
-import { DateField, FormError, FormModal, ModalActions, ReadOnlyField, RevisionConfirm, SearchSelectField, TextAreaField, TextField } from "../../ui/forms";
+import { FormError, FormModal, ModalActions, ReadOnlyField, RevisionConfirm, SearchSelectField, SelectField, TextAreaField, TextField } from "../../ui/forms";
 import { cx, Notice, StatusBadge } from "../../ui/primitives";
 
 /** Where the KPI set comes from: a D1 KPI definition, a D4 role kept until D1 maps the position, or the D4 catalog. */
@@ -90,7 +90,6 @@ export function periodChange(catalogSet: KpiCatalogSet | null, from: string, to:
   return { error: "", roleOrder, lines: blankLines(next, roleOrder) };
 }
 
-const FUTURE_PERIOD = msg("Period belum dimulai. Performance Review hanya untuk periode yang sudah berjalan.");
 
 /** The saved score under an Actual field: "Saved: 78", or "78 → 80" once it differs, in words and not only in colour. */
 export function SavedScore({ before, now, testId }: { before: number | null; now: number | null; testId: string }) {
@@ -125,7 +124,11 @@ export function KpiFormModal({ employeeId, period: startAt, onClose, onSaved }: 
   const { catalog: catalogSet, run, busy } = useD4();
   const { t, language } = useLanguage();
   const actor = employeeById(snapshot, snapshot.actorEmployeeId);
-  const startPeriod = startAt || thisMonth();
+  // Only open periods take a review (lecturer review, 24 Nov 2026); a closed one asked for by the caller opens this month.
+  const reopenings = snapshot.periodReopenings ?? [];
+  const open = openPeriods(reopenings);
+  const startPeriod = startAt && open.includes(startAt) ? startAt : thisMonth();
+  const closedStart = startAt && startAt !== startPeriod ? startAt : "";
   const [period, setPeriod] = useState(startPeriod);
   // The KPI set follows the catalog version in force for the chosen period.
   const catalog = catalogSet && period ? catalogFor(catalogSet, period) : null;
@@ -153,7 +156,8 @@ export function KpiFormModal({ employeeId, period: startAt, onClose, onSaved }: 
   const [roleOrder, setRoleOrder] = useState(() => employeeId ? suggest(employeeId) : 0);
   const [daily, setDaily] = useState(() => employeeId && !startSaved ? compiledFor(employeeId, startPeriod, suggest(employeeId)) : null);
   const [lines, setLines] = useState<KpiAssessmentLine[]>(() => startSaved ? startSaved.lines.map((line) => ({ ...line })) : withDaily(linesFor(employeeId ? suggest(employeeId) : 0), daily));
-  const [date, setDate] = useState(today());
+  // The server stores the day of the save; shown so the evaluator knows the review cannot be dated back.
+  const date = today();
   // The evaluator is the signed-in user; the server stores that name and ignores the form value.
   const evaluator = actor?.fullName ?? "";
   const [notes, setNotes] = useState(startSaved?.generalNotes ?? "");
@@ -215,12 +219,10 @@ export function KpiFormModal({ employeeId, period: startAt, onClose, onSaved }: 
     if (!employee) { setError(t("Lengkapi employee sebelum menyimpan.")); return; }
     if (!roleOrder || !lines.length || totalWeight !== 100) { setError(t("KPI untuk posisi ini belum tersedia di katalog; penilaian tidak dapat disimpan.")); return; }
     if (lines.some((line) => !line.kpi_name.trim())) { setError(t("Setiap Core KPI wajib diberi nama.")); return; }
-    if (!allScored || !period || !date) { setError(t("Lengkapi periode, tanggal evaluasi, dan Actual 1–{max} untuk setiap KPI.", { max })); return; }
-    if (period > thisMonth()) { setError(t(FUTURE_PERIOD)); return; }
+    if (!allScored || !period) { setError(t("Lengkapi periode, tanggal evaluasi, dan Actual 1–{max} untuk setiap KPI.", { max })); return; }
+    if (periodState(period, reopenings) !== "open") { setError(t("Periode ini sudah ditutup. Penilaian hanya bisa disimpan di periode yang terbuka; HR dapat membuka kembali periode lama.")); return; }
     if (!notes.trim()) { setError(t("Notes wajib diisi.")); return; }
     if (!evidence.trim()) { setError(t("Reference wajib diisi.")); return; }
-    if (date > today()) { setError(t("Tanggal evaluasi tidak boleh lebih dari hari ini.")); return; }
-    if (periodDateError(period, date, t)) { setError(periodDateError(period, date, t)); return; }
     if (revisionUsed) { setError(t("Performance Review periode ini sudah pernah direvisi; batasnya satu revisi per periode.")); return; }
     if (existing && !revise) { setError(t("Performance Review untuk periode ini sudah ada. Centang “Save as revision” atau pilih periode lain.")); return; }
     setError("");
@@ -237,14 +239,18 @@ export function KpiFormModal({ employeeId, period: startAt, onClose, onSaved }: 
         <SearchSelectField label={t("Employee")} testId="employee" required value={employee} onChange={(value) => chooseEmployee(value)} error={touched && !employee ? t("Employee wajib diisi.") : undefined} className="sm:col-span-2" placeholder={t("Select employee")}
           options={assessableEmployees(snapshot).map((item) => ({ value: item.id, label: `${item.fullName} · ${item.employeeId}` }))} />
         {/* Stella (PST 2) asked why Period and the date can be changed but Evaluator cannot; the answer sits under each field. */}
-        <DateField label={t("Period")} testId="period" required month max={thisMonth()} helper={t("Boleh periode lalu, untuk penilaian yang terlambat dicatat.")} value={period} onChange={(event) => choosePeriod(event.target.value)} error={touched && !period ? t("Period wajib diisi.") : touched && period > thisMonth() ? t(FUTURE_PERIOD) : undefined} />
+        <SelectField label={t("Period")} testId="period" required value={period} onChange={(event) => choosePeriod(event.target.value)} helper={t("Hanya periode yang terbuka: bulan ini dan bulan lalu, atau periode lama yang dibuka kembali oleh HR.")}>
+          {open.map((item) => <option key={item} value={item}>{`${formatPeriod(item, language)} · ${t(item === thisMonth() ? "bulan ini" : item === previousMonth(thisMonth()) ? "bulan lalu" : "dibuka kembali")}`}</option>)}
+        </SelectField>
         <ReadOnlyField label={t("Position")} testId="position" value={position?.title ?? "—"} />
         <ReadOnlyField label={t("Department")} testId="department" value={departmentOf(snapshot, selected)?.name ?? "—"} />
         <ReadOnlyField label={t("Position KPI")} testId="kpi-jabatan" value={!employee ? "—" : roleName ?? (catalog ? t("Not in catalog {version} yet", { version: catalog.version }) : t("No KPI catalog for this period"))}
           helper={employee && roleName && catalog ? catalogText(catalog, roleOrder, t) : undefined} />
-        <DateField label={t("Evaluation date")} testId="evaluation-date" required min={period ? `${period}-01` : undefined} max={today()} helper={t("Hari penilaian dilakukan: dari awal periode sampai hari ini.")} value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? t("Date wajib diisi.") : touched && date > today() ? t("Tidak boleh lebih dari hari ini.") : touched && periodDateError(period, date, t) || undefined} />
+        {/* A disabled input, not ReadOnlyField: Katalon finds this field by input-evaluation-date. */}
+        <TextField label={t("Evaluation date")} testId="evaluation-date" disabled readOnly value={formatDate(date, language)} helper={t("Otomatis tanggal hari ini saat disimpan, jadi penilaian tidak bisa dicatat mundur.")} />
         <ReadOnlyField label={t("Evaluator")} testId="evaluator" value={evaluator || "—"} className="sm:col-span-2" helper={t("Otomatis akun yang menyimpan, supaya penilaian tidak tercatat atas nama orang lain.")} />
       </div>
+      {closedStart && <div data-testid="period-closed"><Notice tone="warning">{t("Periode {period} sudah ditutup, jadi form dibuka di {open}. HR dapat membuka kembali periode lama bila penilaiannya terlambat.", { period: formatPeriod(closedStart, language), open: formatPeriod(startPeriod, language) })}</Notice></div>}
       {daily && <div data-testid="daily-prefill"><Notice>{t("Actual diisi dari rata-rata {count} entri Daily KPI pegawai ini ({period}), dibulatkan. Periksa dan ubah bila perlu sebelum menyimpan.", { count: daily.days.length, period: formatPeriod(period, language) })}</Notice></div>}
       {/* Up front, so the evaluator does not fill the whole form before learning it cannot be saved. */}
       {revisionUsed && existing && <div data-testid="revision-limit"><Notice tone="warning">{t("Performance Review {period} untuk pegawai ini sudah pernah direvisi (terakhir {evaluator}, {date}). Batasnya satu revisi per periode, jadi periode ini tidak bisa disimpan lagi. Riwayatnya ada di halaman Performance Review pegawai.", { period: formatPeriod(period, language), evaluator: existing.evaluatorName, date: formatDate(existing.evaluationDate, language) })}</Notice></div>}

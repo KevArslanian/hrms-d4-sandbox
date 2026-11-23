@@ -2,14 +2,15 @@
 
 import { useState, type FormEvent } from "react";
 import { catalogFor, KPI_TARGET } from "../../../kpi/catalog";
-import { finalizeDate, scorecardLinesFromDaily, type DailyCompilation } from "../../../kpi/daily";
+import { scorecardLinesFromDaily, type DailyCompilation } from "../../../kpi/daily";
 import { performanceBand, scaleMaxOf } from "../../../kpi/scale";
+import { periodState, PERIOD_CLOSED } from "../../../shared/rules";
 import { msg } from "../../../shared/text";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { employeeById, formatDate, formatGap, formatPeriod, formatScore, thisMonth } from "../../data/selectors";
+import { employeeById, formatDate, formatGap, formatPeriod, formatScore, thisMonth, today } from "../../data/selectors";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { FormError, FormModal, ModalActions, ReadOnlyField, TextAreaField, TextField } from "../../ui/forms";
-import { StatusBadge } from "../../ui/primitives";
+import { Notice, StatusBadge } from "../../ui/primitives";
 import { COMPILED_RULE } from "../daily/entry";
 
 /**
@@ -31,13 +32,16 @@ export function FinalizeDailyModal({ employeeId, period, compiled, onClose, onSa
   const lines = catalog?.version === compiled.definitionVersion ? scorecardLinesFromDaily(catalog, compiled) : [];
   const max = scaleMaxOf(compiled.definitionVersion);
   const band = performanceBand(compiled.total, compiled.definitionVersion);
-  const date = finalizeDate(period);
+  // The server stores the day of the save, also for a past period (lecturer review, 24 Nov 2026).
+  const date = today();
+  const closed = periodState(period, snapshot.periodReopenings ?? []) !== "open";
   // W2: entries saved after finalizing no longer count, so finalizing a month that is still running is confirmed first.
   const running = period === thisMonth();
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     setTouched(true);
+    if (closed) { setError(t(PERIOD_CLOSED)); return; }
     if (!lines.length) { setError(t("KPI pegawai ini tidak lagi sesuai katalog periode ini. Pakai Add Performance Review.")); return; }
     const missing = [!notes.trim() && [msg("Notes"), "input-catatan-evaluasi"], !evidence.trim() && [msg("Reference"), "input-evidence-reference"], running && !confirmed && [msg("konfirmasi periode berjalan"), "checkbox-finalize-running"]].filter((item) => item !== false);
     if (missing.length) {
@@ -52,9 +56,10 @@ export function FinalizeDailyModal({ employeeId, period, compiled, onClose, onSa
   }
 
   return <FormModal size="lg" title={t("Finalize from Daily KPI")} description={t("Skor {period} dikompilasi dari {count} entri Daily KPI {name}. Skor tidak diubah di sini; tambahkan Notes dan Reference lalu simpan.", { period: formatPeriod(period, language), count: compiled.days.length, name: employee?.fullName ?? "" })} onClose={onClose}
-    footer={<ModalActions onCancel={onClose} busy={busy} submitLabel={t("Finalize")} />}>
+    footer={<ModalActions onCancel={onClose} busy={busy} submitLabel={t("Finalize")} disabled={closed} />}>
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />
+      {closed && <div data-testid="finalize-period-closed"><Notice tone="warning">{t(PERIOD_CLOSED)}</Notice></div>}
       <div className="grid gap-4 sm:grid-cols-3">
         <ReadOnlyField label={t("Period")} testId="finalize-period" value={formatPeriod(period, language)} />
         <ReadOnlyField label={t("Evaluation date")} testId="finalize-date" value={formatDate(date, language)} />

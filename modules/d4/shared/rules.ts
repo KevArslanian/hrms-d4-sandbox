@@ -47,6 +47,47 @@ export function latestForPeriod<T extends PeriodRecord>(records: readonly T[], e
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
 }
 
+/**
+ * Assessment periods are opened and closed by D4, not picked freely (lecturer review, 24 Nov 2026). The running month and
+ * the month before it are open, so last month can still be reviewed during this one. An older period is open only while
+ * HR has reopened it (d4_period_reopenings, migration 20261124150000); the newest row for a period decides, so a row with
+ * an earlier end closes it again. Nothing before FIRST_PERIOD, the month D4 records start, can be assessed.
+ */
+export const FIRST_PERIOD = "2026-09";
+export interface PeriodReopening { readonly period: string; readonly openUntil: string; readonly reason: string; readonly createdAt: string }
+export type PeriodState = "open" | "closed" | "not-started" | "before-start";
+export const PERIOD_NOT_STARTED = "Period belum dimulai. Performance Review hanya untuk periode yang sudah berjalan.";
+export const PERIOD_CLOSED = "Periode ini sudah ditutup. Penilaian hanya bisa disimpan di periode yang terbuka; HR dapat membuka kembali periode lama.";
+export const PERIOD_BEFORE_START = "Penilaian D4 dimulai dari periode September 2026.";
+
+export function previousMonth(period: string): string {
+  const [year, month] = period.split("-").map(Number);
+  return month === 1 ? `${year - 1}-12` : `${year}-${String(month - 1).padStart(2, "0")}`;
+}
+
+export function periodState(period: string, reopenings: readonly PeriodReopening[] = [], now = new Date()): PeriodState {
+  const current = localMonth(now);
+  if (period > current) return "not-started";
+  if (period < FIRST_PERIOD) return "before-start";
+  if (period >= previousMonth(current)) return "open";
+  const latest = reopenings.filter((item) => item.period === period).sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+  return latest && latest.openUntil >= localToday(now) ? "open" : "closed";
+}
+
+/** Open periods, newest first: the running month, the month before it, then any reopened older period. */
+export function openPeriods(reopenings: readonly PeriodReopening[] = [], now = new Date()): string[] {
+  const current = localMonth(now);
+  const candidates = new Set([current, previousMonth(current), ...reopenings.map((item) => item.period)]);
+  return [...candidates].filter((period) => periodState(period, reopenings, now) === "open").sort().reverse();
+}
+
+export function assertPeriodOpen(period: string, reopenings: readonly PeriodReopening[] = [], now = new Date()) {
+  const state = periodState(period, reopenings, now);
+  if (state === "not-started") throw new ApiError("VALIDATION_FAILED", PERIOD_NOT_STARTED);
+  if (state === "before-start") throw new ApiError("VALIDATION_FAILED", PERIOD_BEFORE_START);
+  if (state === "closed") throw new ApiError("VALIDATION_FAILED", PERIOD_CLOSED);
+}
+
 /** Interview 13 Nov 2026 (0:52:35): a period's assessment is revised at most once, so an employee has at most two records per period. */
 export const MAX_PERIOD_REVISIONS = 1;
 

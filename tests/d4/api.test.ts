@@ -157,6 +157,9 @@ const writeRoutes: [string, () => Promise<Response>][] = [
 ];
 
 describe("session guard: real requireWriter over a mocked Supabase client", () => {
+  // Mid-October: September (last month) and October are open, November has not started (open/closed periods, 24 Nov 2026).
+  beforeEach(() => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-10-15T03:00:00Z")); });
+  afterEach(() => { vi.useRealTimers(); });
   it("returns 401 on a read without a session", async () => {
     user = null;
     const res = await call(snapshotRoute.GET());
@@ -247,6 +250,9 @@ describe("request envelope", () => {
 });
 
 describe("POST /performance-evaluations", () => {
+  // Mid-October: September (last month) and October are open, November has not started (open/closed periods, 24 Nov 2026).
+  beforeEach(() => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-10-15T03:00:00Z")); });
+  afterEach(() => { vi.useRealTimers(); });
   it("ignores a submitted score: evaluations are notes only", async () => {
     const res = await call(perf.POST(post(evaluationBody({ overallScore: 4 }))));
     expect(res.status).toBe(201);
@@ -290,6 +296,9 @@ describe("POST /performance-evaluations", () => {
 });
 
 describe("POST /kpi-assessments", () => {
+  // Mid-October: September (last month) and October are open, November has not started (open/closed periods, 24 Nov 2026).
+  beforeEach(() => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-10-15T03:00:00Z")); });
+  afterEach(() => { vi.useRealTimers(); });
   it("creates a scorecard for a new period", async () => {
     const res = await call(kpi.POST(post(kpiBody())));
     expect(res.status).toBe(201);
@@ -326,9 +335,26 @@ describe("POST /kpi-assessments", () => {
   });
 
   it("rejects a scorecard for a period that has not started yet (D4-FN-01)", async () => {
-    const res = await call(kpi.POST(post(kpiBody({ period: "2026-11", evaluationDate: "2026-10-01" }))));
-    expect(res).toMatchObject({ status: 422, body: { error: { code: "VALIDATION_FAILED", message: "Tanggal evaluasi tidak boleh sebelum awal periode." } } });
+    const res = await call(kpi.POST(post(kpiBody({ period: "2026-11" }))));
+    expect(res).toMatchObject({ status: 422, body: { error: { code: "VALIDATION_FAILED", message: "Period belum dimulai. Performance Review hanya untuk periode yang sudah berjalan." } } });
     expect(writes).toHaveLength(0);
+  });
+
+  // Lecturer review 24 Nov 2026: a back-dated review reads as written earlier than it was.
+  it("stores the saved day as the evaluation date, ignoring the one sent", async () => {
+    const res = await call(kpi.POST(post(kpiBody({ evaluationDate: "2026-10-01" }))));
+    expect(res.status).toBe(201);
+    expect((writes[0].args[0] as { evaluationDate: string }).evaluationDate).toBe("2026-10-15");
+  });
+
+  it("refuses a closed period and accepts it again while HR has reopened it", async () => {
+    vi.setSystemTime(new Date("2026-11-24T03:00:00Z"));
+    const closed = await call(kpi.POST(post(kpiBody({ period: "2026-09" }))));
+    expect(closed).toMatchObject({ status: 422, body: { error: { code: "VALIDATION_FAILED", message: expect.stringMatching(/sudah ditutup/) } } });
+    expect(writes).toHaveLength(0);
+    snapshot = { ...snapshot, periodReopenings: [{ period: "2026-09", openUntil: "2026-11-30", reason: "Penilaian terlambat", createdAt: "2026-11-24T01:00:00Z" }] };
+    const reopened = await call(kpi.POST(post(kpiBody({ period: "2026-09", revisionOf: KPI_ALFA }))));
+    expect(reopened.status).toBe(201);
   });
 
   // The server re-reads the catalog and refuses a role whose five weights do not total exactly 100.

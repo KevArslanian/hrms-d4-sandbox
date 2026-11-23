@@ -154,17 +154,11 @@ describe("Daily KPI on the People Dashboard and in the Performance Review form",
 });
 
 describe("Finalize from Daily KPI (B6: automatic compilation, HR finalizes)", async () => {
-  const { finalizeDate, scorecardLinesFromDaily } = await import("@/modules/d4/kpi/daily");
+  const { scorecardLinesFromDaily } = await import("@/modules/d4/kpi/daily");
   const { catalogFor, seedCatalogSet } = await import("@/modules/d4/kpi/catalog");
   const { d4ReferenceFixture } = await import("@/modules/d4/shared/fixtures");
   const { pendingCompilation } = await import("@/modules/d4/web/data/selectors");
   const { localMonth } = await import("@/modules/d4/shared/rules");
-
-  it("dates the scorecard today in the running period, else on the period's last day", () => {
-    expect(finalizeDate("2026-11", "2026-11-08")).toBe("2026-11-08");
-    expect(finalizeDate("2026-10", "2026-11-08")).toBe("2026-10-31");
-    expect(finalizeDate("2028-02", "2028-03-01")).toBe("2028-02-29");
-  });
 
   it("builds catalog lines carrying the compiled scores as Actual", () => {
     const catalog = catalogFor(seedCatalogSet(d4ReferenceFixture.positions), "2026-11")!;
@@ -179,7 +173,7 @@ describe("Finalize from Daily KPI (B6: automatic compilation, HR finalizes)", as
     vi.resetModules();
     const { createFixtureSource } = await import("@/modules/d4/web/data/fixture-source");
     const { pendingCompilation: pending } = await import("@/modules/d4/web/data/selectors");
-    const { finalizeDate: dateOf, scorecardLinesFromDaily: linesOf } = await import("@/modules/d4/kpi/daily");
+    const { scorecardLinesFromDaily: linesOf } = await import("@/modules/d4/kpi/daily");
     const source = createFixtureSource();
     const before = await source.loadSnapshot();
     const employee = before.kpiDaily?.[0]?.employeeId;
@@ -188,7 +182,7 @@ describe("Finalize from Daily KPI (B6: automatic compilation, HR finalizes)", as
     const compiled = pending(before, employee, period)!;
     expect(compiled.days.length).toBeGreaterThan(0);
     const catalog = catalogFor(seedCatalogSet(before.reference.positions), period)!;
-    await source.createKpiAssessment({ employeeId: employee, roleOrder: compiled.roleOrder, period, evaluationDate: dateOf(period), evaluatorName: "", status: "completed",
+    await source.createKpiAssessment({ employeeId: employee, roleOrder: compiled.roleOrder, period, evaluationDate: "", evaluatorName: "", status: "completed",
       lines: linesOf(catalog, compiled), generalNotes: "Final", evidenceReference: "DOC-1", revisionOf: null });
     const after = await source.loadSnapshot();
     expect(pending(after, employee, period)).toBeNull();
