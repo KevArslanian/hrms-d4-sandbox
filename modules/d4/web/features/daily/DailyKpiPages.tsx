@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { compileDaily, dailyEntriesOf, dailyHistoryOf, type DailyCompilation } from "../../../kpi/daily";
 import { catalogFor, indicatorsFor, KPI_TARGET, roleForPosition, targetOf } from "../../../kpi/catalog";
-import { aboveScale, performanceBand, scaleMaxOf } from "../../../kpi/scale";
+import { performanceBand, scaleMaxOf, typedScore } from "../../../kpi/scale";
 import { canFillDaily } from "../../../shared/rules";
 import type { EmployeeReference } from "../../../shared/types";
 import type { KpiAssessment, KpiDailyEntry } from "../../../supabase/types";
@@ -19,7 +19,7 @@ import { RowActionMenu } from "../../ui/RowActionMenu";
 import { Button, ButtonLink, Card, cx, InfoGrid, Notice, SavedNotice, StatusBadge } from "../../ui/primitives";
 import { FinalizeDailyModal } from "../kpi/FinalizeDailyModal";
 import { noKpiText, SavedScore, scorecardTotal, totalComparison } from "../kpi/KpiFormModal";
-import { COMPILED_RULE, correctionsByDay, isDirty, missedWorkingDays, scoreProblem, workingDaysSoFar } from "./entry";
+import { COMPILED_RULE, correctionsByDay, isDirty, missedWorkingDays, openDailyForm, scoreProblem, workingDaysSoFar } from "./entry";
 
 const NOT_READY = "Daily KPI belum tersedia karena database belum diperbarui (migrasi 20261108130000). Menu lain tetap bisa dipakai.";
 const input = "h-9 w-full rounded-2xl border border-ink-3 px-3 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/15 text-sm aria-[invalid=true]:border-danger";
@@ -45,23 +45,22 @@ function MyDailyKpi({ team }: { team: boolean }) {
   const router = useRouter();
   const me = employeeById(snapshot, snapshot.actorEmployeeId);
   const period = thisMonth();
-  const [date, setDate] = useState(today());
   const catalog = catalogSet ? catalogFor(catalogSet, period) : null;
   const roleOrder = catalog ? roleForPosition(catalog, me?.positionId) : 0;
   const indicators = catalog ? indicatorsFor(catalog, roleOrder) : [];
   const max = scaleMaxOf(catalog?.version);
   const days = dailyEntriesOf(snapshot.kpiDaily ?? [], snapshot.actorEmployeeId, period);
-  // A day that already has an entry opens with its scores, so a correction starts from what was saved.
   const savedFor = (day: string) => days.find((entry) => entry.entryDate === day);
-  const linesOf = (entry?: KpiDailyEntry) => Array.from({ length: 5 }, (_, index) => ({ score: entry?.lines[index]?.raw_score?.toString() ?? "", comment: entry?.lines[index]?.comment ?? "" }));
-  const [lines, setLines] = useState(() => linesOf(savedFor(date)));
+  const [opened, setOpened] = useState(() => openDailyForm(today()));
+  const date = opened.date;
+  const [lines, setLines] = useState(opened.lines);
   const [touched, setTouched] = useState(false);
   const [error, setError] = useState("");
   // A date pick or a link that would throw typed scores away waits here for the user's answer. `back` gets focus
   // again afterwards: the calendar day that was clicked no longer exists, so the dialog cannot restore it itself.
-  const [discarding, setDiscarding] = useState<({ date: string } | { href: string }) & { back: HTMLElement | null } | null>(null);
+  const [discarding, setDiscarding] = useState<({ date: string; correct?: boolean } | { href: string }) & { back: HTMLElement | null } | null>(null);
   const scoreInputs = useRef<(HTMLInputElement | null)[]>([]);
-  const dirty = isDirty(lines, linesOf(savedFor(date)));
+  const dirty = isDirty(lines, opened.lines);
   useEffect(() => {
     if (!dirty) return;
     const onUnload = (event: BeforeUnloadEvent) => event.preventDefault();
@@ -89,18 +88,21 @@ function MyDailyKpi({ team }: { team: boolean }) {
   const total = scorecardTotal(indicators.map((row, index) => ({ weight_percent: row.weight_percent, raw_score: scores[index] })), max);
   const existing = savedFor(date);
 
-  function openDate(value: string) { setDate(value); setLines(linesOf(savedFor(value))); setTouched(false); setError(""); }
+  function openDate(value: string, correct = false) {
+    const next = openDailyForm(value, savedFor(value), correct);
+    setOpened(next); setLines(next.lines); setTouched(false); setError("");
+  }
   const dateTrigger = () => document.querySelector<HTMLElement>("[data-testid='input-daily-date']");
   function chooseDate(value: string) { if (dirty && value !== date) setDiscarding({ date: value, back: dateTrigger() }); else openDate(value); }
   // Correct on a saved day opens that day in the form above, the same way Revise opens a saved Performance Review.
   function correct(day: string, back: HTMLElement) {
-    if (dirty && day !== date) { setDiscarding({ date: day, back }); return; }
-    openDate(day);
+    if (dirty) { setDiscarding({ date: day, correct: true, back }); return; }
+    openDate(day, true);
     requestAnimationFrame(() => { const first = scoreInputs.current[0]; first?.focus({ preventScroll: true }); first?.scrollIntoView({ block: "center" }); });
   }
   function discard() {
     if (!discarding) return;
-    if ("date" in discarding) openDate(discarding.date); else router.push(discarding.href);
+    if ("date" in discarding) openDate(discarding.date, discarding.correct); else router.push(discarding.href);
     setDiscarding(null);
   }
   function setLine(index: number, patch: Partial<{ score: string; comment: string }>) { setLines((items) => items.map((line, at) => at === index ? { ...line, ...patch } : line)); }
@@ -122,9 +124,8 @@ function MyDailyKpi({ team }: { team: boolean }) {
     const saving = date;
     const result = await run((source) => source.createDailyKpi({ entryDate: saving, lines: lines.map((line, index) => ({ raw_score: scores[index], comment: line.comment })) }), existing ? "Koreksi Daily KPI tersimpan." : "Daily KPI tersimpan.");
     if (!result.ok) { setError(result.error); return; }
-    setTouched(false);
-    // A correction is done once saved: back to today, so the next save does not overwrite the past day again.
-    if (saving !== today()) openDate(today());
+    // Back to an empty form for today (BUG-FN-D4-002), so the next save does not overwrite a past day again either.
+    openDate(today());
   }
 
   const compiled = compileDaily(snapshot.kpiDaily ?? [], snapshot.actorEmployeeId, period);
@@ -145,7 +146,9 @@ function MyDailyKpi({ team }: { team: boolean }) {
           <ReadOnlyField label="Position KPI" testId="daily-role" value={indicators[0].role_name} />
           <ReadOnlyField label="Catalog" testId="daily-catalog" value={`KPI Scorecard ${catalog.version} · skala 1–${max}`} />
         </div>
-        {existing && <div data-testid="daily-correction-rule"><Notice>Anda sedang mengoreksi entri {formatDate(date)}. Entri bulan ini bisa Anda koreksi sampai akhir {formatPeriod(period)}; nilai sebelumnya tetap tercatat di History.</Notice></div>}
+        {existing && (opened.correcting
+          ? <div data-testid="daily-correction-rule"><Notice>Anda sedang mengoreksi entri {formatDate(date)}. Entri bulan ini bisa Anda koreksi sampai akhir {formatPeriod(period)}; nilai sebelumnya tetap tercatat di History.</Notice></div>
+          : <div data-testid="daily-already-saved"><Notice>Daily KPI {formatDate(date)} sudah tersimpan dengan total {formatScore(existing.overallScore, max)}. Menyimpan form ini akan mengoreksinya. Untuk mulai dari skor yang tersimpan, pilih Correct di tabel This period di bawah.</Notice></div>)}
         <ol className="divide-y divide-line rounded-2xl border border-line">
           {indicators.map((row, index) => {
             const problem = touched ? problems[index] : "";
@@ -159,8 +162,8 @@ function MyDailyKpi({ team }: { team: boolean }) {
                 {/* Text, not type="number": the browser would read "1e2" as 100 and hide what was typed. */}
                 <input ref={(element) => { scoreInputs.current[index] = element; }} type="text" inputMode="numeric" autoComplete="off" data-testid={`input-daily-score-${row.indicator_order}`} aria-label={`Score ${row.kpi_name}`}
                   aria-invalid={Boolean(problem)} aria-describedby={problem ? `daily-score-error-${row.indicator_order}` : undefined}
-                  value={lines[index].score} onChange={(event) => { if (!aboveScale(event.target.value, max)) setLine(index, { score: event.target.value }); }} className={`mt-1 tabular-nums ${input}`} />
-                {existing && <SavedScore before={existing.lines[index]?.raw_score ?? null} now={scores[index]} testId={`daily-saved-${row.indicator_order}`} />}
+                  value={lines[index].score} onChange={(event) => { const text = typedScore(event.target.value, max); if (text !== null) setLine(index, { score: text }); }} className={`mt-1 tabular-nums ${input}`} />
+                {existing && opened.correcting && <SavedScore before={existing.lines[index]?.raw_score ?? null} now={scores[index]} testId={`daily-saved-${row.indicator_order}`} />}
               </label>
               <p className="text-xs font-semibold text-ink-3">Gap<span data-testid={`daily-gap-${row.indicator_order}`} className="mt-1 block text-sm tabular-nums text-ink-2">{scores[index] !== null ? formatGap(scores[index], catalog.version) : "—"}</span></p>
               <label className="col-span-2 block text-xs font-semibold text-ink-3 sm:col-span-1">Comment
@@ -177,7 +180,7 @@ function MyDailyKpi({ team }: { team: boolean }) {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <p data-testid="daily-total" className="text-sm text-ink-2">Total <strong className="font-display text-lg font-semibold tabular-nums text-ink">{formatScore(total, max)}</strong>
             {total !== null && max === 100 && <span className="ml-2 tabular-nums">gap {formatGap(total, catalog.version)} dari target {KPI_TARGET}</span>}
-            {existing?.overallScore != null && <span data-testid="daily-total-compare" className="mt-1 block text-xs tabular-nums text-ink-3">{totalComparison(existing.overallScore, total)}</span>}</p>
+            {opened.correcting && existing?.overallScore != null && <span data-testid="daily-total-compare" className="mt-1 block text-xs tabular-nums text-ink-3">{totalComparison(existing.overallScore, total)}</span>}</p>
           <Button type="submit" disabled={busy} data-testid="btn-save-daily">{existing ? "Save correction" : "Save"}</Button>
         </div>
       </form>
@@ -185,9 +188,9 @@ function MyDailyKpi({ team }: { team: boolean }) {
     <Card title={`This period · ${formatPeriod(period)}`} testId="my-daily-period"
       actions={<ButtonLink href={`/daily-kpi/${snapshot.actorEmployeeId}/history`} icon={<History className="size-4" />} testId="view-history">View History</ButtonLink>}>
       <DailySummary compiled={compiled} />
-      <div className="mt-5"><DailyEntriesTable entries={[...days].reverse()} corrections={correctionsByDay(snapshot.kpiDaily ?? [], snapshot.actorEmployeeId, period)} editing={date} onCorrect={correct} /></div>
+      <div className="mt-5"><DailyEntriesTable entries={[...days].reverse()} corrections={correctionsByDay(snapshot.kpiDaily ?? [], snapshot.actorEmployeeId, period)} editing={opened.correcting ? date : undefined} onCorrect={correct} /></div>
     </Card>
-    {discarding && <DiscardDialog what={"date" in discarding ? `Pindah ke ${formatDate(discarding.date)}?` : "Tinggalkan halaman ini?"} back={discarding.back} onKeep={() => setDiscarding(null)} onDiscard={discard} />}
+    {discarding && <DiscardDialog what={"date" in discarding ? (discarding.date === date ? `Muat skor tersimpan ${formatDate(discarding.date)}?` : `Pindah ke ${formatDate(discarding.date)}?`) : "Tinggalkan halaman ini?"} back={discarding.back} onKeep={() => setDiscarding(null)} onDiscard={discard} />}
   </>;
 }
 
