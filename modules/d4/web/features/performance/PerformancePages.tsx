@@ -80,7 +80,7 @@ export function PerformanceListPage() {
   const listScale = scaleMaxOf(catalog?.version);
 
   return <>
-    <PageHeader title="Performance Review" subtitle={t("Lima Core KPI dan Notes per pegawai dan periode, dalam satu penilaian.")}
+    <PageHeader title="Performance Review" subtitle={t("Core KPI dan Notes per pegawai dan periode, dalam satu penilaian.")}
       actions={writer && <Button icon={<Plus className="size-4" />} onClick={() => setAdding({})} data-testid="btn-add-penilaian">{t("Add Performance Review")}</Button>} />
     <CatalogNotice />
     <FilterBar canReset={Boolean(search || position || department || period || progress)} onReset={reset}

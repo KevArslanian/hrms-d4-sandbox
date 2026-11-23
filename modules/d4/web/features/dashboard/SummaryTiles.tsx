@@ -219,7 +219,7 @@ function ReviewList({ snapshot, period, members, onAction }: { snapshot: Snapsho
     </Section>}
     {members.invalid.length > 0 && <Section title={t("Data tidak valid")} count={members.invalid.length} testId="summary-review-invalid">
       {members.invalid.map((item) => row(item, <>
-        <span className="text-xs text-danger">{t("KPI tidak lima atau bobot tidak 100%")}</span>
+        <span className="text-xs text-danger">{t("Total bobot KPI tidak 100%")}</span>
         {scorecardLink(item, t("View"))}
       </>))}
     </Section>}

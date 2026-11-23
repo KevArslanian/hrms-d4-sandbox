@@ -15,7 +15,8 @@ function query(table: string) {
     if (table === "d4_user_access") return { data: { app_role: "HR", employee_id: MERCURY }, error: null };
     if (table === "d4_kpi_role_catalog") return { data: KPI_V51_CATALOG, error: null };
     if (table === "d4_kpi_catalog_versions") return { data: [{ source_version: "V5.1", effective_from: "2000-01" }], error: null };
-    if (table === "d4_position_kpi_roles") return { data: seedCatalogSet(snapshot.reference.positions).positionRoles.map((item) => ({ ...item, source_version: "V5.1" })), error: null };
+    if (table === "d4_position_kpi_roles") return { data: seedCatalogSet(snapshot.reference.positions).positionRoles.filter((item) => item.source_version === "V5.1"), error: null };
+    if (table === "d4_kpi_catalog_rows" || table === "d4_kpi_position_roles") return { data: null, error: { code: "PGRST205", message: "missing" } };
     return { data: null, error: null };
   };
   const builder = {

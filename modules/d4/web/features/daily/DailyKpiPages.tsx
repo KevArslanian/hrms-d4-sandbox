@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { compileDaily, dailyEntriesOf, dailyHistoryOf, type DailyCompilation } from "../../../kpi/daily";
-import { catalogFor, indicatorsFor, KPI_TARGET, roleForPosition, targetOf } from "../../../kpi/catalog";
+import { catalogFor, indicatorsFor, KPI_TARGET, roleForPosition, scorableSet, targetOf } from "../../../kpi/catalog";
 import { performanceBand, scaleMaxOf, typedScore } from "../../../kpi/scale";
 import { canFillDaily } from "../../../shared/rules";
 import { msg, type Language } from "../../../shared/text";
@@ -20,21 +20,21 @@ import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
 import { Button, ButtonLink, Card, cx, InfoGrid, Notice, SavedNotice, StatusBadge } from "../../ui/primitives";
 import { FinalizeDailyModal } from "../kpi/FinalizeDailyModal";
-import { noKpiText, SavedScore, scorecardTotal, totalComparison } from "../kpi/KpiFormModal";
+import { catalogText, noKpiText, SavedScore, scorecardTotal, totalComparison } from "../kpi/KpiFormModal";
 import { COMPILED_RULE, correctionsByDay, isDirty, missedWorkingDays, openDailyForm, scoreProblem, workingDaysSoFar } from "./entry";
 
 const NOT_READY = msg("Daily KPI belum tersedia karena database belum diperbarui (migrasi 20261108130000). Menu lain tetap bisa dipakai.");
 const input = "h-9 w-full rounded-2xl border border-ink-3 px-3 outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/15 text-sm aria-[invalid=true]:border-danger";
 
-/** Daily KPI: employees score their own five Core KPI per day; HR, managers and management follow who filled them. */
+/** Daily KPI: employees score their own Core KPI per day; HR, managers and management follow who filled them. */
 export function DailyKpiPage() {
   const snapshot = useSnapshot();
   const { t } = useLanguage();
   const team = snapshot.role !== "EMPLOYEE";
   return <>
     <PageHeader title="Daily KPI" subtitle={team
-      ? t("Skor harian lima Core KPI per pegawai. Compiled score periode menjadi titik awal Performance Review.")
-      : t("Isi skor lima Core KPI Anda untuk hari ini. Compiled score sebulan menjadi titik awal Performance Review dari HR.")} />
+      ? t("Skor harian Core KPI per pegawai. Compiled score periode menjadi titik awal Performance Review.")
+      : t("Isi skor Core KPI Anda untuk hari ini. Compiled score sebulan menjadi titik awal Performance Review dari HR.")} />
     {!snapshot.kpiDaily ? <Notice tone="warning">{t(NOT_READY)}</Notice> : <div className="space-y-6">
       {canFillDaily(snapshot.role, snapshot.actorEmployeeId) && <MyDailyKpi team={team} />}
       {team && <TeamDailyKpi />}
@@ -55,9 +55,11 @@ function MyDailyKpi({ team }: { team: boolean }) {
   const max = scaleMaxOf(catalog?.version);
   const days = dailyEntriesOf(snapshot.kpiDaily ?? [], snapshot.actorEmployeeId, period);
   const savedFor = (day: string) => days.find((entry) => entry.entryDate === day);
-  const [opened, setOpened] = useState(() => openDailyForm(today()));
+  const [opened, setOpened] = useState(() => openDailyForm(today(), indicators.length));
   const date = opened.date;
   const [lines, setLines] = useState(opened.lines);
+  // D1 can change a position's KPI count while the page is open; after the next reload the form starts over on the new set.
+  if (lines.length !== indicators.length) { const next = openDailyForm(date, indicators.length); setOpened(next); setLines(next.lines); }
   const [touched, setTouched] = useState(false);
   const [error, setError] = useState("");
   // A date pick or a link that would throw typed scores away waits here for the user's answer. `back` gets focus
@@ -84,8 +86,8 @@ function MyDailyKpi({ team }: { team: boolean }) {
   }, [dirty]);
 
   // HR or a manager without a KPI role has nothing to fill; only an employee needs to be told why.
-  if ((!catalog || indicators.length !== 5) && team) return null;
-  if (!catalog || indicators.length !== 5) return <Card title={t("My KPI today")} testId="my-daily-kpi"><Notice tone="warning">{positionOf(snapshot, me) ? noKpiText(catalog?.version, t) : t("Akun Anda belum memiliki posisi aktif, jadi KPI-nya belum bisa ditentukan. Hubungi HR.")}</Notice></Card>;
+  if ((!catalog || !scorableSet(indicators)) && team) return null;
+  if (!catalog || !scorableSet(indicators)) return <Card title={t("My KPI today")} testId="my-daily-kpi"><Notice tone="warning">{positionOf(snapshot, me) ? noKpiText(catalog?.version, t) : t("Akun Anda belum memiliki posisi aktif, jadi KPI-nya belum bisa ditentukan. Hubungi HR.")}</Notice></Card>;
 
   const problems = lines.map((line) => scoreProblem(line.score, max, t));
   const scores = lines.map((line, index) => problems[index] ? null : Number(line.score.trim()));
@@ -93,7 +95,7 @@ function MyDailyKpi({ team }: { team: boolean }) {
   const existing = savedFor(date);
 
   function openDate(value: string, correct = false) {
-    const next = openDailyForm(value, savedFor(value), correct);
+    const next = openDailyForm(value, indicators.length, savedFor(value), correct);
     setOpened(next); setLines(next.lines); setTouched(false); setError("");
   }
   const dateTrigger = () => document.querySelector<HTMLElement>("[data-testid='input-daily-date']");
@@ -152,7 +154,7 @@ function MyDailyKpi({ team }: { team: boolean }) {
         <div className="grid gap-4 sm:grid-cols-3">
           <DateField label={t("Date")} testId="daily-date" required min={`${period}-01`} max={today()} value={date} onChange={(event) => chooseDate(event.target.value)} />
           <ReadOnlyField label={t("Position KPI")} testId="daily-role" value={indicators[0].role_name} />
-          <ReadOnlyField label={t("Catalog")} testId="daily-catalog" value={t("KPI Scorecard {version} · skala 1–{max}", { version: catalog.version, max })} />
+          <ReadOnlyField label={t("Catalog")} testId="daily-catalog" value={catalogText(catalog, roleOrder, t)} />
         </div>
         {existing && (opened.correcting
           ? <div data-testid="daily-correction-rule"><Notice>{t("Anda sedang mengoreksi entri {date}. Entri bulan ini bisa Anda koreksi sampai akhir {period}; nilai sebelumnya tetap tercatat di History.", { date: formatDate(date, language), period: formatPeriod(period, language) })}</Notice></div>

@@ -48,21 +48,21 @@ describe("openDailyForm: Daily KPI opens empty, Correct loads the saved day (BUG
   } as unknown as KpiDailyEntry;
 
   it("opens empty on a day that already has an entry: on page load, after Save and on a date pick", () => {
-    const form = openDailyForm("2026-11-23", saved);
+    const form = openDailyForm("2026-11-23", 5, saved);
     expect(form.correcting).toBe(false);
     expect(form.lines).toEqual(Array.from({ length: 5 }, () => ({ score: "", comment: "" })));
   });
 
   it("loads the saved scores and comments only for Correct", () => {
-    const form = openDailyForm("2026-11-23", saved, true);
+    const form = openDailyForm("2026-11-23", 5, saved, true);
     expect(form.correcting).toBe(true);
     expect(form.lines.map((line) => line.score)).toEqual(["100", "90", "100", "90", "85"]);
     expect(form.lines[0].comment).toBe("catatan 1");
   });
 
   it("counts as unchanged right after opening either way, so leaving the page asks nothing", () => {
-    for (const form of [openDailyForm("2026-11-23", saved), openDailyForm("2026-11-23", saved, true)]) expect(isDirty(form.lines, form.lines)).toBe(false);
-    const blank = openDailyForm("2026-11-23", saved);
+    for (const form of [openDailyForm("2026-11-23", 5, saved), openDailyForm("2026-11-23", 5, saved, true)]) expect(isDirty(form.lines, form.lines)).toBe(false);
+    const blank = openDailyForm("2026-11-23", 5, saved);
     expect(isDirty(blank.lines.map((line, index) => index === 0 ? { ...line, score: "80" } : line), blank.lines)).toBe(true);
   });
 });
