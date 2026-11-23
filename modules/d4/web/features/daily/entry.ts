@@ -1,7 +1,8 @@
+import { msg, plainText, type Translate } from "../../../shared/text";
 import type { KpiDailyEntry } from "../../../supabase/types";
 
 /** K5: how the compiled score is made (modules/d4/kpi/daily.ts), so it is not read as the plain average of daily totals. */
-export const COMPILED_RULE = "Compiled score: skor tiap KPI dirata-rata dari hari yang terisi lalu dibulatkan ke bilangan bulat, kemudian dikali bobotnya dan dijumlahkan. Karena pembulatan per KPI, hasilnya bisa sedikit berbeda dari rata-rata Total harian.";
+export const COMPILED_RULE = msg("Compiled score: skor tiap KPI dirata-rata dari hari yang terisi lalu dibulatkan ke bilangan bulat, kemudian dikali bobotnya dan dijumlahkan. Karena pembulatan per KPI, hasilnya bisa sedikit berbeda dari rata-rata Total harian.");
 
 export type DailyLine = { score: string; comment: string };
 
@@ -9,12 +10,12 @@ export type DailyLine = { score: string; comment: string };
  * Why a typed score is refused, or "" when it is fine. The raw text is checked, not Number(text): Number reads
  * "1e2" as 100 and "85.5" as a decimal, and the scorecard only takes whole scores.
  */
-export function scoreProblem(raw: string, max: number): string {
+export function scoreProblem(raw: string, max: number, t: Translate = plainText): string {
   const text = raw.trim();
-  if (!text) return `Wajib diisi, bilangan bulat 1 sampai ${max}.`;
-  if (!/^\d+$/.test(text)) return `Hanya angka bulat 1 sampai ${max}, tanpa koma, titik, atau huruf.`;
+  if (!text) return t("Wajib diisi, bilangan bulat 1 sampai {max}.", { max });
+  if (!/^\d+$/.test(text)) return t("Hanya angka bulat 1 sampai {max}, tanpa koma, titik, atau huruf.", { max });
   const score = Number(text);
-  return score < 1 || score > max ? `Di luar rentang: isi 1 sampai ${max}.` : "";
+  return score < 1 || score > max ? t("Di luar rentang: isi 1 sampai {max}.", { max }) : "";
 }
 
 export type DailyForm = { date: string; correcting: boolean; lines: DailyLine[] };

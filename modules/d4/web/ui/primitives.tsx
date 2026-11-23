@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { Link2 } from "lucide-react";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { sourceText, useLanguage } from "../i18n/LanguageProvider";
 
 export const cx = (...values: (string | false | null | undefined)[]) => values.filter(Boolean).join(" ");
 
 /** Stable data-testid part from a visible label (Katalon XPath): "Add Scorecard" -> "add-scorecard". */
 export const slug = (text: string) => text.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-const autoId = (prefix: string, children: ReactNode) => typeof children === "string" ? `${prefix}-${slug(children)}` : undefined;
+const autoId = (prefix: string, children: ReactNode) => typeof children === "string" ? `${prefix}-${slug(sourceText(children))}` : undefined;
 
 type ButtonVariant = "primary" | "secondary" | "danger" | "ghost";
 const buttonStyles: Record<ButtonVariant, string> = {
@@ -75,8 +76,9 @@ export function StatusBadge({ status }: { status: string }) {
 
 /** New / Updated for a row changed in the last day (see recentLabel); nothing otherwise. */
 export function RecentBadge({ label, testId = "label-recent", className = "mt-1 block" }: { label: "New" | "Updated" | null; testId?: string; className?: string }) {
+  const { t } = useLanguage();
   if (!label) return null;
-  return <span data-testid={testId} title="Changed in the last 24 hours" className={className}><StatusBadge status={label} /></span>;
+  return <span data-testid={testId} title={t("Changed in the last 24 hours")} className={className}><StatusBadge status={label} /></span>;
 }
 
 export function SourceChip({ label, reference, href }: { label: string; reference?: string; href?: string | null }) {
@@ -86,7 +88,7 @@ export function SourceChip({ label, reference, href }: { label: string; referenc
 }
 
 export function Card({ title, testId, actions, children, className, padded = true }: { title?: string; testId?: string; actions?: ReactNode; children: ReactNode; className?: string; padded?: boolean }) {
-  return <section data-testid={title ? `card-${testId ?? slug(title)}` : undefined} className={cx("min-w-0 rounded-2xl border border-line bg-surface shadow-card", padded && "p-6", className)}>
+  return <section data-testid={title ? `card-${testId ?? slug(sourceText(title))}` : undefined} className={cx("min-w-0 rounded-2xl border border-line bg-surface shadow-card", padded && "p-6", className)}>
     {(title || actions) && <div className={cx("flex flex-wrap items-center justify-between gap-3", padded ? "mb-5" : "px-6 pt-6 pb-4")}>
       {title && <h2 className="font-display font-semibold text-lg text-ink">{title}</h2>}{actions}
     </div>}
@@ -96,7 +98,7 @@ export function Card({ title, testId, actions, children, className, padded = tru
 
 export function InfoGrid({ items, columns = 2 }: { items: { label: string; testId?: string; value: ReactNode }[]; columns?: 2 | 3 | 4 }) {
   const cols = { 2: "sm:grid-cols-2", 3: "sm:grid-cols-2 lg:grid-cols-3", 4: "sm:grid-cols-2 xl:grid-cols-4" }[columns];
-  return <dl className={cx("grid gap-x-8 gap-y-5", cols)}>{items.map((item) => <div key={item.label} data-testid={`info-${item.testId ?? slug(item.label)}`} className="min-w-0">
+  return <dl className={cx("grid gap-x-8 gap-y-5", cols)}>{items.map((item) => <div key={item.label} data-testid={`info-${item.testId ?? slug(sourceText(item.label))}`} className="min-w-0">
     <dt className="text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3">{item.label}</dt>
     <dd className="mt-1 break-words text-sm text-ink">{item.value}</dd>
   </div>)}</dl>;
@@ -113,5 +115,6 @@ export function Notice({ tone = "info", children }: { tone?: "info" | "warning";
 
 /** Lists sort by what still needs work, so a record just saved can move pages away; this points back to it. */
 export function SavedNotice({ text, href }: { text: string; href: string }) {
-  return <div data-testid="saved-notice"><Notice>{text} <Link href={href} className="font-semibold underline">View Detail</Link></Notice></div>;
+  const { t } = useLanguage();
+  return <div data-testid="saved-notice"><Notice>{text} <Link href={href} className="font-semibold underline">{t("View Detail")}</Link></Notice></div>;
 }

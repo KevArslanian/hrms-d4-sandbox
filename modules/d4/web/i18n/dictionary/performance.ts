@@ -1,4 +1,156 @@
 import type { Dictionary } from "./types";
 
 export const performance = {
+  // Performance Review list
+  "Lima Core KPI dan Notes per pegawai dan periode, dalam satu penilaian.": {
+    en: "Five Core KPI and Notes per employee and period, in one review.",
+    id: "Lima Core KPI dan Catatan per pegawai dan periode, dalam satu penilaian.",
+  },
+  "Add Performance Review": { id: "Tambah Performance Review" },
+  "Ubah kata kunci atau reset filter untuk melihat semua pegawai.": { en: "Change the search or reset the filters to see all employees." },
+  "Old evaluation, no KPI score": { id: "Evaluasi lama, tanpa skor KPI" },
+  "Not in catalog {version} yet": { id: "Belum ada di katalog {version}" },
+  "Notes / Evaluator": { id: "Catatan / Penilai" },
+  "Belum ada katalog KPI yang berlaku untuk bulan ini. HR perlu menetapkan versi katalog dan periode mulai berlakunya.": {
+    en: "No KPI catalog applies to this month yet. HR needs to set the catalog version and the period it starts from.",
+  },
+  "Performance Review {name} · {period} tersimpan ({score}).": { en: "Performance Review {name} · {period} saved ({score})." },
+  // Legacy evaluation detail and history
+  "Evaluation": { id: "Evaluasi" },
+  "Back to Performance Review": { id: "Kembali ke Performance Review" },
+  "Legacy Evaluation": { id: "Evaluasi lama" },
+  "Evaluasi ini dicatat sebelum KPI dan Notes digabung menjadi satu Performance Review. Data lama hanya dapat dibaca.": {
+    en: "This evaluation was recorded before KPI and Notes were merged into one Performance Review. Old data is read-only.",
+    id: "Evaluasi ini dicatat sebelum KPI dan Catatan digabung menjadi satu Performance Review. Data lama hanya dapat dibaca.",
+  },
+  "Evaluation summary": { id: "Ringkasan evaluasi" },
+  "Evaluation date": { id: "Tanggal evaluasi" },
+  "Evaluator": { id: "Penilai" },
+  "Reference": { id: "Referensi" },
+  "Belum ada notes.": { en: "No notes yet.", id: "Belum ada catatan." },
+  "Belum ada reference.": { en: "No reference yet.", id: "Belum ada referensi." },
+  "Recorded by {actor} · {date}": { id: "Dicatat oleh {actor} · {date}" },
+  "Related records": { id: "Data terkait" },
+  "{count} saved review": { id: "{count} penilaian tersimpan" },
+  "{count} saved reviews": { id: "{count} penilaian tersimpan" },
+  "Performance Review history": { id: "Riwayat Performance Review" },
+  "Pegawai ini belum memiliki Performance Review.": { en: "This employee has no Performance Review yet." },
+  "Catalog {version} · Evaluator {name}": { id: "Katalog {version} · Penilai {name}" },
+  "Legacy Evaluation history (before the merge)": { id: "Riwayat evaluasi lama (sebelum digabung)" },
+  "Evaluation {period}": { id: "Evaluasi {period}" },
+  "Evaluator: {name}": { id: "Penilai: {name}" },
+  "Development from Performance Review": { id: "Development dari Performance Review" },
+  // Performance Review detail
+  "Ringkasan": { en: "Summary" },
+  "KPI role": { id: "Peran KPI" },
+  "KPI gap (vs 85)": { id: "Gap KPI (vs 85)" },
+  "Recorded": { id: "Dicatat" },
+  "Total = Σ (bobot × skor).": { en: "Total = Σ (weight × score)." },
+  "Di bawah {under} Under Performance, {under}–{high} Average Performance, di atas {high} High Performance.": {
+    en: "Below {under} Under Performance, {under}–{high} Average Performance, above {high} High Performance.",
+  },
+  "Skala 1–5 (V3.1/V5.1) tidak punya kategori performa; kategori berlaku untuk scorecard 1–100 mulai V6.": {
+    en: "The 1–5 scale (V3.1/V5.1) has no performance category; categories apply to 1–100 scorecards from V6.",
+  },
+  "Belum ada catatan.": { en: "No notes yet." },
+  "Teks realisasi dari kolom Actual lama, sebelum Actual menjadi skor.": {
+    en: "Realisation text from the old Actual column, before Actual became the score.",
+    id: "Teks realisasi dari kolom Aktual lama, sebelum Aktual menjadi skor.",
+  },
+  "Realisation: {text}": { id: "Realisasi: {text}" },
+  // Add Performance Review modal
+  "Lima Core KPI dari katalog {version} sesuai posisi pegawai (nama bisa diubah, bobot dan target tetap), lalu Notes dan Reference, disimpan sekaligus dengan Save.": {
+    en: "Five Core KPI from catalog {version} for the employee's position (names can be changed, weights and targets are fixed), then Notes and Reference, all saved at once with Save.",
+    id: "Lima Core KPI dari katalog {version} sesuai posisi pegawai (nama bisa diubah, bobot dan target tetap), lalu Catatan dan Referensi, disimpan sekaligus dengan Simpan.",
+  },
+  "Posisi ini belum memiliki KPI di katalog {version}. Hubungi HR.": { en: "This position has no KPI in catalog {version} yet. Contact HR." },
+  "Belum ada katalog KPI yang berlaku untuk periode ini. Hubungi HR.": { en: "No KPI catalog applies to this period yet. Contact HR." },
+  "Pegawai belum memiliki posisi aktif, jadi KPI-nya belum bisa ditentukan.": { en: "The employee has no active position yet, so their KPI cannot be set." },
+  "Boleh periode lalu, untuk penilaian yang terlambat dicatat.": { en: "A past period is allowed, for a review recorded late." },
+  "Hari penilaian dilakukan: dari awal periode sampai hari ini.": { en: "The day of the review: from the start of the period up to today." },
+  "Otomatis akun yang menyimpan, supaya penilaian tidak tercatat atas nama orang lain.": {
+    en: "Set to the account that saves, so the review is not recorded under someone else's name.",
+  },
+  "No KPI catalog for this period": { id: "Belum ada katalog KPI untuk periode ini" },
+  "Actual diisi dari rata-rata {count} entri Daily KPI pegawai ini ({period}), dibulatkan. Periksa dan ubah bila perlu sebelum menyimpan.": {
+    en: "Actual is filled from the average of this employee's {count} Daily KPI entries ({period}), rounded. Check and change it if needed before saving.",
+    id: "Aktual diisi dari rata-rata {count} entri Daily KPI pegawai ini ({period}), dibulatkan. Periksa dan ubah bila perlu sebelum menyimpan.",
+  },
+  "Performance Review {period} untuk pegawai ini sudah pernah direvisi (terakhir {evaluator}, {date}). Batasnya satu revisi per periode, jadi periode ini tidak bisa disimpan lagi. Riwayatnya ada di halaman Performance Review pegawai.": {
+    en: "This employee's Performance Review {period} has already been revised (last by {evaluator}, {date}). The limit is one revision per period, so this period cannot be saved again. Its history is on the employee's Performance Review page.",
+  },
+  "Actual 1–{max}": { id: "Aktual 1–{max}" },
+  "Actual {kpi}": { id: "Aktual {kpi}" },
+  "Comment {kpi}": { id: "Komentar {kpi}" },
+  "Comment: catatan realisasi": { en: "Comment: realisation notes", id: "Komentar: catatan realisasi" },
+  "Saved: {score}": { id: "Tersimpan: {score}" },
+  "Total bobot 100%": { en: "Total weight 100%" },
+  "Total bobot harus 100%": { en: "Total weight must be 100%" },
+  "Pilih pegawai untuk menampilkan KPI posisinya.": { en: "Choose an employee to show their position's KPI." },
+  "Saved total {saved}": { id: "Total tersimpan {saved}" },
+  "New total {now}": { id: "Total baru {now}" },
+  "Lower than saved ({diff})": { id: "Lebih rendah dari yang tersimpan ({diff})" },
+  "Higher than saved (+{diff})": { id: "Lebih tinggi dari yang tersimpan (+{diff})" },
+  "sama dengan yang tersimpan": { en: "same as saved" },
+  "Isi kelima Actual untuk melihat total baru.": { en: "Fill in all five Actual scores to see the new total.", id: "Isi kelima Aktual untuk melihat total baru." },
+  "Actual diisi skor 1–5: {scale}. Skor terbobot = bobot × Actual; total = jumlah skor terbobot. Catatan realisasi ditulis di Comment. Tidak ada label tercapai/tidak tercapai.": {
+    en: "Actual takes a score of 1–5: {scale}. Weighted score = weight × Actual; total = sum of the weighted scores. Realisation notes go in Comment. There is no achieved/not achieved label.",
+    id: "Aktual diisi skor 1–5: {scale}. Skor terbobot = bobot × Aktual; total = jumlah skor terbobot. Catatan realisasi ditulis di Komentar. Tidak ada label tercapai/tidak tercapai.",
+  },
+  "Actual diisi skor 1–100 dengan target {target}. Di bawah {under} = Under Performance, {under}–{high} = Average Performance, di atas {high} = High Performance. Skor terbobot = bobot × Actual; total = jumlah skor terbobot. Catatan realisasi ditulis di Comment.": {
+    en: "Actual takes a score of 1–100 with target {target}. Below {under} = Under Performance, {under}–{high} = Average Performance, above {high} = High Performance. Weighted score = weight × Actual; total = sum of the weighted scores. Realisation notes go in Comment.",
+    id: "Aktual diisi skor 1–100 dengan target {target}. Di bawah {under} = Under Performance, {under}–{high} = Average Performance, di atas {high} = High Performance. Skor terbobot = bobot × Aktual; total = jumlah skor terbobot. Catatan realisasi ditulis di Komentar.",
+  },
+  "Kekuatan, hal yang perlu diperbaiki, dan rekomendasi pelatihan. Bisa menjadi dasar Development Requirement.": {
+    en: "Strengths, points to improve and training recommendations. Can be the basis of a Development Requirement.",
+  },
+  "Kekuatan, hal yang perlu diperbaiki, dan rekomendasi pelatihan.": { en: "Strengths, points to improve and training recommendations." },
+  "Nomor dokumen, tautan laporan, atau lokasi dokumen pencapaian KPI.": { en: "Document number, report link, or where the KPI achievement document is kept." },
+  // Validation built in the client
+  "Lengkapi employee sebelum menyimpan.": { en: "Choose an employee before saving.", id: "Lengkapi pegawai sebelum menyimpan." },
+  "Employee wajib diisi.": { en: "Employee is required.", id: "Pegawai wajib diisi." },
+  "Period wajib diisi.": { en: "Period is required.", id: "Periode wajib diisi." },
+  "Date wajib diisi.": { en: "Date is required.", id: "Tanggal wajib diisi." },
+  "Notes wajib diisi.": { en: "Notes are required.", id: "Catatan wajib diisi." },
+  "Reference wajib diisi.": { en: "Reference is required.", id: "Referensi wajib diisi." },
+  "Period belum dimulai. Performance Review hanya untuk periode yang sudah berjalan.": {
+    en: "This period has not started. Performance Review is only for periods already under way.",
+    id: "Periode belum dimulai. Performance Review hanya untuk periode yang sudah berjalan.",
+  },
+  "KPI untuk posisi ini belum tersedia di katalog; penilaian tidak dapat disimpan.": { en: "This position has no KPI in the catalog yet; the review cannot be saved." },
+  "Setiap Core KPI wajib diberi nama.": { en: "Every Core KPI needs a name." },
+  "Lengkapi periode, tanggal evaluasi, dan Actual 1–{max} untuk kelima KPI.": {
+    en: "Fill in the period, evaluation date and Actual 1–{max} for all five KPI.",
+    id: "Lengkapi periode, tanggal evaluasi, dan Aktual 1–{max} untuk kelima KPI.",
+  },
+  "Tanggal evaluasi tidak boleh lebih dari hari ini.": { en: "The evaluation date cannot be later than today." },
+  "Tidak boleh lebih dari hari ini.": { en: "Cannot be later than today." },
+  "Performance Review periode ini sudah pernah direvisi; batasnya satu revisi per periode.": {
+    en: "This period's Performance Review has already been revised; the limit is one revision per period.",
+  },
+  "Performance Review untuk periode ini sudah ada. Centang “Save as revision” atau pilih periode lain.": {
+    en: "A Performance Review for this period already exists. Tick “Save as revision” or choose another period.",
+    id: "Performance Review untuk periode ini sudah ada. Centang “Simpan sebagai revisi” atau pilih periode lain.",
+  },
+  "Centang untuk menyimpan sebagai revisi, atau pilih periode lain.": { en: "Tick to save it as a revision, or choose another period." },
+  "Performance Review tersimpan.": { en: "Performance Review saved." },
+  // Finalize from Daily KPI
+  "Skor {period} dikompilasi dari {count} entri Daily KPI {name}. Skor tidak diubah di sini; tambahkan Notes dan Reference lalu simpan.": {
+    en: "The {period} scores are compiled from {count} Daily KPI entries of {name}. Scores are not changed here; add Notes and Reference, then save.",
+    id: "Skor {period} dikompilasi dari {count} entri Daily KPI {name}. Skor tidak diubah di sini; tambahkan Catatan dan Referensi lalu simpan.",
+  },
+  "Finalize": { id: "Finalisasi" },
+  "Days compiled": { id: "Hari dikompilasi" },
+  "KPI pegawai ini tidak lagi sesuai katalog periode ini. Pakai Add Performance Review.": {
+    en: "This employee's KPI no longer matches this period's catalog. Use Add Performance Review.",
+    id: "KPI pegawai ini tidak lagi sesuai katalog periode ini. Pakai Tambah Performance Review.",
+  },
+  "konfirmasi periode berjalan": { en: "running period confirmation" },
+  "Lengkapi {fields} sebelum finalisasi.": { en: "Fill in {fields} before finalizing." },
+  "Performance Review difinalisasi dari Daily KPI.": { en: "Performance Review finalized from Daily KPI." },
+  "{period} masih berjalan. Entri Daily KPI yang disimpan setelah finalisasi tidak lagi masuk ke skor ini.": {
+    en: "{period} is still running. Daily KPI entries saved after finalizing no longer count toward this score.",
+  },
+  "Finalize now anyway": { id: "Tetap finalisasi sekarang" },
+  "Centang dulu untuk memfinalisasi periode yang masih berjalan.": { en: "Tick the box first to finalize a period that is still running." },
 } satisfies Dictionary;

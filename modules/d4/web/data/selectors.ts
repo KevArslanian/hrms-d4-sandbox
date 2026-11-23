@@ -4,7 +4,7 @@ import { compareCompetencies } from "../../competency/service";
 import type { CompetencyAssessment, CompetencyFinding, CompetencyOverallStatus } from "../../competency/types";
 import type { DevelopmentNeedVersion, DevelopmentSourceType } from "../../development/types";
 import type { PerformanceEvaluation } from "../../performance/types";
-import type { Language } from "../../shared/text";
+import { msg, plainText, type Language, type Translate } from "../../shared/text";
 import type { EmployeeReference } from "../../shared/types";
 import { localMonth, localToday, passedTrainingCount, pendingDecision, reassessmentOf, retrainedAt, revisionNumber } from "../../shared/rules";
 import { latestDevelopment, latestTraining, type D4LiveSnapshot, type KpiAssessment } from "../../supabase/types";
@@ -86,11 +86,11 @@ export const positionById = (snapshot: Snapshot, id?: string | null) => id ? ind
  * Title of a saved assessment's position, which may have left the position master since (UI-008). Then the title
  * saved with the assessment is shown, so history still says which position was assessed.
  */
-export const positionTitle = (snapshot: Snapshot, id?: string | null, saved?: string | null) =>
-  positionById(snapshot, id)?.title ?? (saved?.trim() || "posisi tidak ada di master");
+export const positionTitle = (snapshot: Snapshot, id?: string | null, saved?: string | null, t: Translate = plainText) =>
+  positionById(snapshot, id)?.title ?? (saved?.trim() || t("posisi tidak ada di master"));
 export const departmentOf = (snapshot: Snapshot, employee?: EmployeeReference) => employee?.departmentId ? indexOf(snapshot).departments.get(employee.departmentId) : undefined;
 /** Header line shared by every detail/history page: position · employee ID · department. */
-export const employeeMeta = (snapshot: Snapshot, employee: EmployeeReference) => [positionOf(snapshot, employee)?.title ?? "No position yet", employee.employeeId, departmentOf(snapshot, employee)?.name ?? ""];
+export const employeeMeta = (snapshot: Snapshot, employee: EmployeeReference, t: Translate = plainText) => [positionOf(snapshot, employee)?.title ?? t("No position yet"), employee.employeeId, departmentOf(snapshot, employee)?.name ?? ""];
 
 // Copies, so a caller sorting the result never reorders the shared index.
 export function evaluationsOf(snapshot: Snapshot, employeeId: string): PerformanceEvaluation[] {
@@ -102,9 +102,9 @@ export function scorecardsOf(snapshot: Snapshot, employeeId: string): KpiAssessm
   return [...(indexOf(snapshot).scorecards.get(employeeId) ?? [])];
 }
 /** " · Revision n" for the second and later record of the same period; empty for the first. */
-export function revisionTag<T extends { id: string; employeeId: string; period: string; createdAt: string }>(records: readonly T[], record: T) {
+export function revisionTag<T extends { id: string; employeeId: string; period: string; createdAt: string }>(records: readonly T[], record: T, t: Translate = plainText) {
   const n = revisionNumber(records, record);
-  return n > 1 ? ` · Revision ${n}` : "";
+  return n > 1 ? ` · ${t("Revision {n}", { n })}` : "";
 }
 
 export const latestScorecard = (snapshot: Snapshot, employeeId: string) => scorecardsOf(snapshot, employeeId)[0];
@@ -244,10 +244,10 @@ export function sourceFinding(snapshot: Snapshot, need: DevelopmentNeedVersion):
 }
 
 /** What a revision changed besides its status, for history lines: priority, method, PIC, reassessment. */
-export function revisionChanges(version: DevelopmentNeedVersion, previous?: DevelopmentNeedVersion): string[] {
+export function revisionChanges(version: DevelopmentNeedVersion, previous?: DevelopmentNeedVersion, t: Translate = plainText): string[] {
   const changes: string[] = [];
-  if (previous && version.priority !== previous.priority) changes.push(`Priority ${previous.priority} → ${version.priority}`);
-  if (previous && (version.method ?? "") !== (previous.method ?? "")) changes.push(`Method: ${previous.method || "—"} → ${version.method || "—"}`);
+  if (previous && version.priority !== previous.priority) changes.push(t("Priority {from} → {to}", { from: previous.priority, to: version.priority }));
+  if (previous && (version.method ?? "") !== (previous.method ?? "")) changes.push(t("Method: {from} → {to}", { from: previous.method || "—", to: version.method || "—" }));
   if (previous && (version.pic ?? "") !== (previous.pic ?? "")) changes.push(`PIC: ${previous.pic || "—"} → ${version.pic || "—"}`);
   if (version.reassessment) changes.push(`Reassessment: ${version.reassessment}`);
   return changes;
@@ -265,28 +265,28 @@ export const trainingHistory = (snapshot: Snapshot, trainingId: string) => snaps
 
 export const sourceTypeLabel: Record<DevelopmentSourceType, string> = {
   competency_gap: "Competency Gap",
-  role_change: "Position Change",
+  role_change: msg("Position Change"),
   performance_context: "Performance Review",
 };
 /** Q9: a new requirement starts from a competency gap; Position Change and Performance Review stay as other sources. */
 export const DEFAULT_SOURCE_TYPE: DevelopmentSourceType = "competency_gap";
 
 /** Resolves a development need's source reference to a readable label and a link to the source record (FR-D4-005). */
-export function describeSource(snapshot: Snapshot, need: Pick<DevelopmentNeedVersion, "sourceType" | "sourceRef" | "employeeId">): { label: string; href: string | null } {
+export function describeSource(snapshot: Snapshot, need: Pick<DevelopmentNeedVersion, "sourceType" | "sourceRef" | "employeeId">, t: Translate = plainText): { label: string; href: string | null } {
   if (need.sourceType === "competency_gap") {
     const requirement = snapshot.reference.positionRequirements.find((item) => item.id === need.sourceRef);
     const competency = snapshot.reference.competencies.find((item) => item.id === requirement?.competencyId);
-    return { label: competency ? `${competency.name} (min. level ${requirement?.minProficiencyLevel})` : "Competency requirement", href: `/competency/${need.employeeId}` };
+    return { label: competency ? t("{competency} (min. level {level})", { competency: competency.name, level: String(requirement?.minProficiencyLevel) }) : t("Competency requirement"), href: `/competency/${need.employeeId}` };
   }
   if (need.sourceType === "role_change") {
     const assessment = snapshot.competency.find((item) => item.id === need.sourceRef);
-    return { label: assessment ? `Position change assessment · ${formatDate(assessment.effectiveDate)}` : "Position change assessment", href: `/competency/${need.employeeId}/history` };
+    return { label: assessment ? t("Position change assessment · {date}", { date: formatDate(assessment.effectiveDate, t.language) }) : t("Position change assessment"), href: `/competency/${need.employeeId}/history` };
   }
   const assessment = snapshot.kpiAssessments?.find((item) => item.id === need.sourceRef);
-  if (assessment) return { label: `Performance Review ${formatPeriod(assessment.period)}`, href: `/performance/scorecard/${assessment.id}` };
+  if (assessment) return { label: `Performance Review ${formatPeriod(assessment.period, t.language)}`, href: `/performance/scorecard/${assessment.id}` };
   // Needs raised before FR-D4-001 v3.1 point at an older, separate evaluation.
   const evaluation = snapshot.performance.find((item) => item.id === need.sourceRef);
-  return { label: evaluation ? `Performance Review ${formatPeriod(evaluation.period)} (evaluasi lama)` : "Performance Review", href: evaluation ? `/performance/${evaluation.id}` : null };
+  return { label: evaluation ? t("Performance Review {period} (evaluasi lama)", { period: formatPeriod(evaluation.period, t.language) }) : "Performance Review", href: evaluation ? `/performance/${evaluation.id}` : null };
 }
 
 export function trainingSource(snapshot: Snapshot, record: TrainingVersion) {
@@ -342,10 +342,10 @@ export const listScore = (value: number | null | undefined, version: string | nu
   scaleMaxOf(version) === listScale ? value?.toFixed(2) ?? "—" : formatScore(value, scaleMaxOf(version));
 
 /** KPI gap as shown: signed, "n/a (skala 1–5)" for a 1–5 score, "—" without a score. */
-export function formatGap(score: number | null | undefined, definitionVersion?: string | null): string {
+export function formatGap(score: number | null | undefined, definitionVersion?: string | null, t: Translate = plainText): string {
   if (score === null || score === undefined) return "—";
   const gap = kpiGap(score, definitionVersion);
-  if (gap === null) return "n/a (skala 1–5)";
+  if (gap === null) return t("n/a (skala 1–5)");
   return `${gap > 0 ? "+" : ""}${Number.isInteger(gap) ? gap : gap.toFixed(2)}`;
 }
 
@@ -353,7 +353,7 @@ export function formatGap(score: number | null | undefined, definitionVersion?: 
 export const formatScorecard = (scorecard: { overallScore: number | null; definitionVersion?: string | null }): string => formatScore(scorecard.overallScore, scaleMaxOf(scorecard.definitionVersion));
 
 /** Raw-score criteria from KPI Scorecard V3.1/V5.1 sheet "KPI Scoring Card"; shared by KPI and evaluation results. */
-export const SCORE_LABELS: Record<number, string> = { 1: "Very Poor", 2: "Poor", 3: "Fair", 4: "Good", 5: "Very Good" };
+export const SCORE_LABELS: Record<number, string> = { 1: msg("Very Poor"), 2: msg("Poor"), 3: msg("Fair"), 4: msg("Good"), 5: msg("Very Good") };
 
 export const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("");
 
