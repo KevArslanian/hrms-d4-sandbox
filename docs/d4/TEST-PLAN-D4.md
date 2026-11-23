@@ -246,7 +246,7 @@ Keputusan 8 Nov 2026: pegawai mengisi skornya sendiri per hari; skor periode dik
 | TC-D4-008-16 | Test pemantauan tim oleh HR dan Management: pegawai tanpa entri di baris teratas ("No entries"), View entries membuka Daily entries, Management tanpa aksi simpan untuk pegawai lain | Positif | Not Run | Staging: O7, O8 |
 | TC-D4-008-17 | Test gagal simpan saat offline: toast "Tidak dapat terhubung ke server. Periksa koneksi internet lalu coba lagi." dan entri tidak tersimpan | Negatif | Not Run | Staging: O7 |
 | TC-D4-008-18 | Test sebelum migrasi Daily KPI: pesan "Daily KPI belum tersedia karena database belum diperbarui (migrasi 20261108130000). Menu lain tetap bisa dipakai." dan menu lain tetap berjalan | Negatif | Pass (10 Nov 2026, produksi, Simulasi Employee) | Hanya sebelum migrasi langkah 6 |
-| TC-D4-008-19 | Test lonceng "Butuh training" (PST 2): sebagai HR, buat satu requirement terbuka tanpa training atau batalkan training satu-satunya; lonceng menampilkan "1 pegawai butuh training", panel terbuka sendiri, "Buat training" membuka `/development`, dan alert **Butuh training** muncul di People Dashboard. Sebagai Employee dan Management, pengingat ini tidak muncul | Positif | Not Run | – |
+| TC-D4-008-19 | Test lonceng "Belum punya training" (PST 2): sebagai HR, buat satu requirement terbuka tanpa training atau batalkan training satu-satunya; lonceng menampilkan "1 pegawai belum punya training", panel terbuka sendiri, "Buat training" membuka `/development`, dan alert **Belum punya training** muncul di People Dashboard. Sebagai Employee dan Management, pengingat ini tidak muncul | Positif | Not Run | – |
 
 ### TC-D4-SEC · TR-D4-002 Security & audit
 

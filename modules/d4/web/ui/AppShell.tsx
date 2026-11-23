@@ -182,8 +182,8 @@ function trainingReminder(snapshot: Snapshot): Notification | null {
   const waiting = developmentNeeds(snapshot).filter((need) => visible.has(need.employeeId) && needsTraining(snapshot, need));
   if (!waiting.length) return null;
   const people = new Set(waiting.map((need) => need.employeeId)).size;
-  return { id: `need-training-${waiting.map((need) => need.needId).join(",")}`, title: `${people} pegawai butuh training`,
-    text: `${waiting.length} development requirement terbuka belum punya training.`, href: "/development", action: "Buat training" };
+  return { id: `need-training-${waiting.map((need) => need.needId).join(",")}`, title: `${people} pegawai belum punya training`,
+    text: `${waiting.length} development requirement terbuka menunggu training.`, href: "/development", action: "Buat training" };
 }
 
 // The last reminder that was opened or dismissed, per browser: the panel opens by itself once per reminder, not on every page.

@@ -146,6 +146,8 @@ describe("People Dashboard charts", () => {
     // PST 2 (Kei): an open requirement without a running or finished training is who still needs training.
     const waiting = { ...noNeeds, developmentVersions: [need("Planned")] };
     expect(keys(waiting)).toContain("requirement-no-training");
+    // The "Need training" tile counts every open requirement, so this narrower alert must not reuse that name.
+    expect(dashboardAlerts(waiting, rowsOf(waiting)).find((alert) => alert.key === "requirement-no-training")?.title).toBe("Belum punya training");
     expect(keys({ ...waiting, trainingVersions: [training("T3", "2026-10-01", "Cancelled", "")] })).toContain("requirement-no-training");
     expect(keys({ ...waiting, trainingVersions: [training("T4", "2026-10-01", "Planned", "")] })).not.toContain("requirement-no-training");
     expect(keys(completed)).not.toContain("requirement-no-training");
