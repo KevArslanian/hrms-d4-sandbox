@@ -28,9 +28,9 @@ Di luar cakupan: sertifikasi/renewal, trigger performance-gap formal, dan reasse
 | FR-D4-007 / TR-D4-001 Keterhubungan data | TC-D4-007 | 9 | [QA] Pengujian Integration, Security, Validation & UI Quality |
 | Daily KPI (wawancara D4, 14 Okt 2026) | TC-D4-008 | 21 (baru) | [QA] Pengujian Phase 1 |
 | TR-D4-002 Security & audit | TC-D4-SEC | 9 | idem |
-| TR-D4-002 Validation & UI quality | TC-D4-UIQ | 14 (1 baru: pola filter) | idem |
+| TR-D4-002 Validation & UI quality | TC-D4-UIQ | 19 (1 baru: pola filter; 5 baru: bahasa, paginasi, info berulang) | idem |
 | Skenario lintas fitur | TS-D4-001 s.d. 003 | 3 | [QA] TS-D4-00x (list To Do List QA) |
-| **Total** | | **154** | |
+| **Total** | | **159** | |
 
 Semua FR dan TR yang dapat diuji punya minimal satu TC positif dan satu TC negatif.
 
@@ -289,6 +289,11 @@ Kartu Planka: **[QA] Pengujian Integration, Security, Validation & UI Quality**
 | TC-D4-UIQ-12 | Test action pattern konsisten | Positif | Not Run | Staging |
 | TC-D4-UIQ-13 | Test demo/fixture data dapat dibedakan dari baseline data | Positif | Not Run | Staging |
 | TC-D4-UIQ-14 | Test pola filter list (keputusan 13 Nov 2026): satu baris berisi search, tombol Period, dan tombol Filter (`btn-filter`); dropdown lain baru ada setelah `btn-filter` diklik, masing-masing berlabel di atas dengan pilihan kosong "All"; jumlah filter terisi tampil di tombol Filter (`filter-count`) dan tidak ada tag saat panel tertutup; Reset filter ada di dalam panel dan mengosongkan semua filter; Esc menutup daftar dropdown dulu, lalu panel, dan fokus kembali ke tombol Filter | Positif | Not Run | Staging, di People Dashboard, Performance Review, Competency Gap, Development Requirement, Training Tracking |
+| TC-D4-UIQ-15 | Test toggle bahasa (24 Nov 2026): tanpa cookie halaman tampil bahasa Indonesia dan `btn-language-id` ber-`aria-pressed=true`; klik `btn-language-en` mengubah teks layar ke bahasa Inggris tanpa reload; reload tetap bahasa Inggris (cookie `andima-hrms-language=en`). Status workflow, nama KPI, dan nama pegawai tidak berubah | Positif | Not Run | Staging |
+| TC-D4-UIQ-16 | Test cookie `andima-hrms-language` bernilai tidak dikenal (mis. `fr`): halaman tampil bahasa Indonesia tanpa error | Negatif | Not Run | Staging |
+| TC-D4-UIQ-17 | Test testid stabil antarbahasa: di tiap halaman list, kumpulkan semua `data-testid`, klik `btn-language-en`, kumpulkan lagi; kedua set identik. Skrip Katalon yang ada lulus di kedua bahasa | Positif | Not Run | Staging |
+| TC-D4-UIQ-18 | Test pemilih baris per halaman: `select-page-size` ada di kanan bawah sebelum label "per page"/"per halaman", pilihan 10/20/50/100; pilih 20 → `table-count` menampilkan "Showing 1–20 of …" (bila data > 20) dan halaman kembali ke 1 | Positif | Not Run | Staging |
+| TC-D4-UIQ-19 | Test info berulang dihapus: skor di list Performance Review tanpa teks "from N daily entries"; kolom Period hilang saat filter Period dipilih; People Dashboard tanpa kolom Period; tabel tim Daily KPI berjudul **Days filled (/N)** dan **Compiled score / Gap vs 85**; alert dashboard dengan jumlah 1 di mode EN memakai bentuk tunggal ("1 employee has …") | Positif | Not Run | Staging |
 
 ### TS-D4 · Skenario lintas fitur
 
