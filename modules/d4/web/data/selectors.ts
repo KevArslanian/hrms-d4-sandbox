@@ -330,6 +330,13 @@ export function formatScore(value: number | null | undefined, scale = 5): string
   return value === null || value === undefined ? "—" : `${value.toFixed(2)} / ${scale}`;
 }
 
+/**
+ * Score in a list whose column header carries the scale, "Total KPI (/100)" (PST 2): the bare number, written once per
+ * row without "/ 100". A row saved on the other scale keeps its own, so a 1–5 score is never read as out of 100.
+ */
+export const listScore = (value: number | null | undefined, version: string | null | undefined, listScale: number) =>
+  scaleMaxOf(version) === listScale ? value?.toFixed(2) ?? "—" : formatScore(value, scaleMaxOf(version));
+
 /** KPI gap as shown: signed, "n/a (skala 1–5)" for a 1–5 score, "—" without a score. */
 export function formatGap(score: number | null | undefined, definitionVersion?: string | null): string {
   if (score === null || score === undefined) return "—";
