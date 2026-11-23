@@ -1,7 +1,8 @@
-import type { CompetencyFinding } from "../competency/types";
+import type { CompetencyAssessment, CompetencyFinding } from "../competency/types";
 import type { DevelopmentNeedVersion, DevelopmentPriority, DevelopmentReassessment, DevelopmentSourceType, DevelopmentStatus } from "../development/types";
 import type { TrainingFollowUp, TrainingStatus, TrainingVersion } from "../training/types";
 import { ApiError } from "./errors";
+import { plainText, type Translate } from "./text";
 
 /**
  * Integrity rules shared by the fixture source (browser preview) and the API handlers, so both
@@ -213,8 +214,8 @@ export function assertTrainingDate(status: TrainingStatus, date: string) {
  * Message when an evaluation date falls before its period starts (D4-FN-01), or "" when it does not. Together with
  * assertNotFutureDate this keeps the period at or before the current month. A missing date is reported elsewhere.
  */
-export const periodDateError = (period: string, date: string | null | undefined) =>
-  date && period && date < `${period}-01` ? "Tanggal evaluasi tidak boleh sebelum awal periode." : "";
+export const periodDateError = (period: string, date: string | null | undefined, t: Translate = plainText) =>
+  date && period && date < `${period}-01` ? t("Tanggal evaluasi tidak boleh sebelum awal periode.") : "";
 
 export function assertEvaluationInPeriod(period: string, date: string | null | undefined) {
   const message = periodDateError(period, date);
@@ -331,12 +332,12 @@ export function trainingSyncRevision(need: DevelopmentNeedVersion, latestTrainin
  * comparison shows the level met (e.g. after coaching, or the level was updated in D3). "" when it may close.
  * `finding` is that requirement on the employee's current position; undefined when it is not part of it.
  */
-export function closeGapBlockedReason(need: Pick<DevelopmentNeedVersion, "sourceType" | "status">, finding: LevelFinding | undefined, openTrainings: number): string {
-  if (need.sourceType !== "competency_gap") return "Hanya requirement dari Competency Gap yang bisa ditutup dengan bukti level; yang lain diselesaikan lewat Training Tracking.";
-  if (need.status === "Completed") return "Requirement sudah Completed.";
-  if (openTrainings > 0) return "Masih ada training Planned atau In Progress; selesaikan lewat Training Tracking.";
-  if (!finding) return "Persyaratan ini bukan bagian dari posisi pegawai saat ini.";
-  if (finding.status !== "Terpenuhi") return `${finding.competencyName}: level saat ini ${finding.actualLevel ?? "belum tercatat"}, required ${finding.requiredLevel}.`;
+export function closeGapBlockedReason(need: Pick<DevelopmentNeedVersion, "sourceType" | "status">, finding: LevelFinding | undefined, openTrainings: number, t: Translate = plainText): string {
+  if (need.sourceType !== "competency_gap") return t("Hanya requirement dari Competency Gap yang bisa ditutup dengan bukti level; yang lain diselesaikan lewat Training Tracking.");
+  if (need.status === "Completed") return t("Requirement sudah Completed.");
+  if (openTrainings > 0) return t("Masih ada training Planned atau In Progress; selesaikan lewat Training Tracking.");
+  if (!finding) return t("Persyaratan ini bukan bagian dari posisi pegawai saat ini.");
+  if (finding.status !== "Terpenuhi") return t("{competency}: level saat ini {current}, required {required}.", { competency: finding.competencyName, current: finding.actualLevel ?? t("belum tercatat"), required: finding.requiredLevel });
   return "";
 }
 
@@ -345,20 +346,42 @@ export const closeGapNotes = (finding: LevelFinding, day: string) =>
   `Gap terpenuhi tanpa training: ${finding.competencyName} level ${finding.actualLevel}, required ${finding.requiredLevel} (data kompetensi per ${day}).`;
 
 /** Why Meets requirement is not available yet for a gap-based requirement, or "" when it is. */
-export const meetsBlockedReason = (finding: LevelFinding | undefined) => finding && finding.status !== "Terpenuhi"
-  ? `${finding.competencyName}: level saat ini ${finding.actualLevel ?? "belum tercatat"}, required ${finding.requiredLevel}. Meets requirement bisa dipilih setelah level di data kompetensi pegawai (modul D3) memenuhi.`
+export const meetsBlockedReason = (finding: LevelFinding | undefined, t: Translate = plainText) => finding && finding.status !== "Terpenuhi"
+  ? t("{competency}: level saat ini {current}, required {required}. Meets requirement bisa dipilih setelah level di data kompetensi pegawai (modul D3) memenuhi.",
+    { competency: finding.competencyName, current: finding.actualLevel ?? t("belum tercatat"), required: finding.requiredLevel })
   : "";
+
+/** When a competency assessment was last saved for this employee's position: D3 skill rows carry no date, so this is the only dated evidence of a reassessment. */
+export const lastAssessedAt = (assessments: readonly Pick<CompetencyAssessment, "employeeId" | "positionId" | "createdAt">[], employeeId: string, positionId: string | null | undefined) =>
+  assessments.reduce<string | undefined>((at, item) => item.employeeId === employeeId && item.positionId === positionId && (!at || Date.parse(item.createdAt) > Date.parse(at)) ? item.createdAt : at, undefined);
+
+/**
+ * Why Retraining after a Passed training is not available yet, or "" when it is. Interview 14 Oct (part 2, 00:53:31):
+ * the reassessment after a training decides between Retraining and Meets requirement, so Retraining is never picked in
+ * the save that records Passed (`completed` undefined). For a gap-based requirement it also needs a competency
+ * assessment saved after the training was completed that still shows the gap; the level before the training proves nothing.
+ */
+export function retrainingBlockedReason(need: Pick<DevelopmentNeedVersion, "sourceType">, finding: LevelFinding | undefined, completed: string | undefined, assessedAt: string | undefined, t: Translate = plainText): string {
+  if (!completed) return t("Retraining dipilih saat reassessment, setelah hasil Passed tersimpan dan kompetensinya dinilai ulang. Simpan hasil Passed dengan Decide later.");
+  if (need.sourceType !== "competency_gap" || !finding) return "";
+  if (finding.status === "Terpenuhi") return t("{competency}: level {current} sudah memenuhi required {required}. Pilih Meets requirement.", { competency: finding.competencyName, current: String(finding.actualLevel), required: finding.requiredLevel });
+  if (!assessedAt || Date.parse(assessedAt) <= Date.parse(completed))
+    return t("Belum ada penilaian ulang kompetensi sesudah training ini. Simpan penilaian di Competency Gap, lalu pilih Retraining bila levelnya masih di bawah requirement. Bila hari ini sudah ada penilaian dengan hasil sama, isi Assessed with (misalnya atasannya) agar tersimpan sebagai penilaian baru.");
+  return "";
+}
 
 /**
  * Plan of the one save that completes a training: checks every rule against the state after the training is
  * Completed, before anything is written. The database keeps the decision in two places: a follow-up only on a Not
  * Passed version, a reassessment only with the matching requirement status (Retraining → Planned, Meets → Completed).
  * `finding`: the live comparison of a gap-based requirement on the employee's current position, if it is part of it;
- * completing the training does not change that skill data (D3), so Meets requirement waits for it.
+ * completing the training does not change that skill data (D3), so Meets requirement waits for it. `assessedAt`: when
+ * a competency assessment was last saved for that position (lastAssessedAt), the evidence Retraining after Passed needs.
  */
 export function planTrainingCompletion(input: TrainingCompletion, context: {
   trainingId: string; history: readonly TrainingVersion[]; need: DevelopmentNeedVersion | undefined; needHistory: readonly DevelopmentNeedVersion[];
   latestNeeds: readonly DevelopmentNeedVersion[]; latestTrainings: readonly (TrainingOutcome & { trainingId: string })[]; finding: LevelFinding | undefined; at: string;
+  assessedAt?: string;
 }): { training: "version" | "follow-up" | null; development: DevelopmentRevision | null; retraining: boolean; snapshot: boolean } {
   assertTrainingResult("Completed", input.result);
   const passed = input.result === "Passed";
@@ -377,6 +400,8 @@ export function planTrainingCompletion(input: TrainingCompletion, context: {
   }
   if (!context.need) throw new ApiError("VALIDATION_FAILED", "Development requirement sumber training ini tidak ditemukan.");
   const decision = input.decision as DevelopmentReassessment;
+  const retrainingBlocked = decision === "Retraining" && retrainingBlockedReason(context.need, context.finding, saved ? completedAt(context.history) : undefined, context.assessedAt);
+  if (retrainingBlocked) throw new ApiError("VALIDATION_FAILED", retrainingBlocked);
   if (decision === "Retraining" && (!input.activity?.trim() || !input.date)) throw new ApiError("VALIDATION_FAILED", "Isi nama training dan tanggal untuk Retraining.");
   if (decision === "Meets requirement" && context.need.sourceType === "competency_gap" && meetsBlockedReason(context.finding))
     throw new ApiError("VALIDATION_FAILED", meetsBlockedReason(context.finding));

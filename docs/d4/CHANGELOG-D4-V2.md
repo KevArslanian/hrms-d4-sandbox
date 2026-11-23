@@ -405,6 +405,18 @@ Sumber: dua kartu bug terbuka di board Planka Squad D4 (QA, 17 Nov 2026) dan cat
 - **People Dashboard: skala di judul kolom.** Kolom Total KPI di tabel People Dashboard kini berjudul **Total KPI (/100)** dan barisnya hanya menulis angka, sama dengan daftar Performance Review sejak 22 Nov. Baris yang tersimpan dengan skala lain (V5.1, 1–5) tetap menulis "/ 5". Aturannya kini satu fungsi bersama, `listScore`. `selectors.ts`, `DashboardPages.tsx`, `PerformancePages.tsx`
 - **Belum diubah:** tabel This period dan Daily entries di halaman Daily KPI masih menulis "/ 100" per baris. Tidak ada laporan untuk tabel itu, jadi dibiarkan sampai ada keputusan.
 
+## Passed tidak langsung menawarkan Retraining · 23 Nov 2026
+
+Sumber: pertanyaan 23 Nov "kalau Passed kenapa ada Retraining", yang juga disorot PST 2 dan pada 22 Nov hanya dijawab dengan label. Dasarnya wawancara 14 Okt part 2: training Completed belum membuktikan gap tertutup (00:51:27), dan sesudah training ada reassessment, "Apakah harus dilakukan retraining? Ataukah sudah memenuhi?" (00:53:31).
+
+- **Saat hasil Passed dicatat** (Update Progress satuan dan bulk): pilihannya **Gap closed: Meets requirement** (tetap butuh level D3 yang memenuhi) atau **Decide later**. **Gap still open: Retraining** tidak ditawarkan lagi di sini. Sebelumnya Retraining bisa disimpan di Save yang sama dengan level sebelum training. Dicoba 23 Nov di data contoh: training Coretax Kak Dian, "current 3", dan training ulang langsung dibuat.
+- **Retraining sesudah Passed** ada di langkah reassessment, yaitu Next step untuk training Passed yang menunggu keputusan. Untuk requirement dari Competency Gap, pilihan ini aktif bila ada penilaian kompetensi yang disimpan di Competency Gap **sesudah** hasil Passed dan levelnya masih di bawah requirement. Data level D3 tidak punya tanggal, jadi penilaian yang disimpan di D4 menjadi satu-satunya bukti bertanggal. Bila level sudah memenuhi, yang aktif Meets requirement. Requirement dari role change atau performance context tidak punya data level di D4, jadi hanya syarat langkah reassessment yang berlaku.
+- **Satu aturan untuk layar dan server:** `retrainingBlockedReason` di `rules.ts`, dipakai `planTrainingCompletion` (API dan fixture) dan form Update Progress. Server menolak Retraining yang belum memenuhi syarat dengan 422 sebelum menulis apa pun.
+- **Akibatnya:** Retraining sesudah Passed butuh satu Save tambahan, yaitu penilaian di Competency Gap. Meets requirement dan alur Not Passed tidak berubah.
+- **Penilaian di hari yang sama:** bila penilaian dengan hasil sama sudah tersimpan hari itu sebelum hasil Passed dicatat, tombolnya menjadi Saved Today. Pesan Retraining dan tooltip tombol menyebut jalan keluarnya: isi **Assessed with** (misalnya atasannya), lalu penilaian tersimpan sebagai penilaian baru, di layar maupun di server. Dicoba 23 Nov di data contoh.
+- Tes: `training-completion` (aturan dan alur dua langkah), `development-next-step`, `fixture-source`, `api.test` (422 tanpa tulis). TC-D4-005-16.
+- `rules.ts`, `TrainingModals.tsx`, `BulkModals.tsx`, `TrainingPages.tsx`, `DevelopmentPages.tsx`, `CompetencyPages.tsx`, `server/training-records/index.ts`, `fixture-source.ts`
+
 ## Kartu ringkasan People Dashboard bisa dibuka · 23 Nov 2026
 
 Sumber: saran Pak Emanuel ke Skuad 4 (17 Nov 2026), "bisa dilihat di mana siapa yang butuh training?", diingatkan lagi oleh Gebby pada 23 Nov.
@@ -419,6 +431,22 @@ Sumber: saran Pak Emanuel ke Skuad 4 (17 Nov 2026), "bisa dilihat di mana siapa 
 - Footer dialog menautkan halaman lengkapnya: Development Requirement, Training Tracking dengan filter In Progress (`/training?status=In%20Progress`, yang kini dibaca halaman Training), dan Performance Review untuk periode itu.
 - Form Performance Review kini menerima periode awal. Add Performance Review dari dashboard membuka periode yang sedang ditampilkan dashboard, bukan selalu bulan ini.
 - Dicek di mode pratinjau pada lebar 1440, 768, dan 390 px, juga dengan keyboard: Enter membuka daftar, Escape menutup, dan fokus kembali ke kartu. Menyimpan dari dialog belum dicoba.
+
+## Paginasi, info berulang, dan toggle bahasa · 24 Nov 2026
+
+- **Pemilih baris per halaman** mengikuti contoh yang dibagikan di kelas: `[10 ▾] per page` di kanan bawah tabel, pemilih di depan labelnya. Pilihannya 10, 20, 50, 100. Testid tidak berubah (`select-page-size`, `options-page-size`).
+- **Info yang sama di setiap baris dihapus:**
+  - List Performance Review tidak lagi menulis "from 6 daily entries" di bawah skor. Kolom Period hanya muncul bila daftar tidak difilter ke satu periode.
+  - People Dashboard tidak lagi punya kolom Period; periodenya sudah ada di tombol Period.
+  - Tabel tim Daily KPI memindahkan jumlah hari kerja dan target 85 ke judul kolom: **Days filled (/N)** dan **Compiled score / Gap vs 85**. Selnya hanya berisi angka per pegawai.
+- **Toggle bahasa ID | EN** di topbar, default ID. Mengikuti keputusan diskusi kelas 21 Nov 2026: React Context API, terjemahan disimpan di frontend. Cookie dan localStorage `andima-hrms-language` sama dengan D3, jadi satu pilihan berlaku di kedua modul begitu domainnya sama. Server membaca cookie, sehingga halaman tidak berkedip dari bahasa lain saat dimuat.
+  - Semua layar D4 ikut diterjemahkan: label, teks bantuan, empty state, toast, aria-label, halaman 404, dan nama bulan (Mei, Agu, Okt, Des).
+  - Yang tidak diterjemahkan: nama modul, kosakata workflow, nama KPI dan kompetensi, data tersimpan, nilai filter, dan pesan dari server (bahasa Indonesia). Detailnya di UI-D4-001 §6.
+  - Bahasa Inggris memakai bentuk tunggal saat jumlahnya 1 ("1 employee has", bukan "1 employees have"), lewat `enOne` di kamus.
+  - Testid tidak berubah antarbahasa. Dicek di browser 24 Nov: set `data-testid` di enam halaman list, detail training, profil pegawai, dan modal Performance Review identik di ID dan EN. Diff kode juga tidak mengubah satu pun testid literal.
+  - Kartu ringkasan dashboard dan tiga dialognya (PR #68, masuk main lebih dulu) ikut diterjemahkan saat main digabung ke cabang ini. Testid dialog Need training, Training in progress, dan Performance Review identik di ID dan EN.
+  - Tes baru `tests/d4/i18n.test.ts`: setiap teks yang dilewatkan ke `t(...)` punya entri kamus, tiap teks hanya ada di satu file fitur, placeholder terjemahan sama dengan sumbernya, dan bentuk tunggal Inggris dipakai saat jumlahnya 1. TC-D4-UIQ-15 s.d. 19.
+- `modules/d4/web/i18n/`, `modules/d4/shared/text.ts`, `app/(d4)/layout.tsx`, `app/not-found.tsx`, `DataTable.tsx`, `selectors.ts`, `rules.ts`, `bulk.ts`, dan halaman serta modal di `modules/d4/web/features/`
 
 ## Belum selesai
 

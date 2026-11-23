@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { DevelopmentNeedVersion, DevelopmentSourceType } from "../../../development/types";
 import { useSnapshot } from "../../data/D4DataProvider";
+import { useLanguage } from "../../i18n/LanguageProvider";
 import { canAssess, canWrite, describeSource, developmentById, developmentHistory, developmentNeeds, employeeById, employeeMeta, formatDate, formatDateTime, formatPeriod, nextStep, recentLabel, REASSESSMENT_PENDING, reassessmentFor, revisionChanges, sourceFinding, sourceTypeLabel, trainings, visibleEmployees, type NeedStep, type Snapshot } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, PeriodFilter, SearchInput, SelectFilter } from "../../ui/forms";
@@ -47,21 +48,23 @@ export function ReassessmentBadge({ snapshot, needId, compact }: { snapshot: Sna
  * read as a mismatch with Training Tracking (17 Nov 2026).
  */
 function AwaitingDecision({ snapshot, need }: { snapshot: Snapshot; need: DevelopmentNeedVersion }) {
-  return nextStep(snapshot, need).kind === "decide" ? <span data-testid="awaiting-decision" className="mt-1 block text-xs text-ink-2">Menunggu keputusan</span> : null;
+  const { t } = useLanguage();
+  return nextStep(snapshot, need).kind === "decide" ? <span data-testid="awaiting-decision" className="mt-1 block text-xs text-ink-2">{t("Menunggu keputusan")}</span> : null;
 }
 
 type StepHandlers = { onDecide: (trainingId: string) => void; onCreate: () => void };
 
 /** The button of a step, or null when the step needs none. `row`: the small button of the list. */
 function StepButton({ step, row, onDecide, onCreate }: { step: NeedStep; row?: boolean } & StepHandlers) {
+  const { t } = useLanguage();
   const action = step.kind === "decide"
     ? step.decision === "result"
-      ? { label: "Record Result", testId: "record-result", icon: ListChecks, onClick: () => onDecide(step.training.trainingId) }
+      ? { label: t("Record Result"), testId: "record-result", icon: ListChecks, onClick: () => onDecide(step.training.trainingId) }
       : step.decision === "follow-up"
-      ? { label: "Retraining / Follow-up", testId: "record-follow-up", icon: ListChecks, onClick: () => onDecide(step.training.trainingId) }
+      ? { label: t("Retraining / Follow-up"), testId: "record-follow-up", icon: ListChecks, onClick: () => onDecide(step.training.trainingId) }
       // In the narrow list column the two choices themselves fit; "Reassessment" alone would widen it past 1024 px.
-      : { label: row ? "Meets / Retraining" : "Record Reassessment", testId: "record-reassessment", icon: Scale, onClick: () => onDecide(step.training.trainingId) }
-    : step.kind === "create" ? { label: step.retraining ? "Create Retraining" : "Create Training", testId: "next-create-training", icon: GraduationCap, onClick: onCreate } : null;
+      : { label: row ? "Meets / Retraining" : t("Record Reassessment"), testId: "record-reassessment", icon: Scale, onClick: () => onDecide(step.training.trainingId) }
+    : step.kind === "create" ? { label: step.retraining ? t("Create Retraining") : t("Create Training"), testId: "next-create-training", icon: GraduationCap, onClick: onCreate } : null;
   if (!action) return null;
   const Icon = action.icon;
   return row
@@ -76,36 +79,38 @@ function StepButton({ step, row, onDecide, onCreate }: { step: NeedStep; row?: b
  * on a training (Retraining included) opens the same form as Training Tracking, so there is still one way to record it.
  */
 function NextStepCell({ snapshot, need, writer, ...handlers }: { snapshot: Snapshot; need: DevelopmentNeedVersion; writer: boolean } & StepHandlers) {
+  const { t } = useLanguage();
   const step = nextStep(snapshot, need);
   if (step.kind === "decide") return <div className="space-y-1.5">
-    <span className="block text-xs text-ink-2">{step.decision === "result" ? "Training Completed, hasil belum dicatat" : `Training ${step.decision === "follow-up" ? "Not Passed" : "Passed"}`}</span>
-    {writer ? <StepButton step={step} row {...handlers} /> : <span className="block text-xs text-ink-3">Menunggu keputusan HR</span>}
+    <span className="block text-xs text-ink-2">{step.decision === "result" ? t("Training Completed, hasil belum dicatat") : `Training ${step.decision === "follow-up" ? "Not Passed" : "Passed"}`}</span>
+    {writer ? <StepButton step={step} row {...handlers} /> : <span className="block text-xs text-ink-3">{t("Menunggu keputusan HR")}</span>}
   </div>;
   // Two lines rather than a chip, so the training name is not cut to a few letters in this narrow column.
   if (step.kind === "running") return <Link href={`/training/${step.training.trainingId}`} data-testid="link-row-training" className="block rounded-lg text-xs leading-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500">
     <span className="font-semibold text-primary-600">{step.retraining ? "Retraining" : "Training"}</span><span className="text-ink-3"> · {statusLabel(step.training.status)}</span>
     <span className="mt-0.5 line-clamp-2 break-words text-ink-2">{step.training.activity}</span>
   </Link>;
-  if (step.kind === "create") return writer ? <StepButton step={step} row {...handlers} /> : <span className="text-xs text-ink-3">Belum ada training</span>;
-  return step.meets ? <StatusBadge status="Meets requirement" /> : <span className="text-xs text-ink-3">Closed</span>;
+  if (step.kind === "create") return writer ? <StepButton step={step} row {...handlers} /> : <span className="text-xs text-ink-3">{t("Belum ada training")}</span>;
+  return step.meets ? <StatusBadge status="Meets requirement" /> : <span className="text-xs text-ink-3">{t("Closed")}</span>;
 }
 
 /** The detail page's version of the Next step column: one sentence on what to do, and the same button. */
 function NextStepCard({ snapshot, need, writer, ...handlers }: { snapshot: Snapshot; need: DevelopmentNeedVersion; writer: boolean } & StepHandlers) {
+  const { t } = useLanguage();
   const step = nextStep(snapshot, need);
   const finding = step.kind === "decide" && step.decision === "reassessment" ? sourceFinding(snapshot, need) : undefined;
   const text = step.kind === "decide"
     ? step.decision === "result"
-      ? `Training "${step.training.activity}" Completed, tetapi hasilnya belum dicatat sebagai Passed atau Not Passed. Catat hasil dan keputusannya; status requirement mengikuti.`
+      ? t("Training \"{activity}\" Completed, tetapi hasilnya belum dicatat sebagai Passed atau Not Passed. Catat hasil dan keputusannya; status requirement mengikuti.", { activity: step.training.activity })
       : step.decision === "follow-up"
-      ? `Training "${step.training.activity}" Not Passed. Pilih Retraining (training ulang dibuat, status Planned) atau Other follow-up dengan catatan.`
-      : `Training "${step.training.activity}" Passed. Pilih Meets requirement bila level kompetensi sudah memenuhi, atau Retraining bila gap belum tertutup.`
+      ? t("Training \"{activity}\" Not Passed. Pilih Retraining (training ulang dibuat, status Planned) atau Other follow-up dengan catatan.", { activity: step.training.activity })
+      : t("Training \"{activity}\" Passed. Pilih Meets requirement bila level kompetensi sudah memenuhi, atau Retraining bila penilaian ulang di Competency Gap sesudah training masih menunjukkan gap.", { activity: step.training.activity })
     : step.kind === "running"
-      ? `${step.retraining ? "Retraining" : "Training"} berjalan: "${step.training.activity}" (${statusLabel(step.training.status)}). Perbarui progresnya di Training Tracking; setelah Completed, keputusan berikutnya muncul di sini.`
+      ? t("{kind} berjalan: \"{activity}\" ({status}). Perbarui progresnya di Training Tracking; setelah Completed, keputusan berikutnya muncul di sini.", { kind: step.retraining ? "Retraining" : "Training", activity: step.training.activity, status: statusLabel(step.training.status) })
       : step.kind === "create"
-        ? step.retraining ? "Retraining sudah dipilih, tetapi training ulangnya belum dibuat. Buat training ulang untuk requirement ini." : "Belum ada training untuk requirement ini. Buat training; status requirement ikut berubah otomatis."
-        : step.meets ? "Requirement ditutup: Meets requirement." : "Requirement ditutup tanpa reassessment.";
-  return <Card title="Next step" testId="development-next-step">
+        ? step.retraining ? t("Retraining sudah dipilih, tetapi training ulangnya belum dibuat. Buat training ulang untuk requirement ini.") : t("Belum ada training untuk requirement ini. Buat training; status requirement ikut berubah otomatis.")
+        : step.meets ? t("Requirement ditutup: Meets requirement.") : t("Requirement ditutup tanpa reassessment.");
+  return <Card title={t("Next step")} testId="development-next-step">
     <p data-testid="next-step-text" className="break-words text-sm text-ink-2">{text}</p>
     {finding && <div className="mt-3"><LevelLine finding={finding} /></div>}
     {step.kind === "running" && <div className="mt-3"><SourceChip label={step.retraining ? "Retraining" : "Training"} reference={statusLabel(step.training.status)} href={`/training/${step.training.trainingId}`} /></div>}
@@ -115,6 +120,7 @@ function NextStepCard({ snapshot, need, writer, ...handlers }: { snapshot: Snaps
 
 export function DevelopmentListPage() {
   const snapshot = useSnapshot();
+  const { t, language } = useLanguage();
   const writer = canWrite(snapshot);
   // K15: dashboard alerts link here with ?q=<name>. Read from the router: during a client navigation window.location is still the previous page.
   const params = useSearchParams();
@@ -148,67 +154,67 @@ export function DevelopmentListPage() {
   const savedName = savedNeed ? employeeById(snapshot, savedNeed.employeeId)?.fullName : "";
 
   return <>
-    <PageHeader title="Development Requirement" subtitle="Kebutuhan development dan training dengan alasan dan sumber yang dapat ditelusuri."
-      actions={writer && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)} data-testid="btn-add-requirement">Add Requirement</Button>} />
+    <PageHeader title="Development Requirement" subtitle={t("Kebutuhan development dan training dengan alasan dan sumber yang dapat ditelusuri.")}
+      actions={writer && <Button icon={<Plus className="size-4" />} onClick={() => setAdding(true)} data-testid="btn-add-requirement">{t("Add Requirement")}</Button>} />
     <FilterBar canReset={filtered} onReset={() => { setSearch(""); setDepartment(""); setSourceType(""); setStatus(""); setPeriod(""); setCompetency(""); setPriority(""); }}
-      search={<SearchInput value={search} onChange={setSearch} placeholder="Search name or position" />}
-      period={<PeriodFilter label="Periods" testId="all-periods" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item) }))} />}>
-      <SelectFilter label="Sources" testId="all-sources" value={sourceType} onChange={setSourceType} options={(Object.keys(sourceTypeLabel) as DevelopmentSourceType[]).map((key) => ({ value: key, label: sourceTypeLabel[key] }))} />
-      <SelectFilter label="Status" testId="all-status" value={status} onChange={setStatus} options={["Identified", "Planned", "In Progress", "Completed"].map((item) => ({ value: item, label: statusLabel(item) }))} />
-      {snapshot.role !== "EMPLOYEE" && <SelectFilter label="Departments" testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />}
-      <SelectFilter label="Competencies" testId="all-competencies" value={competency} onChange={setCompetency} options={competencyOptions(snapshot)} />
-      <SelectFilter label="Priorities" testId="all-priorities" value={priority} onChange={setPriority} options={["High", "Medium", "Low"].map((item) => ({ value: item, label: statusLabel(item) }))} />
+      search={<SearchInput value={search} onChange={setSearch} placeholder={t("Search name or position")} />}
+      period={<PeriodFilter label={t("Periods")} testId="all-periods" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item, language) }))} />}>
+      <SelectFilter label={t("Sources")} testId="all-sources" value={sourceType} onChange={setSourceType} options={(Object.keys(sourceTypeLabel) as DevelopmentSourceType[]).map((key) => ({ value: key, label: t(sourceTypeLabel[key]) }))} />
+      <SelectFilter label={t("Status")} testId="all-status" value={status} onChange={setStatus} options={["Identified", "Planned", "In Progress", "Completed"].map((item) => ({ value: item, label: statusLabel(item) }))} />
+      {snapshot.role !== "EMPLOYEE" && <SelectFilter label={t("Departments")} testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />}
+      <SelectFilter label={t("Competencies")} testId="all-competencies" value={competency} onChange={setCompetency} options={competencyOptions(snapshot)} />
+      <SelectFilter label={t("Priorities")} testId="all-priorities" value={priority} onChange={setPriority} options={["High", "Medium", "Low"].map((item) => ({ value: item, label: statusLabel(item) }))} />
     </FilterBar>
     {archived > 0 && <p data-testid="archived-hint" className="px-1 text-xs text-ink-2">
-      {archived} requirement Completed tidak tampil di daftar aktif. Pilih Status Completed di Filter untuk melihatnya.
+      {t("{count} requirement Completed tidak tampil di daftar aktif. Pilih Status Completed di Filter untuk melihatnya.", { count: archived })}
     </p>}
-    {savedTraining ? <SavedNotice text={`Training "${savedTraining.activity}" untuk ${savedName} tersimpan.`} href={`/training/${savedTraining.trainingId}`} />
-      : savedNeed && <SavedNotice text={`Development requirement ${savedName} tersimpan (${statusLabel(savedNeed.status)}).`} href={`/development/${savedNeed.needId}`} />}
+    {savedTraining ? <SavedNotice text={t("Training \"{activity}\" untuk {name} tersimpan.", { activity: savedTraining.activity, name: savedName ?? "" })} href={`/training/${savedTraining.trainingId}`} />
+      : savedNeed && <SavedNotice text={t("Development requirement {name} tersimpan ({status}).", { name: savedName ?? "", status: statusLabel(savedNeed.status) })} href={`/development/${savedNeed.needId}`} />}
     <DataTable<DevelopmentNeedVersion> rows={rows} noun="requirements" rowKey={(row) => row.needId} justSaved={savedNeed || undefined}
-      emptyTitle={filtered ? "Tidak ada requirement yang cocok" : archived ? "Semua requirement sudah Completed" : "Belum ada development requirement"}
-      emptyText={filtered ? "Ubah kata kunci atau reset filter." : archived ? "Pilih Status Completed di Filter untuk melihatnya." : writer ? "Buat dari gap kompetensi, perubahan posisi, atau evaluasi performance dengan Add Requirement." : "Belum ada development requirement yang tercatat."}
+      emptyTitle={filtered ? t("Tidak ada requirement yang cocok") : archived ? t("Semua requirement sudah Completed") : t("Belum ada development requirement")}
+      emptyText={filtered ? t("Ubah kata kunci atau reset filter.") : archived ? t("Pilih Status Completed di Filter untuk melihatnya.") : writer ? t("Buat dari gap kompetensi, perubahan posisi, atau evaluasi performance dengan Add Requirement.") : t("Belum ada development requirement yang tercatat.")}
       selection={writer ? { selected, onChange: setSelected, selectable, rowLabel,
-        actions: <Button variant="primary" icon={<GraduationCap className="size-4" />} onClick={() => setBulkOpen(true)} data-testid="btn-bulk-add-training">Add Training</Button> } : undefined}
+        actions: <Button variant="primary" icon={<GraduationCap className="size-4" />} onClick={() => setBulkOpen(true)} data-testid="btn-bulk-add-training">{t("Add Training")}</Button> } : undefined}
       columns={[
-        { key: "employee", header: "Employee", cell: (row) => { const employee = employeeById(snapshot, row.employeeId); return <PersonCell name={employee?.fullName ?? "—"} code={employee?.employeeId ?? ""} />; } },
+        { key: "employee", header: t("Employee"), cell: (row) => { const employee = employeeById(snapshot, row.employeeId); return <PersonCell name={employee?.fullName ?? "—"} code={employee?.employeeId ?? ""} />; } },
         // The source sits under the objective it explains, so the Action column fits 1280 px without scrolling (Q10).
-        { key: "objective-source", header: "Objective / Source", wrap: true, className: "max-w-[320px]", cell: (row) => <>
+        { key: "objective-source", header: t("Objective / Source"), wrap: true, className: "max-w-[320px]", cell: (row) => <>
           <span data-testid="cell-objective" className="line-clamp-2">{row.objective}</span>
-          <span data-testid="cell-source" className="mt-1.5 block"><SourceChip label={sourceTypeLabel[row.sourceType]} /></span>
+          <span data-testid="cell-source" className="mt-1.5 block"><SourceChip label={t(sourceTypeLabel[row.sourceType])} /></span>
           <PriorityCell priority={row.priority} compact />
           {/* Under the objective while Last updated is hidden (below 1400 px), as the High badge. */}
           <RecentBadge label={recentLabel(row, now)} testId="label-recent-compact" className="mt-1.5 block min-[1400px]:hidden" />
         </> },
-        { key: "priority", header: "Priority", optional: true, cell: (row) => <PriorityCell priority={row.priority} /> },
+        { key: "priority", header: t("Priority"), optional: true, cell: (row) => <PriorityCell priority={row.priority} /> },
         // One column, as Position / Department on the People Dashboard, so the table fits a laptop screen.
-        { key: "method-pic", header: "Method / PIC", wrap: true, optional: true, className: "max-w-[160px]", cell: (row) => <>
+        { key: "method-pic", header: t("Method / PIC"), wrap: true, optional: true, className: "max-w-[160px]", cell: (row) => <>
           <span data-testid="cell-method" className="block">{row.method || "—"}</span>
           <span data-testid="cell-pic" className="block text-xs text-ink-3">{row.pic || "—"}</span>
         </> },
         // Display only: a gap requirement of a former position stays open until HR closes it, so the list says why it looks stuck.
         // Wraps so that note does not widen the column (the badge itself stays on one line).
-        { key: "status", header: "Status", wrap: true, cell: (row) => <><StatusBadge status={row.status} /><AwaitingDecision snapshot={snapshot} need={row} />{row.sourceType === "competency_gap" && row.status !== "Completed" && !sourceFinding(snapshot, row)
-          && <span data-testid="not-in-position" className="mt-1 block text-xs text-ink-2">Not in current position</span>}</> },
-        { key: "next-step", header: "Next step", wrap: true, className: "max-w-[200px]", cell: (row) => <NextStepCell snapshot={snapshot} need={row} writer={canAssess(snapshot, row.employeeId)} onDecide={setProgressFor} onCreate={() => setTrainingFor(row)} /> },
+        { key: "status", header: t("Status"), wrap: true, cell: (row) => <><StatusBadge status={row.status} /><AwaitingDecision snapshot={snapshot} need={row} />{row.sourceType === "competency_gap" && row.status !== "Completed" && !sourceFinding(snapshot, row)
+          && <span data-testid="not-in-position" className="mt-1 block text-xs text-ink-2">{t("Not in current position")}</span>}</> },
+        { key: "next-step", header: t("Next step"), wrap: true, className: "max-w-[200px]", cell: (row) => <NextStepCell snapshot={snapshot} need={row} writer={canAssess(snapshot, row.employeeId)} onDecide={setProgressFor} onCreate={() => setTrainingFor(row)} /> },
         // The list is sorted by this date (interview 13 Nov 2026, 1:21:38). Below 1400 px it gives way (it is also on the
         // detail page), so Method / PIC stays visible for the "Tanpa PIC" alert.
-        { key: "updated", header: "Last updated", secondary: true, cell: (row) => <>
-          <span className="block">{formatDateTime(row.createdAt)}</span>
+        { key: "updated", header: t("Last updated"), secondary: true, cell: (row) => <>
+          <span className="block">{formatDateTime(row.createdAt, language)}</span>
           <span data-testid="cell-updated-by" className="block text-xs text-ink-3">{row.actor}</span>
           {/* Its own line: beside the time it widened the column and the table scrolled at 1440 px. */}
           <RecentBadge label={recentLabel(row, now)} />
         </> },
       ]}
-      actions={(row) => { const step = nextStep(snapshot, row); return <RowActionMenu label={`Actions for ${row.objective}`} actions={[
-        { label: "View Detail", testId: "view-detail", icon: <Eye />, href: `/development/${row.needId}` },
-        { label: "View History", testId: "view-history", icon: <History />, href: `/development/${row.needId}/history` },
+      actions={(row) => { const step = nextStep(snapshot, row); return <RowActionMenu label={t("Actions for {name}", { name: row.objective })} actions={[
+        { label: t("View Detail"), testId: "view-detail", icon: <Eye />, href: `/development/${row.needId}` },
+        { label: t("View History"), testId: "view-history", icon: <History />, href: `/development/${row.needId}/history` },
         // One action, one place (13 Nov 2026): what the Next step column already offers (a decision, or the first training)
         // is not repeated here; the menu keeps Create Training only for another training next to a running one.
-        { label: "Create Training", testId: "create-training", icon: <GraduationCap />, onSelect: () => setTrainingFor(row), hidden: !canAssess(snapshot, row.employeeId) || row.status === "Completed" || step.kind === "create" },
+        { label: t("Create Training"), testId: "create-training", icon: <GraduationCap />, onSelect: () => setTrainingFor(row), hidden: !canAssess(snapshot, row.employeeId) || row.status === "Completed" || step.kind === "create" },
         // 13 Nov 2026: progress is written once, in Training Tracking; this only takes HR there.
-        { label: "Update progress in Training", testId: "update-progress-in-training", icon: <RefreshCw />, href: `/training/${openTrainingOf(snapshot, row.needId)?.trainingId}`, hidden: !canAssess(snapshot, row.employeeId) || !openTrainingOf(snapshot, row.needId) },
-        { label: "Close as Met", testId: "close-as-met", icon: <CircleCheck />, onSelect: () => setClosingFor(row.needId), hidden: !canAssess(snapshot, row.employeeId) || Boolean(closeEvidence(snapshot, row).blocked) },
-        { label: "Edit Requirement", testId: "edit-requirement", icon: <Pencil />, onSelect: () => setEditFor(row.needId), hidden: !canAssess(snapshot, row.employeeId) },
+        { label: t("Update progress in Training"), testId: "update-progress-in-training", icon: <RefreshCw />, href: `/training/${openTrainingOf(snapshot, row.needId)?.trainingId}`, hidden: !canAssess(snapshot, row.employeeId) || !openTrainingOf(snapshot, row.needId) },
+        { label: t("Close as Met"), testId: "close-as-met", icon: <CircleCheck />, onSelect: () => setClosingFor(row.needId), hidden: !canAssess(snapshot, row.employeeId) || Boolean(closeEvidence(snapshot, row).blocked) },
+        { label: t("Edit Requirement"), testId: "edit-requirement", icon: <Pencil />, onSelect: () => setEditFor(row.needId), hidden: !canAssess(snapshot, row.employeeId) },
       ]} />; }} />
     {adding && <DevelopmentFormModal onClose={() => setAdding(false)} onSaved={(needId) => setSaved({ needId })} />}
     {closingFor && <CloseAsMetModal needId={closingFor} onClose={() => setClosingFor(null)} onSaved={() => setSaved({ needId: closingFor })} />}
@@ -222,60 +228,61 @@ export function DevelopmentListPage() {
 
 export function DevelopmentDetailPage({ needId }: { needId: string }) {
   const snapshot = useSnapshot();
+  const { t, language } = useLanguage();
   const [closing, setClosing] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [trainingOpen, setTrainingOpen] = useState(false);
   const [progressFor, setProgressFor] = useState<string | null>(null);
   const need = developmentById(snapshot, needId);
   const employee = need && employeeById(snapshot, need.employeeId);
-  if (!need || !employee || !visibleEmployees(snapshot).some((item) => item.id === employee.id)) return <NotFound what="Development requirement" backHref="/development" backLabel="Back to Development Requirement" />;
+  if (!need || !employee || !visibleEmployees(snapshot).some((item) => item.id === employee.id)) return <NotFound what="Development requirement" backHref="/development" backLabel={t("Back to Development Requirement")} />;
   // Nobody follows up their own requirement (SR-D4-EMP-23).
   const writer = canAssess(snapshot, need.employeeId);
-  const source = describeSource(snapshot, need);
+  const source = describeSource(snapshot, need, t);
   const linked = trainings(snapshot).filter((item) => item.developmentNeedId === need.needId);
   const open = openTrainingOf(snapshot, need.needId);
   const history = developmentHistory(snapshot, need.needId);
   return <>
-    <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Development Requirement", href: "/development" }, { label: "Detail" }]} backHref="/development"
-      name={employee.fullName} meta={employeeMeta(snapshot, employee)} status={need.status}
+    <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Development Requirement", href: "/development" }, { label: t("Detail") }]} backHref="/development"
+      name={employee.fullName} meta={employeeMeta(snapshot, employee, t)} status={need.status}
       actions={<>
-        <ButtonLink href={`/development/${need.needId}/history`} icon={<History className="size-4" />} testId="view-history">View History</ButtonLink>
-        {writer && <Button icon={<Pencil className="size-4" />} onClick={() => setEditOpen(true)} data-testid="btn-edit-requirement">Edit Requirement</Button>}
+        <ButtonLink href={`/development/${need.needId}/history`} icon={<History className="size-4" />} testId="view-history">{t("View History")}</ButtonLink>
+        {writer && <Button icon={<Pencil className="size-4" />} onClick={() => setEditOpen(true)} data-testid="btn-edit-requirement">{t("Edit Requirement")}</Button>}
         {/* 13 Nov 2026: progress is written once, in Training Tracking. A completed requirement takes no new training (assertNeedOpen). */}
-        {writer && open && <ButtonLink href={`/training/${open.trainingId}`} icon={<RefreshCw className="size-4" />} testId="btn-update-progress-in-training">Update progress in Training</ButtonLink>}
+        {writer && open && <ButtonLink href={`/training/${open.trainingId}`} icon={<RefreshCw className="size-4" />} testId="btn-update-progress-in-training">{t("Update progress in Training")}</ButtonLink>}
         {/* Not twice on one screen: with no training yet, the Next step card below holds this button. */}
-        {writer && need.status !== "Completed" && nextStep(snapshot, need).kind !== "create" && <Button icon={<GraduationCap className="size-4" />} onClick={() => setTrainingOpen(true)} data-testid="btn-create-training">Create Training</Button>}
-        {writer && !closeEvidence(snapshot, need).blocked && <Button icon={<CircleCheck className="size-4" />} onClick={() => setClosing(true)} data-testid="btn-close-as-met">Close as Met</Button>}
+        {writer && need.status !== "Completed" && nextStep(snapshot, need).kind !== "create" && <Button icon={<GraduationCap className="size-4" />} onClick={() => setTrainingOpen(true)} data-testid="btn-create-training">{t("Create Training")}</Button>}
+        {writer && !closeEvidence(snapshot, need).blocked && <Button icon={<CircleCheck className="size-4" />} onClick={() => setClosing(true)} data-testid="btn-close-as-met">{t("Close as Met")}</Button>}
       </>} />
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
       <Card title="Requirement">
         <p className="break-words font-display font-semibold text-lg text-ink">{need.objective}</p>
         <div className="mt-6"><InfoGrid columns={3} items={[
-          { label: "Priority", testId: "priority", value: statusLabel(need.priority) },
-          { label: "Method", testId: "method", value: need.method || "—" },
+          { label: t("Priority"), testId: "priority", value: statusLabel(need.priority) },
+          { label: t("Method"), testId: "method", value: need.method || "—" },
           { label: "PIC", testId: "pic", value: need.pic || "—" },
-          { label: "Status", value: <><StatusBadge status={need.status} /><AwaitingDecision snapshot={snapshot} need={need} /></> },
+          { label: t("Status"), value: <><StatusBadge status={need.status} /><AwaitingDecision snapshot={snapshot} need={need} /></> },
           { label: "Reassessment", testId: "reassessment", value: reassessmentFor(snapshot, need.needId) ? <ReassessmentBadge snapshot={snapshot} needId={need.needId} /> : "—" },
-          { label: "Last updated", testId: "last-updated", value: `${formatDateTime(need.createdAt)} · ${need.actor}` },
-          { label: "Created", testId: "created", value: formatDate(history[history.length - 1]?.createdAt) },
+          { label: t("Last updated"), testId: "last-updated", value: `${formatDateTime(need.createdAt, language)} · ${need.actor}` },
+          { label: t("Created"), testId: "created", value: formatDate(history[history.length - 1]?.createdAt, language) },
         ]} /></div>
-        <h3 className="mb-2 mt-8 font-display text-sm font-semibold text-ink-2">Notes</h3>
+        <h3 className="mb-2 mt-8 font-display text-sm font-semibold text-ink-2">{t("Notes")}</h3>
         <p className="whitespace-pre-wrap break-words text-sm text-ink-2">{need.notes || "—"}</p>
       </Card>
       <div className="min-w-0 space-y-6">
         <NextStepCard snapshot={snapshot} need={need} writer={writer} onDecide={setProgressFor} onCreate={() => setTrainingOpen(true)} />
-        <Card title="Source (traceability)" testId="source-traceability">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3">{sourceTypeLabel[need.sourceType]}</p>
+        <Card title={t("Source (traceability)")} testId="source-traceability">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3">{t(sourceTypeLabel[need.sourceType])}</p>
           <div className="mt-2"><SourceChip label={source.label} href={source.href} /></div>
-          <p className="mt-4 text-xs text-ink-3">Requirement tetap terhubung ke sumber aslinya walaupun posisi pegawai berubah.</p>
+          <p className="mt-4 text-xs text-ink-3">{t("Requirement tetap terhubung ke sumber aslinya walaupun posisi pegawai berubah.")}</p>
         </Card>
-        <Card title="Linked training" testId="linked-training">
+        <Card title={t("Linked training")} testId="linked-training">
           {linked.length ? <div className="flex flex-col items-start gap-2">{linked.map((item) => <SourceChip key={item.trainingId} label={item.activity} reference={statusLabel(item.status)} href={`/training/${item.trainingId}`} />)}</div>
-            : <p className="text-sm text-ink-3">Belum ada training untuk requirement ini.</p>}
+            : <p className="text-sm text-ink-3">{t("Belum ada training untuk requirement ini.")}</p>}
         </Card>
       </div>
     </div>
-    <Notice>Status requirement mengikuti Training Tracking: training dibuat menjadi Planned, training berjalan menjadi In Progress. Completed hanya lewat training Passed dengan Meets requirement, atau Close as Met saat level di data kompetensi sudah memenuhi. Training yang selesai tidak otomatis menutup gap; gap tetap harus dinilai ulang.</Notice>
+    <Notice>{t("Status requirement mengikuti Training Tracking: training dibuat menjadi Planned, training berjalan menjadi In Progress. Completed hanya lewat training Passed dengan Meets requirement, atau Close as Met saat level di data kompetensi sudah memenuhi. Training yang selesai tidak otomatis menutup gap; gap tetap harus dinilai ulang.")}</Notice>
     {closing && <CloseAsMetModal needId={need.needId} onClose={() => setClosing(false)} />}
     {editOpen && <DevelopmentEditModal needId={need.needId} onClose={() => setEditOpen(false)} />}
     {trainingOpen && <TrainingFormModal employeeId={need.employeeId} developmentNeedId={need.needId} onClose={() => setTrainingOpen(false)} />}
@@ -285,16 +292,17 @@ export function DevelopmentDetailPage({ needId }: { needId: string }) {
 
 export function DevelopmentHistoryPage({ needId }: { needId: string }) {
   const snapshot = useSnapshot();
+  const { t, language } = useLanguage();
   const need = developmentById(snapshot, needId);
   const employee = need && employeeById(snapshot, need.employeeId);
-  if (!need || !employee || !visibleEmployees(snapshot).some((item) => item.id === employee.id)) return <NotFound what="Development requirement" backHref="/development" backLabel="Back to Development Requirement" />;
+  if (!need || !employee || !visibleEmployees(snapshot).some((item) => item.id === employee.id)) return <NotFound what="Development requirement" backHref="/development" backLabel={t("Back to Development Requirement")} />;
   return <>
-    <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Development Requirement", href: "/development" }, { label: "History" }]} backHref={`/development/${need.needId}`}
-      name={employee.fullName} meta={employeeMeta(snapshot, employee)} status={need.status} />
-    <Card title="Development Requirement history" testId="revision-history">
-      <Timeline empty="Belum ada revisi." entries={developmentHistory(snapshot, need.needId).map((item, index, all) => ({
-        id: item.id, date: formatDateTime(item.createdAt), title: `Revision ${item.revision}`, status: item.status, actor: item.actor,
-        body: [...revisionChanges(item, all[index + 1]), item.notes].filter(Boolean).join(" · ") || undefined,
+    <DetailHeader crumbs={[{ label: "HRMS" }, { label: "Development Requirement", href: "/development" }, { label: t("History") }]} backHref={`/development/${need.needId}`}
+      name={employee.fullName} meta={employeeMeta(snapshot, employee, t)} status={need.status} />
+    <Card title={t("Development Requirement history")} testId="revision-history">
+      <Timeline empty={t("Belum ada revisi.")} entries={developmentHistory(snapshot, need.needId).map((item, index, all) => ({
+        id: item.id, date: formatDateTime(item.createdAt, language), title: t("Revision {n}", { n: item.revision }), status: item.status, actor: item.actor,
+        body: [...revisionChanges(item, all[index + 1], t), item.notes].filter(Boolean).join(" · ") || undefined,
       }))} />
     </Card>
   </>;
