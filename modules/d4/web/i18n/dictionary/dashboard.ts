@@ -68,6 +68,7 @@ export const dashboard = {
   "Assign training": { id: "Tugaskan training" },
   "dan {count} lainnya": { en: "and {count} more" },
   "Buka": { en: "Open" },
+  "Lihat semua {count} pegawai": { en: "View all {count} employees" },
   "Tidak ada alert untuk daftar ini.": { en: "No alerts for this list." },
   // Alerts built in summary.ts; the detail follows the count ("3 pegawai di bawah 80 …")
   "pegawai di bawah 80 pada {period}.": { en: "employees below 80 in {period}.", enOne: "employee below 80 in {period}." },

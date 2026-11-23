@@ -9,14 +9,14 @@ import { useD4, useSnapshot } from "../../data/D4DataProvider";
 import { catalogFor, KPI_TARGET, type KpiCatalog } from "../../../kpi/catalog";
 import { byProgress, canAssess, canWrite, currentCompetencyStatus, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, employeeSearchText, evaluationsOf, formatDate, formatGap, formatPeriod, formatScore, formatScorecard, includesText, listScore, pendingCompilation, positionOf, scorecardsOf, thisMonth, trainingHistory, trainings, trainingsOf, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
-import { FilterBar, PeriodFilter, SearchInput, SelectFilter } from "../../ui/forms";
+import { FilterBar, FormModal, PeriodFilter, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
-import { Card, Notice, SavedNotice, slug, statusLabel, StatusBadge } from "../../ui/primitives";
+import { Button, Card, Notice, SavedNotice, slug, statusLabel, StatusBadge } from "../../ui/primitives";
 import { LineComment, targetLabel, weighted } from "../kpi/KpiFormModal";
 import type { DailyCompilation } from "../../../kpi/daily";
 import { HIGH_ABOVE, performanceBand, scaleMaxOf, UNDER_BELOW } from "../../../kpi/scale";
-import { averageScores, BANDS, COMPETENCY_ORDER, competencySlices, dashboardAlerts, defaultPeriod, employeeHistory, gapRanking, matchesDashboardFilters, openNeedCount, performanceSlices, profilePeriod, reviewCounts, trainingsInProgress, validScorecard, withoutKpiRole, type AssignTarget, type Slice } from "./summary";
+import { averageScores, BANDS, COMPETENCY_ORDER, competencySlices, dashboardAlerts, defaultPeriod, employeeHistory, gapRanking, matchesDashboardFilters, openNeedCount, performanceSlices, profilePeriod, reviewCounts, trainingsInProgress, validScorecard, withoutKpiRole, type AssignTarget, type DashboardAlert, type Slice } from "./summary";
 import { DASHBOARD_TABLE_ID, SummaryTiles, type SummaryRow } from "./SummaryTiles";
 import { DevelopmentFormModal } from "../development/DevelopmentModals";
 import { useLanguage } from "../../i18n/LanguageProvider";
@@ -242,6 +242,7 @@ function AlertsCard({ snapshot, rows, period }: { snapshot: D4LiveSnapshot; rows
   const writer = canWrite(snapshot);
   const [assignFor, setAssignFor] = useState<AssignTarget | null>(null);
   const [savedNeed, setSavedNeed] = useState<{ needId: string; name: string } | null>(null);
+  const [peopleFor, setPeopleFor] = useState<DashboardAlert | null>(null);
   return <Card title={t("Alerts")} testId="dashboard-alerts">
     {savedNeed && <div className="mb-3"><SavedNotice text={t("Development requirement untuk {name} tersimpan.", { name: savedNeed.name })} href={`/development/${savedNeed.needId}`} /></div>}
     {alerts.length ? <ul className="divide-y divide-line">
@@ -260,12 +261,23 @@ function AlertsCard({ snapshot, rows, period }: { snapshot: D4LiveSnapshot; rows
               <span className="truncate text-ink-2">{item.name}</span><span className="shrink-0 font-semibold text-primary-600">{t("Assign training")}</span>
             </button>
           </li>)}</ul>
-            : <p className="mt-1 truncate text-xs text-ink-3">{alert.people.slice(0, 3).join(", ")}{alert.people.length > 3 ? ` ${t("dan {count} lainnya", { count: alert.people.length - 3 })}` : ""}</p>}
+            : <div className="mt-1 text-xs text-ink-3"><p className="truncate">{alert.people.slice(0, 3).join(", ")}</p>
+              {/* Pak Emanuel, 17 Nov 2026: who an alert is about must be readable on the dashboard itself, not only after Open. */}
+              {alert.people.length > 3 && <button type="button" data-testid={`btn-alert-people-${alert.key}`} onClick={() => setPeopleFor(alert)}
+                className="mt-0.5 rounded font-semibold text-primary-600 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500">
+                {t("Lihat semua {count} pegawai", { count: alert.people.length })}</button>}</div>}
         </div>
         <SourceLink href={alert.href}>{t("Buka")}</SourceLink>
       </li>;
       })}
     </ul> : <p className="text-sm text-ink-3">{t("Tidak ada alert untuk daftar ini.")}</p>}
+    {peopleFor && <FormModal title={peopleFor.title} description={`${peopleFor.count} ${peopleFor.detail}`} onClose={() => setPeopleFor(null)}
+      footer={<Button data-testid="btn-close-alert-people" onClick={() => setPeopleFor(null)}>{t("Close")}</Button>}>
+      <ul data-testid="alert-people" className="divide-y divide-line">{peopleFor.people.map((name) => <li key={name} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
+        <span className="min-w-0 truncate text-sm text-ink">{name}</span>
+        <SourceLink href={withQuery(peopleFor.href, name)}>{t("Buka")}</SourceLink>
+      </li>)}</ul>
+    </FormModal>}
     {assignFor && <DevelopmentFormModal employeeId={assignFor.employeeId} sourceType="performance_context" sourceRef={assignFor.scorecardId} onClose={() => setAssignFor(null)} onSaved={(needId) => setSavedNeed({ needId, name: assignFor.name })} />}
   </Card>;
 }
@@ -277,6 +289,14 @@ function ScoreCell({ scorecard, compiled, listScale }: { scorecard?: KpiAssessme
   if (!validScorecard(scorecard)) return <span className="text-xs font-semibold text-danger">{t("Invalid data")}</span>;
   const band = performanceBand(scorecard.overallScore, scorecard.definitionVersion);
   return <span className="font-semibold text-ink">{listScore(scorecard.overallScore, scorecard.definitionVersion, listScale)}{band && <span className="mt-1 block"><StatusBadge status={band} /></span>}</span>;
+}
+
+/** The alert's list narrowed to one person (`?q=<name>`), keeping its period. */
+function withQuery(href: string, name: string) {
+  const [path, query = ""] = href.split("?");
+  const params = new URLSearchParams(query);
+  params.set("q", name);
+  return `${path}?${params}`;
 }
 
 function SourceLink({ href, children }: { href: string; children?: ReactNode }) {
