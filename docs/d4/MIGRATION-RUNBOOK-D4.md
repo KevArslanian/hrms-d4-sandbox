@@ -191,12 +191,13 @@ Migrasi `20261124130000_d4_kpi_from_d1.sql`. Isinya: mulai periode 2026-11, KPI 
   - Ada 9 pemetaan D3 → D1 yang aktif. Delapan sudah punya KPI berbobot 100: COM-CS-MGR, COM-SA, DIR-FAT, FAT-ACC-MGR, FAT-TAX-MGR, FAT-TRS-MGR, dan HCC-HR-MGR dengan 5 KPI, serta IT dengan 3 KPI.
   - COM-FA (Field Agent, JP030) sudah dipetakan, tetapi D1 belum mengisi KPI-nya. Posisi ini tetap tanpa KPI, sama seperti sekarang.
   - Posisi yang belum dipetakan, misalnya Billing (JP003 punya 4 KPI di D1, tetapi belum ada pemetaannya), General Director, dan Cash Associate, tetap memakai peran katalog D4 V6.
-- **Diuji lokal:** Postgres 16 dengan salinan struktur live dan data contoh, kasus T1–T14 lulus. Yang diuji:
+- **Diuji lokal:** Postgres 16 dengan salinan struktur live dan data contoh, kasus T1–T15 lulus. Yang diuji:
   - isi katalog dan urutan KPI;
   - peran per posisi, termasuk posisi tanpa pemetaan dan posisi D1 yang tidak aktif;
   - Daily KPI dan Performance Review dengan 5 dan 3 baris, serta penolakan jumlah baris dan bobot yang salah;
   - RLS view untuk HR, Employee, `service_role`, dan `anon`;
-  - koreksi Daily KPI terbaru dan pencocokan baris V6 lama lewat nama KPI.
+  - koreksi Daily KPI terbaru dan pencocokan baris V6 lama lewat nama KPI;
+  - `id` view D1 yang unik per baris.
 - **Urutan:**
   1. Deploy aplikasi lebih dulu. Selama view belum ada, loader katalog kembali membaca tabel, jadi deploy ini tidak mengubah apa pun di live.
   2. Terapkan `20261124130000_d4_kpi_from_d1.sql` dalam satu transaksi lewat SQL Editor. Seperti biasa, cocokkan isi editor dengan file lewat hash sebelum Run.
@@ -220,7 +221,7 @@ Migrasi `20261124130000_d4_kpi_from_d1.sql`. Isinya: mulai periode 2026-11, KPI 
   ```
 
   Posisi D1 yang belum dipetakan, misalnya JP003, ikut muncul di katalog, tetapi tidak dipakai pegawai mana pun sampai D1 memetakannya.
-- **Efek ke data November:** entri Daily KPI November yang sudah tersimpan dengan peran D4 tetap utuh. Begitu pegawai mengisi satu hari dengan set D1, skor periode hanya menghitung hari dengan set D1 (`modules/d4/kpi/daily.ts`), sehingga hari dengan set lama tidak ikut dihitung. Scorecard yang sudah tersimpan tidak berubah.
+- **Efek ke data November:** di live 24 Nov, 20 pegawai berada di posisi yang akan pindah ke KPI D1. Empat di antaranya punya 63 entri Daily KPI November, dan 17 Performance Review November mereka sudah completed. Entri Daily KPI November yang sudah tersimpan dengan peran D4 tetap utuh. Begitu pegawai mengisi satu hari dengan set D1, skor periode hanya menghitung hari dengan set D1 (`modules/d4/kpi/daily.ts`), sehingga hari dengan set lama tidak ikut dihitung. Scorecard yang sudah tersimpan tidak berubah. Revisinya tetap bisa disimpan dengan set D1 karena `revisionOf` mengikuti scorecard terbaru periode itu, apa pun perannya; hanya perbandingan skor lama per baris yang tidak tampil. Peralihan mulai Desember tidak cukup dengan mengganti tanggal di view. View memilih versi katalog lewat `effective_from`, dan V6 berlaku sejak 2026-11, jadi Desember butuh versi katalog baru (misalnya V7 berlaku 2026-12, salinan V6) ditambah `'2026-12'` di bagian 3 migrasi.
 - **Rollback (urutannya penting):**
   1. `drop view public.d4_kpi_scores_for_d1;`
   2. Jalankan ulang isi fungsi `d4_current_kpi_role` dari `20261108130000` dan `d4_calculate_kpi_assessment` dari `20261017130000`.
