@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { KPI_V51_CATALOG, seedCatalogSet, type KpiCatalogVersion, type RoleKpiRow } from "@/modules/d4/kpi/catalog";
+import { catalogFor, indicatorsFor, KPI_V51_CATALOG, seedCatalogSet, type KpiCatalogSet, type KpiCatalogVersion, type RoleKpiRow } from "@/modules/d4/kpi/catalog";
 import { createFixtureSource } from "@/modules/d4/web/data/fixture-source";
 import { ApiError } from "@/modules/d4/shared/errors";
 import type { D4LiveSnapshot } from "@/modules/d4/supabase/types";
@@ -24,6 +24,8 @@ let user: { id: string } | null;
 let accessRow: AccessRow | null;
 let catalogRows: readonly RoleKpiRow[];
 let catalogVersions: KpiCatalogVersion[];
+/** The views of 20261124130000; null = not applied yet (live today), so the loader reads the tables. */
+let views: KpiCatalogSet | null;
 let snapshot: D4LiveSnapshot;
 const writes: { method: string; args: unknown[] }[] = [];
 const accessLookups: { table: string; filters: [string, unknown][] }[] = [];
@@ -56,8 +58,8 @@ function query(table: string) {
     if (table === "d4_kpi_catalog_versions") return { data: catalogVersions, error: null };
     // D4 roles only, as in the table; the D1 roles of seedCatalogSet's V6 come from the views, missing here.
     if (table === "d4_position_kpi_roles") return { data: catalogVersions.flatMap((version) => seedCatalogSet(snapshot.reference.positions).positionRoles.filter((item) => item.source_version === "V5.1").map((item) => ({ ...item, source_version: version.source_version }))), error: null };
-    // Live before 20261124130000: the views are missing, so the loader reads the tables.
-    if (table === "d4_kpi_catalog_rows" || table === "d4_kpi_position_roles") return { data: null, error: { code: "PGRST205", message: "missing" } };
+    if (table === "d4_kpi_catalog_rows") return views ? { data: views.rows, error: null } : { data: null, error: { code: "PGRST205", message: "missing" } };
+    if (table === "d4_kpi_position_roles") return views ? { data: views.positionRoles, error: null } : { data: null, error: { code: "PGRST205", message: "missing" } };
     return { data: null, error: null };
   };
   const builder = {
@@ -93,7 +95,7 @@ const trainingComplete = await import("@/app/api/d4/training-records/[id]/comple
 const competency = await import("@/app/api/d4/competency-assessments/route");
 const snapshotRoute = await import("@/app/api/d4/snapshot/route");
 const daily = await import("@/app/api/d4/kpi-daily/route");
-const { localToday } = await import("@/modules/d4/shared/rules");
+const { latestForPeriod, localToday } = await import("@/modules/d4/shared/rules");
 
 const post = (body: unknown) => new Request("http://test/api", { method: "POST", body: typeof body === "string" ? body : JSON.stringify(body) });
 const params = (id: string) => ({ params: Promise.resolve({ id }) });
@@ -111,6 +113,7 @@ beforeEach(() => {
   signIn("HR", MERCURY);
   catalogRows = KPI_V51_CATALOG;
   catalogVersions = [{ source_version: "V5.1", effective_from: "2000-01" }];
+  views = null;
   writes.length = 0;
   accessLookups.length = 0;
   createServerClient.mockClear();
@@ -792,5 +795,38 @@ describe("POST /kpi-daily (self-service, not HR-only)", () => {
     const res = await call(daily.POST(post(dailyBody({ lines: Array.from({ length: 3 }, () => ({ raw_score: 4, comment: "" })) }))));
     expect(res.status).toBe(201);
     expect((writes[0].args[0] as { lines: unknown[] }).lines).toHaveLength(3);
+  });
+});
+
+// 20261124130000: from 2026-11 a position D1 maps scores D1's KPI (role 1000 + the job code's digits), read through the views.
+describe("KPI from D1 through the views", () => {
+  const KAK_DIAN = "d4000000-0000-4000-8000-000000000011"; // Tax Manager, D1 JP007
+  beforeEach(() => {
+    views = seedCatalogSet(snapshot.reference.positions);
+    catalogVersions = [...views.versions];
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-24T03:00:00Z"));
+  });
+  afterEach(() => { vi.useRealTimers(); });
+
+  it("saves the HR Manager's own Daily KPI on the D1 set (role 1011)", async () => {
+    signIn("HR", MERCURY);
+    const res = await call(daily.POST(post({ entryDate: "2026-11-24", lines: Array.from({ length: 5 }, () => ({ raw_score: 90, comment: "" })) })));
+    expect(res.status).toBe(201);
+    const saved = writes[0].args[0] as { roleOrder: number; lines: { kpi_name: string }[] };
+    expect(saved.roleOrder).toBe(1011);
+    expect(saved.lines.map((line) => line.kpi_name)).toEqual(["Time-to-Fill Vacancy", "Onboarding Completion", "Performance Evaluation Completion", "Training Completion Rate", "HR Administration SLA"]);
+  });
+
+  it("saves a Performance Review on the D1 set and refuses the position's old D4 role", async () => {
+    const lines = indicatorsFor(catalogFor(views!, "2026-11")!, 1007).map((row) => ({
+      indicator_order: row.indicator_order, kpi_name: row.kpi_name, weight_percent: row.weight_percent, target: "", actual: "88", raw_score: 88, comment: "",
+    }));
+    const body = { employeeId: KAK_DIAN, roleOrder: 1007, period: "2026-11", evaluationDate: "2026-11-24", status: "completed", lines, generalNotes: "Uji", evidenceReference: "DOC-1",
+      revisionOf: latestForPeriod(snapshot.kpiAssessments ?? [], KAK_DIAN, "2026-11")?.id ?? null };
+    expect((await call(kpi.POST(post({ ...body, roleOrder: 10 })))).status).toBe(422);
+    const res = await call(kpi.POST(post(body)));
+    expect(res.status).toBe(201);
+    expect((writes[0].args[0] as { roleOrder: number }).roleOrder).toBe(1007);
   });
 });

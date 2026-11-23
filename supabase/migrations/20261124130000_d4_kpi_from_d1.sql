@@ -173,11 +173,12 @@ review as (
   order by a.employee_id, a.period, a.created_at desc
 ),
 records as (select * from daily union all select * from review)
-select r.source, b.employee_id as employee_ref, b.full_name as employee_name, b.employment_status,
+-- id and created_at carry d1_kpi_scores' names so D1 can read this view in place of its table; id is stable per KPI line.
+select md5(r.id::text || ':' || kpi.id::text)::uuid as id, r.source, b.employee_id as employee_ref, b.full_name as employee_name, b.employment_status,
   kpi.position_id, kpi.id as kpi_id, (line->>'raw_score')::integer as score,
   to_date(r.period || '-01', 'YYYY-MM-DD') as period, r.entry_date, r.overall_score,
   case when r.overall_score > 85 then 'High' when r.overall_score >= 80 then 'Average' else 'Under' end as status,
-  r.note, r.created_at as recorded_at, r.id as d4_record_id
+  r.note, r.created_at, r.id as d4_record_id
 from records r
 join public.b2_register b on b.id = r.employee_id
 cross join lateral jsonb_array_elements(r.lines) line
@@ -199,7 +200,7 @@ where r.definition_version not in ('V3.1', 'V5.1')
     or (select auth.role()) = 'service_role');
 
 comment on view public.d4_kpi_scores_for_d1 is
-  'D4 KPI scores per D1 KPI for D1: source daily|period, employee_ref, employee_name, employment_status, position_id (D1), kpi_id (d1_kpi_definitions), score 1-100, period (first day), entry_date (daily), overall_score, status High/Average/Under, note, recorded_at, d4_record_id.';
+  'D4 KPI scores per D1 KPI for D1, same columns as d1_kpi_scores plus source daily|period, entry_date, overall_score, status, d4_record_id: id, employee_ref, employee_name, employment_status, position_id (D1), kpi_id (d1_kpi_definitions), score 1-100, period (first day), entry_date (daily), overall_score, status High/Average/Under, note, created_at, d4_record_id.';
 
 revoke all on public.d4_kpi_scores_for_d1 from anon, public;
 grant select on public.d4_kpi_scores_for_d1 to authenticated;

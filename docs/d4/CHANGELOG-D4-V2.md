@@ -462,16 +462,21 @@ Permintaan: data KPI D4 tidak lagi dummy, melainkan diambil dari KPI Definition 
   - View `d4_kpi_catalog_rows` dan `d4_kpi_position_roles` menggabungkan katalog D4 dan D1. Trigger skor dan policy Daily KPI membaca view itu.
   - Trigger juga menyimpan `d1_kpi_id` di setiap baris, sehingga skor tetap tertaut ke KPI D1 walau namanya diubah.
 - **Jumlah KPI bebas, bobot tetap 100:** aturan "tepat 5" dihapus di constraint, trigger, server (`kpi-assessments`, `kpi-daily`), repository, fixture, form, Finalize, ringkasan dashboard, dan view MID `20261116120000` (yang juga belum diterapkan). Total scorecard di form baru muncul setelah semua baris terisi dan bobot set-nya 100.
-- **Untuk D1:** view `d4_kpi_scores_for_d1` dengan bentuk `d1_kpi_scores`. Isinya satu baris per KPI untuk setiap Daily KPI (koreksi terbaru per tanggal) dan setiap Performance Review yang completed. Kolomnya ada di API-D4-001 §8.
+- **Untuk D1:** view `d4_kpi_scores_for_d1` memuat semua kolom `d1_kpi_scores` dengan nama dan tipe yang sama (dicek di live 24 Nov), ditambah kolom D4. Isinya satu baris per KPI untuk setiap Daily KPI (koreksi terbaru per tanggal) dan setiap Performance Review yang completed. Kolomnya ada di API-D4-001 §8.
   - Yang bisa membaca: HR, Manager, Management, pemilik data, dan `service_role`. `anon` tidak punya akses.
 - **Sumber KPI terlihat di layar:**
   - Daily KPI menampilkan sumbernya di field Catalog; Performance Review menampilkannya di bawah Position KPI. Isinya `Definisi KPI D1 JP011 · skala 1–100`, `Katalog D4 V6, posisi belum dipetakan D1 · skala 1–100`, atau `KPI Scorecard V5.1 · skala 1–5`, dalam ID dan EN.
   - Teks yang menyebut "lima/5 Core KPI" diganti.
 - **Urutan rilis:** aplikasi boleh di-deploy sebelum migrasi. Selama view belum ada (PGRST205), loader katalog kembali membaca tabel, jadi production tidak berubah sampai migrasi diterapkan. Langkah, cek, dan rollback ada di MIGRATION-RUNBOOK-D4, bagian "KPI dari D1".
 - **Uji:**
-  - Migrasi diuji di Postgres 16 lokal dengan kasus T1–T14.
-  - Ada 7 tes vitest baru: set 3 KPI diterima dan set 5 baris ditolak di API Performance Review dan Daily KPI, peran D1 dan label sumber, posisi yang belum dipetakan, `scorableSet`, serta loader view dan fallback ke tabel. Total 646 tes lulus.
-  - Preview lokal 24 Nov: Daily KPI Mrs. Maya (HR Manager) menampilkan 5 KPI HR dari D1. Performance Review Kak Ismi (Billing) menampilkan peran D4 dengan label belum dipetakan. Dicek di lebar desktop 1225 px (ID dan EN) dan di 375 px untuk form Performance Review.
+  - Migrasi diuji di Postgres 16 lokal dengan kasus T1–T15. T15 memastikan `id` view D1 unik per baris.
+  - Ada 9 tes vitest baru:
+    - set 3 KPI diterima dan set 5 baris ditolak di API Performance Review dan Daily KPI;
+    - lewat view, Daily KPI HR Manager tersimpan dengan peran 1011 dan Performance Review Tax Manager dengan peran 1007, sedangkan peran D4 lamanya ditolak;
+    - peran D1 dan label sumber, posisi yang belum dipetakan, `scorableSet`, serta loader view dan fallback ke tabel.
+
+    Total 648 tes lulus.
+  - Preview lokal 24 Nov: Daily KPI Mrs. Maya (HR Manager) menampilkan 5 KPI HR dari D1. Setelah Save, totalnya 84,50, sama dengan hitungan manual. Performance Review Kak Ismi (Billing) menampilkan peran D4 dengan label belum dipetakan. Dicek di lebar desktop 1225 px (ID dan EN) dan di 375 px untuk form Performance Review.
   - Fixture preview mengikuti live: Billing belum dipetakan.
   - TC-D4-002-26 s.d. 29.
 - `modules/d4/kpi/catalog.ts`, `modules/d4/server/kpi-catalog/`, `kpi-assessments/`, `kpi-daily/`, `modules/d4/supabase/repository.ts`, `modules/d4/web/data/fixture-source.ts`, `modules/d4/web/features/{kpi,daily,dashboard,performance}/`, kamus i18n, `AppShell.tsx`
