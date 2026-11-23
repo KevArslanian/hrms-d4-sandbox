@@ -1,6 +1,6 @@
 import { compareCompetencies } from "../../competency/service";
 import type { TrainingFollowUp, TrainingStatus } from "../../training/types";
-import { assertNeedOpen, assertNotSelf, assertTrainingChange, trainingSyncRevision, assertTrainingDate, assertTrainingFollowUp, localToday, planTrainingCompletion, retrainingNotes, TRAINING_DECISIONS, TRAINING_FOLLOW_UPS, TRAINING_RESULTS } from "../../shared/rules";
+import { assertNeedOpen, assertNotSelf, assertTrainingChange, trainingSyncRevision, assertTrainingDate, assertTrainingFollowUp, lastAssessedAt, localToday, planTrainingCompletion, retrainingNotes, TRAINING_DECISIONS, TRAINING_FOLLOW_UPS, TRAINING_RESULTS } from "../../shared/rules";
 import { latestDevelopment, latestTraining } from "../../supabase/types";
 import { ApiError, employeeFilter, enforce, field, readJson } from "../_lib/http";
 import { d4Session, requireWriter } from "../_lib/session";
@@ -98,7 +98,8 @@ export async function recordTrainingFollowUp(request: Request, id: string) {
 
 /**
  * POST /api/d4/training-records/:id/complete — the one save of Training Tracking that finishes a training: the result
- * and HR's decision (Passed: Meets requirement or Retraining; Not Passed: Retraining or Other follow-up). Every rule
+ * and HR's decision (Passed: Meets requirement, or Retraining once the Passed result is saved and reassessed; Not
+ * Passed: Retraining or Other follow-up). Every rule
  * is checked before the first write. Writes follow this order so the histories read correctly: the training version,
  * a competency snapshot (Passed), the requirement revision (Passed decision, or In Progress after Not Passed), then the
  * Retraining training (Not Passed: before the requirement revision, inside recordTrainingFollowUp). Not one transaction:
@@ -123,6 +124,7 @@ export async function completeTraining(request: Request, id: string) {
     trainingId: id, history: snapshot.trainingVersions.filter((item) => item.trainingId === id), need,
     needHistory: snapshot.developmentVersions.filter((item) => item.needId === record.developmentNeedId), latestNeeds: needs, latestTrainings: latestTraining(snapshot),
     finding: comparison?.findings.find((item) => item.requirementId === need?.sourceRef), at: new Date().toISOString(),
+    assessedAt: employee ? lastAssessedAt(snapshot.competency, employee.id, employee.positionId) : undefined,
   });
   if (plan.training === "follow-up") {
     const retrainingId = await repository.recordTrainingFollowUp(id, { followUp: decision as TrainingFollowUp, notes: input.notes, activity: input.activity, date: input.date }, snapshot);

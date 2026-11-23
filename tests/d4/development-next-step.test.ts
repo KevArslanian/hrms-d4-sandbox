@@ -15,7 +15,20 @@ async function hrSource(): Promise<D4DataSource> {
   const { createFixtureSource } = await import("@/modules/d4/web/data/fixture-source");
   return createFixtureSource();
 }
-afterEach(() => { vi.unstubAllEnvs(); });
+afterEach(() => { vi.unstubAllEnvs(); vi.useRealTimers(); });
+
+// Retraining after a pass is the outcome of a reassessment (interview 14 Oct, part 2, 00:53:31): the Passed result is
+// saved first, then a competency assessment after it. Both are dated in the past, then the real clock resumes.
+async function passThenReassess(source: D4DataSource, trainingId: string) {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-11-20T03:00:00.000Z"));
+  await source.updateTraining(trainingId, "Completed", "Passed", "");
+  const snapshot = await source.loadSnapshot();
+  const employeeId = snapshot.trainingVersions.find((item) => item.trainingId === trainingId)!.employeeId;
+  vi.setSystemTime(new Date("2026-11-20T04:00:00.000Z"));
+  await source.saveCompetency({ employeeId, positionId: snapshot.reference.employees.find((item) => item.id === employeeId)!.positionId!, effectiveDate: "2026-11-23" });
+  vi.useRealTimers();
+}
 
 const needOf = (snapshot: Snapshot, needId: string) => latestDevelopment(snapshot).find((item) => item.needId === needId)!;
 const step = (snapshot: Snapshot, needId: string) => nextStep(snapshot, needOf(snapshot, needId));
@@ -52,7 +65,7 @@ describe("Next step of a requirement", () => {
 
   it("asks for the reassessment of a Passed training, then shows the retraining round it opened", async () => {
     const source = await hrSource();
-    await source.updateTraining("FIX-D4-TRN-002", "Completed", "Passed", "");
+    await passThenReassess(source, "FIX-D4-TRN-002");
     let snapshot = await source.loadSnapshot();
     expect(step(snapshot, "FIX-D4-DEV-002")).toMatchObject({ kind: "decide", decision: "reassessment", training: { trainingId: "FIX-D4-TRN-002" } });
     const retrainingId = await source.completeTraining("FIX-D4-TRN-002", { result: "Passed", decision: "Retraining", notes: "", activity: "Coretax Reporting Clinic", date: "2026-11-24" });
@@ -63,6 +76,7 @@ describe("Next step of a requirement", () => {
 
   it("asks to create the retraining when Retraining reopened the requirement but its training is gone", async () => {
     const source = await hrSource();
+    await passThenReassess(source, "FIX-D4-TRN-002");
     const retrainingId = await source.completeTraining("FIX-D4-TRN-002", { result: "Passed", decision: "Retraining", notes: "", activity: "Coretax Reporting Clinic", date: "2026-11-24" });
     await source.updateTraining(retrainingId!, "Cancelled", "", "Jadwal batal");
     expect(step(await source.loadSnapshot(), "FIX-D4-DEV-002")).toEqual({ kind: "create", retraining: true });

@@ -5,7 +5,7 @@ import { scaleMaxOf } from "../../kpi/scale";
 import { performanceFixtureRecords } from "../../performance/fixtures";
 import { validatePerformanceInput } from "../../performance/validation";
 import { d4ReferenceFixture } from "../../shared/fixtures";
-import { assertDailyDate, assertGapAssessed, assertPicFilled, canFillDaily, closeGapBlockedReason, closeGapNotes, openTrainingCount, trainingSyncRevision, localMonth, localToday, assertTrainingDate, assertNeedOpen, assertNoOpenNeed, assertTrainingResult, assertNotFutureDate, assertEvaluationInPeriod, assertNotSelf, assertPeriodRevision, assertTrainingChange, nextDevelopmentRevision, planTrainingCompletion, retrainingNotes } from "../../shared/rules";
+import { assertDailyDate, assertGapAssessed, assertPicFilled, canFillDaily, closeGapBlockedReason, closeGapNotes, openTrainingCount, trainingSyncRevision, localMonth, localToday, assertTrainingDate, assertNeedOpen, assertNoOpenNeed, assertTrainingResult, assertNotFutureDate, assertEvaluationInPeriod, assertNotSelf, assertPeriodRevision, assertTrainingChange, nextDevelopmentRevision, lastAssessedAt, planTrainingCompletion, retrainingNotes } from "../../shared/rules";
 import type { D4LiveSnapshot, KpiAssessment, KpiAssessmentLine, KpiDailyEntry } from "../../supabase/types";
 import { latestDevelopment, latestTraining } from "../../supabase/types";
 import { trainingFixtureVersions } from "../../training/fixtures";
@@ -304,6 +304,7 @@ export function createFixtureSource(): D4DataSource {
         trainingId, history: state.trainingVersions.filter((item) => item.trainingId === trainingId), need,
         needHistory: state.developmentVersions.filter((item) => item.needId === current.developmentNeedId), latestNeeds: needs, latestTrainings: latestTraining(state),
         finding: comparison?.findings.find((item) => item.requirementId === need?.sourceRef), at: at(0),
+        assessedAt: employee ? lastAssessedAt(state.competency, employee.id, employee.positionId) : undefined,
       });
       const trainingVersions = [...state.trainingVersions], developmentVersions = [...state.developmentVersions], competency = [...state.competency];
       if (plan.training) trainingVersions.unshift({ ...current, id: newId("FIX-D4-TRN-V"), revision: current.revision + 1, status: "Completed", result: input.result, notes: input.notes.trim(),

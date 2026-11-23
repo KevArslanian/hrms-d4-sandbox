@@ -1,4 +1,4 @@
-import type { CompetencyFinding } from "../competency/types";
+import type { CompetencyAssessment, CompetencyFinding } from "../competency/types";
 import type { DevelopmentNeedVersion, DevelopmentPriority, DevelopmentReassessment, DevelopmentSourceType, DevelopmentStatus } from "../development/types";
 import type { TrainingFollowUp, TrainingStatus, TrainingVersion } from "../training/types";
 import { ApiError } from "./errors";
@@ -349,16 +349,37 @@ export const meetsBlockedReason = (finding: LevelFinding | undefined) => finding
   ? `${finding.competencyName}: level saat ini ${finding.actualLevel ?? "belum tercatat"}, required ${finding.requiredLevel}. Meets requirement bisa dipilih setelah level di data kompetensi pegawai (modul D3) memenuhi.`
   : "";
 
+/** When a competency assessment was last saved for this employee's position: D3 skill rows carry no date, so this is the only dated evidence of a reassessment. */
+export const lastAssessedAt = (assessments: readonly Pick<CompetencyAssessment, "employeeId" | "positionId" | "createdAt">[], employeeId: string, positionId: string | null | undefined) =>
+  assessments.reduce<string | undefined>((at, item) => item.employeeId === employeeId && item.positionId === positionId && (!at || Date.parse(item.createdAt) > Date.parse(at)) ? item.createdAt : at, undefined);
+
+/**
+ * Why Retraining after a Passed training is not available yet, or "" when it is. Interview 14 Oct (part 2, 00:53:31):
+ * the reassessment after a training decides between Retraining and Meets requirement, so Retraining is never picked in
+ * the save that records Passed (`completed` undefined). For a gap-based requirement it also needs a competency
+ * assessment saved after the training was completed that still shows the gap; the level before the training proves nothing.
+ */
+export function retrainingBlockedReason(need: Pick<DevelopmentNeedVersion, "sourceType">, finding: LevelFinding | undefined, completed: string | undefined, assessedAt: string | undefined): string {
+  if (!completed) return "Retraining dipilih saat reassessment, setelah hasil Passed tersimpan dan kompetensinya dinilai ulang. Simpan hasil Passed dengan Decide later.";
+  if (need.sourceType !== "competency_gap" || !finding) return "";
+  if (finding.status === "Terpenuhi") return `${finding.competencyName}: level ${finding.actualLevel} sudah memenuhi required ${finding.requiredLevel}. Pilih Meets requirement.`;
+  if (!assessedAt || Date.parse(assessedAt) <= Date.parse(completed))
+    return "Belum ada penilaian ulang kompetensi sesudah training ini. Simpan penilaian di Competency Gap, lalu pilih Retraining bila levelnya masih di bawah requirement. Bila hari ini sudah ada penilaian dengan hasil sama, isi Assessed with (misalnya atasannya) agar tersimpan sebagai penilaian baru.";
+  return "";
+}
+
 /**
  * Plan of the one save that completes a training: checks every rule against the state after the training is
  * Completed, before anything is written. The database keeps the decision in two places: a follow-up only on a Not
  * Passed version, a reassessment only with the matching requirement status (Retraining → Planned, Meets → Completed).
  * `finding`: the live comparison of a gap-based requirement on the employee's current position, if it is part of it;
- * completing the training does not change that skill data (D3), so Meets requirement waits for it.
+ * completing the training does not change that skill data (D3), so Meets requirement waits for it. `assessedAt`: when
+ * a competency assessment was last saved for that position (lastAssessedAt), the evidence Retraining after Passed needs.
  */
 export function planTrainingCompletion(input: TrainingCompletion, context: {
   trainingId: string; history: readonly TrainingVersion[]; need: DevelopmentNeedVersion | undefined; needHistory: readonly DevelopmentNeedVersion[];
   latestNeeds: readonly DevelopmentNeedVersion[]; latestTrainings: readonly (TrainingOutcome & { trainingId: string })[]; finding: LevelFinding | undefined; at: string;
+  assessedAt?: string;
 }): { training: "version" | "follow-up" | null; development: DevelopmentRevision | null; retraining: boolean; snapshot: boolean } {
   assertTrainingResult("Completed", input.result);
   const passed = input.result === "Passed";
@@ -377,6 +398,8 @@ export function planTrainingCompletion(input: TrainingCompletion, context: {
   }
   if (!context.need) throw new ApiError("VALIDATION_FAILED", "Development requirement sumber training ini tidak ditemukan.");
   const decision = input.decision as DevelopmentReassessment;
+  const retrainingBlocked = decision === "Retraining" && retrainingBlockedReason(context.need, context.finding, saved ? completedAt(context.history) : undefined, context.assessedAt);
+  if (retrainingBlocked) throw new ApiError("VALIDATION_FAILED", retrainingBlocked);
   if (decision === "Retraining" && (!input.activity?.trim() || !input.date)) throw new ApiError("VALIDATION_FAILED", "Isi nama training dan tanggal untuk Retraining.");
   if (decision === "Meets requirement" && context.need.sourceType === "competency_gap" && meetsBlockedReason(context.finding))
     throw new ApiError("VALIDATION_FAILED", meetsBlockedReason(context.finding));
