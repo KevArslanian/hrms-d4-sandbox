@@ -98,7 +98,7 @@ describe("KPI scorecard (fixture)", () => {
 
   it("rejects an incomplete completed scorecard", async () => {
     const draft = await kpiDraft(ALFA, "2026-10");
-    await expect(source.createKpiAssessment({ ...draft, lines: draft.lines.map((line, index) => index ? line : { ...line, raw_score: null }) })).rejects.toThrow(/lima indikator KPI/);
+    await expect(source.createKpiAssessment({ ...draft, lines: draft.lines.map((line, index) => index ? line : { ...line, raw_score: null }) })).rejects.toThrow(/Semua indikator KPI harus dinilai/);
   });
 });
 

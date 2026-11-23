@@ -1,6 +1,6 @@
 import type { CompetencyAssessment } from "../../../competency/types";
 import type { DevelopmentNeedVersion } from "../../../development/types";
-import { roleForPosition, type KpiCatalog } from "../../../kpi/catalog";
+import { roleForPosition, scorableSet, type KpiCatalog } from "../../../kpi/catalog";
 import { allTopScores, bandRun, dailyEntriesOf } from "../../../kpi/daily";
 import { HIGH_ABOVE, performanceBand, scaleMaxOf, UNDER_BELOW, type PerformanceBand } from "../../../kpi/scale";
 import { completedAt, followUpOf, isDirectorPosition, localMonth, localToday, retrainedAt } from "../../../shared/rules";
@@ -15,8 +15,8 @@ import { slug, statusLabel } from "../../ui/primitives";
 export type DashboardRow = { employee: EmployeeReference; scorecard?: KpiAssessment; gap: string };
 export type Slice = { key: string; label: string; count: number };
 
-/** FR-06.9 validation state: a scorecard is only summarised when it has five KPIs whose weights total 100%. */
-export const validScorecard = (item: KpiAssessment) => item.lines.length === 5 && item.lines.reduce((sum, line) => sum + line.weight_percent, 0) === 100;
+/** FR-06.9 validation state: a scorecard is only summarised when its KPI weights total 100% (D1 decides the count). */
+export const validScorecard = (item: KpiAssessment) => scorableSet(item.lines);
 
 /**
  * Period the dashboard opens on: the latest one that has started (WIB), so a record saved for a future month does not
@@ -253,7 +253,7 @@ export function dashboardAlerts(snapshot: Snapshot, rows: readonly DashboardRow[
     { key: "requirement-no-training", list: found.noTraining, title: t("Belum punya training"), href: "/development", detail: t("development requirement terbuka menunggu training.", { count: found.noTraining.length }), action: t("Pilih requirement-nya di Development Requirement, lalu Add Training (bisa beberapa sekaligus).") },
     { key: "daily-under", list: found.dailyUnder, title: t("Daily KPI Under Performance 3 hari"), href: "/daily-kpi", detail: t("pegawai dengan total Daily KPI di bawah {limit} pada tiga entri terakhir berturut-turut di {period}.", { limit: UNDER_BELOW, period: formatPeriod(today, t.language), count: found.dailyUnder.length }), action: t("Panggil pegawai ini untuk ditindaklanjuti.") },
     { key: "daily-high", list: found.dailyHigh, title: t("Daily KPI High Performance 3 hari"), href: "/daily-kpi", detail: t("pegawai dengan total Daily KPI di atas {limit} pada tiga entri terakhir berturut-turut di {period}.", { limit: HIGH_ABOVE, period: formatPeriod(today, t.language), count: found.dailyHigh.length }), action: t("Panggil pegawai ini untuk mengonfirmasi capaiannya.") },
-    { key: "daily-all-top", list: found.dailyAllTop, title: t("Daily KPI terisi 100 semua"), href: "/daily-kpi", detail: t("pegawai mengisi 100 untuk kelima KPI pada entri Daily KPI di {period}.", { period: formatPeriod(today, t.language), count: found.dailyAllTop.length }), action: t("Periksa kewajaran skor itu bersama pegawai.") },
+    { key: "daily-all-top", list: found.dailyAllTop, title: t("Daily KPI terisi 100 semua"), href: "/daily-kpi", detail: t("pegawai mengisi 100 untuk semua KPI pada entri Daily KPI di {period}.", { period: formatPeriod(today, t.language), count: found.dailyAllTop.length }), action: t("Periksa kewajaran skor itu bersama pegawai.") },
     { key: "daily-missing", list: found.noDaily, title: t("Belum mengisi Daily KPI"), href: "/daily-kpi", detail: t("pegawai dengan KPI di katalog belum punya entri Daily KPI di {period}.", { period: formatPeriod(today, t.language), count: found.noDaily.length }) },
     { key: "requirement-no-pic", list: found.noPic, title: t("Tanpa PIC"), href: "/development", detail: t("development requirement terbuka belum punya PIC.", { count: found.noPic.length }) },
   ];

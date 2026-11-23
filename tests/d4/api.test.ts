@@ -54,7 +54,10 @@ function query(table: string) {
     if (table === "d4_user_access") return { data: accessRow, error: null };
     if (table === "d4_kpi_role_catalog") return { data: catalogRows, error: null };
     if (table === "d4_kpi_catalog_versions") return { data: catalogVersions, error: null };
-    if (table === "d4_position_kpi_roles") return { data: catalogVersions.flatMap((version) => seedCatalogSet(snapshot.reference.positions).positionRoles.map((item) => ({ ...item, source_version: version.source_version }))), error: null };
+    // D4 roles only, as in the table; the D1 roles of seedCatalogSet's V6 come from the views, missing here.
+    if (table === "d4_position_kpi_roles") return { data: catalogVersions.flatMap((version) => seedCatalogSet(snapshot.reference.positions).positionRoles.filter((item) => item.source_version === "V5.1").map((item) => ({ ...item, source_version: version.source_version }))), error: null };
+    // Live before 20261124130000: the views are missing, so the loader reads the tables.
+    if (table === "d4_kpi_catalog_rows" || table === "d4_kpi_position_roles") return { data: null, error: { code: "PGRST205", message: "missing" } };
     return { data: null, error: null };
   };
   const builder = {
@@ -130,6 +133,10 @@ const kpiBody = (patch: Record<string, unknown> = {}) => {
   return { employeeId: ALFA, roleOrder: current.roleOrder, period: "2026-10", evaluationDate: "2026-10-01", status: "completed",
     lines: current.lines.map((line) => ({ ...line, raw_score: 4 })), generalNotes: "Uji", evidenceReference: "DOC-1", ...patch };
 };
+
+/** Three KPI weighing 40/35/25 in place of `role`'s five: D1 sets the count, D4 only needs the weights to total 100 (24 Nov 2026). */
+const threeKpi = (role: number) => [...KPI_V51_CATALOG.filter((row) => row.role_order !== role),
+  ...[40, 35, 25].map((weight_percent, index) => ({ ...KPI_V51_CATALOG.find((row) => row.role_order === role)!, indicator_order: index + 1, kpi_name: `KPI ${index + 1}`, weight_percent }))];
 
 // One valid request per write route; HR gets 201 on each (asserted below), so a 401/403 can only come from the guard.
 const writeRoutes: [string, () => Promise<Response>][] = [
@@ -329,6 +336,15 @@ describe("POST /kpi-assessments", () => {
     expect(res).toMatchObject({ status: 422, body: { error: { code: "VALIDATION_FAILED" } } });
     expect(res.body.error?.message).toMatch(/tidak 100%/);
     expect(writes).toHaveLength(0);
+  });
+
+  it("scores a three-KPI set with three lines and refuses five", async () => {
+    const role = kpiBody().roleOrder;
+    catalogRows = threeKpi(role);
+    expect((await call(kpi.POST(post(kpiBody())))).status).toBe(422);
+    const res = await call(kpi.POST(post(kpiBody({ lines: kpiBody().lines.slice(0, 3) }))));
+    expect(res.status).toBe(201);
+    expect((writes[0].args[0] as { lines: { weight_percent: number }[] }).lines.map((line) => line.weight_percent)).toEqual([40, 35, 25]);
   });
 
   it("rejects a period before any catalog version is in force", async () => {
@@ -760,12 +776,21 @@ describe("POST /kpi-daily (self-service, not HR-only)", () => {
     ["a future day", { entryDate: "2999-01-01" }, /lebih dari hari ini/],
     ["a day of an earlier period", { entryDate: "2026-01-15" }, /periode berjalan/],
     ["a score above the 1–5 scale of V5.1", { lines: Array.from({ length: 5 }, () => ({ raw_score: 6, comment: "" })) }, /1 sampai 5/],
-    ["four lines", { lines: Array.from({ length: 4 }, () => ({ raw_score: 4, comment: "" })) }, /lima indikator/],
+    ["four lines", { lines: Array.from({ length: 4 }, () => ({ raw_score: 4, comment: "" })) }, /5 indikator sesuai katalog/],
   ])("rejects %s with 422", async (_name, patch, message) => {
     signIn("EMPLOYEE", ALFA);
     const res = await call(daily.POST(post(dailyBody(patch))));
     expect(res.status).toBe(422);
     expect(res.body.error?.message).toMatch(message);
     expect(writes).toHaveLength(0);
+  });
+
+  it("takes as many lines as the position's KPI set has: three for a three-KPI set", async () => {
+    signIn("EMPLOYEE", ALFA);
+    catalogRows = threeKpi(10); // Kak Ismi (Billing) has role 10
+    expect((await call(daily.POST(post(dailyBody())))).status).toBe(422);
+    const res = await call(daily.POST(post(dailyBody({ lines: Array.from({ length: 3 }, () => ({ raw_score: 4, comment: "" })) }))));
+    expect(res.status).toBe(201);
+    expect((writes[0].args[0] as { lines: unknown[] }).lines).toHaveLength(3);
   });
 });

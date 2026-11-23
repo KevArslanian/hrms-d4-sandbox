@@ -25,12 +25,12 @@ export type DailyForm = { date: string; correcting: boolean; lines: DailyLine[] 
  * after a Save and on a date pick, also for a day that already has an entry. Only Correct loads that day's saved scores
  * and comments, so a correction still starts from what was saved.
  */
-export function openDailyForm(date: string, saved?: KpiDailyEntry, correct = false): DailyForm {
+export function openDailyForm(date: string, count: number, saved?: KpiDailyEntry, correct = false): DailyForm {
   const from = correct ? saved : undefined;
   return {
     date,
     correcting: Boolean(from),
-    lines: Array.from({ length: 5 }, (_, index) => ({ score: from?.lines[index]?.raw_score?.toString() ?? "", comment: from?.lines[index]?.comment ?? "" })),
+    lines: Array.from({ length: count }, (_, index) => ({ score: from?.lines[index]?.raw_score?.toString() ?? "", comment: from?.lines[index]?.comment ?? "" })),
   };
 }
 

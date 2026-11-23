@@ -1,4 +1,4 @@
-import { catalogFor, indicatorsFor, roleForPosition, targetOf } from "../../kpi/catalog";
+import { catalogFor, indicatorsFor, roleForPosition, scorableSet, targetOf } from "../../kpi/catalog";
 import { scaleMaxOf } from "../../kpi/scale";
 import { assertDailyDate, canFillDaily } from "../../shared/rules";
 import type { KpiAssessmentLine } from "../../supabase/types";
@@ -32,8 +32,8 @@ export async function createDailyEntry(request: Request) {
   const employee = (await session.repository.loadReferenceData()).employees.find((item) => item.id === access.employeeId);
   const roleOrder = roleForPosition(catalog, employee?.positionId);
   const indicators = indicatorsFor(catalog, roleOrder);
-  if (!roleOrder || indicators.length !== 5) throw new ApiError("VALIDATION_FAILED", `Posisi Anda belum memiliki KPI di katalog ${catalog.version}. Hubungi HR.`);
-  if (!Array.isArray(body.lines) || body.lines.length !== 5) throw new ApiError("VALIDATION_FAILED", "Daily KPI harus memiliki lima indikator.");
+  if (!roleOrder || !scorableSet(indicators)) throw new ApiError("VALIDATION_FAILED", `Posisi Anda belum memiliki KPI di katalog ${catalog.version}. Hubungi HR.`);
+  if (!Array.isArray(body.lines) || body.lines.length !== indicators.length) throw new ApiError("VALIDATION_FAILED", `Daily KPI harus memiliki ${indicators.length} indikator sesuai katalog.`);
   const max = scaleMaxOf(catalog.version);
   const lines: KpiAssessmentLine[] = indicators.map((indicator, index) => {
     const raw = ((body.lines as unknown[])[index] ?? {}) as Record<string, unknown>;
