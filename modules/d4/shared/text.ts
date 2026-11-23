@@ -22,3 +22,6 @@ export const interpolate = (text: string, vars?: TextVars) =>
 
 /** The source text itself, as D4 showed it before the toggle. `language: null` keeps the formatters on their old output. */
 export const plainText: Translate = Object.assign((text: string, vars?: TextVars) => interpolate(text, vars), { language: null });
+
+/** Marks a text kept in a constant as a dictionary key, so tests/d4/i18n.test.ts checks it like a literal t("…"). */
+export const msg = (text: string) => text;

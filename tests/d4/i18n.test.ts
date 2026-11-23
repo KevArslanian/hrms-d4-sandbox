@@ -11,10 +11,10 @@ const files = (dir: string): string[] => readdirSync(dir).flatMap((name) => {
 });
 const sources = [...files("modules/d4/web"), ...files("modules/d4/shared")].filter((path) => !path.includes("/i18n/dictionary/"));
 const unescape = (text: string) => text.replace(/\\(["\\])/g, "$1");
-// Every literal handed to t(...) or to a DataTable noun: the key fallback would hide a missing entry on screen.
+// Every literal handed to t(...), msg(...) or a DataTable noun: the key fallback would hide a missing entry on screen.
 const used = sources.flatMap((path) => {
   const source = readFileSync(path, "utf8");
-  return [...source.matchAll(/\bt\(\s*"((?:[^"\\]|\\.)*)"/g), ...source.matchAll(/\bnoun="([^"]+)"/g)].map((match) => ({ path, text: unescape(match[1]) }));
+  return [...source.matchAll(/\b(?:t|msg)\(\s*"((?:[^"\\]|\\.)*)"/g), ...source.matchAll(/\bnoun="([^"]+)"/g)].map((match) => ({ path, text: unescape(match[1]) }));
 });
 const placeholders = (text: string) => [...text.matchAll(/\{(\w+)\}/g)].map((match) => match[1]).sort();
 
