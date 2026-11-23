@@ -7,7 +7,7 @@ import { followUpOf } from "../../../shared/rules";
 import type { D4LiveSnapshot, KpiAssessment } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
 import { catalogFor, KPI_TARGET, type KpiCatalog } from "../../../kpi/catalog";
-import { byProgress, canAssess, canWrite, currentCompetencyStatus, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, employeeSearchText, evaluationsOf, formatDate, formatGap, formatPeriod, formatScore, formatScorecard, includesText, pendingCompilation, positionOf, scorecardsOf, thisMonth, trainingHistory, trainings, trainingsOf, visibleEmployees } from "../../data/selectors";
+import { byProgress, canAssess, canWrite, currentCompetencyStatus, currentGap, departmentOf, developmentNeeds, employeeById, employeeMeta, employeeSearchText, evaluationsOf, formatDate, formatGap, formatPeriod, formatScore, formatScorecard, includesText, listScore, pendingCompilation, positionOf, scorecardsOf, thisMonth, trainingHistory, trainings, trainingsOf, visibleEmployees } from "../../data/selectors";
 import { DataTable, PersonCell } from "../../ui/DataTable";
 import { FilterBar, PeriodFilter, SearchInput, SelectFilter } from "../../ui/forms";
 import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
@@ -50,6 +50,7 @@ function PeopleDashboard() {
   const periods = useMemo(() => [...new Set([...(snapshot.kpiAssessments ?? []), ...snapshot.performance, ...(snapshot.kpiDaily ?? [])].map((item) => item.period))].sort().reverse(), [snapshot]);
   const shown = period || defaultPeriod(periods);
   const catalog = useMemo(() => catalogSet && shown ? catalogFor(catalogSet, shown) : null, [catalogSet, shown]);
+  const listScale = scaleMaxOf(catalog?.version);
 
   const rows = useMemo<Row[]>(() => visibleEmployees(snapshot).map((employee) => {
     // Every row shows the same period: the chosen one, else the latest period that has started (bug 20).
@@ -104,7 +105,7 @@ function PeopleDashboard() {
         { key: "position", header: "Position / Department", wrap: true, secondary: true, cell: (row) => <><span className="block">{row.position}</span><span className="block text-xs text-ink-3">{departmentOf(snapshot, row.employee)?.name ?? "—"}</span></> },
         // Every row shows the period chosen in the filter, so the column only earns its space on wide screens.
         { key: "period", header: "Period", secondary: true, cell: (row) => formatPeriod(row.period) },
-        { key: "kpi", header: "Total KPI", className: "tabular-nums", cell: (row) => <ScoreCell scorecard={row.scorecard} compiled={row.compiled} /> },
+        { key: "kpi", header: `Total KPI (/${listScale})`, className: "tabular-nums", cell: (row) => <ScoreCell scorecard={row.scorecard} compiled={row.compiled} listScale={listScale} /> },
         { key: "gap", header: "Competency", cell: (row) => <StatusBadge status={row.gap} /> },
         { key: "needs", header: "Open dev.", className: "tabular-nums", secondary: true, cell: (row) => row.openNeeds || "—" },
         // Wraps so "Completed, awaiting follow-up" takes two lines; on one line the table scrolled sideways at 1024 and 768 px.
@@ -283,12 +284,12 @@ function AlertsCard({ snapshot, rows, period }: { snapshot: D4LiveSnapshot; rows
   </Card>;
 }
 
-function ScoreCell({ scorecard, compiled }: { scorecard?: KpiAssessment; compiled?: DailyCompilation | null }) {
-  if (!scorecard && compiled) return <span className="text-ink">{formatScore(compiled.total, scaleMaxOf(compiled.definitionVersion))}<span className="mt-1 block"><StatusBadge status="Compiled" /></span></span>;
+function ScoreCell({ scorecard, compiled, listScale }: { scorecard?: KpiAssessment; compiled?: DailyCompilation | null; listScale: number }) {
+  if (!scorecard && compiled) return <span className="text-ink">{listScore(compiled.total, compiled.definitionVersion, listScale)}<span className="mt-1 block"><StatusBadge status="Compiled" /></span></span>;
   if (!scorecard) return <>—</>;
   if (!validScorecard(scorecard)) return <span className="text-xs font-semibold text-danger">Invalid data</span>;
   const band = performanceBand(scorecard.overallScore, scorecard.definitionVersion);
-  return <span className="font-semibold text-ink">{formatScorecard(scorecard)}{band && <span className="mt-1 block"><StatusBadge status={band} /></span>}</span>;
+  return <span className="font-semibold text-ink">{listScore(scorecard.overallScore, scorecard.definitionVersion, listScale)}{band && <span className="mt-1 block"><StatusBadge status={band} /></span>}</span>;
 }
 
 function SourceLink({ href, children = "View source" }: { href: string; children?: ReactNode }) {
