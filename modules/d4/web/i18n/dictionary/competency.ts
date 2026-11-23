@@ -61,7 +61,7 @@ export const competency = {
   "Pegawai belum memiliki posisi aktif.": { en: "The employee has no current position yet." },
   // History page
   "{count} saved assessment": { id: "{count} penilaian tersimpan" },
-  "{count} saved assessments": { id: "{count} penilaian tersimpan" },
+  "{count} saved assessments": { id: "{count} penilaian tersimpan", enOne: "{count} saved assessment" },
   "Competency Gap history": { id: "Riwayat Competency Gap" },
   "Belum ada penilaian kompetensi yang tersimpan untuk pegawai ini.": { en: "No competency assessment saved for this employee yet." },
   "position change": { id: "perubahan posisi" },
