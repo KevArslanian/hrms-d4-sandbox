@@ -439,7 +439,7 @@ Sumber: saran Pak Emanuel ke Skuad 4 (17 Nov 2026), "bisa dilihat di mana siapa 
   - List Performance Review tidak lagi menulis "from 6 daily entries" di bawah skor. Kolom Period hanya muncul bila daftar tidak difilter ke satu periode.
   - People Dashboard tidak lagi punya kolom Period; periodenya sudah ada di tombol Period.
   - Tabel tim Daily KPI memindahkan jumlah hari kerja dan target 85 ke judul kolom: **Days filled (/N)** dan **Compiled score / Gap vs 85**. Selnya hanya berisi angka per pegawai.
-- **Toggle bahasa ID | EN** di topbar, default ID. Mengikuti keputusan diskusi kelas 21 Nov 2026: React Context API, terjemahan disimpan di frontend. Cookie dan localStorage `andima-hrms-language` sama dengan D3, jadi satu pilihan berlaku di kedua modul begitu domainnya sama. Server membaca cookie, sehingga halaman tidak berkedip dari bahasa lain saat dimuat.
+- **Toggle bahasa EN | ID** di topbar, default ID. Urutannya EN di kiri dan ID di kanan (permintaan Delta 24 Nov); testid tidak berubah. Mengikuti keputusan diskusi kelas 21 Nov 2026: React Context API, terjemahan disimpan di frontend. Cookie dan localStorage `andima-hrms-language` sama dengan D3, jadi satu pilihan berlaku di kedua modul begitu domainnya sama. Server membaca cookie, sehingga halaman tidak berkedip dari bahasa lain saat dimuat.
   - Semua layar D4 ikut diterjemahkan: label, teks bantuan, empty state, toast, aria-label, halaman 404, dan nama bulan (Mei, Agu, Okt, Des).
   - Yang tidak diterjemahkan: nama modul, kosakata workflow, nama KPI dan kompetensi, data tersimpan, nilai filter, dan pesan dari server (bahasa Indonesia). Detailnya di UI-D4-001 §6.
   - Bahasa Inggris memakai bentuk tunggal saat jumlahnya 1 ("1 employee has", bukan "1 employees have"), lewat `enOne` di kamus.
@@ -447,6 +447,16 @@ Sumber: saran Pak Emanuel ke Skuad 4 (17 Nov 2026), "bisa dilihat di mana siapa 
   - Kartu ringkasan dashboard dan tiga dialognya (PR #68, masuk main lebih dulu) ikut diterjemahkan saat main digabung ke cabang ini. Testid dialog Need training, Training in progress, dan Performance Review identik di ID dan EN.
   - Tes baru `tests/d4/i18n.test.ts`: setiap teks yang dilewatkan ke `t(...)` punya entri kamus, tiap teks hanya ada di satu file fitur, placeholder terjemahan sama dengan sumbernya, dan bentuk tunggal Inggris dipakai saat jumlahnya 1. TC-D4-UIQ-15 s.d. 19.
 - `modules/d4/web/i18n/`, `modules/d4/shared/text.ts`, `app/(d4)/layout.tsx`, `app/not-found.tsx`, `DataTable.tsx`, `selectors.ts`, `rules.ts`, `bulk.ts`, dan halaman serta modal di `modules/d4/web/features/`
+
+## Pengingat Daily KPI jadi satu kalender · 24 Nov 2026
+
+- **Dua kotak kuning digabung.** "Daily KPI hari ini belum diisi" dan "N hari kerja bulan ini belum diisi" kini satu kotak: "Daily KPI hari ini dan N hari kerja lain bulan ini belum diisi." Kalau hanya hari ini yang kosong, kalimat lama tetap dipakai.
+- **Deretan chip tanggal diganti kalender Sen–Jum.** Satu baris per minggu dari tanggal 1 sampai hari ini, jadi tanggal yang bolong sejajar dengan harinya. Hari yang belum diisi berupa tombol, hari yang sudah diisi redup dengan centang, dan hari ini diberi titik. Tanggal yang sedang dibuka di form tampil terpilih.
+- **Sel tanpa bingkai, mengikuti pola kalender Carbon dan Total Synergy.** Hari yang belum diisi berupa kotak putih bertulisan tebal, hover berlatar biru muda, dan tanggal terpilih berlatar `primary-600` dengan teks putih (kontras 5,2:1). Sebelumnya terpilih dan hover sama-sama bergaris biru sehingga sulit dibedakan. Fokus keyboard memakai garis biru 2 px dengan jarak 2 px.
+- Tinggi sel 40 px di ponsel dan 32 px mulai 640 px. Teks hari yang sudah diisi memakai `text-ink-2` (kontras 6,9:1 di latar kuning; `text-ink-3` hanya 4,4:1).
+- Testid `daily-reminder`, `daily-missed`, dan `missed-YYYY-MM-DD` tetap; sel hari ini memakai `daily-today`. TC-D4-008-12 diperbarui, TC-D4-008-22 baru.
+- Dicek di mode pratinjau pada 375, sekitar 400, dan 1280 px dalam ID dan EN, termasuk menyimpan satu tanggal lalu melihatnya berubah jadi centang. Belum ada desain Figma untuk bagian ini; frame Daily KPI di Figma D4 V2 (302:2) tidak punya kotak pengingat.
+- `modules/d4/web/features/daily/DailyKpiPages.tsx`, `modules/d4/web/i18n/dictionary/daily.ts`
 
 ## Core KPI dari definisi D1 · 24 Nov 2026
 
