@@ -50,5 +50,6 @@ describe("D4 language dictionary", () => {
     expect(en("{count} pegawai belum punya kategori.", { count: 1 })).toBe("1 employee has no category yet.");
     expect(en("{count} pegawai belum punya kategori.", { count: 2 })).toBe("2 employees have no category yet.");
     expect(translator("id")("{count} saved reviews", { count: 1 })).toBe("1 penilaian tersimpan");
+    expect(en("Showing {first}–{last} of {total} {noun}", { first: 1, last: 1, total: 1, noun: en("employees", { count: 1 }) })).toBe("Showing 1–1 of 1 employee");
   });
 });

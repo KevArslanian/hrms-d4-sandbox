@@ -19,12 +19,12 @@ export const shared = {
   "Previous page": { id: "Halaman sebelumnya" },
   "Next page": { id: "Halaman berikutnya" },
   // DataTable nouns (the noun prop)
-  "employees": { id: "pegawai" },
-  "days": { id: "hari" },
-  "requirements": { id: "requirement" },
-  "trainings": { id: "training" },
-  "requirement dipilih": { en: "selected requirements" },
-  "training dipilih": { en: "selected trainings" },
+  "employees": { id: "pegawai", enOne: "employee" },
+  "days": { id: "hari", enOne: "day" },
+  "requirements": { id: "requirement", enOne: "requirement" },
+  "trainings": { id: "training", enOne: "training" },
+  "requirement dipilih": { en: "selected requirements", enOne: "selected requirement" },
+  "training dipilih": { en: "selected trainings", enOne: "selected training" },
   // Words used by several feature folders
   "Actions for {name}": { id: "Aksi untuk {name}" },
   "Actual": { id: "Aktual" },
