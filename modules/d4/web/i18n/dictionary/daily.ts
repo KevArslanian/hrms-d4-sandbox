@@ -17,7 +17,9 @@ export const daily = {
   "Daily KPI tersimpan.": { en: "Daily KPI saved." },
   "Daily KPI hari ini belum diisi. Isi sebelum pulang.": { en: "Today's Daily KPI is not filled in yet. Fill it in before you go home." },
   "{count} hari kerja bulan ini belum diisi.": { en: "Working days not filled in this month: {count}." },
-  "Pilih tanggalnya untuk mengisi, satu per satu, sampai akhir {period}. Lewati tanggal libur:": { en: "Pick a date to fill it in, one at a time, until the end of {period}. Skip holidays:" },
+  "Daily KPI hari ini dan {count} hari kerja lain bulan ini belum diisi.": { en: "Today's Daily KPI and {count} other working days this month are not filled in yet.", enOne: "Today's Daily KPI and {count} other working day this month are not filled in yet." },
+  "Pilih tanggal yang belum diisi untuk mengisinya, sampai akhir {period}. Lewati hari libur.": { en: "Pick an unfilled date to fill it in, until the end of {period}. Skip holidays." },
+  "Hari kerja {period}": { en: "Working days in {period}" },
   "KPI Scorecard {version} · skala 1–{max}": { en: "KPI Scorecard {version} · scale 1–{max}" },
   "Anda sedang mengoreksi entri {date}. Entri bulan ini bisa Anda koreksi sampai akhir {period}; nilai sebelumnya tetap tercatat di History.": {
     en: "You are correcting the entry of {date}. This month's entries can be corrected until the end of {period}; the earlier values stay in History.",
