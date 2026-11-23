@@ -4,7 +4,7 @@ import { useState, type FormEvent } from "react";
 import type { TrainingStatus } from "../../../training/types";
 import { TRAINING_RESULTS, type TrainingCompletion, type TrainingDecision } from "../../../shared/rules";
 import { msg, plainText, type Translate } from "../../../shared/text";
-import { addTrainingToNeeds, bulkSummary, DECIDE_LATER, progressTargets, requireSome, updateTrainings, type BulkFailure, type BulkNeed, type BulkOutcome, type BulkProgress, type BulkTraining } from "../../data/bulk";
+import { addTrainingToNeeds, bulkSummary, DECIDE_LATER, progressTargets, requireSome, updateTrainings, type BulkFailure, type BulkNeed, type BulkOutcome, type BulkProgress, type BulkTarget, type BulkTraining } from "../../data/bulk";
 import { useD4 } from "../../data/D4DataProvider";
 import { includesText, today } from "../../data/selectors";
 import { useLanguage } from "../../i18n/LanguageProvider";
@@ -16,15 +16,23 @@ import { BACKGROUND, PASSED_HELPER } from "./TrainingModals";
 const NOTES_MAX = 2000;
 const saveLabel = (count: number, t: Translate = plainText) => count === 1 ? t("Save {count} Training", { count }) : t("Save {count} Trainings", { count });
 
-/** Who the bulk action is for: the first names, then a count, so a list of 32 does not push the form off screen. */
-function TargetList({ items, noun }: { items: readonly { key: string; label: string }[]; noun: string }) {
+/**
+ * Who the bulk action is for, each with a checkbox, all ticked: unticking one leaves it out of this save without going
+ * back to the table (24 Nov 2026). The list scrolls, so a selection of 32 does not push the form off screen.
+ */
+function TargetList({ items, noun, picked, onChange }: { items: readonly BulkTarget[]; noun: string; picked: ReadonlySet<string>; onChange: (picked: Set<string>) => void }) {
   const { t } = useLanguage();
-  const shown = items.slice(0, 5);
-  return <div data-testid="bulk-targets" className="rounded-xl bg-muted px-4 py-3 text-sm text-ink">
-    <p className="font-semibold">{items.length} {t(noun)}</p>
-    <ul className="mt-1.5 space-y-0.5 text-xs text-ink-2">{shown.map((item) => <li key={item.key} className="break-words">{item.label}</li>)}</ul>
-    {items.length > shown.length && <p className="mt-1 text-xs text-ink-2">{t("dan {count} lainnya", { count: items.length - shown.length })}</p>}
-  </div>;
+  const toggle = (key: string) => onChange(new Set(picked.has(key) ? [...picked].filter((item) => item !== key) : [...picked, key]));
+  const count = items.filter((item) => picked.has(item.key)).length;
+  return <fieldset data-testid="bulk-targets" className="min-w-0">
+    <legend className="mb-1.5 block text-sm font-semibold text-ink-2">{t(noun, { count, total: items.length })}</legend>
+    <ul className="max-h-56 divide-y divide-line overflow-y-auto rounded-xl border border-line">
+      {items.map((item) => <li key={item.key}><label className="flex cursor-pointer items-start gap-2.5 px-3 py-2.5 text-sm hover:bg-muted">
+        <input type="checkbox" checked={picked.has(item.key)} onChange={() => toggle(item.key)} data-testid={`bulk-target-${item.key}`} className="mt-0.5 size-4 shrink-0 accent-primary-600" />
+        <span className="min-w-0 break-words text-ink">{item.label}{item.detail && <span className="block text-xs text-ink-3">{item.detail}</span>}</span>
+      </label></li>)}
+    </ul>
+  </fieldset>;
 }
 
 /** Rows a bulk save refused, with the reason the single-row save gives; they stay selected for another try. */
@@ -78,11 +86,11 @@ export function BulkTrainingModal({ needs, choices, initial, title = "Add Traini
   const [date, setDate] = useState(initial?.date ?? today());
   const [status, setStatus] = useState<TrainingStatus>(initial?.status === "In Progress" ? "In Progress" : "Planned");
   const [notes, setNotes] = useState("");
-  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [picked, setPicked] = useState<Set<string>>(() => new Set(needs?.map((item) => item.key)));
   const [error, setError] = useState("");
   const [failures, setFailures] = useState<BulkFailure[]>([]);
   const [touched, setTouched] = useState(false);
-  const targets = needs ?? (choices ?? []).filter((item) => picked.has(item.key));
+  const targets = (needs ?? choices ?? []).filter((item) => picked.has(item.key));
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -114,7 +122,7 @@ export function BulkTrainingModal({ needs, choices, initial, title = "Add Traini
       <FormError message={error} />
       <FailureList failures={failures} />
       {choices ? <NeedPicker choices={choices} picked={picked} onChange={setPicked} error={touched && !targets.length ? t("Pilih minimal satu requirement.") : undefined} />
-        : <TargetList items={targets} noun="requirement dipilih" />}
+        : <TargetList items={needs ?? []} noun={msg("{count} dari {total} requirement dipilih")} picked={picked} onChange={setPicked} />}
       <div className="grid gap-4 sm:grid-cols-2">
         <TextField label={t("Training / activity")} testId="bulk-training-activity" required maxLength={200} value={activity} onChange={(event) => setActivity(event.target.value)}
           error={touched && !activity.trim() ? t("Nama aktivitas wajib diisi.") : undefined} className="sm:col-span-2" />
@@ -156,9 +164,11 @@ export function BulkProgressModal({ trainings, onClose, onDone }: { trainings: r
   const [error, setError] = useState("");
   const [failures, setFailures] = useState<BulkFailure[]>([]);
   const [touched, setTouched] = useState(false);
+  const [picked, setPicked] = useState<Set<string>>(() => new Set(trainings.map((item) => item.key)));
+  const chosen = trainings.filter((item) => picked.has(item.key));
   const completing = status === "Completed";
-  const targets = progressTargets(trainings, { status });
-  const skipped = trainings.length - targets.length;
+  const targets = progressTargets(chosen, { status });
+  const skipped = chosen.length - targets.length;
   const retraining = completing && decision === "Retraining", other = completing && decision === "Other follow-up";
 
   async function submit(event: FormEvent) {
@@ -173,7 +183,7 @@ export function BulkProgressModal({ trainings, onClose, onDone }: { trainings: r
       ? { status, result: result as TrainingCompletion["result"], decision: decision as TrainingDecision | typeof DECIDE_LATER, notes, ...(retraining ? { activity, date } : {}) }
       : { status, notes };
     let outcome: BulkOutcome | undefined;
-    const saved = await run(async (source) => requireSome(outcome = await updateTrainings(source, trainings, change)), (value) => bulkSummary(value, "training", t), BACKGROUND);
+    const saved = await run(async (source) => requireSome(outcome = await updateTrainings(source, chosen, change)), (value) => bulkSummary(value, "training", t), BACKGROUND);
     settle(saved.ok ? saved.value : outcome, saved.ok ? "" : saved.error);
   }
   /** Same as in BulkTrainingModal: refused rows stay listed and selected, a fully saved batch closes the form. */
@@ -189,7 +199,7 @@ export function BulkProgressModal({ trainings, onClose, onDone }: { trainings: r
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />
       <FailureList failures={failures} />
-      <TargetList items={trainings} noun="training dipilih" />
+      <TargetList items={trainings} noun={msg("{count} dari {total} training dipilih")} picked={picked} onChange={setPicked} />
       <SelectField label={t("Status")} testId="bulk-progress-status" required value={status} onChange={(event) => { setStatus(event.target.value as BulkProgress["status"]); setError(""); }}>
         {(["In Progress", "Completed"] as const).map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}
       </SelectField>

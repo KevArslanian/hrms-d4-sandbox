@@ -513,6 +513,15 @@ PR #63 menjawab masukan ini pada 20 Nov, tetapi sebelum digabung, PR #65, #68, #
 - **Daily KPI yang lupa diisi lebih dari sehari.** Sudah di PR #65, lalu menjadi kalender Sen–Jum di PR #70 (`daily-missed`, `missed-YYYY-MM-DD`). Tombol `btn-fill-missed-<tanggal>` dari PR #63 tidak dipakai.
 - **Bahasa judul dialog konfirmasi.** Sudah lewat toggle bahasa (PR #69 dan #72): judul dan tombol mengikuti bahasa yang dipilih, misalnya "Buang perubahan?" di ID dan "Discard changes?" di EN.
 
+## Daftar di form bulk bisa dicentang · 24 Nov 2026
+
+- Update Progress (Training Tracking) dan Add Training dari Development Requirement sebelumnya hanya menampilkan lima baris pertama lalu "dan N lainnya". Kini semua yang dipilih tampil sebagai checkbox dalam daftar yang bisa digulir, dan semuanya tercentang di awal. Melepas centang mengeluarkan baris itu dari simpanan kali ini tanpa kembali ke tabel; tombol Save mengikuti jumlahnya.
+- Baris training memuat tanggal dan status di bawah namanya, karena satu pegawai bisa punya beberapa training dengan nama yang sama.
+- Baris yang tidak dicentang tidak disimpan dan tetap terpilih di tabel.
+- Testid `bulk-targets` tetap; tiap baris `bulk-target-<id>`. Judulnya "{n} dari {total} training dipilih" / "{n} of {total} trainings selected".
+- Dicek di mode pratinjau: Update Progress dengan 1 dari 2 training (hanya Kak Ismi yang berubah jadi In Progress), Add Training 2 dari 3 requirement, ID dan EN, 375 px tanpa scroll horizontal.
+- `modules/d4/web/features/training/BulkModals.tsx`, `TrainingPages.tsx`, `modules/d4/web/data/bulk.ts`, `modules/d4/web/i18n/dictionary/shared.ts`
+
 ## Belum selesai
 
 | Item | Alasan | Langkah berikut |
