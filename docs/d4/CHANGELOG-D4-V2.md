@@ -499,6 +499,20 @@ Permintaan: data KPI D4 tidak lagi dummy, melainkan diambil dari KPI Definition 
   - **Diuji di Postgres 16 lokal** dengan salinan policy INSERT yang aktif pada 20 Nov (13 kasus). Sebelum migrasi, 12 kasus diterima. Itu termasuk manager menilai KPI sendiri, HR mengevaluasi diri sendiri, dan akun PENDING ber-POS-HR menambah training. Sesudah migrasi, 8 kasus menulis catatan sendiri atau memakai akun PENDING ditolak. Penilaian dan riwayat untuk pegawai lain tetap diterima. Mendaftar sebagai PENDING tetap diterima karena tabel itu milik B2.
   - Pada 20 Nov, semua baris `b2_register` yang dibaca D4 berstatus APPROVED atau PROVISIONED, jadi tidak ada akun aktif yang kehilangan akses.
 
+## Masukan Pak Emanuel di Show N Tell · 17 Nov 2026 (PR #63)
+
+PR #63 menjawab masukan ini pada 20 Nov, tetapi sebelum digabung, PR #65, #68, #69, dan #70 sudah mengerjakan butir yang sama dengan cara lain. Saat PR #63 digabung ke main pada 24 Nov, versi main dipertahankan di semua bagian yang bentrok. Yang baru dari PR #63 hanya popup **Lihat semua N pegawai** di alert dashboard.
+
+- **Filter, bukan tautan, untuk riwayat.** Sudah di PR #65: tautan Show Completed dan Show Cancelled dihapus, dan baris yang selesai dibuka lewat Status di panel Filter.
+- **Retraining setelah Passed.** Sudah di PR #65: `retrainingBlockedReason` di `modules/d4/shared/rules.ts` juga dipakai server (`planTrainingCompletion`). Retraining baru bisa dipilih setelah ada penilaian ulang kompetensi sesudah training, dan ditolak bila level sudah memenuhi.
+- **Training untuk lebih dari satu orang.** Sudah di PR #65: **Add Training** di Training Tracking (`btn-add-training`) untuk requirement beberapa pegawai, dan **Add Participants** di detail training (`btn-add-participants`). Field "Other participants" dari PR #63 tidak dipakai.
+- **Siapa yang butuh training.** Sudah di PR #65 dan #68: alert **Belum punya training** (`alert-requirement-no-training`), dan kotak Need training yang membuka daftar pegawainya (`summary-dev`, `summary-dialog-dev`). Tombol "Lihat siapa saja" dari PR #63 tidak dipakai.
+- **Baru dari PR #63: semua nama di balik alert.** Alert yang menyangkut lebih dari tiga pegawai kini punya tombol **Lihat semua N pegawai** (`btn-alert-people-<key>`). Popup-nya (`alert-people`) memuat semua nama, masing-masing dengan **Buka**: daftar sumber alert yang disaring ke pegawai itu (`?q=<nama>`, periode alert tetap terbawa). Tombol **Close** `btn-close-alert-people`. Teksnya ikut toggle ID dan EN. TC-D4-008-23.
+- **Total KPI tanpa skala di setiap baris.** Sudah di PR #65: judul kolom **Total KPI (/100)**, baris berskala 1–5 tetap memakai akhiran sendiri.
+- **Alasan Period, Evaluation date, dan Evaluator.** Sudah di PR #65: keterangan di bawah ketiga field di form Performance Review.
+- **Daily KPI yang lupa diisi lebih dari sehari.** Sudah di PR #65, lalu menjadi kalender Sen–Jum di PR #70 (`daily-missed`, `missed-YYYY-MM-DD`). Tombol `btn-fill-missed-<tanggal>` dari PR #63 tidak dipakai.
+- **Bahasa judul dialog konfirmasi.** Sudah lewat toggle bahasa (PR #69 dan #72): judul dan tombol mengikuti bahasa yang dipilih, misalnya "Buang perubahan?" di ID dan "Discard changes?" di EN.
+
 ## Belum selesai
 
 | Item | Alasan | Langkah berikut |
