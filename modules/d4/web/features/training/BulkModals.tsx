@@ -5,7 +5,8 @@ import type { TrainingStatus } from "../../../training/types";
 import { TRAINING_RESULTS, type TrainingCompletion, type TrainingDecision } from "../../../shared/rules";
 import { msg, plainText, type Translate } from "../../../shared/text";
 import { addTrainingToNeeds, bulkSummary, DECIDE_LATER, progressTargets, requireSome, updateTrainings, type BulkFailure, type BulkNeed, type BulkOutcome, type BulkProgress, type BulkTarget, type BulkTraining } from "../../data/bulk";
-import { useD4 } from "../../data/D4DataProvider";
+import { progressIssue } from "../../data/completion";
+import { useD4, useSnapshot } from "../../data/D4DataProvider";
 import { includesText, today } from "../../data/selectors";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { DateField, FormError, FormModal, ModalActions, RadioField, SelectField, TextAreaField, TextField } from "../../ui/forms";
@@ -20,7 +21,8 @@ const saveLabel = (count: number, t: Translate = plainText) => count === 1 ? t("
  * Who the bulk action is for, each with a checkbox, all ticked: unticking one leaves it out of this save without going
  * back to the table (24 Nov 2026). The list scrolls, so a selection of 32 does not push the form off screen.
  */
-function TargetList({ items, noun, picked, onChange }: { items: readonly BulkTarget[]; noun: string; picked: ReadonlySet<string>; onChange: (picked: Set<string>) => void }) {
+/** `issues`: rows the chosen change would refuse, with the reason; they stay listed but are not saved. */
+function TargetList({ items, noun, picked, onChange, issues }: { items: readonly BulkTarget[]; noun: string; picked: ReadonlySet<string>; onChange: (picked: Set<string>) => void; issues?: ReadonlyMap<string, string> }) {
   const { t } = useLanguage();
   const toggle = (key: string) => onChange(new Set(picked.has(key) ? [...picked].filter((item) => item !== key) : [...picked, key]));
   const count = items.filter((item) => picked.has(item.key)).length;
@@ -29,7 +31,8 @@ function TargetList({ items, noun, picked, onChange }: { items: readonly BulkTar
     <ul className="max-h-56 divide-y divide-line overflow-y-auto rounded-xl border border-line">
       {items.map((item) => <li key={item.key}><label className="flex cursor-pointer items-start gap-2.5 px-3 py-2.5 text-sm hover:bg-muted">
         <input type="checkbox" checked={picked.has(item.key)} onChange={() => toggle(item.key)} data-testid={`bulk-target-${item.key}`} className="mt-0.5 size-4 shrink-0 accent-primary-600" />
-        <span className="min-w-0 break-words text-ink">{item.label}{item.detail && <span className="block text-xs text-ink-3">{item.detail}</span>}</span>
+        <span className="min-w-0 break-words text-ink">{item.label}{item.detail && <span className="block text-xs text-ink-3">{item.detail}</span>}
+          {picked.has(item.key) && issues?.get(item.key) && <span data-testid={`bulk-issue-${item.key}`} className="mt-1 block text-xs font-semibold text-warning">{t("Tidak ikut disimpan: {reason}", { reason: t(issues.get(item.key)!) })}</span>}</span>
       </label></li>)}
     </ul>
   </fieldset>;
@@ -153,6 +156,7 @@ const NOT_PASSED_OPTIONS = [
  * Update Progress would refuse are refused here with the same message and stay selected.
  */
 export function BulkProgressModal({ trainings, onClose, onDone }: { trainings: readonly BulkTraining[]; onClose: () => void; onDone: (outcome: BulkOutcome) => void }) {
+  const snapshot = useSnapshot();
   const { run, busy } = useD4();
   const { t } = useLanguage();
   const [status, setStatus] = useState<BulkProgress["status"]>("Completed");
@@ -167,9 +171,15 @@ export function BulkProgressModal({ trainings, onClose, onDone }: { trainings: r
   const [picked, setPicked] = useState<Set<string>>(() => new Set(trainings.map((item) => item.key)));
   const chosen = trainings.filter((item) => picked.has(item.key));
   const completing = status === "Completed";
-  const targets = progressTargets(chosen, { status });
-  const skipped = chosen.length - targets.length;
   const retraining = completing && decision === "Retraining", other = completing && decision === "Other follow-up";
+  const change: BulkProgress | null = !completing ? { status, notes } : result && decision
+    ? { status, result: result as TrainingCompletion["result"], decision: decision as TrainingDecision | typeof DECIDE_LATER, notes, ...(retraining ? { activity, date } : {}) } : null;
+  // Checked as soon as the choice is made, with the rules of the save, so HR sees who cannot be processed before saving
+  // instead of after (lecturer review, 24 Nov 2026). Those rows are left out of the save.
+  const issues = new Map(change ? chosen.flatMap((item) => { const issue = progressIssue(snapshot, item.key, change); return issue ? [[item.key, issue] as const] : []; }) : []);
+  const eligible = chosen.filter((item) => !issues.has(item.key));
+  const targets = progressTargets(eligible, { status });
+  const skipped = eligible.length - targets.length;
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -178,12 +188,10 @@ export function BulkProgressModal({ trainings, onClose, onDone }: { trainings: r
     if (completing && !decision) { setError(result === "Passed" ? t("Pilih Competency after training: Gap closed atau Decide later.") : t("Pilih tindak lanjut: Retraining atau Other follow-up.")); return; }
     const missing = [retraining && !activity.trim() && t("training/activity"), retraining && !date && t("date"), other && !notes.trim() && t("notes")].filter(Boolean);
     if (missing.length) { setError(t("Lengkapi {fields} sebelum menyimpan.", { fields: missing.join(", ") })); return; }
+    if (!change || !targets.length) { setError(t("Tidak ada training yang bisa diproses dengan pilihan ini. Hapus centang yang bermasalah atau ubah pilihannya.")); return; }
     setError("");
-    const change: BulkProgress = completing
-      ? { status, result: result as TrainingCompletion["result"], decision: decision as TrainingDecision | typeof DECIDE_LATER, notes, ...(retraining ? { activity, date } : {}) }
-      : { status, notes };
     let outcome: BulkOutcome | undefined;
-    const saved = await run(async (source) => requireSome(outcome = await updateTrainings(source, chosen, change)), (value) => bulkSummary(value, "training", t), BACKGROUND);
+    const saved = await run(async (source) => requireSome(outcome = await updateTrainings(source, eligible, change)), (value) => bulkSummary(value, "training", t), BACKGROUND);
     settle(saved.ok ? saved.value : outcome, saved.ok ? "" : saved.error);
   }
   /** Same as in BulkTrainingModal: refused rows stay listed and selected, a fully saved batch closes the form. */
@@ -199,7 +207,8 @@ export function BulkProgressModal({ trainings, onClose, onDone }: { trainings: r
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />
       <FailureList failures={failures} />
-      <TargetList items={trainings} noun={msg("{count} dari {total} training dipilih")} picked={picked} onChange={setPicked} />
+      <TargetList items={trainings} noun={msg("{count} dari {total} training dipilih")} picked={picked} onChange={setPicked} issues={issues} />
+      {issues.size > 0 && <div data-testid="bulk-issues"><Notice tone="warning">{t("{count} training tidak memenuhi syarat untuk pilihan ini dan tidak ikut disimpan. Alasannya ada di daftar; hapus centangnya atau ubah pilihan.", { count: issues.size })}</Notice></div>}
       <SelectField label={t("Status")} testId="bulk-progress-status" required value={status} onChange={(event) => { setStatus(event.target.value as BulkProgress["status"]); setError(""); }}>
         {(["In Progress", "Completed"] as const).map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}
       </SelectField>

@@ -10,14 +10,16 @@ import { FormModal } from "../../ui/forms";
 import { Button, ButtonLink, cx, Notice, SavedNotice, StatusBadge } from "../../ui/primitives";
 import { FinalizeDailyModal } from "../kpi/FinalizeDailyModal";
 import { KpiFormModal } from "../kpi/KpiFormModal";
+import { BulkTrainingModal } from "../training/BulkModals";
 import { TrainingFormModal, TrainingProgressModal } from "../training/TrainingModals";
-import { latestTrainingOf, openNeedsOf, tileMembers, trainingsInProgress, type DashboardRow, type TileRow } from "./summary";
+import { bulkSummary, type BulkNeed } from "../../data/bulk";
+import { latestTrainingOf, needsWithoutTraining, openNeedsOf, tileMembers, trainingsInProgress, type DashboardRow, type TileRow } from "./summary";
 import { msg } from "../../../shared/text";
 import { useLanguage } from "../../i18n/LanguageProvider";
 
 export type SummaryRow = TileRow & { position: string; period?: string; compiled: DailyCompilation | null };
 type TileKey = "dev" | "training" | "kpi";
-type Action = { name: string } & ({ kind: "training"; employeeId: string; needId: string } | { kind: "progress"; trainingId: string } | { kind: "review"; employeeId: string } | { kind: "finalize"; employeeId: string; compiled: DailyCompilation });
+type Action = { name: string } & ({ kind: "training"; employeeId: string; needId: string } | { kind: "progress"; trainingId: string } | { kind: "review"; employeeId: string } | { kind: "finalize"; employeeId: string; compiled: DailyCompilation } | { kind: "bulk-training"; needs: BulkNeed[] });
 
 /** Anchor of the People Dashboard table, which the Employees tile jumps to. */
 export const DASHBOARD_TABLE_ID = "dashboard-table";
@@ -90,6 +92,8 @@ export function SummaryTiles({ snapshot, rows, period, noKpi }: { snapshot: Snap
       onSaved={() => notice(t("Progress training {name} tersimpan.", { name: action.name }), `/training/${action.trainingId}`)} />}
     {action?.kind === "review" && <KpiFormModal employeeId={action.employeeId} period={period} onClose={back}
       onSaved={(id) => notice(t("Performance Review {name} tersimpan.", { name: action.name }), `/performance/scorecard/${id}`)} />}
+    {action?.kind === "bulk-training" && <BulkTrainingModal needs={action.needs} onClose={back}
+      onDone={(outcome) => notice(bulkSummary(outcome, "training", t), "/training")} />}
     {action?.kind === "finalize" && <FinalizeDailyModal employeeId={action.employeeId} period={period} compiled={action.compiled} onClose={back}
       onSaved={(id) => notice(t("Performance Review {name} tersimpan dari Daily KPI.", { name: action.name }), `/performance/scorecard/${id}`)} />}
   </>;
@@ -144,7 +148,14 @@ function Item({ testId, children, action }: { testId: string; children: ReactNod
 function NeedList({ snapshot, rows, onAction }: { snapshot: Snapshot; rows: readonly SummaryRow[]; onAction: (action: Action) => void }) {
   const { t } = useLanguage();
   if (!rows.length) return <Empty />;
-  return <ul className="divide-y divide-line">
+  // Transcript 24 Nov 2026: one form for every requirement still without a training, instead of one per row.
+  const waiting = needsWithoutTraining(snapshot, rows);
+  return <>
+  {waiting.length > 1 && <div data-testid="summary-bulk-training" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line px-3 py-2.5">
+    <span className="text-sm text-ink-2">{t("{count} requirement belum punya training.", { count: waiting.length })}</span>
+    <Button variant="primary" data-testid="btn-summary-create-training-all" onClick={() => onAction({ kind: "bulk-training", needs: waiting, name: "" })}>{t("Create training for all ({count})", { count: waiting.length })}</Button>
+  </div>}
+  <ul className="divide-y divide-line">
     {rows.map((row) => {
       const writer = canAssess(snapshot, row.employee.id);
       return <li key={row.employee.id} data-testid={`summary-person-${row.employee.id}`} className="py-4 first:pt-0 last:pb-0">
@@ -168,7 +179,8 @@ function NeedList({ snapshot, rows, onAction }: { snapshot: Snapshot; rows: read
         </ul>
       </li>;
     })}
-  </ul>;
+  </ul>
+  </>;
 }
 
 function TrainingList({ snapshot, rows, onAction }: { snapshot: Snapshot; rows: readonly SummaryRow[]; onAction: (action: Action) => void }) {

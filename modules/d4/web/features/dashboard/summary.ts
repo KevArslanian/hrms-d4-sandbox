@@ -7,7 +7,8 @@ import { completedAt, followUpOf, isDirectorPosition, localMonth, localToday, re
 import { plainText, type Translate } from "../../../shared/text";
 import type { EmployeeReference } from "../../../shared/types";
 import type { KpiAssessment } from "../../../supabase/types";
-import { currentGap, developmentHistory, formatDate, formatPeriod, formatScorecard, needsOf, needsTraining, pendingCompilation, positionById, positionTitle, revisionChanges, scorecardsOf, trainingHistory, trainingsOf, type Snapshot } from "../../data/selectors";
+import type { BulkNeed } from "../../data/bulk";
+import { canAssess, currentGap, developmentHistory, formatDate, formatPeriod, formatScorecard, needsOf, needsTraining, pendingCompilation, positionById, positionTitle, revisionChanges, scorecardsOf, trainingHistory, trainingsOf, type Snapshot } from "../../data/selectors";
 import type { TimelineEntry } from "../../ui/layout";
 import { slug, statusLabel } from "../../ui/primitives";
 
@@ -127,6 +128,15 @@ export const openNeedCount = (snapshot: Snapshot, employeeId: string) => openNee
 export const latestTrainingOf = (snapshot: Snapshot, need: DevelopmentNeedVersion) => trainingsOf(snapshot, need.employeeId)
   .filter((item) => item.developmentNeedId === need.needId && item.status !== "Cancelled")
   .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))[0];
+
+/**
+ * Open requirements that have no training yet, among rows the user may write for: what the Need training tile offers to
+ * plan in one form (transcript 24 Nov 2026), labelled as in Development Requirement's own bulk form.
+ */
+export const needsWithoutTraining = (snapshot: Snapshot, rows: readonly DashboardRow[]): BulkNeed[] => rows
+  .filter((row) => canAssess(snapshot, row.employee.id))
+  .flatMap((row) => openNeedsOf(snapshot, row.employee.id).filter((need) => !latestTrainingOf(snapshot, need))
+    .map((need) => ({ key: need.needId, label: `${row.employee.fullName} · ${need.objective}`, employeeId: row.employee.id })));
 
 /** Trainings of one employee still In Progress, behind the "Training in progress" tile. */
 export const trainingsInProgress = (snapshot: Snapshot, employeeId: string) => trainingsOf(snapshot, employeeId).filter((item) => item.status === "In Progress");
