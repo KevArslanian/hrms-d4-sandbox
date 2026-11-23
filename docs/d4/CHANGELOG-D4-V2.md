@@ -448,6 +448,16 @@ Sumber: saran Pak Emanuel ke Skuad 4 (17 Nov 2026), "bisa dilihat di mana siapa 
   - Tes baru `tests/d4/i18n.test.ts`: setiap teks yang dilewatkan ke `t(...)` punya entri kamus, tiap teks hanya ada di satu file fitur, placeholder terjemahan sama dengan sumbernya, dan bentuk tunggal Inggris dipakai saat jumlahnya 1. TC-D4-UIQ-15 s.d. 19.
 - `modules/d4/web/i18n/`, `modules/d4/shared/text.ts`, `app/(d4)/layout.tsx`, `app/not-found.tsx`, `DataTable.tsx`, `selectors.ts`, `rules.ts`, `bulk.ts`, dan halaman serta modal di `modules/d4/web/features/`
 
+## Pengingat Daily KPI jadi satu kalender · 24 Nov 2026
+
+- **Dua kotak kuning digabung.** "Daily KPI hari ini belum diisi" dan "N hari kerja bulan ini belum diisi" kini satu kotak: "Daily KPI hari ini dan N hari kerja lain bulan ini belum diisi." Kalau hanya hari ini yang kosong, kalimat lama tetap dipakai.
+- **Deretan chip tanggal diganti kalender Sen–Jum.** Satu baris per minggu dari tanggal 1 sampai hari ini, jadi tanggal yang bolong sejajar dengan harinya. Hari yang belum diisi berupa tombol, hari yang sudah diisi redup dengan centang, dan hari ini diberi titik. Tanggal yang sedang dibuka di form tampil terpilih.
+- **Sel tanpa bingkai, mengikuti pola kalender Carbon dan Total Synergy.** Hari yang belum diisi berupa kotak putih bertulisan tebal, hover berlatar biru muda, dan tanggal terpilih berlatar `primary-600` dengan teks putih (kontras 5,2:1). Sebelumnya terpilih dan hover sama-sama bergaris biru sehingga sulit dibedakan. Fokus keyboard memakai garis biru 2 px dengan jarak 2 px.
+- Tinggi sel 40 px di ponsel dan 32 px mulai 640 px. Teks hari yang sudah diisi memakai `text-ink-2` (kontras 6,9:1 di latar kuning; `text-ink-3` hanya 4,4:1).
+- Testid `daily-reminder`, `daily-missed`, dan `missed-YYYY-MM-DD` tetap; sel hari ini memakai `daily-today`. TC-D4-008-12 diperbarui, TC-D4-008-22 baru.
+- Dicek di mode pratinjau pada 375, sekitar 400, dan 1280 px dalam ID dan EN, termasuk menyimpan satu tanggal lalu melihatnya berubah jadi centang. Belum ada desain Figma untuk bagian ini; frame Daily KPI di Figma D4 V2 (302:2) tidak punya kotak pengingat.
+- `modules/d4/web/features/daily/DailyKpiPages.tsx`, `modules/d4/web/i18n/dictionary/daily.ts`
+
 ## Belum selesai
 
 | Item | Alasan | Langkah berikut |
