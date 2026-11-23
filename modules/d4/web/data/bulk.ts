@@ -34,7 +34,7 @@ export const bulkSummary = (outcome: BulkOutcome, what: string, t: Translate = p
   ? t("{done} {what} tersimpan, {failed} gagal.", { done: outcome.done.length, what, failed: outcome.failed.length })
   : t("{done} {what} tersimpan.", { done: outcome.done.length, what });
 
-export type BulkTarget = { key: string; label: string };
+export type BulkTarget = { key: string; label: string; detail?: string };
 export type BulkNeed = BulkTarget & { employeeId: string };
 export type BulkTraining = BulkTarget & { status: TrainingStatus };
 
