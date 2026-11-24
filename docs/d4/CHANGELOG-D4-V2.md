@@ -630,3 +630,9 @@ PO mengizinkan migrasi `20261120120000` dan `20261124150000`. Sampai migrasi itu
   - `tests/d4/bulk-request.test.ts`: 10 baris per permintaan, permintaan yang gagal di tengah.
   - Dicek di pratinjau lokal: peringatan muncul sebelum Save, dan simpan 2 training berhasil.
   - Kecepatan di production belum diukur dengan akun asli.
+
+## Masukan dosen saat presentasi · 24 Nov 2026
+
+- **Tanggal evaluasi bukan input lagi.** Form Performance Review menampilkannya sebagai teks seperti Penilai, karena input nonaktif bisa diaktifkan lewat Inspect. Server tetap menyimpan hari penyimpanan (WIB), apa pun kiriman klien. Test id berganti menjadi `readonly-evaluation-date` (TC-D4-002-32).
+- **Pegawai yang sudah dinilai di periode itu tidak ditawarkan** di Tambah Performance Review, supaya tidak terpilih tanpa sengaja. Revisi tetap dibuka dari menu baris pegawai tersebut (TC-D4-002-34).
+- **Actual hanya menerima angka.** Minus, huruf, `e` dan titik ditolak saat diketik, di Performance Review dan Daily KPI. Kolom Actual Performance Review kini `type="text"` seperti Daily KPI. Di production tidak ada skor minus yang tersimpan (dicek 24 Nov: 0 dari 495 baris), karena API dan database sudah menolak skor di luar 1–100 (TC-D4-002-35).

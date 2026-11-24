@@ -27,9 +27,10 @@ describe("typedScore: score fields drop leading zeros (BUG-FN-D4-001)", () => {
     expect(typedScore("6", 5)).toBeNull();
   });
 
-  it("leaves a decimal as typed, so it stays an error and never turns into another number", () => {
-    expect(typedScore("8.5", 100)).toBe("8.5");
-    expect(typedScore("0.5", 100)).toBe("0.5");
+  // Lecturer (24 Nov 2026): a minus could be typed into Actual; letters and decimals are refused the same way.
+  it("refuses a minus, letter, exponent or decimal point as typed, so it never turns into another number", () => {
+    for (const typed of ["-", "-5", "8.5", "0.5", "9.", "1e2", "+5", "abc", "8a"]) expect(typedScore(typed, 100), typed).toBeNull();
+    expect(typedScore("", 100)).toBe("");
     expect(scoreProblem("8.5", 100)).toMatch(/angka bulat 1 sampai 100/);
   });
 

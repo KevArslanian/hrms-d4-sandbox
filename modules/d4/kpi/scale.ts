@@ -25,6 +25,8 @@ export const aboveScale = (typed: string, max: number) => Number(typed.trim()) >
  * Save with the 1–max range. Above the scale is refused as before. Performance Review and Daily KPI share this rule.
  */
 export function typedScore(typed: string, max: number): string | null {
+  // Digits only (lecturer, 24 Nov 2026): a minus, letter or decimal point is refused as typed, since the score is a whole number.
+  if (/[^\d]/.test(typed.trim())) return null;
   const text = typed.trimStart().replace(/^0+(?=\d)/, "");
   return aboveScale(text, max) ? null : text;
 }
