@@ -465,7 +465,7 @@ Permintaan: data KPI D4 tidak lagi dummy, melainkan diambil dari KPI Definition 
 - jumlah KPI mengikuti D1 asal total bobotnya 100;
 - posisi yang belum dipetakan D1 memakai katalog D4 sementara.
 
-- **Katalog dari D1** (`supabase/migrations/20261124130000_d4_kpi_from_d1.sql`, **belum diterapkan, menunggu izin PO**):
+- **Katalog dari D1** (`supabase/migrations/20261124130000_d4_kpi_from_d1.sql`, **diterapkan di production 24 Nov 2026** lewat SQL Editor dengan izin PO):
   - Posisi D3 yang dipetakan D1 lewat `d3_d1_position_mappings` memakai `d1_kpi_definitions`. Syaratnya: posisi D1 Active, KPI aktif, dan total bobot 100.
   - Nomor perannya 1000 + digit job code (JP011 → 1011), supaya tidak bentrok dengan peran D4 1–10.
   - Di live 24 Nov ada 8 posisi yang memenuhi: tujuh dengan 5 KPI dan IT dengan 3 KPI. Posisi lain tetap memakai peran katalog D4 V6.
@@ -583,8 +583,21 @@ Asistensi 21 Nov 2026: setiap departemen harus logout otomatis bila pengguna ter
 | Cakupan Manager (O7) | Manager masih melihat semua employee; butuh data atasan dari D3 | Keputusan PO + `supervisor_id` dari D3 |
 | Sisa setelah migrasi D4 | Ketujuh migrasi dan katalog V5.1 sudah diterapkan 10 Nov (lihat [MIGRATION-RUNBOOK-D4.md](MIGRATION-RUNBOOK-D4.md), bagian "Status"). Aturan akses sudah diuji di database dan scorecard V5.1 di periode V6 sudah dihapus. Yang belum: login UI dengan akun Director dan Employee | Uji dengan akun dari PO: Director tanpa tombol simpan untuk data orang lain, dan Employee ditolak mengisi tanggal besok |
 | Konfirmasi alur Daily KPI | Dibangun dengan asumsi: pegawai isi sendiri, HR memvalidasi rata-rata periode | Konfirmasi klien; bila skor periode harus otomatis tanpa HR, ubah Performance Review |
-| Definisi KPI dari D1 | D4 sudah membaca KPI dari D1 di kode dan migrasi `20261124130000` (24 Nov), tetapi migrasinya belum diterapkan. Di live, 8 posisi sudah lengkap. Field Agent dipetakan tanpa KPI. Billing, General Director, Cash Associate, dan posisi lain belum dipetakan sehingga tetap memakai katalog D4. | Izin PO untuk menerapkan migrasi, lalu D1 memetakan dan melengkapi posisi yang tersisa |
+| Definisi KPI dari D1 | Migrasi `20261124130000` diterapkan 24 Nov. Delapan posisi pegawai kini memakai KPI D1. Field Agent dipetakan tanpa KPI. Billing, General Director, dan Cash Associate belum dipetakan sehingga tetap memakai katalog D4. | D1 memetakan dan melengkapi posisi yang tersisa |
 | Volume Daily KPI di snapshot | Snapshot memuat semua entri harian (sekitar 20 per pegawai per bulan) di setiap halaman; cukup untuk sandbox, tetapi tumbuh tanpa batas | Batasi ke periode berjalan + filter periode di API sebelum produksi |
 | Alert ke MID, input level kompetensi, Employee ID di `/register` | Milik squad lain (MID, D3, B2) atau kontraknya belum ada | Koordinasi lintas squad |
 | Kolom `review_status` (O8) dan unique index per periode/gap (O9) | Butuh migrasi Supabase bersama | Persetujuan PO/Back End |
 | HR Associate tanpa KPI | V5.1 tidak mendefinisikan KPI untuk HR Associate | Form menampilkan "Belum tersedia untuk position ini" dan menolak simpan; tunggu KPI dari PO |
+
+## KPI dari D1 aktif di production · 24 Nov 2026
+
+Migrasi `20261124130000_d4_kpi_from_d1.sql` dijalankan di Supabase SQL Editor dalam satu transaksi, dengan izin PO, dan tercatat di `schema_migrations` (`created_by = d4-runbook`). Aplikasi tidak perlu di-deploy ulang karena kode PR #71 sudah membaca view baru begitu view itu ada.
+
+- **Cek sesudah (read-only):**
+  - Kelima view ada: `d4_kpi_d1_catalog`, `d4_kpi_d1_position_roles`, `d4_kpi_catalog_rows`, `d4_kpi_position_roles`, `d4_kpi_scores_for_d1`.
+  - 20 posisi D1 aktif berbobot 100 masuk katalog (nomor peran 1001–1032).
+  - Posisi pegawai yang memakai KPI D1: COM-CS-MGR, COM-SA, DIR-FAT, FAT-ACC-MGR, FAT-TAX-MGR, FAT-TRS-MGR, HCC-HR-MGR (5 KPI) dan IT (3 KPI). DIR-GEN, FAT-BIL-001, dan FAT-TRS-ASC tetap memakai katalog D4 V6.
+  - Constraint baru aktif (jumlah baris minimal 1, `role_order > 0`). Data lama utuh: 95 scorecard dan 69 entri Daily KPI.
+- **Belum dicek:** isi `d4_kpi_scores_for_d1` (akun baca yang dipakai untuk cek tidak boleh menjalankan `d4_current_role`) dan form di production dengan akun HR.
+- **Rollback:** SQL-nya ada di MIGRATION-RUNBOOK-D4, bagian "KPI dari D1", dan sudah diuji di Postgres 16 lokal.
+
