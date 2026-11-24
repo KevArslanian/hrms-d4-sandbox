@@ -102,7 +102,7 @@ export function BulkTrainingModal({ needs, choices, initial, title = "Add Traini
     if (missing.length) { setError(t("Lengkapi {fields} sebelum menyimpan.", { fields: missing.join(", ") })); return; }
     setError("");
     let outcome: BulkOutcome | undefined;
-    const saved = await run(async (source) => requireSome(outcome = await addTrainingToNeeds(source, targets, { activity, date, status, notes })), (value) => bulkSummary(value, "training", t));
+    const saved = await run(async (source) => requireSome(outcome = await addTrainingToNeeds(source, targets, { activity, date, status, notes })), (value) => bulkSummary(value, "training", t), BACKGROUND);
     settle(saved.ok ? saved.value : outcome, saved.ok ? "" : saved.error);
   }
   /** Every refused row is listed with its reason, also when none was saved; a write error without rows is shown as is. */

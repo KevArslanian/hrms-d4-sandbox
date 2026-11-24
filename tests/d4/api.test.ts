@@ -35,8 +35,10 @@ const signIn = (app_role: AccessRow["app_role"], employee_id: string | null) => 
 function record(method: string, result: unknown = uuid(99)) {
   return async (...args: unknown[]) => { writes.push({ method, args }); return result; };
 }
+let snapshotLoads = 0;
 const repository = {
-  loadSnapshot: async () => snapshot,
+  loadSnapshot: async () => { snapshotLoads += 1; return snapshot; },
+  loadTrainingState: async () => snapshot,
   loadReferenceData: async () => snapshot.reference,
   savePerformance: record("savePerformance"),
   saveKpiAssessment: record("saveKpiAssessment"),
@@ -93,6 +95,7 @@ const training = await import("@/app/api/d4/training-records/route");
 const trainingVersions = await import("@/app/api/d4/training-records/[id]/versions/route");
 const trainingFollowUp = await import("@/app/api/d4/training-records/[id]/follow-up/route");
 const trainingComplete = await import("@/app/api/d4/training-records/[id]/complete/route");
+const trainingBulk = await import("@/app/api/d4/training-records/bulk/route");
 const competency = await import("@/app/api/d4/competency-assessments/route");
 const snapshotRoute = await import("@/app/api/d4/snapshot/route");
 const daily = await import("@/app/api/d4/kpi-daily/route");
@@ -117,6 +120,7 @@ beforeEach(() => {
   catalogVersions = [{ source_version: "V5.1", effective_from: "2000-01" }];
   views = null;
   writes.length = 0;
+  snapshotLoads = 0;
   accessLookups.length = 0;
   createServerClient.mockClear();
   // Live ids are UUIDs; remap the fixture records the tests touch.
@@ -556,6 +560,61 @@ describe("development needs and training", () => {
     const res = await call(devVersions.POST(post({ status: "Planned" }), params(uuid(404))));
     expect(res).toMatchObject({ status: 404, body: { error: { code: "NOT_FOUND" } } });
     expect(writes).toHaveLength(0);
+  });
+});
+
+// PST 2: a bulk save loaded all D4 data twice per row; now once per request, plus once per employee written again.
+describe("POST /training-records/bulk", () => {
+  const bulk = (items: unknown) => call(trainingBulk.POST(post({ items })));
+
+  it("saves each row with its own rules, loads the snapshot once, and keeps going after a refused row", async () => {
+    const res = await bulk([
+      { op: "version", trainingId: TRAINING, status: "In Progress", result: "", notes: "" },
+      // Holly's training is Completed; moving it back needs a reason.
+      { op: "version", trainingId: "FIX-D4-TRN-003", status: "Planned", result: "", notes: "" },
+      { op: "complete", trainingId: "FIX-D4-TRN-002", result: "Not Passed", decision: "Other follow-up", notes: "Coaching oleh atasan" },
+    ]);
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({ results: [{ ok: true }, { ok: false, message: expect.stringMatching(/alasan|catatan/i) }, { ok: true }] });
+    expect(snapshotLoads).toBe(1);
+    // The mock does not store writes, so the requirement sync finds nothing to change here.
+    expect(writes.map((item) => item.method)).toEqual(["updateTraining", "recordTrainingFollowUp"]);
+  });
+
+  it("checks create and version rows of one employee against the same snapshot", async () => {
+    const res = await bulk([
+      { op: "create", employeeId: ALFA, developmentNeedId: NEED, activity: "Uji", date: "2026-12-01", status: "Planned", result: "", notes: "" },
+      { op: "version", trainingId: TRAINING, status: "In Progress", result: "", notes: "" },
+    ]);
+    expect(res.body.data).toEqual({ results: [{ ok: true }, { ok: true }] });
+    expect(snapshotLoads).toBe(1);
+  });
+
+  // Completion reads the requirement, the latest trainings and the last assessment, which an earlier row can change.
+  it("reloads the snapshot before completing a training of an employee an earlier row wrote", async () => {
+    const first = snapshot.trainingVersions.find((item) => item.trainingId === TRAINING)!;
+    snapshot = { ...snapshot, trainingVersions: [{ ...first, id: uuid(21), trainingId: uuid(20) }, ...snapshot.trainingVersions] };
+    const otherFollowUp = (trainingId: string) => ({ op: "complete", trainingId, result: "Not Passed", decision: "Other follow-up", notes: "Coaching oleh atasan" });
+    await bulk([otherFollowUp(TRAINING), otherFollowUp(uuid(20))]);
+    expect(snapshotLoads).toBe(2);
+  });
+
+  it("refuses a row for the signed-in employee without stopping the batch", async () => {
+    const res = await bulk([
+      { op: "create", employeeId: MERCURY, developmentNeedId: NEED, activity: "Uji", date: "2026-12-01", status: "Planned", result: "", notes: "" },
+      { op: "create", employeeId: ALFA, developmentNeedId: NEED, activity: "Uji", date: "2026-12-01", status: "Planned", result: "", notes: "" },
+    ]);
+    expect(res.body.data).toEqual({ results: [{ ok: false, message: expect.stringMatching(/diri sendiri/) }, { ok: true }] });
+  });
+
+  it.each([["no rows", []], ["not a list", "x"], ["too many rows", Array.from({ length: 201 }, () => ({}))]])("rejects %s with 422", async (_name, items) => {
+    expect(await bulk(items)).toMatchObject({ status: 422, body: { error: { code: "VALIDATION_FAILED" } } });
+    expect(writes).toHaveLength(0);
+  });
+
+  it("is closed to employees", async () => {
+    signIn("EMPLOYEE", ALFA);
+    expect((await bulk([{ op: "version", trainingId: TRAINING, status: "In Progress" }])).status).toBe(403);
   });
 });
 
