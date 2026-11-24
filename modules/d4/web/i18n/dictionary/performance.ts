@@ -45,6 +45,8 @@ export const performance = {
   "KPI role": { id: "Peran KPI" },
   "KPI gap (vs 85)": { id: "Gap KPI (vs 85)" },
   "Recorded": { id: "Dicatat" },
+  "Version": { id: "Versi" },
+  "First review": { id: "Penilaian pertama" },
   "Total = Σ (bobot × skor).": { en: "Total = Σ (weight × score)." },
   "Di bawah {under} Under Performance, {under}–{high} Average Performance, di atas {high} High Performance.": {
     en: "Below {under} Under Performance, {under}–{high} Average Performance, above {high} High Performance.",

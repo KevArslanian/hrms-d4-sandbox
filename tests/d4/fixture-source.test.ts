@@ -56,7 +56,7 @@ describe("performance evaluation (fixture)", () => {
   it("rejects a competency assessment, requirement or training for the actor themselves (SR-D4-EMP-23)", async () => {
     await expect(source.saveCompetency({ employeeId: MERCURY, positionId: ALFA, effectiveDate: "2026-10-01" })).rejects.toThrow(/diri sendiri/);
     await expect(source.createDevelopment({ employeeId: MERCURY, sourceType: "role_change", sourceRef: ALFA, objective: "Uji", priority: "High", pic: "Mrs. Maya", notes: "" })).rejects.toThrow(/diri sendiri/);
-    await expect(source.createTraining({ employeeId: MERCURY, developmentNeedId: "FIX-D4-DEV-001", activity: "Uji", date: "2026-10-01", status: "Planned", result: "", notes: "" })).rejects.toThrow(/diri sendiri/);
+    await expect(source.createTraining({ employeeId: MERCURY, developmentNeedId: "FIX-D4-DEV-001", activity: "Uji", date: "2030-01-15", status: "Planned", result: "", notes: "" })).rejects.toThrow(/diri sendiri/);
   });
 
   it.each([
@@ -131,7 +131,7 @@ describe("development and training (fixture)", () => {
     expect(await status()).toBe("In Progress");
     await source.updateTraining("FIX-D4-TRN-001", "Cancelled", "", "Jadwal batal");
     expect(await status()).toBe("Identified");
-    await source.createTraining({ employeeId: ALFA, developmentNeedId: "FIX-D4-DEV-001", activity: "Coaching dengan atasan", date: "2026-10-01", status: "Planned", result: "", notes: "" });
+    await source.createTraining({ employeeId: ALFA, developmentNeedId: "FIX-D4-DEV-001", activity: "Coaching dengan atasan", date: "2030-01-15", status: "Planned", result: "", notes: "" });
     expect(await status()).toBe("Planned");
     for (const next of ["In Progress", "Completed"] as const) {
       await expect(source.updateDevelopment("FIX-D4-DEV-001", next, "Coaching")).rejects.toThrow(/mengikuti Training Tracking/);
@@ -141,7 +141,7 @@ describe("development and training (fixture)", () => {
   });
 
   it("rejects training that points to another employee's requirement", async () => {
-    await expect(source.createTraining({ employeeId: HOLLY, developmentNeedId: "FIX-D4-DEV-001", activity: "X", date: "2026-10-01", status: "Planned", result: "", notes: "" }))
+    await expect(source.createTraining({ employeeId: HOLLY, developmentNeedId: "FIX-D4-DEV-001", activity: "X", date: "2030-01-15", status: "Planned", result: "", notes: "" }))
       .rejects.toThrow(/pegawai yang sama/);
   });
 
@@ -198,7 +198,7 @@ describe("development edit and reassessment (fixture)", () => {
 
   it("Retraining reopens the requirement for a new training; the next training moves it without the old decision", async () => {
     await passThenReassess(source, "FIX-D4-TRN-001");
-    const retrainingId = await source.completeTraining("FIX-D4-TRN-001", { result: "Passed", decision: "Retraining", notes: "Perlu diulang", activity: "Workshop ulang", date: "2026-10-01" });
+    const retrainingId = await source.completeTraining("FIX-D4-TRN-001", { result: "Passed", decision: "Retraining", notes: "Perlu diulang", activity: "Workshop ulang", date: "2030-01-15" });
     expect(await latest("FIX-D4-DEV-001")).toMatchObject({ status: "Planned", reassessment: "Retraining" });
     // The decision belongs to the revision that recorded it, not to the ones after it.
     await source.updateTraining(retrainingId!, "In Progress", "", "");

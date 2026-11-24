@@ -54,6 +54,8 @@ export const training = {
   "Training / activity": { id: "Training / aktivitas" },
   "Nama aktivitas wajib diisi.": { en: "Activity name is required." },
   "Tidak boleh lebih dari hari ini untuk training yang Completed.": { en: "Cannot be later than today for a Completed training." },
+  "Tanggal training Planned tidak boleh sebelum hari ini.": { en: "A Planned training cannot be dated before today." },
+  "Requirement ini sudah punya training dengan nama dan tanggal yang sama.": { en: "This requirement already has a training with the same name and date." },
   "Result wajib dipilih bila status Completed.": { en: "Result is required when the status is Completed.", id: "Hasil wajib dipilih bila status Completed." },
   "Training ulang untuk requirement yang sama, dibuat dengan status Planned.": { en: "A new training for the same requirement, created as Planned." },
   "Coaching, rotasi, atau eskalasi ke atasan. Catatan wajib.": { en: "Coaching, rotation, or escalation to the manager. Notes required." },
