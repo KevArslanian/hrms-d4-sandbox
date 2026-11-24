@@ -123,6 +123,8 @@ Kartu Planka: **[QA] Pengujian Phase 1**
 | TC-D4-002-33 | Test HR membuka kembali Sep 2026 sampai 30 Nov: periode muncul di form sebagai "dibuka kembali" dan bisa disimpan; baris baru dengan tanggal kemarin menutupnya lagi; Manager ditolak RLS | Positif | Not Run | Migrasi 20261124150000 (izin PO) |
 | TC-D4-002-34 | Test pegawai yang sudah dinilai di periode terpilih tidak muncul di pilihan Tambah Performance Review; dari menu baris pegawai itu form tetap terbuka sebagai revisi | Positif | Not Run | |
 | TC-D4-002-35 | Test ketik `-`, huruf, `e` atau `.` di Actual (`input-realisasi-*`): karakter ditolak saat diketik dan kolom hanya berisi angka | Negatif | Not Run | |
+| TC-D4-002-36 | Test skor bulat tampil tanpa desimal: total 100 tampil "100 / 100" di form dan detail, Terbobot 1 tampil "1", total 86.25 tetap "86.25" | Positif | Not Run | Fixture / Staging |
+| TC-D4-002-37 | Test detail scorecard (`/performance/scorecard/<id>`) menampilkan Version "First review" untuk penilaian pertama dan "Revision N" untuk revisi, serta Recorded dengan tanggal dan jam | Positif | Not Run | Fixture / Staging |
 
 ### TC-D4-003 · FR-D4-003 Competency Gap
 
@@ -188,6 +190,8 @@ Kartu Planka: **[QA] Pengujian Phase 3**
 | TC-D4-005-15 | Test training selesai tidak otomatis menutup competency gap | Negatif | Not Run | Staging |
 | TC-D4-005-16 | Test Retraining sesudah Passed (23 Nov 2026): saat Completed + Passed dicatat, pilihannya hanya Gap closed: Meets requirement dan Decide later; di Next step, Gap still open: Retraining nonaktif dengan alasannya sampai penilaian Competency Gap disimpan sesudah hasil Passed dan levelnya masih di bawah requirement; setelah itu Retraining membuat training ulang Planned | Negatif | Not Run | Staging |
 | TC-D4-005-17 | Test cek sebelum simpan di Update Progress massal (transkrip 24 Nov 2026): di `/training` pilih beberapa training, termasuk satu yang levelnya belum memenuhi requirement; pilih Completed, Passed, dan Gap closed: Meets requirement → sebelum Save muncul `bulk-issues` ("N training tidak memenuhi syarat … tidak ikut disimpan"), baris yang ditolak menampilkan `bulk-issue-<id>` dengan alasannya, dan tombol Save menghitung hanya yang lolos (mis. "Save 2 Trainings" dari 4); setelah Save hanya training yang lolos berubah; jika tidak ada satu pun yang lolos, Save menampilkan pesan dan tidak menyimpan | Negatif | Not Run | Fixture / Staging |
+| TC-D4-005-18 | Test tanggal training Planned sebelum hari ini: kalender menonaktifkan hari lampau saat status Planned (Tambah Training, Retraining); API menolak dengan "Tanggal training Planned tidak boleh sebelum hari ini."; In Progress boleh tanggal lampau | Negatif | Not Run | Fixture / Staging |
+| TC-D4-005-19 | Test training ganda: simpan training "X" tanggal D untuk satu requirement, lalu simpan "x" tanggal D lagi untuk requirement yang sama → ditolak "Requirement ini sudah punya training dengan nama dan tanggal yang sama."; tanggal lain atau requirement lain tetap tersimpan; setelah yang pertama Cancelled, yang kedua boleh | Negatif | Not Run | Fixture / Staging |
 
 ### TC-D4-006 · FR-D4-006 Dashboard KPI Orang
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { typedScore } from "@/modules/d4/kpi/scale";
+import { scoreText, typedScore } from "@/modules/d4/kpi/scale";
 import type { KpiDailyEntry } from "@/modules/d4/supabase/types";
 import { listScore } from "@/modules/d4/web/data/selectors";
 import { isDirty, openDailyForm, scoreProblem } from "@/modules/d4/web/features/daily/entry";
@@ -77,5 +77,17 @@ describe("listScore: the scale is in the header, not on every row", () => {
 
   it("keeps the scale of a row saved on the other one", () => {
     expect(listScore(4.1, "V5.1", 100)).toBe("4.10 / 5");
+  });
+});
+
+// Lecturer (24 Nov 2026): a total of "100.00" reads as noise; whole numbers drop the decimals.
+describe("scoreText: whole scores without trailing zeros", () => {
+  it("drops .00 from a whole number and keeps two decimals otherwise", () => {
+    expect(scoreText(100)).toBe("100");
+    expect(scoreText(85)).toBe("85");
+    expect(scoreText(86.25)).toBe("86.25");
+    expect(scoreText(82.5)).toBe("82.50");
+    expect(scoreText(null)).toBe("—");
+    expect(listScore(90, "V6", 100)).toBe("90");
   });
 });

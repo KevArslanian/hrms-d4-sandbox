@@ -1,13 +1,14 @@
 "use client";
 
-import { HIGH_ABOVE, performanceBand, scaleMaxOf, UNDER_BELOW } from "../../../kpi/scale";
+import { HIGH_ABOVE, performanceBand, scaleMaxOf, scoreText, UNDER_BELOW } from "../../../kpi/scale";
 import Link from "next/link";
 import { History, Plus } from "lucide-react";
 import { useState } from "react";
 import { catalogFor } from "../../../kpi/catalog";
+import { revisionNumber } from "../../../shared/rules";
 import type { KpiAssessment } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
-import { canAssess, developmentNeeds, employeeById, employeeMeta, evaluationsOf, formatDate, formatGap, formatPeriod, formatScorecard, thisMonth } from "../../data/selectors";
+import { canAssess, developmentNeeds, employeeById, employeeMeta, evaluationsOf, formatDate, formatDateTime, formatGap, formatPeriod, formatScorecard, thisMonth } from "../../data/selectors";
 import { useLanguage } from "../../i18n/LanguageProvider";
 import { DetailHeader, NotFound } from "../../ui/layout";
 import { Button, ButtonLink, Card, InfoGrid, Notice, SourceChip, StatusBadge } from "../../ui/primitives";
@@ -44,6 +45,8 @@ export function KpiDetailPage({ id }: { id: string }) {
   const evaluation = evaluationsOf(snapshot, employee.id).find((item) => item.period === scorecard.period);
   const needs = developmentNeeds(snapshot).filter((item) => item.sourceType === "performance_context" && item.sourceRef === scorecard.id);
   const totalWeight = scorecard.lines.reduce((sum, line) => sum + line.weight_percent, 0);
+  // Lecturer (24 Nov 2026): which version this is and when it was saved; a period allows one revision, so 2 is the last.
+  const revision = revisionNumber(snapshot.kpiAssessments ?? [], scorecard);
   // The Gap column is only for 1–100 scorecards; a 1–5 one says n/a once, in the summary.
   const gapColumn = scaleMaxOf(scorecard.definitionVersion) === 100;
   return <>
@@ -57,7 +60,7 @@ export function KpiDetailPage({ id }: { id: string }) {
         <div className="overflow-x-auto">
           <table data-testid="kpi-detail-table" className="w-full min-w-[680px] text-left text-sm">
             <thead className="bg-app text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3"><tr><th className="px-5 py-2.5">No</th><th className="px-5 py-2.5">Core KPI</th><th className="px-5 py-2.5">{t("Weight")}</th><th className="px-5 py-2.5">{t("Target")}</th><th className="px-5 py-2.5">{t("Actual")}</th>{gapColumn && <th className="px-5 py-2.5">Gap</th>}<th className="px-5 py-2.5 text-right">{t("Weighted")}</th><th className="px-5 py-2.5">{t("Comment")}</th></tr></thead>
-            <tbody>{scorecard.lines.map((line) => <tr key={line.indicator_order} data-testid={`kpi-line-${line.indicator_order}`} className="border-t border-line"><td className="px-5 py-3 text-ink-3">{line.indicator_order}</td><td className="px-5 py-3 font-semibold">{line.kpi_name}</td><td className="px-5 py-3 tabular-nums">{line.weight_percent}%</td><td className="px-5 py-3">{targetLabel(line.target, scorecard.definitionVersion)}</td><td className="px-5 py-3 tabular-nums">{line.raw_score ?? "—"}</td>{gapColumn && <td data-testid={`kpi-gap-${line.indicator_order}`} className="px-5 py-3 tabular-nums text-ink-2">{formatGap(line.raw_score, scorecard.definitionVersion, t)}</td>}<td className="px-5 py-3 text-right font-semibold tabular-nums">{weighted(line, scaleMaxOf(scorecard.definitionVersion))?.toFixed(2) ?? "—"}</td><td data-testid={`kpi-comment-${line.indicator_order}`} className="px-5 py-3 text-ink-2"><LineComment line={line} /></td></tr>)}</tbody>
+            <tbody>{scorecard.lines.map((line) => <tr key={line.indicator_order} data-testid={`kpi-line-${line.indicator_order}`} className="border-t border-line"><td className="px-5 py-3 text-ink-3">{line.indicator_order}</td><td className="px-5 py-3 font-semibold">{line.kpi_name}</td><td className="px-5 py-3 tabular-nums">{line.weight_percent}%</td><td className="px-5 py-3">{targetLabel(line.target, scorecard.definitionVersion)}</td><td className="px-5 py-3 tabular-nums">{line.raw_score ?? "—"}</td>{gapColumn && <td data-testid={`kpi-gap-${line.indicator_order}`} className="px-5 py-3 tabular-nums text-ink-2">{formatGap(line.raw_score, scorecard.definitionVersion, t)}</td>}<td className="px-5 py-3 text-right font-semibold tabular-nums">{scoreText(weighted(line, scaleMaxOf(scorecard.definitionVersion)))}</td><td data-testid={`kpi-comment-${line.indicator_order}`} className="px-5 py-3 text-ink-2"><LineComment line={line} /></td></tr>)}</tbody>
             <tfoot className="border-t border-line bg-app"><tr><td colSpan={2} className="px-5 py-3 font-semibold">{t("Total")}</td><td className="px-5 py-3 font-semibold tabular-nums">{totalWeight}%</td><td colSpan={gapColumn ? 3 : 2} /><td className="px-5 py-3 text-right font-display font-semibold text-base tabular-nums">{formatScorecard(scorecard)}</td><td /></tr></tfoot>
           </table>
         </div>
@@ -71,7 +74,8 @@ export function KpiDetailPage({ id }: { id: string }) {
             { label: t("Evaluator"), testId: "evaluator", value: scorecard.evaluatorName || "—" },
             { label: "Total KPI", testId: "total-score", value: <><strong className="font-display font-semibold text-lg">{formatScorecard(scorecard)}</strong>{performanceBand(scorecard.overallScore, scorecard.definitionVersion) && <span data-testid="performance-band" className="mt-1 block"><StatusBadge status={performanceBand(scorecard.overallScore, scorecard.definitionVersion)!} /></span>}</> },
             { label: t("KPI gap (vs 85)"), testId: "kpi-gap", value: formatGap(scorecard.overallScore, scorecard.definitionVersion, t) },
-            { label: t("Recorded"), testId: "recorded", value: `${scorecard.actor} · ${formatDate(scorecard.createdAt, language)}` },
+            { label: t("Version"), testId: "revision", value: revision > 1 ? t("Revision {n}", { n: revision }) : t("First review") },
+            { label: t("Recorded"), testId: "recorded", value: `${scorecard.actor} · ${formatDateTime(scorecard.createdAt, language)}` },
           ]} />
           <p className="mt-5 text-xs text-ink-3">{t("Total = Σ (bobot × skor).")} {scaleMaxOf(scorecard.definitionVersion) === 100 ? t("Di bawah {under} Under Performance, {under}–{high} Average Performance, di atas {high} High Performance.", { under: UNDER_BELOW, high: HIGH_ABOVE }) : t("Skala 1–5 (V3.1/V5.1) tidak punya kategori performa; kategori berlaku untuk scorecard 1–100 mulai V6.")}</p>
         </Card>

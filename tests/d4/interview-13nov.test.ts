@@ -95,7 +95,7 @@ describe("bulk select (1:10:34–1:12:33)", () => {
     expect(needs.length).toBeGreaterThan(1);
     // The actor's own requirement is refused by the single-row rule (SR-D4-EMP-23), in the middle of the batch.
     const own = { key: "OWN", label: "Own requirement", employeeId: snapshot.actorEmployeeId };
-    const outcome = await addTrainingToNeeds(source, [needs[0], own, ...needs.slice(1)], { activity: "Field Agent Safety Refresh", date: "2026-11-14", status: "Planned", notes: "" });
+    const outcome = await addTrainingToNeeds(source, [needs[0], own, ...needs.slice(1)], { activity: "Field Agent Safety Refresh", date: "2030-01-15", status: "Planned", notes: "" });
     expect(outcome.done).toEqual(needs.map((need) => need.key));
     expect(outcome.failed).toEqual([expect.objectContaining({ key: "OWN", message: expect.stringMatching(/diri sendiri/) })]);
     const after = await source.loadSnapshot();

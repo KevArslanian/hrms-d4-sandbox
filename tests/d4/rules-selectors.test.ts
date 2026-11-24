@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CompetencyAssessment } from "@/modules/d4/competency/types";
 import type { DevelopmentNeedVersion } from "@/modules/d4/development/types";
-import { assertDevelopmentChange, assertTrainingResult, passedTrainingCount, assertGapAssessed, assertNotFutureDate, assertEvaluationInPeriod, assertTrainingDate, nextDevelopmentRevision, openTrainingCount, isTrainingRollback, localMonth, localToday, reassessmentOf, retrainedAt, revisionNumber } from "@/modules/d4/shared/rules";
+import { assertDevelopmentChange, assertTrainingResult, passedTrainingCount, assertGapAssessed, assertNotFutureDate, assertEvaluationInPeriod, assertTrainingDate, assertNoDuplicateTraining, nextDevelopmentRevision, openTrainingCount, isTrainingRollback, localMonth, localToday, reassessmentOf, retrainedAt, revisionNumber } from "@/modules/d4/shared/rules";
 import type { EmployeeReference } from "@/modules/d4/shared/types";
 import { assessableEmployees, inTrainingOrPositionChange, canWrite, currentCompetencyStatus, currentGap, latestCurrentPositionAssessment, objectiveFromFinding, objectiveWithMethod, revisionChanges, revisionTag, visibleEmployees, type Snapshot } from "@/modules/d4/web/data/selectors";
 import type { TrainingStatus } from "@/modules/d4/training/types";
@@ -236,6 +236,23 @@ describe("development status change", () => {
     expect(() => assertTrainingDate("Completed", "2999-01-01")).toThrow(/lebih dari hari ini/);
     expect(() => assertTrainingDate("Planned", "2999-01-01")).not.toThrow();
     expect(() => assertTrainingDate("Completed", localToday())).not.toThrow();
+  });
+
+  // Lecturer (24 Nov 2026): a Planned training could be dated in the past.
+  it("refuses a Planned training dated before today, keeps today and later", () => {
+    const now = new Date("2026-11-24T03:00:00Z");
+    expect(() => assertTrainingDate("Planned", "2026-11-23", now)).toThrow(/tidak boleh sebelum hari ini/);
+    expect(() => assertTrainingDate("Planned", "2026-11-24", now)).not.toThrow();
+    expect(() => assertTrainingDate("In Progress", "2026-11-01", now)).not.toThrow();
+  });
+
+  // Lecturer (24 Nov 2026): the same training was listed several times for one requirement.
+  it("refuses the same training name and date twice on one requirement, unless the first was cancelled", () => {
+    const existing = [{ developmentNeedId: "N1", activity: "Pelatihan rekonsiliasi", date: "2026-11-25", status: "Planned" as const }];
+    expect(() => assertNoDuplicateTraining(existing, "N1", " pelatihan Rekonsiliasi ", "2026-11-25")).toThrow(/nama dan tanggal yang sama/);
+    expect(() => assertNoDuplicateTraining(existing, "N1", "Pelatihan rekonsiliasi", "2026-11-26")).not.toThrow();
+    expect(() => assertNoDuplicateTraining(existing, "N2", "Pelatihan rekonsiliasi", "2026-11-25")).not.toThrow();
+    expect(() => assertNoDuplicateTraining([{ ...existing[0], status: "Cancelled" }], "N1", "Pelatihan rekonsiliasi", "2026-11-25")).not.toThrow();
   });
 });
 

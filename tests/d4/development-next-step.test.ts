@@ -38,7 +38,7 @@ describe("the requirement status follows its training", () => {
     const source = await hrSource();
     const needId = await source.createDevelopment({ employeeId: ALFA, sourceType: "performance_context", sourceRef: "KPI-ALFA", objective: "Naikkan ketepatan laporan", priority: "Medium", notes: "", method: "Coaching", pic: "Bu Maya" });
     expect(step(await source.loadSnapshot(), needId)).toEqual({ kind: "create", retraining: false });
-    const trainingId = await source.createTraining({ employeeId: ALFA, developmentNeedId: needId, activity: "Coaching laporan", date: "2026-11-20", status: "Planned", result: "", notes: "" });
+    const trainingId = await source.createTraining({ employeeId: ALFA, developmentNeedId: needId, activity: "Coaching laporan", date: "2030-01-15", status: "Planned", result: "", notes: "" });
     let snapshot = await source.loadSnapshot();
     expect(needOf(snapshot, needId)).toMatchObject({ status: "Planned", revision: 2, notes: "Mengikuti Training Tracking." });
     expect(step(snapshot, needId)).toMatchObject({ kind: "running", retraining: false });

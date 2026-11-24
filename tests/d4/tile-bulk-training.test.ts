@@ -27,7 +27,7 @@ describe("Need training tile: create training for all", () => {
     expect(waiting[0].label).toContain(" · Uji ");
 
     // Once one of them has a training it leaves the list.
-    await source.createTraining({ employeeId: others[0].id, developmentNeedId: ids[0], activity: "Coaching", date: "2026-11-20", status: "Planned", result: "", notes: "" });
+    await source.createTraining({ employeeId: others[0].id, developmentNeedId: ids[0], activity: "Coaching", date: "2030-01-15", status: "Planned", result: "", notes: "" });
     const later = await source.loadSnapshot();
     expect(needsWithoutTraining(later, rowsOf(later)).map((item) => item.key)).toEqual([ids[1]]);
   });
