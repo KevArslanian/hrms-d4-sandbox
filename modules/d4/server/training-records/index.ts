@@ -1,22 +1,26 @@
 import { compareCompetencies } from "../../competency/service";
 import type { TrainingFollowUp, TrainingStatus } from "../../training/types";
 import { assertNeedOpen, assertNotSelf, assertTrainingChange, trainingSyncRevision, assertTrainingDate, assertTrainingFollowUp, lastAssessedAt, localToday, planTrainingCompletion, retrainingNotes, TRAINING_DECISIONS, TRAINING_FOLLOW_UPS, TRAINING_RESULTS } from "../../shared/rules";
-import { latestDevelopment, latestTraining } from "../../supabase/types";
-import { ApiError, employeeFilter, enforce, field, readJson } from "../_lib/http";
+import { latestDevelopment, latestTraining, type D4LiveSnapshot } from "../../supabase/types";
+import { ApiError, employeeFilter, enforce, field, readJson, toApiError } from "../_lib/http";
 import { d4Session, requireWriter } from "../_lib/session";
 
 const statuses: readonly TrainingStatus[] = ["Planned", "In Progress", "Completed", "Cancelled"];
 
-type Repository = Awaited<ReturnType<typeof requireWriter>>["repository"];
+type Writer = Awaited<ReturnType<typeof requireWriter>>;
+type Repository = Writer["repository"];
+/** The signed-in writer and the data a write is checked against. */
+type WriteContext = Pick<Writer, "repository" | "access"> & { snapshot: D4LiveSnapshot };
 
 /**
  * Decision 13 Nov 2026: Training Tracking is the one writer of a requirement's progress. After each training write the
  * requirement takes the status its trainings give it (statusFromTrainings); a Completed requirement is left alone.
+ * Reads requirements and trainings only, not the whole snapshot: this runs after every training write.
  */
 async function syncDevelopment(repository: Repository, needId: string) {
-  const snapshot = await repository.loadSnapshot();
-  const need = latestDevelopment(snapshot).find((item) => item.needId === needId);
-  const next = need && trainingSyncRevision(need, latestTraining(snapshot), snapshot.developmentVersions.filter((item) => item.needId === needId));
+  const state = await repository.loadTrainingState();
+  const need = latestDevelopment(state).find((item) => item.needId === needId);
+  const next = need && trainingSyncRevision(need, latestTraining(state), state.developmentVersions.filter((item) => item.needId === needId));
   if (need && next) await repository.updateDevelopment(needId, next, need);
 }
 
@@ -39,18 +43,17 @@ export async function getTraining(id: string) {
   return { latest: versions[0], versions };
 }
 
-/** POST /api/d4/training-records — training must point to a development need of the same employee. */
-export async function createTraining(request: Request) {
-  const { repository, access } = await requireWriter();
-  const body = await readJson(request);
+const parseCreate = (body: Record<string, unknown>) => {
   const status = field.oneOf(body, "status", statuses);
-  const input = {
+  return {
     employeeId: field.uuid(body, "employeeId"), developmentNeedId: field.uuid(body, "developmentNeedId"),
     activity: field.text(body, "activity", { max: 200 }), date: field.date(body, "date"), status,
     result: completedResult(body, status), notes: field.text(body, "notes", { required: false, max: 2000 }),
   };
+};
+
+async function createOne({ repository, access, snapshot }: WriteContext, input: ReturnType<typeof parseCreate>) {
   enforce(() => assertNotSelf(access.employeeId, input.employeeId));
-  const snapshot = await repository.loadSnapshot();
   enforce(() => assertNeedOpen(latestDevelopment(snapshot).find((item) => item.needId === input.developmentNeedId)));
   enforce(() => assertTrainingDate(input.status, input.date));
   const id = await repository.createTraining(input, snapshot);
@@ -58,14 +61,19 @@ export async function createTraining(request: Request) {
   return { id };
 }
 
-/** POST /api/d4/training-records/:id/versions — progress update as a new version. Completion never closes a gap. */
-export async function addTrainingVersion(request: Request, id: string) {
-  const { repository, access } = await requireWriter();
-  const body = await readJson(request);
+/** POST /api/d4/training-records — training must point to a development need of the same employee. */
+export async function createTraining(request: Request) {
+  const writer = await requireWriter();
+  const input = parseCreate(await readJson(request));
+  return createOne({ ...writer, snapshot: await writer.repository.loadSnapshot() }, input);
+}
+
+const parseVersion = (body: Record<string, unknown>) => {
   const status = field.oneOf(body, "status", statuses);
-  const result = completedResult(body, status);
-  const notes = field.text(body, "notes", { required: false, max: 2000 });
-  const snapshot = await repository.loadSnapshot();
+  return { status, result: completedResult(body, status), notes: field.text(body, "notes", { required: false, max: 2000 }) };
+};
+
+async function versionOne({ repository, access, snapshot }: WriteContext, id: string, { status, result, notes }: ReturnType<typeof parseVersion>) {
   const current = latestTraining(snapshot).find((item) => item.trainingId === id);
   if (!current) throw new ApiError("NOT_FOUND", "Training tidak ditemukan.");
   enforce(() => assertNotSelf(access.employeeId, current.employeeId));
@@ -73,6 +81,13 @@ export async function addTrainingVersion(request: Request, id: string) {
   await repository.updateTraining(id, status, result, notes);
   await syncDevelopment(repository, current.developmentNeedId);
   return { trainingId: id, status };
+}
+
+/** POST /api/d4/training-records/:id/versions — progress update as a new version. Completion never closes a gap. */
+export async function addTrainingVersion(request: Request, id: string) {
+  const writer = await requireWriter();
+  const input = parseVersion(await readJson(request));
+  return versionOne({ ...writer, snapshot: await writer.repository.loadSnapshot() }, id, input);
 }
 
 /**
@@ -106,12 +121,19 @@ export async function recordTrainingFollowUp(request: Request, id: string) {
  * a failure part-way keeps the earlier records and the training page shows the step that is still open.
  */
 export async function completeTraining(request: Request, id: string) {
-  const { repository, access } = await requireWriter();
-  const body = await readJson(request);
+  const writer = await requireWriter();
+  const input = parseComplete(await readJson(request));
+  return completeOne({ ...writer, snapshot: await writer.repository.loadSnapshot() }, id, input);
+}
+
+const parseComplete = (body: Record<string, unknown>) => {
   const decision = field.oneOf(body, "decision", TRAINING_DECISIONS);
-  const input = { result: field.oneOf(body, "result", TRAINING_RESULTS), decision, notes: field.text(body, "notes", { required: false, max: 2000 }),
+  return { result: field.oneOf(body, "result", TRAINING_RESULTS), decision, notes: field.text(body, "notes", { required: false, max: 2000 }),
     ...(decision === "Retraining" ? { activity: field.text(body, "activity", { max: 200 }), date: field.date(body, "date") } : {}) };
-  const snapshot = await repository.loadSnapshot();
+};
+
+async function completeOne({ repository, access, snapshot }: WriteContext, id: string, input: ReturnType<typeof parseComplete>) {
+  const { decision } = input;
   const record = latestTraining(snapshot).find((item) => item.trainingId === id);
   if (!record) throw new ApiError("NOT_FOUND", "Training tidak ditemukan.");
   enforce(() => assertNotSelf(access.employeeId, record.employeeId));
@@ -141,4 +163,47 @@ export async function completeTraining(request: Request, id: string) {
   // A decision written above already set the status; this covers a Passed training whose decision is left for later.
   await syncDevelopment(repository, record.developmentNeedId);
   return { trainingId: id, result: input.result, decision, retrainingId };
+}
+
+const BULK_MAX = 200;
+const BULK_OPS = ["create", "version", "complete"] as const;
+export type BulkRowResult = { ok: true } | { ok: false; message: string };
+
+/**
+ * POST /api/d4/training-records/bulk — many training writes in one request (Add Training for many requirements, bulk
+ * Update Progress). Each row runs the same rules and writes as its single endpoint, in order, and a refused row does
+ * not stop the others. Sign-in and the snapshot are loaded once instead of per row (PST 2: a bulk save of 17 rows took
+ * about 34 full snapshot loads). A completion of an employee an earlier row already wrote is checked against a fresh
+ * snapshot, so it is judged exactly as if it were saved on its own.
+ */
+export async function bulkTraining(request: Request) {
+  const writer = await requireWriter();
+  const { items } = await readJson(request);
+  if (!Array.isArray(items) || !items.length || items.length > BULK_MAX) throw new ApiError("VALIDATION_FAILED", `Field items wajib berisi 1 sampai ${BULK_MAX} baris.`);
+  let snapshot = await writer.repository.loadSnapshot();
+  const written = new Set<string>();
+  const results: BulkRowResult[] = [];
+  for (const item of items) {
+    let employeeId: string | undefined;
+    try {
+      if (!item || typeof item !== "object" || Array.isArray(item)) throw new ApiError("BAD_REQUEST", "Setiap baris harus berupa objek JSON.");
+      const row = item as Record<string, unknown>;
+      const op = field.oneOf(row, "op", BULK_OPS);
+      const trainingId = op === "create" ? "" : field.text(row, "trainingId", { max: 100 });
+      employeeId = op === "create" ? field.uuid(row, "employeeId") : latestTraining(snapshot).find((entry) => entry.trainingId === trainingId)?.employeeId;
+      // Only completion reads what an earlier row of the same employee can change (the requirement, the latest trainings,
+      // the last competency assessment); create and version rows check their own requirement or training.
+      if (op === "complete" && employeeId && written.has(employeeId)) snapshot = await writer.repository.loadSnapshot();
+      const context = { ...writer, snapshot };
+      if (op === "create") await createOne(context, parseCreate(row));
+      else if (op === "version") await versionOne(context, trainingId, parseVersion(row));
+      else await completeOne(context, trainingId, parseComplete(row));
+      results.push({ ok: true });
+    } catch (cause) {
+      results.push({ ok: false, message: toApiError(cause).message });
+    }
+    // Also after a refusal: a row can fail after its first write (the writes are not one transaction).
+    if (employeeId) written.add(employeeId);
+  }
+  return { results };
 }
