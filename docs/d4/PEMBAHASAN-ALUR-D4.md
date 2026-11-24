@@ -141,7 +141,7 @@ Dibaca dari tabel yang dipakai kode D4 (`modules/d4/supabase/repository.ts`) dan
 |---|---|---|---|
 | B2 | Login dan register bersama; identitas pengguna dan pemetaan akun ke pegawai (`d4_employee`, berdasarkan email) | 0 | Berjalan |
 | D3 | Master pegawai, posisi (`d3_positions`), departemen (`d3_departments`), daftar kompetensi (`d3_competencies`), level kompetensi pegawai (`d4_employee_skills`), dan `employee_kpi` | 0, 3, 5, 6, 7 | Berjalan. Level kompetensi hanya bisa diubah di D3 |
-| D1 | Standar kompetensi per posisi (`position_requirements`, tabel milik D3 yang kini dikelola D1); definisi KPI per posisi | 3; 1 dan 2 | Standar kompetensi berjalan. Definisi KPI dari D1 belum dipakai: D4 memakai katalog V5.1/V6 dari dokumen Mas Bram. Notulen 14 Okt mencatat "KPI harian ada di tim Raka (D1)", jadi pembagian Daily KPI antara D1 dan D4 masih perlu diputuskan |
+| D1 | Standar kompetensi per posisi (`position_requirements`, tabel milik D3 yang kini dikelola D1); definisi KPI per posisi (`d1_kpi_definitions`) | 3; 1 dan 2 | Berjalan. Sejak 23 Nov 2026 (PR #71) D4 membaca KPI dari D1, bukan katalog sendiri. Pembagiannya: D1 menentukan KPI, bobot, dan target 85; D4 tempat pegawai mengisi Daily KPI dan HR/Manager memfinalkan skor periode. Arah sebaliknya, D1 membaca skor D4 lewat view `d4_kpi_scores_for_d1` untuk laporan gap KPI (FR-D1-003). Posisi tanpa pemetaan atau tanpa KPI di D1 belum bisa mengisi Daily KPI (data 24 Nov: lihat TEST-ACCOUNTS-D4 bagian 2a) |
 | MID | Alert dan ringkasan untuk MID (B19) | 7 | Belum dibuat. Butuh kontrak data dari MID; arahan terbaru di grup (query agregasi lewat SQL View di database bersama) belum dikerjakan D4 |
 | D2 | Pegawai baru hasil rekrutmen | 0 | Tidak langsung: pegawai baru masuk ke D4 lewat master D3 |
 
