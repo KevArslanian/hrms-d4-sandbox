@@ -93,9 +93,6 @@ export const shared = {
   "{people} pegawai belum punya training": { en: "Employees without training: {people}" },
   "{count} development requirement terbuka menunggu training.": { en: "Open development requirements waiting for training: {count}." },
   "Buat training": { en: "Create training" },
-  "Apakah Anda yakin ingin logout?": { en: "Are you sure you want to log out?" },
-  "Tidak": { en: "No" },
-  "Iya": { en: "Yes" },
   "Logging out...": { id: "Sedang logout..." },
   // Automatic logout after inactivity (IdleLogout)
   "Sesi akan berakhir": { en: "Your session is about to end" },
