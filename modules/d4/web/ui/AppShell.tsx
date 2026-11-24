@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Bell, ChevronDown, LayoutDashboard, Menu, Users, X } from "lucide-react";
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import { createPortal } from "react-dom";
 import { catalogFor, roleForPosition, type KpiCatalogSet } from "../../kpi/catalog";
 import { canFillDaily } from "../../shared/rules";
 import { msg, type Translate } from "../../shared/text";
@@ -15,7 +14,7 @@ import { canWrite, developmentNeeds, needsTraining, thisMonth, today, visibleEmp
 import { useLanguage } from "../i18n/LanguageProvider";
 import { LanguageToggle } from "../i18n/LanguageToggle";
 import { IdleLogout } from "./IdleLogout";
-import { Button, cx, slug } from "./primitives";
+import { cx, slug } from "./primitives";
 
 // People Dashboard first: it is the HR landing page and the summary the other five pages feed (decision 13 Nov 2026).
 export const D4_MENU = [
@@ -43,20 +42,15 @@ const roleLabel: Record<string, string> = { HR: "HR", MANAGER: "Manager", MANAGE
 // the logo, a Dashboard link above the HRMS group (POS, CRM and MID left out, they were never clickable from D4), and the
 // active sub-menu item on #b0c6d4 with a teal dot. Logout stays at the bottom: it is the only way out (decision 13 Nov 2026).
 /**
- * Logout asks first (decision 13 Nov 2026). "Iya" turns the dialog into "Logging out..." until the login page replaces
- * the app; "Tidak", Esc or the overlay closes it. Focus starts on "Tidak" and returns to where it was.
+ * Logout signs out at once, without asking first (request 24 Nov 2026, replacing the confirm dialog of 13 Nov). The button
+ * reads "Logging out..." until the login page replaces the app, and comes back if signing out fails so it can be retried.
  */
-function LogoutConfirm({ onCancel }: { onCancel: () => void }) {
+function useSignOut() {
   const router = useRouter();
   const { mode } = useD4();
-  const { t } = useLanguage();
-  const dialog = useRef<HTMLDivElement>(null);
   const [signingOut, setSigningOut] = useState(false);
-  const cancel = () => { if (!signingOut) onCancel(); };
-
   async function signOut() {
     setSigningOut(true);
-    dialog.current?.focus();
     try {
       // The local preview signs out by dropping its own cookie; only the live app has a Supabase session to end.
       if (mode === "fixture") endPreviewSession();
@@ -64,42 +58,10 @@ function LogoutConfirm({ onCancel }: { onCancel: () => void }) {
       router.replace("/login");
       router.refresh();
     } catch {
-      // Back to the question, so the user can try again instead of waiting on a message that never ends.
       setSigningOut(false);
     }
   }
-
-  useEffect(() => {
-    // Read before moving focus in: an autoFocus would already have taken it, and focus could not go back on close.
-    const previous = document.activeElement as HTMLElement | null;
-    dialog.current?.querySelector<HTMLElement>("[data-testid=btn-logout-cancel]")?.focus();
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = ""; previous?.focus(); };
-  }, []);
-
-  return createPortal(<div className="fixed inset-0 z-[60] flex items-center justify-center bg-ink/40 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) cancel(); }}>
-    <div ref={dialog} role="alertdialog" aria-modal="true" aria-labelledby="logout-title" aria-describedby={signingOut ? undefined : "logout-text"} tabIndex={-1} data-testid="logout-confirm"
-      onKeyDown={(event) => {
-        if (event.key === "Escape") cancel();
-        if (event.key !== "Tab") return;
-        // Two buttons: Tab moves between them and never leaves the dialog.
-        const buttons = [...event.currentTarget.querySelectorAll<HTMLButtonElement>("button")];
-        const next = buttons[(buttons.indexOf(document.activeElement as HTMLButtonElement) + (event.shiftKey ? buttons.length - 1 : 1)) % buttons.length];
-        event.preventDefault(); next?.focus();
-      }}
-      className="w-full max-w-sm rounded-2xl bg-surface p-6 shadow-modal outline-none">
-      {signingOut
-        ? <p id="logout-title" role="status" data-testid="logout-progress" className="text-center font-display text-base font-semibold text-ink">{t("Logging out...")}</p>
-        : <>
-          <h2 id="logout-title" className="font-display text-base font-semibold text-ink">Logout</h2>
-          <p id="logout-text" className="mt-1.5 text-sm text-ink-2">{t("Apakah Anda yakin ingin logout?")}</p>
-          <div className="mt-5 flex justify-end gap-3">
-            <Button variant="secondary" data-testid="btn-logout-cancel" onClick={onCancel}>{t("Tidak")}</Button>
-            <Button variant="danger" data-testid="btn-logout-confirm" onClick={() => void signOut()}>{t("Iya")}</Button>
-          </div>
-        </>}
-    </div>
-  </div>, document.body);
+  return { signingOut, signOut };
 }
 
 function Sidebar({ onNavigate, onClose }: { onNavigate: () => void; onClose: () => void }) {
@@ -107,7 +69,7 @@ function Sidebar({ onNavigate, onClose }: { onNavigate: () => void; onClose: () 
   const { mode, snapshot } = useD4();
   const { t } = useLanguage();
   const [hrmsOpen, setHrmsOpen] = useState(true);
-  const [confirmLogout, setConfirmLogout] = useState(false);
+  const { signingOut, signOut } = useSignOut();
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
@@ -154,12 +116,11 @@ function Sidebar({ onNavigate, onClose }: { onNavigate: () => void; onClose: () 
     {mode === "fixture" && <p className="mt-4 rounded-lg border border-[#d9e2fc]/20 px-3 py-1.5 text-center text-[11px] text-[#d9e2fc]/80">{t("Mode pratinjau · data contoh")}</p>}
     {/* Shown in the preview as well, where it ends the preview sign-in (preview-session.ts) without contacting a server.
         The text is a lighter shade of the #d9364f border, which reaches only 3.4:1 on the dark sidebar; this one clears 4.5:1 also on hover.
-        On a phone the drawer traps focus and closes on Esc, so it closes first and the dialog has the keyboard to itself. */}
-    <button type="button" data-testid="btn-logout" onClick={() => { onClose(); setConfirmLogout(true); }}
-      className="mt-4 h-10 w-full rounded-[20px] border-[3px] border-[#d9364f] font-display text-xl font-semibold text-[#e3697b] transition hover:bg-[#d9364f]/10">
-      Logout
+        */}
+    <button type="button" data-testid="btn-logout" onClick={() => void signOut()} disabled={signingOut} aria-live="polite"
+      className="mt-4 h-10 w-full rounded-[20px] border-[3px] border-[#d9364f] font-display text-xl font-semibold text-[#e3697b] transition hover:bg-[#d9364f]/10 disabled:cursor-wait">
+      {signingOut ? t("Logging out...") : "Logout"}
     </button>
-    {confirmLogout && <LogoutConfirm onCancel={() => setConfirmLogout(false)} />}
   </div>;
 }
 
