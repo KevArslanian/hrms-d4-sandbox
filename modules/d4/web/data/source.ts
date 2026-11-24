@@ -28,6 +28,12 @@ export type DevelopmentDraft = { employeeId: string; sourceType: DevelopmentSour
 /** Priority, method, PIC or a reassessment saved with a revision; left out = unchanged. */
 export type DevelopmentEdit = Omit<DevelopmentChange, "status" | "notes">;
 export type TrainingDraft = { employeeId: string; developmentNeedId: string; activity: string; date: string; status: TrainingStatus; result: string; notes: string };
+/** One row of a bulk training save: the body of createTraining, updateTraining or completeTraining. */
+export type BulkTrainingItem =
+  | ({ op: "create" } & TrainingDraft)
+  | { op: "version"; trainingId: string; status: TrainingStatus; result: string; notes: string }
+  | ({ op: "complete"; trainingId: string } & TrainingCompletion);
+export type BulkRowResult = { ok: true } | { ok: false; message: string };
 
 /**
  * Everything the D4 screens need. The live implementation talks to /api/d4/*;
@@ -51,4 +57,6 @@ export interface D4DataSource {
   updateTraining(trainingId: string, status: TrainingStatus, result: string, notes: string): Promise<void>;
   /** Result and HR's decision in one save (Training Tracking); returns the new training id for Retraining, else null. */
   completeTraining(trainingId: string, input: TrainingCompletion): Promise<string | null>;
+  /** Many training writes in one request, one result per row in order. Without it, rows are saved one by one. */
+  bulkTraining?(items: readonly BulkTrainingItem[]): Promise<BulkRowResult[]>;
 }

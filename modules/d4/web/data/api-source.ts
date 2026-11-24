@@ -1,6 +1,6 @@
 import type { KpiCatalogSet } from "../../kpi/catalog";
 import type { D4LiveSnapshot } from "../../supabase/types";
-import type { D4DataSource } from "./source";
+import type { BulkRowResult, D4DataSource } from "./source";
 
 export class D4RequestError extends Error {
   constructor(readonly status: number, readonly code: string, message: string) { super(message); }
@@ -57,4 +57,5 @@ export const apiSource: D4DataSource = {
   createTraining: async (input) => (await post<{ id: string }>("/api/d4/training-records", input)).id,
   updateTraining: async (trainingId, status, result, notes) => { await post(`/api/d4/training-records/${encodeURIComponent(trainingId)}/versions`, { status, result, notes }); },
   completeTraining: async (trainingId, input) => (await post<{ retrainingId: string | null }>(`/api/d4/training-records/${encodeURIComponent(trainingId)}/complete`, input)).retrainingId,
+  bulkTraining: async (items) => (await post<{ results: BulkRowResult[] }>("/api/d4/training-records/bulk", { items })).results,
 };

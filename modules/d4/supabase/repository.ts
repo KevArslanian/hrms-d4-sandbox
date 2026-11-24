@@ -71,6 +71,38 @@ function actorName(reference: ReferenceDataSnapshot, employeeId: string): string
   return reference.employees.find((item) => item.id === employeeId)?.fullName ?? "HR/Manager";
 }
 
+/** Requirement revisions with their need's fields; a revision stores only the priority/method/PIC it changed. */
+function toDevelopmentVersions(developmentRows: readonly RawDevelopment[], developmentVersionRows: readonly RawDevelopmentVersion[], actor: (employeeId: string) => string): DevelopmentNeedVersion[] {
+  const developmentById = new Map(developmentRows.map((row) => [row.id, row]));
+  // Each value is carried forward in revision order.
+  const resolvedBy = new Map<string, Pick<DevelopmentNeedVersion, "priority" | "method" | "pic">>();
+  return [...developmentVersionRows].sort((a, b) => a.revision - b.revision).flatMap((version) => {
+    const need = developmentById.get(version.development_need_id);
+    if (!need) return [];
+    const previous = resolvedBy.get(need.id) ?? { priority: need.priority, method: need.method ?? "", pic: need.pic ?? "" };
+    const resolved = { priority: version.priority ?? previous.priority, method: version.method ?? previous.method, pic: version.pic ?? previous.pic };
+    resolvedBy.set(need.id, resolved);
+    return [{ id: version.id, needId: need.id, revision: version.revision, source: "supabase" as const,
+      employeeId: need.employee_id, sourceType: need.source_type,
+      sourceRef: need.position_requirement_id ?? need.competency_assessment_id ?? need.kpi_assessment_id ?? need.performance_evaluation_id ?? "",
+      objective: need.objective, ...resolved, status: version.status, reassessment: version.reassessment ?? null, notes: version.notes,
+      createdAt: version.created_at, actor: actor(version.actor_employee_id) }];
+  }).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+function toTrainingVersions(trainingRows: readonly RawTraining[], trainingVersionRows: readonly RawTrainingVersion[], actor: (employeeId: string) => string): TrainingVersion[] {
+  const trainingById = new Map(trainingRows.map((row) => [row.id, row]));
+  return trainingVersionRows.flatMap((version) => {
+    const trainingRecord = trainingById.get(version.training_id);
+    if (!trainingRecord) return [];
+    return [{ id: version.id, trainingId: trainingRecord.id, revision: version.revision, source: "supabase" as const,
+      employeeId: trainingRecord.employee_id, developmentNeedId: trainingRecord.development_need_id,
+      activity: trainingRecord.activity, date: trainingRecord.activity_date, status: version.status,
+      result: version.result, notes: version.notes, followUp: version.follow_up ?? null, createdAt: version.created_at,
+      actor: actor(version.actor_employee_id) }];
+  });
+}
+
 export class SupabaseD4Repository implements ReferenceDataRepository {
   private user?: Promise<User>;
 
@@ -189,33 +221,30 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
       findings: Array.isArray(row.findings) ? row.findings as CompetencyFinding[] : [],
       createdAt: row.created_at, actor: actorName(reference, row.actor_employee_id), assessedWith: row.assessed_with ?? null,
     }));
-    const developmentById = new Map(developmentRows.map((row) => [row.id, row]));
-    // A revision stores only the priority/method/PIC it changed, so each value is carried forward in revision order.
-    const resolvedBy = new Map<string, Pick<DevelopmentNeedVersion, "priority" | "method" | "pic">>();
-    const developmentVersions: DevelopmentNeedVersion[] = [...developmentVersionRows].sort((a, b) => a.revision - b.revision).flatMap((version) => {
-      const need = developmentById.get(version.development_need_id);
-      if (!need) return [];
-      const previous = resolvedBy.get(need.id) ?? { priority: need.priority, method: need.method ?? "", pic: need.pic ?? "" };
-      const resolved = { priority: version.priority ?? previous.priority, method: version.method ?? previous.method, pic: version.pic ?? previous.pic };
-      resolvedBy.set(need.id, resolved);
-      return [{ id: version.id, needId: need.id, revision: version.revision, source: "supabase" as const,
-        employeeId: need.employee_id, sourceType: need.source_type,
-        sourceRef: need.position_requirement_id ?? need.competency_assessment_id ?? need.kpi_assessment_id ?? need.performance_evaluation_id ?? "",
-        objective: need.objective, ...resolved, status: version.status, reassessment: version.reassessment ?? null, notes: version.notes,
-        createdAt: version.created_at, actor: actorName(reference, version.actor_employee_id) }];
-    }).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-    const trainingById = new Map(trainingRows.map((row) => [row.id, row]));
-    const trainingVersions: TrainingVersion[] = trainingVersionRows.flatMap((version) => {
-      const trainingRecord = trainingById.get(version.training_id);
-      if (!trainingRecord) return [];
-      return [{ id: version.id, trainingId: trainingRecord.id, revision: version.revision, source: "supabase" as const,
-        employeeId: trainingRecord.employee_id, developmentNeedId: trainingRecord.development_need_id,
-        activity: trainingRecord.activity, date: trainingRecord.activity_date, status: version.status,
-        result: version.result, notes: version.notes, followUp: version.follow_up ?? null, createdAt: version.created_at,
-        actor: actorName(reference, version.actor_employee_id) }];
-    });
+    const actor = (employeeId: string) => actorName(reference, employeeId);
+    const developmentVersions = toDevelopmentVersions(developmentRows, developmentVersionRows, actor);
+    const trainingVersions = toTrainingVersions(trainingRows, trainingVersionRows, actor);
     return { reference, role: access.app_role, actorEmployeeId: access.employee_id,
       kpi, kpiAssessments, kpiDaily, periodReopenings, performance, competency, developmentVersions, trainingVersions };
+  }
+
+  /**
+   * Requirements and trainings only (4 reads in one round instead of the whole snapshot): what the requirement sync after
+   * a training write needs. Actor names are left generic, as they need the reference data.
+   */
+  async loadTrainingState(): Promise<Pick<D4LiveSnapshot, "developmentVersions" | "trainingVersions">> {
+    await this.requireUser();
+    const [developmentResult, developmentVersionResult, trainingResult, trainingVersionResult] = await Promise.all([
+      allRows(() => this.client.from("d4_development_needs").select("*").order("id")),
+      allRows(() => this.client.from("d4_development_need_versions").select("*").order("created_at", { ascending: false }).order("id")),
+      allRows(() => this.client.from("d4_training_records").select("id,employee_id,development_need_id,activity,activity_date").order("id")),
+      allRows(() => this.client.from("d4_training_versions").select("*").order("created_at", { ascending: false }).order("id")),
+    ]);
+    const actor = () => "HR/Manager";
+    return {
+      developmentVersions: toDevelopmentVersions(take(developmentResult, "Development") as RawDevelopment[], take(developmentVersionResult, "Development history") as RawDevelopmentVersion[], actor),
+      trainingVersions: toTrainingVersions(take(trainingResult, "Training") as RawTraining[], take(trainingVersionResult, "Training history") as RawTrainingVersion[], actor),
+    };
   }
 
   async saveKpiDailyEntry(input: KpiDailyEntryInput): Promise<string> {
