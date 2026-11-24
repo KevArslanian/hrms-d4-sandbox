@@ -24,7 +24,7 @@ function ResultField({ value, onChange, error, hint = true }: { value: string; o
     <SelectField label={t("Result")} testId="result" required value={value} onChange={(event) => onChange(event.target.value)} error={error} className="sm:col-span-2"
       helper={t("Detail hasil (nilai, sertifikat, catatan trainer) ditulis di Notes.")}>
       <option value="">{t("Select result")}</option>
-      {TRAINING_RESULTS.map((item) => <option key={item} value={item}>{item}</option>)}
+      {TRAINING_RESULTS.map((item) => <option key={item} value={item}>{t(item)}</option>)}
     </SelectField>
     {hint && value && <div className="sm:col-span-2"><Notice>{value === "Passed" ? t("Setelah disimpan, catat hasil reassessment dari Next step di detail training ini.") : t("Setelah disimpan, catat tindak lanjutnya dari Next step di detail training ini.")}</Notice></div>}
   </>;
@@ -73,15 +73,15 @@ export function TrainingFormModal({ employeeId, developmentNeedId, onClose, onSa
         {lockedEmployee ? <ReadOnlyField label={t("Employee")} testId="employee" value={`${lockedEmployee.fullName} · ${lockedEmployee.employeeId}`} className="sm:col-span-2" />
           : <SearchSelectField label={t("Employee")} testId="employee" required value={employee} onChange={(value) => { setEmployee(value); setNeed(""); }} error={touched && !employee ? t("Employee wajib diisi.") : undefined} className="sm:col-span-2" placeholder={t("Select employee")}
             options={visibleEmployees(snapshot).map((item) => ({ value: item.id, label: `${item.fullName} · ${item.employeeId}` }))} />}
-        {lockedNeed ? <ReadOnlyField label={t("Source requirement")} testId="source-requirement" value={`${lockedNeed.objective} · ${statusLabel(lockedNeed.status)}`} className="sm:col-span-2" /> :
+        {lockedNeed ? <ReadOnlyField label={t("Source requirement")} testId="source-requirement" value={`${lockedNeed.objective} · ${t(statusLabel(lockedNeed.status))}`} className="sm:col-span-2" /> :
         <SelectField label={t("Source requirement")} testId="source-requirement" required value={need} onChange={(event) => setNeed(event.target.value)} error={touched && employee && !needOpen ? t("Pilih development requirement yang masih terbuka.") : undefined} className="sm:col-span-2"
           helper={t("Requirement yang sudah Completed tidak ditampilkan.")}>
           <option value="">{!employee ? t("Pilih pegawai terlebih dahulu") : needs.length ? t("Select development requirement") : t("Pegawai belum memiliki development requirement yang terbuka")}</option>
-          {needs.map((item) => <option key={item.needId} value={item.needId}>{item.objective} · {statusLabel(item.status)}</option>)}
+          {needs.map((item) => <option key={item.needId} value={item.needId}>{item.objective} · {t(statusLabel(item.status))}</option>)}
         </SelectField>}
         <TextField label={t("Training / activity")} testId="training-activity" required maxLength={200} value={activity} onChange={(event) => setActivity(event.target.value)} error={touched && !activity.trim() ? t("Nama aktivitas wajib diisi.") : undefined} className="sm:col-span-2" />
         <DateField label={t("Date")} testId="date" required max={status === "Completed" ? today() : undefined} min={status === "Planned" ? today() : undefined} value={date} onChange={(event) => setDate(event.target.value)} error={touched && futureDone ? t("Tidak boleh lebih dari hari ini untuk training yang Completed.") : touched && pastPlanned ? t("Tanggal training Planned tidak boleh sebelum hari ini.") : undefined} />
-        <SelectField label={t("Status")} required value={status} onChange={(event) => setStatus(event.target.value as TrainingStatus)}>{STATUSES.map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}</SelectField>
+        <SelectField label={t("Status")} required value={status} onChange={(event) => setStatus(event.target.value as TrainingStatus)}>{STATUSES.map((item) => <option key={item} value={item}>{t(statusLabel(item))}</option>)}</SelectField>
         {status === "Completed" && <ResultField value={result} onChange={setResult} error={touched && !result ? t("Result wajib dipilih bila status Completed.") : undefined} />}
       </div>
       <TextAreaField label={t("Notes")} testId="notes" value={notes} onChange={(event) => setNotes(event.target.value)} helper={`${notes.length}/${NOTES_MAX}`} />
@@ -107,7 +107,7 @@ const NOTES_MAX = 2000;
 export function LevelLine({ finding, employeeId }: { finding: CompetencyFinding; employeeId?: string }) {
   const { t } = useLanguage();
   return <Notice tone={finding.status === "Terpenuhi" ? "info" : "warning"}>
-    <span data-testid="level-now">{t("Competency Gap sekarang · {competency}: required {required}, current {current} ({status}).", { competency: finding.competencyName, required: finding.requiredLevel, current: finding.actualLevel ?? t("belum tercatat"), status: statusLabel(finding.status) })}</span>
+    <span data-testid="level-now">{t("Competency Gap sekarang · {competency}: required {required}, current {current} ({status}).", { competency: finding.competencyName, required: finding.requiredLevel, current: finding.actualLevel ?? t("belum tercatat"), status: t(statusLabel(finding.status)) })}</span>
     {employeeId && <> <Link href={`/competency/${employeeId}`} data-testid="link-level-competency" className="font-semibold underline">{t("Open Competency Gap")}</Link></>}
   </Notice>;
 }
@@ -163,7 +163,7 @@ export function TrainingProgressModal({ trainingId, onClose, onSaved }: { traini
     event.preventDefault();
     setTouched(true);
     if (status === "Completed" && !result) { setError(t("Result wajib dipilih bila status Completed: Passed atau Not Passed.")); return; }
-    if (rollback && !notes.trim()) { setError(t("Alasan wajib diisi saat status mundur dari {from} ke {to}.", { from: statusLabel(record!.status), to: statusLabel(status) })); return; }
+    if (rollback && !notes.trim()) { setError(t("Alasan wajib diisi saat status mundur dari {from} ke {to}.", { from: t(statusLabel(record!.status)), to: t(statusLabel(status)) })); return; }
     // R3: only the choices that can be picked are named.
     if (deciding && !decision) {
       const choices = orList(options.filter((item) => !("disabled" in item && item.disabled)).map((item) => item.label), t);
@@ -182,10 +182,10 @@ export function TrainingProgressModal({ trainingId, onClose, onSaved }: { traini
   return <FormModal title={t("Update Progress")} description={record.activity} onClose={onClose} footer={<ModalActions onCancel={onClose} busy={busy} submitLabel={t("Save Progress")} disabled={unchanged} />}>
     <form id="d4-modal-form" onSubmit={submit} noValidate className="space-y-5">
       <FormError message={error} />
-      <SelectField label={t("Status")} required value={status} onChange={(event) => setStatus(event.target.value as TrainingStatus)}>{STATUSES.map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}</SelectField>
+      <SelectField label={t("Status")} required value={status} onChange={(event) => setStatus(event.target.value as TrainingStatus)}>{STATUSES.map((item) => <option key={item} value={item}>{t(statusLabel(item))}</option>)}</SelectField>
       {status === "Completed" && (decided
         ? <div className="grid gap-4 sm:grid-cols-2">
-            <ReadOnlyField label={t("Result")} testId="result" value={record.result} />
+            <ReadOnlyField label={t("Result")} testId="result" value={t(record.result)} />
             <ReadOnlyField label={t("Decision")} testId="decision" value={followUpOf(trainingHistory(snapshot, record.trainingId)) ?? reassessmentFor(snapshot, record.developmentNeedId) ?? "—"} />
           </div>
         : <ResultField value={result} onChange={(value) => { setResult(value); setDecision(""); setError(""); }} error={touched && !result ? t("Result wajib dipilih.") : undefined} hint={false} />)}
@@ -200,12 +200,12 @@ export function TrainingProgressModal({ trainingId, onClose, onSaved }: { traini
           <TextField label={t("Training / activity")} testId="retraining-activity" required maxLength={200} value={activity} onChange={(event) => setActivity(event.target.value)} className="sm:col-span-2"
             error={touched && !activity.trim() ? t("Nama training wajib diisi.") : undefined} />
           <DateField label={t("Date")} testId="retraining-date" required min={today()} value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? t("Tanggal wajib diisi.") : undefined} />
-          <ReadOnlyField label={t("Status")} testId="retraining-status" value={statusLabel("Planned")} />
+          <ReadOnlyField label={t("Status")} testId="retraining-status" value={t(statusLabel("Planned"))} />
         </div>}
       </>}
       <TextAreaField label={rollback ? t("Reason for change") : t("Update notes")} testId={rollback ? "alasan-perubahan" : "update-notes"} required={rollback || other} value={notes} onChange={(event) => setNotes(event.target.value)}
         error={touched && (rollback || other) && !notes.trim() ? t("Catatan wajib diisi.") : undefined}
-        helper={`${rollback ? `${t("Status mundur dari {from}; alasannya disimpan di riwayat versi.", { from: statusLabel(record.status) })} ` : other ? `${t("Tulis langkahnya (coaching, rotasi, atau eskalasi ke atasan), siapa, dan kapan.")} ` : retraining ? `${t("Disalin juga ke catatan training ulang.")} ` : ""}${notes.length}/${NOTES_MAX}`} />
+        helper={`${rollback ? `${t("Status mundur dari {from}; alasannya disimpan di riwayat versi.", { from: t(statusLabel(record.status)) })} ` : other ? `${t("Tulis langkahnya (coaching, rotasi, atau eskalasi ke atasan), siapa, dan kapan.")} ` : retraining ? `${t("Disalin juga ke catatan training ulang.")} ` : ""}${notes.length}/${NOTES_MAX}`} />
     </form>
   </FormModal>;
 }

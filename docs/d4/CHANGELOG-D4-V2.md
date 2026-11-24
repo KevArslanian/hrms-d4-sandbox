@@ -642,3 +642,11 @@ PO mengizinkan migrasi `20261120120000` dan `20261124150000`. Sampai migrasi itu
 - **Training ganda ditolak.** Requirement yang sudah punya training dengan nama dan tanggal sama (tanpa beda huruf besar-kecil, yang Cancelled tidak dihitung) menolak training kedua; di simpan massal baris itu muncul di daftar gagal dengan alasannya (TC-D4-005-19). Data ganda yang sudah ada di production (dicek 24 Nov: satu pegawai punya 9 "Pelatihan rekonsiliasi" 25 Nov di 5 requirement) tidak dihapus otomatis.
 - **Tidak diubah, dengan alasan:** tombol Kembali sudah sama di semua halaman detail dan riwayat (`DetailHeader`, `btn-back`); kolom angka selain Actual tidak ada; Daily KPI pada tanggal yang sudah terisi adalah alur koreksi yang memang dirancang (pemberitahuan `daily-already-saved` dan tombol Save correction).
 - **Belum dikerjakan, menunggu keputusan:** status workflow ikut toggle EN/ID (bertentangan dengan UI-D4-001 §137 yang sengaja tidak menerjemahkannya) dan logout otomatis saat idle (milik MID).
+
+## Status ikut toggle bahasa · 24 Nov 2026
+
+- **Keputusan Delta 24 Nov:** status dan hasil ikut toggle EN/ID (masukan dosen saat presentasi, poin 9). Ini mengganti aturan UI-D4-001 §6 yang sebelumnya membiarkan status workflow berbahasa Inggris.
+- **Yang berubah di mode ID:** badge status di semua list dan detail, pilihan Status/Priority/Result di form dan filter, legenda donut dashboard, dan field Status/Result/Priority di detail. Contoh: Completed → Selesai, Not Evaluated → Belum Dinilai, Not Passed → Tidak Lulus. Daftar lengkap ada di UI-D4-001 §6.
+- **Yang tidak berubah:** nilai di database dan API, nilai filter, parameter URL, dan `data-testid`. `statusLabel` tetap mengembalikan kunci bahasa Inggris yang dipakai filter; teks tampilnya diterjemahkan lewat `t()`.
+- **Dampak ke Katalon:** bahasa default adalah ID, jadi skrip yang memeriksa teks badge (mis. "Completed") sekarang membaca "Selesai". Skrip yang memakai `data-testid` atau nilai `<option value>` tidak terpengaruh.
+- **Bukti:** `tests/d4/i18n.test.ts` (terjemahan status ID dan EN). Dicek di pratinjau lokal mode ID: dashboard, lima halaman list, detail training, dan detail development tidak lagi menampilkan kata status bahasa Inggris.
