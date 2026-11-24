@@ -164,6 +164,7 @@ export const performance = {
   "Periode ini sudah ditutup. Penilaian hanya bisa disimpan di periode yang terbuka; HR dapat membuka kembali periode lama.": { en: "This period is closed. A review can only be saved in an open period; HR can reopen an older one." },
   "Penilaian D4 dimulai dari periode September 2026.": { en: "D4 reviews start from the September 2026 period." },
   "Otomatis tanggal hari ini saat disimpan, jadi penilaian tidak bisa dicatat mundur.": { en: "Set to today when saved, so a review cannot be back-dated." },
+  "Pegawai yang sudah dinilai di periode ini tidak ditampilkan. Revisi dibuka dari baris pegawai tersebut.": { en: "Employees already reviewed in this period are not listed. A revision opens from that employee's row." },
   "Periode {period} sudah ditutup, jadi form dibuka di {open}. HR dapat membuka kembali periode lama bila penilaiannya terlambat.": { en: "{period} is closed, so the form opens on {open}. HR can reopen an older period for a late review." },
   // Reopen Period (HR)
   "Reopen Period": { id: "Buka Kembali Periode" },
