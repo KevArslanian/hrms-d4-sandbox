@@ -183,9 +183,11 @@ Perubahan data atas permintaan WebDev untuk presentasi. Aturan awal "tidak menul
 
   Trigger versi dimatikan sementara karena periode 2026-11 dan 2026-12 kini mewajibkan V6.
 
-## KPI dari D1 (24 Nov 2026): belum diterapkan
+## KPI dari D1 (24 Nov 2026): diterapkan 24 Nov 2026
 
-Migrasi `20261124130000_d4_kpi_from_d1.sql`. Isinya: mulai periode 2026-11, KPI posisi yang dipetakan D1 diambil dari `d1_kpi_definitions`, jumlah KPI mengikuti D1 asal total bobotnya 100, dan view `d4_kpi_scores_for_d1` disediakan untuk D1. Detail kolomnya ada di API-D4-001 §8. **Butuh izin PO**, sama seperti migrasi D4 lainnya.
+Migrasi `20261124130000_d4_kpi_from_d1.sql`. Isinya: mulai periode 2026-11, KPI posisi yang dipetakan D1 diambil dari `d1_kpi_definitions`, jumlah KPI mengikuti D1 asal total bobotnya 100, dan view `d4_kpi_scores_for_d1` disediakan untuk D1. Detail kolomnya ada di API-D4-001 §8.
+
+- **Status:** diterapkan di production pada 24 Nov 2026 lewat SQL Editor, satu transaksi, dengan izin PO (PO D4 Gabriella, disampaikan lewat WebDev). Tercatat di `schema_migrations` sebagai `20261124130000` / `d4-runbook`. Hasil cek sesudah sama dengan yang tertulis di bawah: 8 posisi pegawai berlabel D1 (1001, 1002, 1005, 1007, 1011, 1017, 1032 dengan 5 KPI, 1031 dengan 3 KPI), DIR-GEN, FAT-BIL-001, dan FAT-TRS-ASC tetap D4. Data lama tidak berubah (95 scorecard, 69 entri Daily KPI). Fungsi lama untuk rollback diambil dari live sebelum penerapan.
 
 - **Kondisi live (dicek read-only, 24 Nov 2026):**
   - Ada 9 pemetaan D3 → D1 yang aktif. Delapan sudah punya KPI berbobot 100: COM-CS-MGR, COM-SA, DIR-FAT, FAT-ACC-MGR, FAT-TAX-MGR, FAT-TRS-MGR, dan HCC-HR-MGR dengan 5 KPI, serta IT dengan 3 KPI.
