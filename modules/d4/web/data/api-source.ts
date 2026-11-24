@@ -49,6 +49,7 @@ export const apiSource: D4DataSource = {
   createEvaluation: async (input) => (await post<{ id: string }>("/api/d4/performance-evaluations", input)).id,
   createKpiAssessment: async (input) => (await post<{ id: string }>("/api/d4/kpi-assessments", input)).id,
   createDailyKpi: async (input) => (await post<{ id: string }>("/api/d4/kpi-daily", input)).id,
+  reopenPeriod: async (input) => (await post<{ id: string }>("/api/d4/period-reopenings", input)).id,
   saveCompetency: async (input) => (await post<{ id: string }>("/api/d4/competency-assessments", input)).id,
   createDevelopment: async (input) => (await post<{ id: string }>("/api/d4/development-needs", input)).id,
   updateDevelopment: async (needId, status, notes, edit) => { await post(`/api/d4/development-needs/${encodeURIComponent(needId)}/versions`, { status, notes, ...edit }); },

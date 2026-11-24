@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { openPeriods, periodState, previousMonth, type PeriodReopening } from "@/modules/d4/shared/rules";
+import { assertReopening, openPeriods, periodState, previousMonth, reopenablePeriods, type PeriodReopening } from "@/modules/d4/shared/rules";
 
 // 03:00 UTC is 10:00 WIB, the same day in Jakarta.
 const at = (day: string) => new Date(`${day}T03:00:00Z`);
@@ -41,5 +41,19 @@ describe("open and closed assessment periods (lecturer review, 24 Nov 2026)", ()
 
   it("never opens a period before September 2026, even when a row names it", () => {
     expect(periodState("2026-08", [reopen("2026-08", "2026-12-31")], at("2026-11-24"))).toBe("before-start");
+  });
+
+  it("lists the periods HR can reopen: from September 2026 up to the month before last", () => {
+    expect(reopenablePeriods(at("2026-11-24"))).toEqual(["2026-09"]);
+    expect(reopenablePeriods(at("2026-10-05"))).toEqual([]);
+    expect(reopenablePeriods(at("2027-01-05"))).toEqual(["2026-11", "2026-10", "2026-09"]);
+  });
+
+  it("checks a reopening like the table does", () => {
+    const now = at("2026-11-24");
+    expect(() => assertReopening({ period: "2026-09", openUntil: "2026-11-30", reason: "Terlambat" }, now)).not.toThrow();
+    expect(() => assertReopening({ period: "2026-10", openUntil: "2026-11-30", reason: "Terlambat" }, now)).toThrow(/terbuka dengan sendirinya/);
+    expect(() => assertReopening({ period: "2026-09", openUntil: "2026-08-31", reason: "Terlambat" }, now)).toThrow(/awal periode/);
+    expect(() => assertReopening({ period: "2026-09", openUntil: "2026-11-30", reason: "    " }, now)).toThrow(/5 sampai 500/);
   });
 });

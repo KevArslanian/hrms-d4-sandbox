@@ -88,6 +88,27 @@ export function assertPeriodOpen(period: string, reopenings: readonly PeriodReop
   if (state === "closed") throw new ApiError("VALIDATION_FAILED", PERIOD_CLOSED);
 }
 
+export type PeriodReopeningDraft = { period: string; openUntil: string; reason: string };
+
+/** Periods HR can reopen or close again: from FIRST_PERIOD up to the month before last (later ones are open anyway). */
+export function reopenablePeriods(now = new Date()): string[] {
+  const periods: string[] = [];
+  for (let period = previousMonth(previousMonth(localMonth(now))); period >= FIRST_PERIOD; period = previousMonth(period)) periods.push(period);
+  return periods;
+}
+
+/**
+ * HR reopening an older period, or closing it again with an end date that has passed (the newest row decides).
+ * Same checks as the d4_period_reopenings constraints, so the form answers before the database does.
+ */
+export function assertReopening(input: PeriodReopeningDraft, now = new Date()) {
+  if (input.period < FIRST_PERIOD) throw new ApiError("VALIDATION_FAILED", PERIOD_BEFORE_START);
+  if (!reopenablePeriods(now).includes(input.period)) throw new ApiError("VALIDATION_FAILED", "Periode ini masih terbuka dengan sendirinya. Yang bisa dibuka kembali hanya periode sebelum bulan lalu.");
+  if (input.openUntil < `${input.period}-01`) throw new ApiError("VALIDATION_FAILED", "Tanggal Dibuka sampai tidak boleh sebelum awal periode.");
+  const reason = input.reason.trim().length;
+  if (reason < 5 || reason > 500) throw new ApiError("VALIDATION_FAILED", "Alasan wajib diisi, 5 sampai 500 karakter.");
+}
+
 /** Interview 13 Nov 2026 (0:52:35): a period's assessment is revised at most once, so an employee has at most two records per period. */
 export const MAX_PERIOD_REVISIONS = 1;
 
