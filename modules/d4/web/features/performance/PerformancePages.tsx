@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Eye, History, Plus, Target } from "lucide-react";
+import { CalendarClock, CheckCircle2, Eye, History, Plus, Target } from "lucide-react";
 import { useMemo, useState } from "react";
 import { catalogFor, roleForPosition } from "../../../kpi/catalog";
 import type { DailyCompilation } from "../../../kpi/daily";
@@ -17,6 +17,7 @@ import { DetailHeader, NotFound, PageHeader, Timeline } from "../../ui/layout";
 import { RowActionMenu } from "../../ui/RowActionMenu";
 import { Button, ButtonLink, Card, InfoGrid, Notice, SourceChip, StatusBadge } from "../../ui/primitives";
 import { FinalizeDailyModal } from "../kpi/FinalizeDailyModal";
+import { ReopenPeriodModal } from "./ReopenPeriodModal";
 import { noKpiText, KpiFormModal } from "../kpi/KpiFormModal";
 import { CatalogNotice, SavedScorecardNotice, scorecardStatus } from "../kpi/KpiPages";
 import { useUrlFilters } from "../dashboard/url-filters";
@@ -49,6 +50,7 @@ export function PerformanceListPage() {
   const { values: { q: search, position, department, period, status: progress }, set, reset } = useUrlFilters(["q", "position", "department", "period", "status"]);
   const [adding, setAdding] = useState<{ employeeId?: string } | null>(null);
   const [finalizing, setFinalizing] = useState<Row | null>(null);
+  const [reopening, setReopening] = useState(false);
   // R2: what was just saved; a finalized period is looked up in the current snapshot, since the modal returns no id.
   const [saved, setSaved] = useState<{ id: string } | { employeeId: string; period: string } | null>(null);
   const savedScorecard = saved ? ("id" in saved ? (snapshot.kpiAssessments ?? []).find((item) => item.id === saved.id) : scorecardsOf(snapshot, saved.employeeId).find((item) => item.period === saved.period)) : undefined;
@@ -81,7 +83,10 @@ export function PerformanceListPage() {
 
   return <>
     <PageHeader title="Performance Review" subtitle={t("Core KPI dan Notes per pegawai dan periode, dalam satu penilaian.")}
-      actions={writer && <Button icon={<Plus className="size-4" />} onClick={() => setAdding({})} data-testid="btn-add-penilaian">{t("Add Performance Review")}</Button>} />
+      actions={writer && <>
+        {snapshot.role === "HR" && <Button variant="secondary" icon={<CalendarClock className="size-4" />} onClick={() => setReopening(true)} data-testid="btn-reopen-period">{t("Reopen Period")}</Button>}
+        <Button icon={<Plus className="size-4" />} onClick={() => setAdding({})} data-testid="btn-add-penilaian">{t("Add Performance Review")}</Button>
+      </>} />
     <CatalogNotice />
     <FilterBar canReset={Boolean(search || position || department || period || progress)} onReset={reset}
       search={<SearchInput value={search} onChange={set("q")} placeholder={t("Search name or position")} />}
@@ -124,6 +129,7 @@ export function PerformanceListPage() {
         { label: t("Add Performance Review"), testId: "add-penilaian", icon: <Plus />, onSelect: () => setAdding({ employeeId: row.employee.id }), hidden: !canAssess(snapshot, row.employee.id) },
       ]} />} />
     {adding && <KpiFormModal employeeId={adding.employeeId} onClose={() => setAdding(null)} onSaved={(id) => setSaved({ id })} />}
+    {reopening && <ReopenPeriodModal onClose={() => setReopening(false)} />}
     {finalizing?.compiled && finalizing.period && <FinalizeDailyModal employeeId={finalizing.employee.id} period={finalizing.period} compiled={finalizing.compiled}
       onClose={() => { setSaved({ employeeId: finalizing.employee.id, period: finalizing.period! }); setFinalizing(null); }} />}
   </>;

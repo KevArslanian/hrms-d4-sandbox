@@ -601,3 +601,12 @@ Migrasi `20261124130000_d4_kpi_from_d1.sql` dijalankan di Supabase SQL Editor da
 - **Belum dicek:** isi `d4_kpi_scores_for_d1` (akun baca yang dipakai untuk cek tidak boleh menjalankan `d4_current_role`) dan form di production dengan akun HR.
 - **Rollback:** SQL-nya ada di MIGRATION-RUNBOOK-D4, bagian "KPI dari D1", dan sudah diuji di Postgres 16 lokal.
 
+
+## Layar HR membuka kembali periode · 24 Nov 2026
+
+PO mengizinkan migrasi `20261120120000` dan `20261124150000`. Sampai migrasi itu dijalankan, aturan default tetap berlaku dan tombol ini menjawab "database belum diperbarui".
+
+- **Performance Review → Buka Kembali Periode** (hanya HR): pilih periode lama (Sep 2026 sampai dua bulan lalu), isi Dibuka sampai dan Alasan, lalu Buka kembali. Status tiap periode tampil di pilihan ("tertutup" atau "dibuka sampai …") beserta perubahan terakhir.
+- **Tutup sekarang** muncul untuk periode yang sedang dibuka. Tombol ini menambah baris baru dengan tanggal kemarin, karena tabelnya insert-only dan baris terbaru yang berlaku.
+- **API:** `POST /api/d4/period-reopenings` `{ period, openUntil, reason }`, HR saja (Manager dan Employee 403). Bulan ini, bulan lalu, periode sebelum Sep 2026, tanggal sebelum awal periode, dan alasan di bawah 5 karakter ditolak 422. `actor_employee_id` diisi database dari akun yang login.
+- **Bukti:** `tests/d4/api.test.ts` (POST period-reopenings), `tests/d4/period-state.test.ts`. Dicek di pratinjau lokal: Sep 2026 dibuka sampai 30 Nov lalu muncul di form sebagai "dibuka kembali", Tutup sekarang mengembalikannya ke "tertutup", tampilan ponsel 375 px rapi.

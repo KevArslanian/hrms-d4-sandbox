@@ -5,7 +5,7 @@ import { scaleMaxOf } from "../../kpi/scale";
 import { performanceFixtureRecords } from "../../performance/fixtures";
 import { validatePerformanceInput } from "../../performance/validation";
 import { d4ReferenceFixture } from "../../shared/fixtures";
-import { assertDailyDate, assertGapAssessed, assertPicFilled, canFillDaily, closeGapBlockedReason, closeGapNotes, openTrainingCount, trainingSyncRevision, localMonth, localToday, assertTrainingDate, assertNeedOpen, assertNoOpenNeed, assertTrainingResult, assertNotSelf, assertPeriodOpen, assertPeriodRevision, assertTrainingChange, nextDevelopmentRevision, planTrainingCompletion, retrainingNotes } from "../../shared/rules";
+import { assertDailyDate, assertGapAssessed, assertPicFilled, canFillDaily, closeGapBlockedReason, closeGapNotes, openTrainingCount, trainingSyncRevision, localMonth, localToday, assertTrainingDate, assertNeedOpen, assertNoOpenNeed, assertTrainingResult, assertNotSelf, assertPeriodOpen, assertPeriodRevision, assertReopening, assertTrainingChange, nextDevelopmentRevision, planTrainingCompletion, retrainingNotes } from "../../shared/rules";
 import type { D4LiveSnapshot, KpiAssessment, KpiAssessmentLine, KpiDailyEntry } from "../../supabase/types";
 import { latestDevelopment, latestTraining } from "../../supabase/types";
 import { trainingFixtureVersions } from "../../training/fixtures";
@@ -230,6 +230,12 @@ export function createFixtureSource(): D4DataSource {
       const id = newId("FIX-D4-DAILY");
       update({ kpiDaily: [{ id, definitionVersion: periodCatalog.version, employeeId: state.actorEmployeeId, entryDate: draft.entryDate, period, roleOrder, roleName: indicators[0].role_name, lines, overallScore: total(lines), createdAt: now() }, ...(state.kpiDaily ?? [])] });
       return id;
+    },
+    async reopenPeriod(input) {
+      if (state.role !== "HR") throw new Error("Hanya HR yang dapat membuka atau menutup kembali periode.");
+      assertReopening(input);
+      update({ periodReopenings: [{ period: input.period, openUntil: input.openUntil, reason: input.reason.trim(), createdAt: now() }, ...(state.periodReopenings ?? [])] });
+      return newId("FIX-D4-REOPEN");
     },
     async saveCompetency(input) {
       assertWriter();
