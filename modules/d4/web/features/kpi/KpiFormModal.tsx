@@ -179,6 +179,10 @@ export function KpiFormModal({ employeeId, period: startAt, onClose, onSaved }: 
   const selected = employeeById(snapshot, employee);
   const position = positionOf(snapshot, selected);
   const roleName = roleOrder && catalog ? indicatorsFor(catalog, roleOrder)[0]?.role_name : undefined;
+  // Lecturer (24 Nov 2026): an employee already reviewed in the period is not offered, so nobody picks them by accident.
+  // A revision opens from the employee's row, which passes employeeId, so the chosen employee always stays listed.
+  const reviewed = new Set((snapshot.kpiAssessments ?? []).filter((item) => item.period === period).map((item) => item.employeeId));
+  const choices = assessableEmployees(snapshot).filter((item) => item.id === employee || !reviewed.has(item.id));
 
   /** Loads the saved version of this employee and period, or clears what an earlier saved version left in the form. */
   function loadSaved(id: string, at: string, role: number, blank: KpiAssessmentLine[]) {
@@ -237,7 +241,8 @@ export function KpiFormModal({ employeeId, period: startAt, onClose, onSaved }: 
       <FormError message={error} />
       <div className="grid gap-4 sm:grid-cols-3">
         <SearchSelectField label={t("Employee")} testId="employee" required value={employee} onChange={(value) => chooseEmployee(value)} error={touched && !employee ? t("Employee wajib diisi.") : undefined} className="sm:col-span-2" placeholder={t("Select employee")}
-          options={assessableEmployees(snapshot).map((item) => ({ value: item.id, label: `${item.fullName} · ${item.employeeId}` }))} />
+          helper={reviewed.size ? t("Pegawai yang sudah dinilai di periode ini tidak ditampilkan. Revisi dibuka dari baris pegawai tersebut.") : undefined}
+          options={choices.map((item) => ({ value: item.id, label: `${item.fullName} · ${item.employeeId}` }))} />
         {/* Stella (PST 2) asked why Period and the date can be changed but Evaluator cannot; the answer sits under each field. */}
         <SelectField label={t("Period")} testId="period" required value={period} onChange={(event) => choosePeriod(event.target.value)} helper={t("Hanya periode yang terbuka: bulan ini dan bulan lalu, atau periode lama yang dibuka kembali oleh HR.")}>
           {open.map((item) => <option key={item} value={item}>{`${formatPeriod(item, language)} · ${t(item === thisMonth() ? "bulan ini" : item === previousMonth(thisMonth()) ? "bulan lalu" : "dibuka kembali")}`}</option>)}
@@ -246,8 +251,8 @@ export function KpiFormModal({ employeeId, period: startAt, onClose, onSaved }: 
         <ReadOnlyField label={t("Department")} testId="department" value={departmentOf(snapshot, selected)?.name ?? "—"} />
         <ReadOnlyField label={t("Position KPI")} testId="kpi-jabatan" value={!employee ? "—" : roleName ?? (catalog ? t("Not in catalog {version} yet", { version: catalog.version }) : t("No KPI catalog for this period"))}
           helper={employee && roleName && catalog ? catalogText(catalog, roleOrder, t) : undefined} />
-        {/* A disabled input, not ReadOnlyField: Katalon finds this field by input-evaluation-date. */}
-        <TextField label={t("Evaluation date")} testId="evaluation-date" disabled readOnly value={formatDate(date, language)} helper={t("Otomatis tanggal hari ini saat disimpan, jadi penilaian tidak bisa dicatat mundur.")} />
+        {/* Text, not a disabled input (lecturer, 24 Nov 2026): an input can be re-enabled in the browser's inspector. The server stores the day of the save anyway. */}
+        <ReadOnlyField label={t("Evaluation date")} testId="evaluation-date" value={formatDate(date, language)} helper={t("Otomatis tanggal hari ini saat disimpan, jadi penilaian tidak bisa dicatat mundur.")} />
         <ReadOnlyField label={t("Evaluator")} testId="evaluator" value={evaluator || "—"} className="sm:col-span-2" helper={t("Otomatis akun yang menyimpan, supaya penilaian tidak tercatat atas nama orang lain.")} />
       </div>
       {closedStart && <div data-testid="period-closed"><Notice tone="warning">{t("Periode {period} sudah ditutup, jadi form dibuka di {open}. HR dapat membuka kembali periode lama bila penilaiannya terlambat.", { period: formatPeriod(closedStart, language), open: formatPeriod(startPeriod, language) })}</Notice></div>}
@@ -266,12 +271,10 @@ export function KpiFormModal({ employeeId, period: startAt, onClose, onSaved }: 
               <td data-label="No" className={cx("px-3 pt-2.5 text-ink-3", mobileLabel)}>{line.indicator_order}</td>
               <td data-label="Core KPI" className={cx("px-3 pt-2", mobileLabel, "max-md:col-span-2")}><input data-testid={`input-core-kpi-${line.indicator_order}`} aria-label={`Core KPI ${line.indicator_order}`} aria-invalid={touched && !line.kpi_name.trim()} maxLength={200} value={line.kpi_name} onChange={(event) => setLine(index, { kpi_name: event.target.value })} className={cx(inputStyle, "font-semibold aria-[invalid=true]:border-danger")} /></td>
               <td data-label={t("Weight")} className={cx("px-3 pt-2.5 tabular-nums", mobileLabel)}>{line.weight_percent}%</td>
-              <td data-label={t("Actual 1–{max}", { max })} className={cx("px-3 pt-2", mobileLabel)}><input type="number" inputMode="numeric" min={1} max={max} step={1} data-testid={`input-realisasi-${line.indicator_order}`} aria-label={t("Actual {kpi}", { kpi: line.kpi_name })} aria-invalid={touched && !validScore(line.raw_score, max)} value={line.raw_score ?? ""} onChange={(event) => {
-                // A number input keeps "00085" on screen while the state holds 85, so the cleaned text is written back.
+              <td data-label={t("Actual 1–{max}", { max })} className={cx("px-3 pt-2", mobileLabel)}><input type="text" inputMode="numeric" data-testid={`input-realisasi-${line.indicator_order}`} aria-label={t("Actual {kpi}", { kpi: line.kpi_name })} aria-invalid={touched && !validScore(line.raw_score, max)} value={line.raw_score ?? ""} onChange={(event) => {
+                // Text, as on Daily KPI: a number input accepts "-", "e" and "+" and reports them as an empty value.
                 const text = typedScore(event.target.value, max);
-                if (text === null) return;
-                if (text !== event.target.value) event.target.value = text;
-                setLine(index, actualInput(text));
+                if (text !== null) setLine(index, actualInput(text));
               }} className={cx(inputStyle, "tabular-nums aria-[invalid=true]:border-danger")} />
                 {basis?.lines[index] && <SavedScore before={basis.lines[index].raw_score} now={line.raw_score} testId={`saved-score-${line.indicator_order}`} />}</td>
               {max === 100 && <td data-label={`Gap vs ${KPI_TARGET}`} data-testid={`kpi-gap-${line.indicator_order}`} className={cx("px-3 pt-2.5 tabular-nums text-ink-2", mobileLabel)}>{validScore(line.raw_score, max) ? formatGap(line.raw_score, catalog?.version, t) : "—"}</td>}
