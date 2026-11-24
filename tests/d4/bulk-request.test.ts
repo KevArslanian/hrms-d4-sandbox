@@ -15,7 +15,8 @@ describe("bulk training save through the bulk endpoint", () => {
   it("sends BULK_CHUNK rows per request and maps each result back to its row", async () => {
     const live = source(async (items) => items.map((item) => item.op === "create" && item.developmentNeedId === "need-3" ? { ok: false, message: "Sudah Completed." } : { ok: true }));
     const outcome = await addTrainingToNeeds(live.source, needs, training);
-    expect(live.calls.map((items) => items.length)).toEqual([BULK_CHUNK, BULK_CHUNK, 45 - 2 * BULK_CHUNK]);
+    expect(live.calls.map((items) => items.length)).toEqual([10, 10, 10, 10, 5]);
+    expect(BULK_CHUNK).toBe(10);
     expect(live.calls[0][0]).toEqual({ op: "create", employeeId: "emp-0", developmentNeedId: "need-0", activity: "Uji", date: "2026-12-01", status: "Planned", result: "", notes: "" });
     expect(outcome.done).toHaveLength(44);
     expect(outcome.failed).toEqual([{ key: "need-3", label: "Pegawai 3", message: "Sudah Completed." }]);

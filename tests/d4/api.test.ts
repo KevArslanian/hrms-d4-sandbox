@@ -581,12 +581,21 @@ describe("POST /training-records/bulk", () => {
     expect(writes.map((item) => item.method)).toEqual(["updateTraining", "recordTrainingFollowUp"]);
   });
 
-  it("reloads the snapshot before a row of an employee an earlier row wrote", async () => {
+  it("checks create and version rows of one employee against the same snapshot", async () => {
     const res = await bulk([
       { op: "create", employeeId: ALFA, developmentNeedId: NEED, activity: "Uji", date: "2026-12-01", status: "Planned", result: "", notes: "" },
       { op: "version", trainingId: TRAINING, status: "In Progress", result: "", notes: "" },
     ]);
     expect(res.body.data).toEqual({ results: [{ ok: true }, { ok: true }] });
+    expect(snapshotLoads).toBe(1);
+  });
+
+  // Completion reads the requirement, the latest trainings and the last assessment, which an earlier row can change.
+  it("reloads the snapshot before completing a training of an employee an earlier row wrote", async () => {
+    const first = snapshot.trainingVersions.find((item) => item.trainingId === TRAINING)!;
+    snapshot = { ...snapshot, trainingVersions: [{ ...first, id: uuid(21), trainingId: uuid(20) }, ...snapshot.trainingVersions] };
+    const otherFollowUp = (trainingId: string) => ({ op: "complete", trainingId, result: "Not Passed", decision: "Other follow-up", notes: "Coaching oleh atasan" });
+    await bulk([otherFollowUp(TRAINING), otherFollowUp(uuid(20))]);
     expect(snapshotLoads).toBe(2);
   });
 

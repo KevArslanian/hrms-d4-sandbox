@@ -24,8 +24,8 @@ export async function eachInOrder<T>(items: readonly T[], key: (item: T) => stri
   return outcome;
 }
 
-/** Rows per bulk request: each stays well under the 20 s request timeout, so a slow batch is not cut off half-written. */
-export const BULK_CHUNK = 20;
+/** Rows per bulk request: each stays well under the bulk request timeout, so a slow batch is not cut off half-written. */
+export const BULK_CHUNK = 10;
 
 const runOne = (source: D4DataSource, item: BulkTrainingItem) => item.op === "create" ? source.createTraining(item)
   : item.op === "version" ? source.updateTraining(item.trainingId, item.status, item.result, item.notes)
