@@ -1,7 +1,7 @@
 import type { KpiCatalogSet } from "../../kpi/catalog";
 import type { DevelopmentPriority, DevelopmentSourceType, DevelopmentStatus } from "../../development/types";
 import type { EvaluationInput } from "../../performance/types";
-import type { DevelopmentChange, TrainingCompletion } from "../../shared/rules";
+import type { DevelopmentChange, PeriodReopeningDraft, TrainingCompletion } from "../../shared/rules";
 import type { D4LiveSnapshot, KpiAssessmentLine } from "../../supabase/types";
 import type { TrainingStatus } from "../../training/types";
 
@@ -40,6 +40,8 @@ export interface D4DataSource {
   createEvaluation(input: EvaluationDraft): Promise<string>;
   createKpiAssessment(input: KpiAssessmentDraft): Promise<string>;
   createDailyKpi(input: DailyKpiDraft): Promise<string>;
+  /** HR only: reopen an older period until a date, or close it again with a date that has passed. */
+  reopenPeriod(input: PeriodReopeningDraft): Promise<string>;
   saveCompetency(input: { employeeId: string; positionId: string; effectiveDate: string; assessedWith?: string }): Promise<string>;
   createDevelopment(input: DevelopmentDraft): Promise<string>;
   updateDevelopment(needId: string, status: DevelopmentStatus, notes: string, edit?: DevelopmentEdit): Promise<void>;

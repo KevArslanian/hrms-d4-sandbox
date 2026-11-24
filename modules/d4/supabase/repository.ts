@@ -5,7 +5,7 @@ import type { DevelopmentNeedVersion, DevelopmentPriority, DevelopmentReassessme
 import type { EvaluationAspect, EvaluationInput, PerformanceEvaluation } from "../performance/types";
 import { validatePerformanceInput } from "../performance/validation";
 import { ApiError, databaseError, enforce } from "../shared/errors";
-import { retrainingNotes, type DevelopmentRevision, type PeriodReopening, type TrainingFollowUpInput } from "../shared/rules";
+import { retrainingNotes, type DevelopmentRevision, type PeriodReopening, type PeriodReopeningDraft, type TrainingFollowUpInput } from "../shared/rules";
 import type { ReferenceDataRepository } from "../shared/services";
 import type { ReferenceDataSnapshot } from "../shared/types";
 import type { TrainingFollowUp, TrainingStatus, TrainingVersion } from "../training/types";
@@ -58,6 +58,8 @@ interface RawTrainingVersion { id: string; training_id: string; revision: number
 /** Shown when a follow-up is saved before migration 20261020130000 adds d4_training_versions.follow_up. */
 /** Shown when a daily entry is saved before migration 20261108130000 creates d4_kpi_daily_entries. */
 export const DAILY_NOT_READY = "Daily KPI belum bisa disimpan karena database belum diperbarui (migrasi 20261108130000). Hubungi admin HRMS.";
+/** Shown when a period is reopened before migration 20261124150000 creates d4_period_reopenings. */
+export const REOPENING_NOT_READY = "Periode belum bisa dibuka kembali karena database belum diperbarui (migrasi 20261124150000). Hubungi admin HRMS.";
 // PostgREST answers PGRST205 for a table it does not know; Postgres itself answers 42P01.
 const missingTable = (error: { code?: string } | null) => error?.code === "PGRST205" || error?.code === "42P01";
 
@@ -224,6 +226,16 @@ export class SupabaseD4Repository implements ReferenceDataRepository {
     }).select("id").single();
     if (missingTable(result.error)) throw new ApiError("CONFIGURATION_ERROR", DAILY_NOT_READY);
     return take(result, "Save daily KPI").id;
+  }
+
+  // actor_employee_id is left to the column default (the signed-in HR account), which the insert policy requires.
+  async savePeriodReopening(input: PeriodReopeningDraft): Promise<string> {
+    await this.requireUser();
+    const result = await this.client.from("d4_period_reopenings").insert({
+      period: input.period, open_until: input.openUntil, reason: input.reason.trim(),
+    }).select("id").single();
+    if (missingTable(result.error)) throw new ApiError("CONFIGURATION_ERROR", REOPENING_NOT_READY);
+    return take(result, "Buka kembali periode").id;
   }
 
   async saveKpiAssessment(input: KpiAssessmentInput): Promise<string> {
