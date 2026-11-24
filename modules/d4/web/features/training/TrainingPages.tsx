@@ -72,7 +72,7 @@ export function TrainingListPage() {
   // Bulk progress is for trainings still running; a finished one takes its decision per person from its Next step.
   const selectable = (item: TrainingVersion) => (item.status === "Planned" || item.status === "In Progress") && canAssess(snapshot, item.employeeId);
   const rowLabel = (item: TrainingVersion) => `${employeeById(snapshot, item.employeeId)?.fullName ?? "—"} · ${item.activity}`;
-  const bulkTrainings = rows.filter((item) => selected.has(item.trainingId) && selectable(item)).map((item) => ({ key: item.trainingId, label: rowLabel(item), detail: `${formatDate(item.date, language)} · ${statusLabel(item.status)}`, status: item.status }));
+  const bulkTrainings = rows.filter((item) => selected.has(item.trainingId) && selectable(item)).map((item) => ({ key: item.trainingId, label: rowLabel(item), detail: `${formatDate(item.date, language)} · ${t(statusLabel(item.status))}`, status: item.status }));
 
   return <>
     <PageHeader title="Training Tracking" subtitle={t("Pantau training dan development dari requirement sumber sampai hasilnya.")}
@@ -81,7 +81,7 @@ export function TrainingListPage() {
       search={<SearchInput value={search} onChange={setSearch} placeholder={t("Search name or position")} />}
       period={<PeriodFilter label={t("Periods")} testId="all-periods" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item, language) }))} />}>
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label={t("Departments")} testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />}
-      <SelectFilter label={t("Status")} testId="all-status" value={status} onChange={setStatus} options={["Planned", "In Progress", "Completed", "Cancelled"].map((item) => ({ value: item, label: statusLabel(item) }))} />
+      <SelectFilter label={t("Status")} testId="all-status" value={status} onChange={setStatus} options={["Planned", "In Progress", "Completed", "Cancelled"].map((item) => ({ value: item, label: t(statusLabel(item)) }))} />
     </FilterBar>
     {/* PST 2: no "Show Completed" link beside the filter; the Status filter is the one way in, and its panel holds Reset. */}
     {archived.length > 0 && <p data-testid="archived-hint" className="px-1 text-xs text-ink-2">
@@ -91,7 +91,7 @@ export function TrainingListPage() {
         : t("{count} training Cancelled tidak tampil di daftar aktif. Pilih Status di Filter untuk melihatnya.", { count: archivedCancelled })}
     </p>}
     {/* Update Progress closes before the refresh; until it lands the notice would name the old status. */}
-    {saved && !busy && <SavedNotice text={t("Training \"{activity}\" untuk {name} tersimpan ({status}).", { activity: saved.activity, name: employeeById(snapshot, saved.employeeId)?.fullName ?? "", status: statusLabel(saved.status) })} href={`/training/${saved.trainingId}`} />}
+    {saved && !busy && <SavedNotice text={t("Training \"{activity}\" untuk {name} tersimpan ({status}).", { activity: saved.activity, name: employeeById(snapshot, saved.employeeId)?.fullName ?? "", status: t(statusLabel(saved.status)) })} href={`/training/${saved.trainingId}`} />}
     <DataTable<TrainingVersion> rows={rows} noun="trainings" rowKey={(row) => row.trainingId} justSaved={saved}
       emptyTitle={filtered ? t("Tidak ada training yang cocok") : archived.length ? t("Semua training sudah selesai") : t("Belum ada training")}
       emptyText={filtered ? t("Ubah kata kunci atau reset filter.") : archived.length ? t("Pilih Status Completed atau Cancelled di Filter untuk melihatnya.") : canWrite(snapshot) ? t("Buat dengan Add Training: pilih requirement setiap pegawai yang ikut.") : t("Belum ada training yang tercatat.")}
@@ -165,7 +165,7 @@ export function TrainingDetailPage({ trainingId }: { trainingId: string }) {
         <div className="mt-6"><InfoGrid columns={3} items={[
           { label: t("Training date"), testId: "date", value: formatDate(record.date, language) },
           { label: t("Status"), value: <StatusBadge status={record.status} /> },
-          { label: t("Result"), testId: "result", value: record.result || t("Not recorded yet") },
+          { label: t("Result"), testId: "result", value: record.result ? t(record.result) : t("Not recorded yet") },
           { label: t("Last updated"), testId: "last-updated", value: `${formatDateTime(record.createdAt, language)} · ${record.actor}` },
         ]} /></div>
         <h3 className="mb-2 mt-8 font-display text-sm font-semibold text-ink-2">{t("Notes")}</h3>
@@ -188,12 +188,12 @@ export function TrainingDetailPage({ trainingId }: { trainingId: string }) {
         {notPassed && followUp && <Card title={t("Follow-up")} testId="training-follow-up">
           <p className="text-sm text-ink"><span data-testid="follow-up-value" className="font-semibold">{followUp.followUp}</span> · {formatDate(followUp.createdAt, language)} · {followUp.actor}</p>
           {followUp.notes && <p className="mt-2 whitespace-pre-wrap break-words text-sm text-ink-2">{followUp.notes}</p>}
-          {retrainings.map((item) => <div key={item.trainingId} data-testid={`retraining-${item.trainingId}`} className="mt-3"><SourceChip label="Retraining" reference={`${item.activity} · ${statusLabel(item.status)}`} href={`/training/${item.trainingId}`} /></div>)}
+          {retrainings.map((item) => <div key={item.trainingId} data-testid={`retraining-${item.trainingId}`} className="mt-3"><SourceChip label="Retraining" reference={`${item.activity} · ${t(statusLabel(item.status))}`} href={`/training/${item.trainingId}`} /></div>)}
         </Card>}
         <Card title={t("Source requirement")} testId="source-requirement">
-          {need ? <><SourceChip label="Development Requirement" reference={statusLabel(need.status)} href={`/development/${need.needId}`} /><p className="mt-3 text-sm text-ink">{need.objective}</p>
+          {need ? <><SourceChip label="Development Requirement" reference={t(statusLabel(need.status))} href={`/development/${need.needId}`} /><p className="mt-3 text-sm text-ink">{need.objective}</p>
             <div className="mt-3"><ReassessmentBadge snapshot={snapshot} needId={need.needId} /></div>
-            {nextRound.map((item) => <div key={item.trainingId} data-testid={`retraining-${item.trainingId}`} className="mt-3"><SourceChip label="Retraining" reference={`${item.activity} · ${statusLabel(item.status)}`} href={`/training/${item.trainingId}`} /></div>)}</> : <p className="text-sm text-ink-3">{t("Requirement sumber tidak tersedia.")}</p>}
+            {nextRound.map((item) => <div key={item.trainingId} data-testid={`retraining-${item.trainingId}`} className="mt-3"><SourceChip label="Retraining" reference={`${item.activity} · ${t(statusLabel(item.status))}`} href={`/training/${item.trainingId}`} /></div>)}</> : <p className="text-sm text-ink-3">{t("Requirement sumber tidak tersedia.")}</p>}
         </Card>
         {/* Once Completed, the Next step or Follow-up card above already says what comes after. */}
         {record.status !== "Completed" && <Notice tone="warning">{t("Training yang Completed tidak otomatis membuat gap kompetensi terpenuhi. Gap tetap terbuka sampai dinilai ulang.")}</Notice>}

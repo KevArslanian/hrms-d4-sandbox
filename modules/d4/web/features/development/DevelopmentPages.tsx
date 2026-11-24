@@ -24,7 +24,8 @@ import { archivedCount, developmentRows } from "./rows";
  * (interview 13 Nov 2026, 1:06:52). `compact`: under the objective, where the Priority column is hidden below 1280 px.
  */
 function PriorityCell({ priority, compact }: { priority: DevelopmentNeedVersion["priority"]; compact?: boolean }) {
-  if (priority !== "High") return compact ? null : <>{statusLabel(priority)}</>;
+  const { t } = useLanguage();
+  if (priority !== "High") return compact ? null : <>{t(statusLabel(priority))}</>;
   return <span data-testid={compact ? "cell-priority-compact" : "priority-high"} className={compact ? "mt-1.5 block min-[1280px]:hidden" : undefined}><StatusBadge status="High" /></span>;
 }
 
@@ -34,11 +35,12 @@ function PriorityCell({ priority, compact }: { priority: DevelopmentNeedVersion[
  * `compact`: a short line next to the status, which may wrap so the table still fits a laptop.
  */
 export function ReassessmentBadge({ snapshot, needId, compact }: { snapshot: Snapshot; needId: string; compact?: boolean }) {
+  const { t } = useLanguage();
   const state = reassessmentFor(snapshot, needId);
   if (!state) return null;
   const status = state === "pending" ? REASSESSMENT_PENDING : state;
   return compact
-    ? <span data-testid="reassessment-result" className="block max-w-28 text-xs leading-4 text-ink-2">{statusLabel(status)}</span>
+    ? <span data-testid="reassessment-result" className="block max-w-28 text-xs leading-4 text-ink-2">{t(statusLabel(status))}</span>
     : <span data-testid="reassessment-result"><StatusBadge status={status} /></span>;
 }
 
@@ -87,7 +89,7 @@ function NextStepCell({ snapshot, need, writer, ...handlers }: { snapshot: Snaps
   </div>;
   // Two lines rather than a chip, so the training name is not cut to a few letters in this narrow column.
   if (step.kind === "running") return <Link href={`/training/${step.training.trainingId}`} data-testid="link-row-training" className="block rounded-lg text-xs leading-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500">
-    <span className="font-semibold text-primary-600">{step.retraining ? "Retraining" : "Training"}</span><span className="text-ink-3"> · {statusLabel(step.training.status)}</span>
+    <span className="font-semibold text-primary-600">{step.retraining ? "Retraining" : "Training"}</span><span className="text-ink-3"> · {t(statusLabel(step.training.status))}</span>
     <span className="mt-0.5 line-clamp-2 break-words text-ink-2">{step.training.activity}</span>
   </Link>;
   if (step.kind === "create") return writer ? <StepButton step={step} row {...handlers} /> : <span className="text-xs text-ink-3">{t("Belum ada training")}</span>;
@@ -106,14 +108,14 @@ function NextStepCard({ snapshot, need, writer, ...handlers }: { snapshot: Snaps
       ? t("Training \"{activity}\" Not Passed. Pilih Retraining (training ulang dibuat, status Planned) atau Other follow-up dengan catatan.", { activity: step.training.activity })
       : t("Training \"{activity}\" Passed. Pilih Meets requirement bila level kompetensi sudah memenuhi, atau Retraining bila penilaian ulang di Competency Gap sesudah training masih menunjukkan gap.", { activity: step.training.activity })
     : step.kind === "running"
-      ? t("{kind} berjalan: \"{activity}\" ({status}). Perbarui progresnya di Training Tracking; setelah Completed, keputusan berikutnya muncul di sini.", { kind: step.retraining ? "Retraining" : "Training", activity: step.training.activity, status: statusLabel(step.training.status) })
+      ? t("{kind} berjalan: \"{activity}\" ({status}). Perbarui progresnya di Training Tracking; setelah Completed, keputusan berikutnya muncul di sini.", { kind: step.retraining ? "Retraining" : "Training", activity: step.training.activity, status: t(statusLabel(step.training.status)) })
       : step.kind === "create"
         ? step.retraining ? t("Retraining sudah dipilih, tetapi training ulangnya belum dibuat. Buat training ulang untuk requirement ini.") : t("Belum ada training untuk requirement ini. Buat training; status requirement ikut berubah otomatis.")
         : step.meets ? t("Requirement ditutup: Meets requirement.") : t("Requirement ditutup tanpa reassessment.");
   return <Card title={t("Next step")} testId="development-next-step">
     <p data-testid="next-step-text" className="break-words text-sm text-ink-2">{text}</p>
     {finding && <div className="mt-3"><LevelLine finding={finding} /></div>}
-    {step.kind === "running" && <div className="mt-3"><SourceChip label={step.retraining ? "Retraining" : "Training"} reference={statusLabel(step.training.status)} href={`/training/${step.training.trainingId}`} /></div>}
+    {step.kind === "running" && <div className="mt-3"><SourceChip label={step.retraining ? "Retraining" : "Training"} reference={t(statusLabel(step.training.status))} href={`/training/${step.training.trainingId}`} /></div>}
     {writer && (step.kind === "decide" || step.kind === "create") && <div className="mt-4"><StepButton step={step} {...handlers} /></div>}
   </Card>;
 }
@@ -160,16 +162,16 @@ export function DevelopmentListPage() {
       search={<SearchInput value={search} onChange={setSearch} placeholder={t("Search name or position")} />}
       period={<PeriodFilter label={t("Periods")} testId="all-periods" value={period} onChange={setPeriod} options={periods.map((item) => ({ value: item, label: formatPeriod(item, language) }))} />}>
       <SelectFilter label={t("Sources")} testId="all-sources" value={sourceType} onChange={setSourceType} options={(Object.keys(sourceTypeLabel) as DevelopmentSourceType[]).map((key) => ({ value: key, label: t(sourceTypeLabel[key]) }))} />
-      <SelectFilter label={t("Status")} testId="all-status" value={status} onChange={setStatus} options={["Identified", "Planned", "In Progress", "Completed"].map((item) => ({ value: item, label: statusLabel(item) }))} />
+      <SelectFilter label={t("Status")} testId="all-status" value={status} onChange={setStatus} options={["Identified", "Planned", "In Progress", "Completed"].map((item) => ({ value: item, label: t(statusLabel(item)) }))} />
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label={t("Departments")} testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />}
       <SelectFilter label={t("Competencies")} testId="all-competencies" value={competency} onChange={setCompetency} options={competencyOptions(snapshot)} />
-      <SelectFilter label={t("Priorities")} testId="all-priorities" value={priority} onChange={setPriority} options={["High", "Medium", "Low"].map((item) => ({ value: item, label: statusLabel(item) }))} />
+      <SelectFilter label={t("Priorities")} testId="all-priorities" value={priority} onChange={setPriority} options={["High", "Medium", "Low"].map((item) => ({ value: item, label: t(statusLabel(item)) }))} />
     </FilterBar>
     {archived > 0 && <p data-testid="archived-hint" className="px-1 text-xs text-ink-2">
       {t("{count} requirement Completed tidak tampil di daftar aktif. Pilih Status Completed di Filter untuk melihatnya.", { count: archived })}
     </p>}
     {savedTraining ? <SavedNotice text={t("Training \"{activity}\" untuk {name} tersimpan.", { activity: savedTraining.activity, name: savedName ?? "" })} href={`/training/${savedTraining.trainingId}`} />
-      : savedNeed && <SavedNotice text={t("Development requirement {name} tersimpan ({status}).", { name: savedName ?? "", status: statusLabel(savedNeed.status) })} href={`/development/${savedNeed.needId}`} />}
+      : savedNeed && <SavedNotice text={t("Development requirement {name} tersimpan ({status}).", { name: savedName ?? "", status: t(statusLabel(savedNeed.status)) })} href={`/development/${savedNeed.needId}`} />}
     <DataTable<DevelopmentNeedVersion> rows={rows} noun="requirements" rowKey={(row) => row.needId} justSaved={savedNeed || undefined}
       emptyTitle={filtered ? t("Tidak ada requirement yang cocok") : archived ? t("Semua requirement sudah Completed") : t("Belum ada development requirement")}
       emptyText={filtered ? t("Ubah kata kunci atau reset filter.") : archived ? t("Pilih Status Completed di Filter untuk melihatnya.") : writer ? t("Buat dari gap kompetensi, perubahan posisi, atau evaluasi performance dengan Add Requirement.") : t("Belum ada development requirement yang tercatat.")}
@@ -258,7 +260,7 @@ export function DevelopmentDetailPage({ needId }: { needId: string }) {
       <Card title="Requirement">
         <p className="break-words font-display font-semibold text-lg text-ink">{need.objective}</p>
         <div className="mt-6"><InfoGrid columns={3} items={[
-          { label: t("Priority"), testId: "priority", value: statusLabel(need.priority) },
+          { label: t("Priority"), testId: "priority", value: t(statusLabel(need.priority)) },
           { label: t("Method"), testId: "method", value: need.method || "—" },
           { label: "PIC", testId: "pic", value: need.pic || "—" },
           { label: t("Status"), value: <><StatusBadge status={need.status} /><AwaitingDecision snapshot={snapshot} need={need} /></> },
@@ -277,7 +279,7 @@ export function DevelopmentDetailPage({ needId }: { needId: string }) {
           <p className="mt-4 text-xs text-ink-3">{t("Requirement tetap terhubung ke sumber aslinya walaupun posisi pegawai berubah.")}</p>
         </Card>
         <Card title={t("Linked training")} testId="linked-training">
-          {linked.length ? <div className="flex flex-col items-start gap-2">{linked.map((item) => <SourceChip key={item.trainingId} label={item.activity} reference={statusLabel(item.status)} href={`/training/${item.trainingId}`} />)}</div>
+          {linked.length ? <div className="flex flex-col items-start gap-2">{linked.map((item) => <SourceChip key={item.trainingId} label={item.activity} reference={t(statusLabel(item.status))} href={`/training/${item.trainingId}`} />)}</div>
             : <p className="text-sm text-ink-3">{t("Belum ada training untuk requirement ini.")}</p>}
         </Card>
       </div>

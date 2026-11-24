@@ -21,7 +21,7 @@ import { DevelopmentFormModal } from "../development/DevelopmentModals";
 import { ReassessmentBadge } from "../development/DevelopmentPages";
 import { closingRequirement, competencyOptions, competencyRows, findingLogic, formatDifference, type CompetencyRow as Row } from "./rows";
 
-// Compared with statusLabel(row.status), so these are the English display labels.
+// Compared with t(statusLabel(row.status)), so these are the English display labels.
 const STATUS_FILTER = ["Not Evaluated", "Met", "Gap", "Insufficient Data"];
 
 /** Optional "Dinilai bersama" (interview D4: after training HR evaluates with the department that raised the need). */
@@ -43,11 +43,12 @@ function Bold({ text, words }: { text: string; words: Record<string, string> }) 
 
 /** The requirement that closes a gap (Q15): its objective links to it, then its status, the reassessment and the latest training. */
 function ClosingRequirement({ snapshot, need }: { snapshot: Snapshot; need: DevelopmentNeedVersion }) {
+  const { t } = useLanguage();
   const training = trainingsOf(snapshot, need.employeeId).find((item) => item.developmentNeedId === need.needId);
   return <div className="flex max-w-[280px] flex-col items-start gap-1.5">
     <Link href={`/development/${need.needId}`} data-testid="link-gap-requirement" className="line-clamp-2 font-semibold text-primary-600 hover:underline">{need.objective}</Link>
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1"><StatusBadge status={need.status} /><ReassessmentBadge snapshot={snapshot} needId={need.needId} compact /></div>
-    {training && <span data-testid="gap-training" className="text-xs text-ink-3">Training: {training.activity} · {statusLabel(training.status === "Completed" && training.result ? training.result : training.status)}</span>}
+    {training && <span data-testid="gap-training" className="text-xs text-ink-3">Training: {training.activity} · {t(statusLabel(training.status === "Completed" && training.result ? training.result : training.status))}</span>}
   </div>;
 }
 
@@ -84,7 +85,7 @@ export function CompetencyListPage() {
     <FilterBar canReset={filtered} onReset={() => { setSearch(""); setPosition(""); setDepartment(""); setStatus(""); setCompetency(""); }}
       search={<SearchInput value={search} onChange={setSearch} placeholder={t("Search name or position")} />}>
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label={t("Departments")} testId="all-departments" value={department} onChange={setDepartment} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />}
-      <SelectFilter label={t("Status")} testId="all-gap-status" value={status} onChange={setStatus} options={STATUS_FILTER.map((item) => ({ value: item, label: item }))} />
+      <SelectFilter label={t("Status")} testId="all-gap-status" value={status} onChange={setStatus} options={STATUS_FILTER.map((item) => ({ value: item, label: t(item) }))} />
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label={t("Competencies")} testId="all-competencies" value={competency} onChange={setCompetency} options={competencyOptions(snapshot)} />}
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label={t("Positions")} testId="all-positions" value={position} onChange={setPosition} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />}
     </FilterBar>

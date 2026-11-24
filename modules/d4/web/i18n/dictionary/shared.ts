@@ -1,6 +1,33 @@
 import type { Dictionary } from "./types";
 
 export const shared = {
+  // Status words, shown through t(statusLabel(...)) (lecturer, 24 Nov 2026). Values, filters and testids stay English.
+  "Completed": { id: "Selesai" },
+  "In Progress": { id: "Berjalan" },
+  "Planned": { id: "Direncanakan" },
+  "Identified": { id: "Teridentifikasi" },
+  "Cancelled": { id: "Dibatalkan" },
+  "Not Evaluated": { id: "Belum Dinilai" },
+  "Compiled": { id: "Terkompilasi" },
+  "Draft": { id: "Draf" },
+  "Needs Review": { id: "Perlu Ditinjau" },
+  "On Track": { id: "Sesuai Jalur" },
+  "Needs Attention": { id: "Perlu Perhatian" },
+  "High": { id: "Tinggi" },
+  "Medium": { id: "Sedang" },
+  "Low": { id: "Rendah" },
+  "Met": { id: "Terpenuhi" },
+  "Insufficient Data": { id: "Data Belum Cukup" },
+  "Under Performance": { id: "Kinerja Rendah" },
+  "Average Performance": { id: "Kinerja Rata-rata" },
+  "High Performance": { id: "Kinerja Tinggi" },
+  "New": { id: "Baru" },
+  "Updated": { id: "Diperbarui" },
+  "Passed": { id: "Lulus" },
+  "Not Passed": { id: "Tidak Lulus" },
+  "Meets requirement": { id: "Memenuhi requirement" },
+  "Retraining": { id: "Training ulang" },
+  "Needs reassessment": { id: "Perlu dinilai ulang" },
   // Header
   "Language": { id: "Bahasa" },
   // DataTable

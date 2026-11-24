@@ -92,7 +92,7 @@ export function PerformanceListPage() {
       search={<SearchInput value={search} onChange={set("q")} placeholder={t("Search name or position")} />}
       period={<PeriodFilter label={t("Periods")} testId="latest-period" value={period} onChange={set("period")} options={periods.map((item) => ({ value: item, label: formatPeriod(item, language) }))} />}>
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label={t("Departments")} testId="all-departments" value={department} onChange={set("department")} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />}
-      <SelectFilter label={t("Status")} testId="all-status" value={progress} onChange={set("status")} options={STATUS_FILTER.map((item) => ({ value: item, label: item }))} />
+      <SelectFilter label={t("Status")} testId="all-status" value={progress} onChange={set("status")} options={STATUS_FILTER.map((item) => ({ value: item, label: t(item) }))} />
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label={t("Positions")} testId="all-positions" value={position} onChange={set("position")} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />}
     </FilterBar>
     <SavedScorecardNotice scorecard={savedScorecard} />
