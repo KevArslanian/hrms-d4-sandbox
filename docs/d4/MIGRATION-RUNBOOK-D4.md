@@ -257,7 +257,7 @@ Migrasi `20261124150000_d4_period_reopenings.sql`. Isinya:
   - Employee membaca, `anon` ditolak;
   - baris terbaru menutup periode lagi.
 - **Urutan:** deploy aplikasi lebih dulu, lalu terapkan file ini dalam satu transaksi. Catat di `supabase_migrations.schema_migrations` dengan `created_by = 'd4-runbook'`.
-- **Membuka kembali periode (setelah migrasi, oleh HR atau PO):** belum ada layar di aplikasi. Jalankan dengan akun HR, atau di SQL Editor dengan `actor_employee_id` diisi id HR yang meminta:
+- **Membuka kembali periode (setelah migrasi):** HR memakai Performance Review → Buka Kembali Periode. Tanpa aplikasi, jalankan di SQL Editor dengan `actor_employee_id` diisi id HR yang meminta:
 
   ```sql
   insert into public.d4_period_reopenings (period, open_until, reason, actor_employee_id)

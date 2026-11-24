@@ -41,6 +41,7 @@ const repository = {
   savePerformance: record("savePerformance"),
   saveKpiAssessment: record("saveKpiAssessment"),
   saveKpiDailyEntry: record("saveKpiDailyEntry"),
+  savePeriodReopening: record("savePeriodReopening"),
   saveCompetency: record("saveCompetency"),
   createDevelopment: record("createDevelopment"),
   updateDevelopment: record("updateDevelopment", undefined),
@@ -95,6 +96,7 @@ const trainingComplete = await import("@/app/api/d4/training-records/[id]/comple
 const competency = await import("@/app/api/d4/competency-assessments/route");
 const snapshotRoute = await import("@/app/api/d4/snapshot/route");
 const daily = await import("@/app/api/d4/kpi-daily/route");
+const reopen = await import("@/app/api/d4/period-reopenings/route");
 const { latestForPeriod, localToday } = await import("@/modules/d4/shared/rules");
 
 const post = (body: unknown) => new Request("http://test/api", { method: "POST", body: typeof body === "string" ? body : JSON.stringify(body) });
@@ -854,5 +856,38 @@ describe("KPI from D1 through the views", () => {
     const res = await call(kpi.POST(post(body)));
     expect(res.status).toBe(201);
     expect((writes[0].args[0] as { roleOrder: number }).roleOrder).toBe(1007);
+  });
+});
+
+describe("POST /period-reopenings (HR reopens an older period)", () => {
+  const body = (patch: Record<string, unknown> = {}) => ({ period: "2026-09", openUntil: "2026-11-30", reason: "Penilaian terlambat", ...patch });
+  beforeEach(() => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-11-24T03:00:00Z")); });
+  afterEach(() => { vi.useRealTimers(); });
+
+  it("saves the reopening for HR", async () => {
+    const res = await call(reopen.POST(post(body())));
+    expect(res.status).toBe(201);
+    expect(writes).toEqual([{ method: "savePeriodReopening", args: [body()] }]);
+  });
+
+  it.each([["MANAGER", BRAVO], ["EMPLOYEE", ALFA]] as const)("refuses %s", async (role, employee) => {
+    signIn(role, employee);
+    expect((await call(reopen.POST(post(body())))).status).toBe(403);
+    expect(writes).toHaveLength(0);
+  });
+
+  it.each([
+    ["last month, which is open anyway", { period: "2026-10" }, /terbuka dengan sendirinya/],
+    ["a period before D4 starts", { period: "2026-08" }, /September 2026/],
+    ["an end date before the period starts", { openUntil: "2026-08-31" }, /awal periode/],
+    ["a reason under 5 characters", { reason: " ok " }, /5 sampai 500/],
+  ])("rejects %s", async (_case, patch, message) => {
+    const res = await call(reopen.POST(post(body(patch))));
+    expect(res).toMatchObject({ status: 422, body: { error: { code: "VALIDATION_FAILED", message: expect.stringMatching(message) } } });
+    expect(writes).toHaveLength(0);
+  });
+
+  it("accepts yesterday as the end date, which closes the period again", async () => {
+    expect((await call(reopen.POST(post(body({ openUntil: "2026-11-23" }))))).status).toBe(201);
   });
 });
