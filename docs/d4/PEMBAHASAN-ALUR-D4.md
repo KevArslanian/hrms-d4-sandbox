@@ -43,7 +43,7 @@ Aturan yang dipakai: sebuah keputusan tidak boleh hanya bersandar pada selera pe
 - Identitas berasal dari B2 dan D3, tidak dibuat ulang di D4, supaya satu orang punya satu akun di seluruh HRMS. [Keputusan] PR #15 dan #28.
 - Management hanya membaca. [Klien] B17: direktur read-only. Ditegakkan di policy database (migrasi `20261108120000`), bukan hanya di tampilan.
 - Employee melihat profilnya sendiri sebagai halaman awal, bukan daftar tim yang hanya berisi dirinya. [Keputusan] 13 Nov 2026 (PR #52).
-- Logout meminta konfirmasi dan labelnya tetap "Logout". [Keputusan] 13 Nov 2026. [Standar] [NNG-CONFIRM]: konfirmasi dipakai untuk tindakan yang memutus pekerjaan, tidak untuk semua tombol.
+- Logout langsung keluar tanpa dialog konfirmasi, labelnya tetap "Logout". [Keputusan] 24 Nov 2026 (PR #81), menggantikan keputusan 13 Nov yang memakai konfirmasi: logout tidak menghapus data apa pun, jadi cukup login lagi bila tidak sengaja.
 
 ### Langkah 1 · Daily KPI
 
