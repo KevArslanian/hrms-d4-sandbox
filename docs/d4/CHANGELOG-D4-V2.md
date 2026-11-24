@@ -610,3 +610,8 @@ PO mengizinkan migrasi `20261120120000` dan `20261124150000`. Sampai migrasi itu
 - **Tutup sekarang** muncul untuk periode yang sedang dibuka. Tombol ini menambah baris baru dengan tanggal kemarin, karena tabelnya insert-only dan baris terbaru yang berlaku.
 - **API:** `POST /api/d4/period-reopenings` `{ period, openUntil, reason }`, HR saja (Manager dan Employee 403). Bulan ini, bulan lalu, periode sebelum Sep 2026, tanggal sebelum awal periode, dan alasan di bawah 5 karakter ditolak 422. `actor_employee_id` diisi database dari akun yang login.
 - **Bukti:** `tests/d4/api.test.ts` (POST period-reopenings), `tests/d4/period-state.test.ts`. Dicek di pratinjau lokal: Sep 2026 dibuka sampai 30 Nov lalu muncul di form sebagai "dibuka kembali", Tutup sekarang mengembalikannya ke "tertutup", tampilan ponsel 375 px rapi.
+
+## Logout tanpa konfirmasi · 24 Nov 2026
+
+- Tombol **Logout** di sidebar langsung logout, tanpa dialog "Apakah Anda yakin ingin logout?" (permintaan 24 Nov 2026, menggantikan keputusan 13 Nov). Selama proses, tombol menulis "Sedang logout..." dan tidak bisa ditekan dua kali; bila gagal, tombol kembali menjadi "Logout".
+- `data-testid` `logout-confirm`, `btn-logout-confirm`, `btn-logout-cancel`, dan `logout-progress` tidak ada lagi. Skrip Katalon cukup mengklik `btn-logout` lalu menunggu halaman login.
