@@ -173,8 +173,8 @@ export type BulkRowResult = { ok: true } | { ok: false; message: string };
  * POST /api/d4/training-records/bulk — many training writes in one request (Add Training for many requirements, bulk
  * Update Progress). Each row runs the same rules and writes as its single endpoint, in order, and a refused row does
  * not stop the others. Sign-in and the snapshot are loaded once instead of per row (PST 2: a bulk save of 17 rows took
- * about 34 full snapshot loads). A row of an employee an earlier row already wrote is checked against a fresh snapshot,
- * so it is judged exactly as if it were saved on its own.
+ * about 34 full snapshot loads). A completion of an employee an earlier row already wrote is checked against a fresh
+ * snapshot, so it is judged exactly as if it were saved on its own.
  */
 export async function bulkTraining(request: Request) {
   const writer = await requireWriter();
@@ -191,7 +191,9 @@ export async function bulkTraining(request: Request) {
       const op = field.oneOf(row, "op", BULK_OPS);
       const trainingId = op === "create" ? "" : field.text(row, "trainingId", { max: 100 });
       employeeId = op === "create" ? field.uuid(row, "employeeId") : latestTraining(snapshot).find((entry) => entry.trainingId === trainingId)?.employeeId;
-      if (employeeId && written.has(employeeId)) snapshot = await writer.repository.loadSnapshot();
+      // Only completion reads what an earlier row of the same employee can change (the requirement, the latest trainings,
+      // the last competency assessment); create and version rows check their own requirement or training.
+      if (op === "complete" && employeeId && written.has(employeeId)) snapshot = await writer.repository.loadSnapshot();
       const context = { ...writer, snapshot };
       if (op === "create") await createOne(context, parseCreate(row));
       else if (op === "version") await versionOne(context, trainingId, parseVersion(row));

@@ -620,13 +620,13 @@ PO mengizinkan migrasi `20261120120000` dan `20261124150000`. Sampai migrasi itu
 
 - **Masalah:** Update Progress massal dan "Buat training untuk semua" lambat. Setiap baris dikirim sebagai permintaan sendiri secara berurutan. Di server, setiap baris memuat seluruh data D4 dua kali: sekali untuk memeriksa aturan, sekali lagi untuk menyesuaikan status requirement. Untuk 17 baris itu berarti sekitar 34 kali muat penuh.
 - **Perubahan:**
-  - Endpoint baru `POST /api/d4/training-records/bulk` memproses semua baris dalam satu permintaan, dengan aturan yang sama per baris. Login dan data dimuat sekali. Data dimuat ulang hanya sebelum baris milik pegawai yang sudah ditulis baris sebelumnya.
-  - Layar mengirim 20 baris per permintaan, supaya satu permintaan tidak melewati batas 20 detik.
+  - Endpoint baru `POST /api/d4/training-records/bulk` memproses semua baris dalam satu permintaan, dengan aturan yang sama per baris. Login dan data dimuat sekali. Data dimuat ulang hanya sebelum baris Completed milik pegawai yang sudah ditulis baris sebelumnya, karena hanya keputusan Completed yang membaca data yang bisa diubah baris sebelumnya.
+  - Layar mengirim 10 baris per permintaan, dengan batas waktu 60 detik. Permintaan yang terputus tidak menghentikan server, jadi batas yang terlalu pendek bisa membuat pengguna menyimpan ulang baris yang sebenarnya sudah tersimpan.
   - Penyesuaian status requirement setelah setiap tulis training sekarang hanya membaca 4 tabel training dan requirement, bukan seluruh data. Ini juga mempercepat simpan satu baris.
   - Form "Buat training untuk semua" tertutup begitu tersimpan; daftar diperbarui di belakangnya, sama seperti Update Progress.
 - **Peringatan sebelum Save tidak berubah:** Update Progress massal menandai baris yang akan ditolak beserta alasannya sebelum tombol Simpan ditekan. Di "Buat training", baris yang pasti ditolak (requirement Completed, diri sendiri) tidak bisa dipilih.
 - **Bukti:**
-  - `tests/d4/api.test.ts` (POST /training-records/bulk): satu muat snapshot untuk 3 baris, muat ulang untuk pegawai yang sama, baris ditolak tidak menghentikan baris lain.
-  - `tests/d4/bulk-request.test.ts`: 20 baris per permintaan, permintaan yang gagal di tengah.
+  - `tests/d4/api.test.ts` (POST /training-records/bulk): satu muat snapshot untuk 3 baris, muat ulang hanya sebelum baris Completed pegawai yang sama, baris ditolak tidak menghentikan baris lain.
+  - `tests/d4/bulk-request.test.ts`: 10 baris per permintaan, permintaan yang gagal di tengah.
   - Dicek di pratinjau lokal: peringatan muncul sebelum Save, dan simpan 2 training berhasil.
   - Kecepatan di production belum diukur dengan akun asli.
