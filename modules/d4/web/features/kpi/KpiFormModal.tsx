@@ -4,7 +4,7 @@ import { CheckCircle2, CircleAlert } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { catalogFor, indicatorsFor, KPI_TARGET, kpiSourceOf, roleForPosition, scorableSet, targetOf, type KpiCatalog, type KpiCatalogSet } from "../../../kpi/catalog";
 import { compileDaily, type DailyCompilation } from "../../../kpi/daily";
-import { HIGH_ABOVE, performanceBand, scaleMaxOf, typedScore, UNDER_BELOW } from "../../../kpi/scale";
+import { HIGH_ABOVE, performanceBand, scaleMaxOf, scoreText, typedScore, UNDER_BELOW } from "../../../kpi/scale";
 import type { KpiAssessmentLine } from "../../../supabase/types";
 import { useD4, useSnapshot } from "../../data/D4DataProvider";
 import { latestForPeriod, openPeriods, periodState, previousMonth, revisionsLeft } from "../../../shared/rules";
@@ -105,12 +105,12 @@ export function SavedScore({ before, now, testId }: { before: number | null; now
  * lecturer named ("jangan sampai nilai saya yang baru lebih rendah"). Direction is written out, not shown by colour only.
  */
 export function totalComparison(saved: number, now: number | null, t: Translate = plainText) {
-  const savedTotal = t("Saved total {saved}", { saved: saved.toFixed(2) });
+  const savedTotal = t("Saved total {saved}", { saved: scoreText(saved) });
   if (now === null) return `${savedTotal}. ${t("Isi semua Actual untuk melihat total baru.")}`;
   const diff = Math.round((now - saved) * 100) / 100;
-  const newTotal = t("New total {now}", { now: now.toFixed(2) });
+  const newTotal = t("New total {now}", { now: scoreText(now) });
   if (diff === 0) return `${savedTotal} · ${newTotal} · ${t("sama dengan yang tersimpan")}`;
-  return `${savedTotal} · ${newTotal} · ${diff < 0 ? t("Lower than saved ({diff})", { diff: diff.toFixed(2) }) : t("Higher than saved (+{diff})", { diff: diff.toFixed(2) })}`;
+  return `${savedTotal} · ${newTotal} · ${diff < 0 ? t("Lower than saved ({diff})", { diff: scoreText(diff) }) : t("Higher than saved (+{diff})", { diff: scoreText(diff) })}`;
 }
 
 // Field label above the value on phones, where each KPI line is a card instead of a table row.
@@ -278,7 +278,7 @@ export function KpiFormModal({ employeeId, period: startAt, onClose, onSaved }: 
               }} className={cx(inputStyle, "tabular-nums aria-[invalid=true]:border-danger")} />
                 {basis?.lines[index] && <SavedScore before={basis.lines[index].raw_score} now={line.raw_score} testId={`saved-score-${line.indicator_order}`} />}</td>
               {max === 100 && <td data-label={`Gap vs ${KPI_TARGET}`} data-testid={`kpi-gap-${line.indicator_order}`} className={cx("px-3 pt-2.5 tabular-nums text-ink-2", mobileLabel)}>{validScore(line.raw_score, max) ? formatGap(line.raw_score, catalog?.version, t) : "—"}</td>}
-              <td data-label={t("Weighted")} className={cx("px-3 pt-2.5 text-right font-semibold tabular-nums", mobileLabel, "max-md:text-left")}>{weighted(line, max)?.toFixed(2) ?? "—"}</td>
+              <td data-label={t("Weighted")} className={cx("px-3 pt-2.5 text-right font-semibold tabular-nums", mobileLabel, "max-md:text-left")}>{scoreText(weighted(line, max))}</td>
             </tr>
             <tr className="max-md:contents">
               <td aria-hidden="true" className="max-md:hidden" />
@@ -290,7 +290,7 @@ export function KpiFormModal({ employeeId, period: startAt, onClose, onSaved }: 
               <td className="px-3 py-3"><span className={cx("inline-flex items-center gap-1 text-xs font-semibold", totalWeight === 100 ? "text-success" : "text-danger")}>{totalWeight === 100 ? <CheckCircle2 className="size-3.5" /> : <CircleAlert className="size-3.5" />}{lines.length ? `${totalWeight}%` : "—"}</span></td>
               <td className="max-md:hidden" />
               {max === 100 && <td data-testid="kpi-gap-total" className="px-3 py-3 text-xs font-semibold tabular-nums text-ink-2">{total === null ? "" : `Gap ${formatGap(total, catalog?.version, t)}`}</td>}
-              <td className="px-3 py-3 text-right font-display font-semibold text-base tabular-nums">{total === null ? "—" : `${total.toFixed(2)} / ${max}`}{band && <span data-testid="performance-band" className="mt-1 block text-right"><StatusBadge status={band} /></span>}</td></tr>
+              <td className="px-3 py-3 text-right font-display font-semibold text-base tabular-nums">{total === null ? "—" : `${scoreText(total)} / ${max}`}{band && <span data-testid="performance-band" className="mt-1 block text-right"><StatusBadge status={band} /></span>}</td></tr>
             {savedTotal !== null && <tr className="max-md:block"><td colSpan={max === 100 ? 6 : 5} data-testid="total-compare" className="px-3 pb-3 text-right text-xs text-ink-2 max-md:block max-md:text-left">
               {totalComparison(savedTotal, total, t)}
             </td></tr>}

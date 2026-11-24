@@ -1,6 +1,6 @@
 import { compareCompetencies } from "../../competency/service";
 import type { TrainingFollowUp, TrainingStatus } from "../../training/types";
-import { assertNeedOpen, assertNotSelf, assertTrainingChange, trainingSyncRevision, assertTrainingDate, assertTrainingFollowUp, lastAssessedAt, localToday, planTrainingCompletion, retrainingNotes, TRAINING_DECISIONS, TRAINING_FOLLOW_UPS, TRAINING_RESULTS } from "../../shared/rules";
+import { assertNeedOpen, assertNoDuplicateTraining, assertNotSelf, assertTrainingChange, trainingSyncRevision, assertTrainingDate, assertTrainingFollowUp, lastAssessedAt, localToday, planTrainingCompletion, retrainingNotes, TRAINING_DECISIONS, TRAINING_FOLLOW_UPS, TRAINING_RESULTS } from "../../shared/rules";
 import { latestDevelopment, latestTraining, type D4LiveSnapshot } from "../../supabase/types";
 import { ApiError, employeeFilter, enforce, field, readJson, toApiError } from "../_lib/http";
 import { d4Session, requireWriter } from "../_lib/session";
@@ -56,6 +56,7 @@ async function createOne({ repository, access, snapshot }: WriteContext, input: 
   enforce(() => assertNotSelf(access.employeeId, input.employeeId));
   enforce(() => assertNeedOpen(latestDevelopment(snapshot).find((item) => item.needId === input.developmentNeedId)));
   enforce(() => assertTrainingDate(input.status, input.date));
+  enforce(() => assertNoDuplicateTraining(latestTraining(snapshot), input.developmentNeedId, input.activity, input.date));
   const id = await repository.createTraining(input, snapshot);
   await syncDevelopment(repository, input.developmentNeedId);
   return { id };
@@ -137,6 +138,8 @@ async function completeOne({ repository, access, snapshot }: WriteContext, id: s
   const record = latestTraining(snapshot).find((item) => item.trainingId === id);
   if (!record) throw new ApiError("NOT_FOUND", "Training tidak ditemukan.");
   enforce(() => assertNotSelf(access.employeeId, record.employeeId));
+  // A Retraining is a new Planned training, under the same date rule as one added from a requirement.
+  if (decision === "Retraining") enforce(() => assertTrainingDate("Planned", input.date ?? ""));
   const needs = latestDevelopment(snapshot);
   const need = needs.find((item) => item.needId === record.developmentNeedId);
   const employee = snapshot.reference.employees.find((item) => item.id === record.employeeId);

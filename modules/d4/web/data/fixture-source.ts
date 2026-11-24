@@ -5,7 +5,7 @@ import { scaleMaxOf } from "../../kpi/scale";
 import { performanceFixtureRecords } from "../../performance/fixtures";
 import { validatePerformanceInput } from "../../performance/validation";
 import { d4ReferenceFixture } from "../../shared/fixtures";
-import { assertDailyDate, assertGapAssessed, assertPicFilled, canFillDaily, closeGapBlockedReason, closeGapNotes, openTrainingCount, trainingSyncRevision, localMonth, localToday, assertTrainingDate, assertNeedOpen, assertNoOpenNeed, assertTrainingResult, assertNotSelf, assertPeriodOpen, assertPeriodRevision, assertReopening, assertTrainingChange, nextDevelopmentRevision, planTrainingCompletion, retrainingNotes } from "../../shared/rules";
+import { assertDailyDate, assertGapAssessed, assertPicFilled, canFillDaily, closeGapBlockedReason, closeGapNotes, openTrainingCount, trainingSyncRevision, localMonth, localToday, assertTrainingDate, assertNoDuplicateTraining, assertNeedOpen, assertNoOpenNeed, assertTrainingResult, assertNotSelf, assertPeriodOpen, assertPeriodRevision, assertReopening, assertTrainingChange, nextDevelopmentRevision, planTrainingCompletion, retrainingNotes } from "../../shared/rules";
 import type { D4LiveSnapshot, KpiAssessment, KpiAssessmentLine, KpiDailyEntry } from "../../supabase/types";
 import { latestDevelopment, latestTraining } from "../../supabase/types";
 import { trainingFixtureVersions } from "../../training/fixtures";
@@ -279,6 +279,7 @@ export function createFixtureSource(): D4DataSource {
       if (!need || need.employeeId !== input.employeeId) throw new Error("Training harus merujuk ke development requirement milik pegawai yang sama.");
       assertNeedOpen(need);
       assertTrainingDate(input.status, input.date);
+      assertNoDuplicateTraining(latestTraining(state), input.developmentNeedId, input.activity, input.date);
       assertTrainingResult(input.status, input.result);
       const trainingId = newId("FIX-D4-TRN");
       update({ trainingVersions: [{ ...input, id: newId("FIX-D4-TRN-V"), trainingId, revision: 1, source: "local-demo", createdAt: now(), actor: actorName() }, ...state.trainingVersions] });
@@ -303,6 +304,7 @@ export function createFixtureSource(): D4DataSource {
       const { current, need, employee, comparison, context } = completionContext(state, trainingId, at(0));
       if (!current) throw new Error("Training tidak ditemukan.");
       assertNotSelf(state.actorEmployeeId, current.employeeId);
+      if (input.decision === "Retraining") assertTrainingDate("Planned", input.date ?? "");
       const plan = planTrainingCompletion(input, context);
       const trainingVersions = [...state.trainingVersions], developmentVersions = [...state.developmentVersions], competency = [...state.competency];
       if (plan.training) trainingVersions.unshift({ ...current, id: newId("FIX-D4-TRN-V"), revision: current.revision + 1, status: "Completed", result: input.result, notes: input.notes.trim(),

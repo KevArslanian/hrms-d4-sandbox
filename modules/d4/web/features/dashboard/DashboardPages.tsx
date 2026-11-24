@@ -15,7 +15,7 @@ import { RowActionMenu } from "../../ui/RowActionMenu";
 import { Button, Card, Notice, SavedNotice, slug, statusLabel, StatusBadge } from "../../ui/primitives";
 import { LineComment, targetLabel, weighted } from "../kpi/KpiFormModal";
 import type { DailyCompilation } from "../../../kpi/daily";
-import { HIGH_ABOVE, performanceBand, scaleMaxOf, UNDER_BELOW } from "../../../kpi/scale";
+import { HIGH_ABOVE, performanceBand, scaleMaxOf, scoreText, UNDER_BELOW } from "../../../kpi/scale";
 import { averageScores, BANDS, COMPETENCY_ORDER, competencySlices, dashboardAlerts, defaultPeriod, employeeHistory, gapRanking, matchesDashboardFilters, openNeedCount, performanceSlices, profilePeriod, reviewCounts, trainingsInProgress, validScorecard, withoutKpiRole, type AssignTarget, type DashboardAlert, type Slice } from "./summary";
 import { DASHBOARD_TABLE_ID, SummaryTiles, type SummaryRow } from "./SummaryTiles";
 import { DevelopmentFormModal } from "../development/DevelopmentModals";
@@ -195,7 +195,7 @@ function PerformanceCard({ rows, catalog, noKpi }: { rows: readonly Row[]; catal
   return <Card title={t("Performance")} testId="performance-pie">
     {missing < total ? <div data-testid="kpi-average">
       {averages.map((item) => <p key={item.scaleMax} className="flex items-baseline gap-2">
-        <span className="font-display text-3xl font-semibold tabular-nums text-ink">{item.average.toFixed(2)}</span>
+        <span className="font-display text-3xl font-semibold tabular-nums text-ink">{scoreText(item.average)}</span>
         <span className="text-sm text-ink-2">{t("/ {scale} rata-rata Total KPI · {count} scorecard", { scale: item.scaleMax, count: item.count })}</span>
       </p>)}
       <p className="mt-2 text-sm text-ink-2">{t("{missing} dari {total} pegawai belum punya Performance Review pada periode ini.", { missing, total })}{unscored ? ` ${t("{count} scorecard tidak dihitung dalam rata-rata karena datanya tidak valid.", { count: unscored })}` : ""}</p>
@@ -339,7 +339,7 @@ export function EmployeeProfilePage({ employeeId, initialPeriod = "", own = fals
       <Card title="Performance Review" className="xl:col-span-2" actions={<SourceLink href={scorecard ? `/performance/scorecard/${scorecard.id}` : compiled && self ? "/daily-kpi" : evaluation ? `/performance/${evaluation.id}` : `/performance/history/${employee.id}`} />} padded={false}>
         {scorecard ? <div className="overflow-x-auto"><table data-testid="dashboard-kpi-table" className="w-full min-w-[480px] text-left text-sm">
           <thead className="bg-app text-[11px] font-semibold uppercase tracking-[0.04em] text-ink-3"><tr><th className="py-2.5 pl-5 pr-2.5">Core KPI</th><th className="px-2.5 py-2.5">{t("Weight")}</th><th className="px-2.5 py-2.5">{t("Target")}</th><th className="px-2.5 py-2.5">{t("Actual")}</th><th className="px-2.5 py-2.5 text-right">{t("Weighted")}</th><th className="py-2.5 pl-2.5 pr-5">{t("Comment")}</th></tr></thead>
-          <tbody>{scorecard.lines.map((line) => <tr key={line.indicator_order} data-testid={`kpi-line-${line.indicator_order}`} className="border-t border-line"><td className="py-2.5 pl-5 pr-2.5 font-semibold">{line.kpi_name}</td><td className="px-2.5 py-2.5 tabular-nums">{line.weight_percent}%</td><td className="px-2.5 py-2.5">{targetLabel(line.target, scorecard.definitionVersion)}</td><td className="px-2.5 py-2.5 tabular-nums">{line.raw_score ?? "—"}</td><td className="px-2.5 py-2.5 text-right tabular-nums">{weighted(line, scaleMaxOf(scorecard.definitionVersion))?.toFixed(2) ?? "—"}</td><td data-testid={`dashboard-kpi-comment-${line.indicator_order}`} className="py-2.5 pl-2.5 pr-5 text-ink-2"><LineComment line={line} /></td></tr>)}</tbody>
+          <tbody>{scorecard.lines.map((line) => <tr key={line.indicator_order} data-testid={`kpi-line-${line.indicator_order}`} className="border-t border-line"><td className="py-2.5 pl-5 pr-2.5 font-semibold">{line.kpi_name}</td><td className="px-2.5 py-2.5 tabular-nums">{line.weight_percent}%</td><td className="px-2.5 py-2.5">{targetLabel(line.target, scorecard.definitionVersion)}</td><td className="px-2.5 py-2.5 tabular-nums">{line.raw_score ?? "—"}</td><td className="px-2.5 py-2.5 text-right tabular-nums">{scoreText(weighted(line, scaleMaxOf(scorecard.definitionVersion)))}</td><td data-testid={`dashboard-kpi-comment-${line.indicator_order}`} className="py-2.5 pl-2.5 pr-5 text-ink-2"><LineComment line={line} /></td></tr>)}</tbody>
           <tfoot className="border-t border-line bg-app"><tr><td colSpan={4} className="py-2.5 pl-5 pr-2.5 font-semibold">{t("Total")} ({formatPeriod(scorecard.period, language)})</td><td className="whitespace-nowrap px-2.5 py-2.5 text-right font-display font-semibold tabular-nums">{formatScorecard(scorecard)}<span data-testid="dashboard-kpi-gap" className="block font-sans text-xs font-normal text-ink-3">{target(scorecard.definitionVersion)}Gap {formatGap(scorecard.overallScore, scorecard.definitionVersion, t)}</span></td><td /></tr></tfoot>
         </table></div> : compiled ? <div data-testid="dashboard-kpi-compiled" className="px-6 pb-6">
           {/* Same number and badge as the dashboard row; not final, so the charts and the completion count leave it out. */}
