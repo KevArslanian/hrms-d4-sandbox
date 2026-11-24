@@ -1,5 +1,5 @@
 import { compileDaily } from "../../kpi/daily";
-import { kpiGap, scaleMaxOf } from "../../kpi/scale";
+import { kpiGap, scaleMaxOf, scoreText } from "../../kpi/scale";
 import { compareCompetencies } from "../../competency/service";
 import type { CompetencyAssessment, CompetencyFinding, CompetencyOverallStatus } from "../../competency/types";
 import type { DevelopmentNeedVersion, DevelopmentSourceType } from "../../development/types";
@@ -331,7 +331,7 @@ export function recentLabel(version: { createdAt: string; revision: number }, no
 }
 
 export function formatScore(value: number | null | undefined, scale = 5): string {
-  return value === null || value === undefined ? "—" : `${value.toFixed(2)} / ${scale}`;
+  return value === null || value === undefined ? "—" : `${scoreText(value)} / ${scale}`;
 }
 
 /**
@@ -339,14 +339,14 @@ export function formatScore(value: number | null | undefined, scale = 5): string
  * row without "/ 100". A row saved on the other scale keeps its own, so a 1–5 score is never read as out of 100.
  */
 export const listScore = (value: number | null | undefined, version: string | null | undefined, listScale: number) =>
-  scaleMaxOf(version) === listScale ? value?.toFixed(2) ?? "—" : formatScore(value, scaleMaxOf(version));
+  scaleMaxOf(version) === listScale ? scoreText(value) : formatScore(value, scaleMaxOf(version));
 
 /** KPI gap as shown: signed, "n/a (skala 1–5)" for a 1–5 score, "—" without a score. */
 export function formatGap(score: number | null | undefined, definitionVersion?: string | null, t: Translate = plainText): string {
   if (score === null || score === undefined) return "—";
   const gap = kpiGap(score, definitionVersion);
   if (gap === null) return t("n/a (skala 1–5)");
-  return `${gap > 0 ? "+" : ""}${Number.isInteger(gap) ? gap : gap.toFixed(2)}`;
+  return `${gap > 0 ? "+" : ""}${scoreText(gap)}`;
 }
 
 /** "4.10 / 5" for a V5.1 scorecard, "82.50 / 100" for V6: every scorecard shows the scale it was saved under. */

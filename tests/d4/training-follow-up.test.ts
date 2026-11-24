@@ -63,10 +63,10 @@ describe("follow-up of a Not Passed training", () => {
     expect(alert?.people).toEqual([enaName(before)]);
     expect(alert?.label).toBe("Awaiting follow-up");
 
-    const id = await source.completeTraining("FIX-D4-TRN-003", { result: "Not Passed", decision: "Retraining", notes: "Jadwal ulang dengan trainer lain", activity: "Records Retention Workshop (ulang)", date: "2026-10-27" });
+    const id = await source.completeTraining("FIX-D4-TRN-003", { result: "Not Passed", decision: "Retraining", notes: "Jadwal ulang dengan trainer lain", activity: "Records Retention Workshop (ulang)", date: "2030-01-15" });
     const after = await source.loadSnapshot();
     const retraining = latestTraining(after).find((item) => item.trainingId === id)!;
-    expect(retraining).toMatchObject({ employeeId: ENA, developmentNeedId: "FIX-D4-DEV-003", activity: "Records Retention Workshop (ulang)", date: "2026-10-27", status: "Planned", result: "", revision: 1 });
+    expect(retraining).toMatchObject({ employeeId: ENA, developmentNeedId: "FIX-D4-DEV-003", activity: "Records Retention Workshop (ulang)", date: "2030-01-15", status: "Planned", result: "", revision: 1 });
     expect(retraining.notes).toMatch(/^Retraining setelah "Records Retention Workshop" \(2026-10-06\) Not Passed\.\nJadwal ulang/);
     // Insert-only: the Not Passed version stays; the follow-up is a new version with the same status and result.
     const versions = history(after, "FIX-D4-TRN-003").sort((a, b) => a.revision - b.revision);

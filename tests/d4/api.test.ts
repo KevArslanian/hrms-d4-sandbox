@@ -155,7 +155,7 @@ const writeRoutes: [string, () => Promise<Response>][] = [
   ["POST /development-needs", () => dev.POST(post({ employeeId: ALFA, sourceType: "performance_context", sourceRef: KPI_ALFA, objective: "Uji", priority: "High", pic: "Mrs. Maya" }))],
   ["POST /development-needs/:id/versions", () => devVersions.POST(post({ status: "Planned", notes: "Uji", method: "Mentoring" }), params(NEED))],
   ["POST /development-needs/:id/versions (edit)", () => devVersions.POST(post({ status: "Planned", notes: "", priority: "High", pic: "Bu Maya" }), params(NEED))],
-  ["POST /training-records", () => training.POST(post({ employeeId: ALFA, developmentNeedId: NEED, activity: "Uji", date: "2026-10-01", status: "Planned" }))],
+  ["POST /training-records", () => training.POST(post({ employeeId: ALFA, developmentNeedId: NEED, activity: "Uji", date: "2030-01-15", status: "Planned" }))],
   ["POST /training-records/:id/versions", () => trainingVersions.POST(post({ status: "In Progress", notes: "Uji" }), params(TRAINING))],
   // FIX-D4-TRN-003 (Mba Ena): Completed, Not Passed, no follow-up yet.
   ["POST /training-records/:id/follow-up", () => trainingFollowUp.POST(post({ followUp: "Other follow-up", notes: "Coaching" }), params("FIX-D4-TRN-003"))],
@@ -493,7 +493,7 @@ describe("POST /kpi-assessments", () => {
 
 describe("development needs and training", () => {
   const devBody = { employeeId: ALFA, sourceType: "competency_gap", sourceRef: ALFA_GAP, objective: "Uji", priority: "High", pic: "Mrs. Maya" };
-  const trainingBody = { employeeId: ALFA, developmentNeedId: NEED, activity: "Uji", date: "2026-10-01", status: "Planned" };
+  const trainingBody = { employeeId: ALFA, developmentNeedId: NEED, activity: "Uji", date: "2030-01-15", status: "Planned" };
 
   // B13 (interview D4, 14 Oct 2026): a requirement needs a PIC; an edit may not clear it, leaving it out keeps it.
   it.each([

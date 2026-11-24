@@ -129,7 +129,7 @@ export function BulkTrainingModal({ needs, choices, initial, title = "Add Traini
       <div className="grid gap-4 sm:grid-cols-2">
         <TextField label={t("Training / activity")} testId="bulk-training-activity" required maxLength={200} value={activity} onChange={(event) => setActivity(event.target.value)}
           error={touched && !activity.trim() ? t("Nama aktivitas wajib diisi.") : undefined} className="sm:col-span-2" />
-        <DateField label={t("Date")} testId="bulk-training-date" required value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? t("Tanggal wajib diisi.") : undefined} />
+        <DateField label={t("Date")} testId="bulk-training-date" required min={status === "Planned" ? today() : undefined} value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? t("Tanggal wajib diisi.") : undefined} />
         <SelectField label={t("Status")} testId="bulk-training-status" required value={status} onChange={(event) => setStatus(event.target.value as TrainingStatus)}
           helper={t("Completed dicatat per training lewat Update Progress, karena hasil dan keputusannya per orang.")}>
           {(["Planned", "In Progress"] as const).map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}
@@ -226,7 +226,7 @@ export function BulkProgressModal({ trainings, onClose, onDone }: { trainings: r
         {retraining && <div className="grid gap-4 sm:grid-cols-2">
           <TextField label={t("Retraining / activity")} testId="bulk-retraining-activity" required maxLength={200} value={activity} onChange={(event) => setActivity(event.target.value)} className="sm:col-span-2"
             error={touched && !activity.trim() ? t("Nama training wajib diisi.") : undefined} />
-          <DateField label={t("Date")} testId="bulk-retraining-date" required value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? t("Tanggal wajib diisi.") : undefined} />
+          <DateField label={t("Date")} testId="bulk-retraining-date" required min={today()} value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? t("Tanggal wajib diisi.") : undefined} />
         </div>}
       </>}
       <TextAreaField label={t("Update notes")} testId="bulk-progress-notes" required={other} maxLength={NOTES_MAX} value={notes} onChange={(event) => setNotes(event.target.value)}

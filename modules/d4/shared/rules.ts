@@ -267,9 +267,20 @@ export function assertGapAssessed(competency: readonly { employeeId: string; pos
     throw new ApiError("VALIDATION_FAILED", "Simpan penilaian kompetensi untuk posisi aktif sebelum membuat development requirement dari gap-nya.");
 }
 
-/** A completed training already happened, so its date cannot be later than today; planned training may be in the future. */
-export function assertTrainingDate(status: TrainingStatus, date: string) {
+/**
+ * A completed training already happened, so its date cannot be later than today. A planned one has not started, so it
+ * cannot be before today (lecturer, 24 Nov 2026); In Progress may have started earlier.
+ */
+export function assertTrainingDate(status: TrainingStatus, date: string, now = new Date()) {
   if (status === "Completed") assertNotFutureDate(date, "Tanggal training yang sudah selesai");
+  if (status === "Planned" && date < localToday(now)) throw new ApiError("VALIDATION_FAILED", "Tanggal training Planned tidak boleh sebelum hari ini.");
+}
+
+/** The same training (name and date) twice on one requirement is a double entry (lecturer, 24 Nov 2026); a cancelled one no longer counts. */
+export function assertNoDuplicateTraining(trainings: readonly Pick<TrainingVersion, "developmentNeedId" | "activity" | "date" | "status">[], needId: string, activity: string, date: string) {
+  const name = activity.trim().toLowerCase();
+  if (trainings.some((item) => item.developmentNeedId === needId && item.date === date && item.status !== "Cancelled" && item.activity.trim().toLowerCase() === name))
+    throw new ApiError("VALIDATION_FAILED", "Requirement ini sudah punya training dengan nama dan tanggal yang sama.");
 }
 
 /**

@@ -31,6 +31,9 @@ export function typedScore(typed: string, max: number): string | null {
   return aboveScale(text, max) ? null : text;
 }
 
+/** A score as shown: a whole number without decimals ("100", not "100.00", lecturer 24 Nov 2026), otherwise two decimals; "—" without one. */
+export const scoreText = (value: number | null | undefined) => value === null || value === undefined ? "—" : Number.isInteger(value) ? String(value) : value.toFixed(2);
+
 /** Interview D4 (14 Oct 2026): below 80 is Under Performance, 80–85 is Average Performance, above 85 is High Performance. */
 export const UNDER_BELOW = 80;
 export const HIGH_ABOVE = 85;
