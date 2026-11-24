@@ -8,14 +8,21 @@ export async function handle(run: () => Promise<unknown>, successStatus = 200) {
   try {
     return NextResponse.json({ data: await run() }, { status: successStatus });
   } catch (cause) {
-    // Only typed errors carry a user-facing message; anything else (SQL, bugs) becomes a generic
-    // message so database details and stack traces never reach the client (TR-17).
-    const error = cause instanceof ApiError ? cause
-      : isNetworkFailure(cause instanceof Error ? cause.message : "") ? new ApiError("INTEGRATION_ERROR", NETWORK_ERROR_MESSAGE)
-        : new ApiError("SERVER_ERROR", "Permintaan tidak dapat diproses. Coba lagi sebentar lagi.");
-    if (error.code === "SERVER_ERROR" || error.code === "INTEGRATION_ERROR") console.error("[d4-api]", cause);
+    const error = toApiError(cause);
     return NextResponse.json({ error: { code: error.code, message: error.message } }, { status: error.status });
   }
+}
+
+/**
+ * Only typed errors carry a user-facing message; anything else (SQL, bugs) becomes a generic
+ * message so database details and stack traces never reach the client (TR-17).
+ */
+export function toApiError(cause: unknown): ApiError {
+  const error = cause instanceof ApiError ? cause
+    : isNetworkFailure(cause instanceof Error ? cause.message : "") ? new ApiError("INTEGRATION_ERROR", NETWORK_ERROR_MESSAGE)
+      : new ApiError("SERVER_ERROR", "Permintaan tidak dapat diproses. Coba lagi sebentar lagi.");
+  if (error.code === "SERVER_ERROR" || error.code === "INTEGRATION_ERROR") console.error("[d4-api]", cause);
+  return error;
 }
 
 /**

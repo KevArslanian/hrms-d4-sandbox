@@ -83,7 +83,7 @@ export interface D4LiveSnapshot {
   readonly trainingVersions: readonly TrainingVersion[];
 }
 
-export function latestDevelopment(snapshot: D4LiveSnapshot): DevelopmentNeedVersion[] {
+export function latestDevelopment(snapshot: Pick<D4LiveSnapshot, "developmentVersions">): DevelopmentNeedVersion[] {
   const latest = new Map<string, DevelopmentNeedVersion>();
   for (const item of snapshot.developmentVersions) {
     if ((latest.get(item.needId)?.revision ?? 0) < item.revision) latest.set(item.needId, item);
@@ -91,7 +91,7 @@ export function latestDevelopment(snapshot: D4LiveSnapshot): DevelopmentNeedVers
   return [...latest.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
-export function latestTraining(snapshot: D4LiveSnapshot): TrainingVersion[] {
+export function latestTraining(snapshot: Pick<D4LiveSnapshot, "trainingVersions">): TrainingVersion[] {
   const latest = new Map<string, TrainingVersion>();
   for (const item of snapshot.trainingVersions) {
     if ((latest.get(item.trainingId)?.revision ?? 0) < item.revision) latest.set(item.trainingId, item);
