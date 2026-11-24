@@ -35,6 +35,25 @@ Catatan pemetaan:
 - `d3_user_access.employee_id` dipakai sebagai identitas aktor. Untuk HR dan MANAGER, nama evaluator diambil dari employee ini. Jika `employee_id` kosong atau tidak ditemukan, POST Performance Evaluation dan KPI Scorecard ditolak 403 dengan pesan "Akun belum terhubung dengan data employee." (`modules/d4/server/performance-evaluations/index.ts:30-31`, `modules/d4/server/kpi-assessments/index.ts:44-45`).
 - Akun dibuat dan dipetakan oleh admin D3/PO. Squad D4 tidak menulis ke tabel `d3_user_access`.
 
+## 2a. Data production yang siap diuji (dicek 24 Nov 2026)
+
+Dibaca read-only dari database bersama yang dipakai https://hrms-d4-sandbox.vercel.app. Data D1 dan D3 belum lengkap, jadi skenario Katalon hanya memakai baris yang datanya ada.
+
+| Posisi (D3) | Pegawai aktif | KPI dari D1 | Requirement kompetensi | Bisa dipakai untuk |
+|---|---|---|---|---|
+| HCC-HR-MGR HR Manager | 11 | 5 KPI, bobot 100 | 3 | Daily KPI, Performance Review, Development Requirement, Training Tracking, bulk |
+| FAT-TAX-MGR, FAT-ACC-MGR, FAT-TRS-MGR, COM-CS-MGR, COM-SA, DIR-FAT | 1–2 per posisi | 5 KPI, bobot 100 | 3–5 | Daily KPI, Performance Review, Competency Gap |
+| FAT-BIL-001 Accounting Associate | 3 | ada (katalog D4) | 3 | Performance Review, Competency Gap, Training Tracking |
+| FAT-TAX-ASC Tax Associate | 1 | belum | 3 | Training Tracking, peringatan Gap closed (level belum tercatat) |
+| IT | 2 | 3 KPI di D1 (belum 5) | 3 | Hindari untuk skenario Daily KPI dan Performance Review |
+| COM-FA Field Agent | 7 | belum | belum | Jangan dipakai untuk skenario sukses; cocok untuk uji pesan "belum ada KPI/requirement" |
+| COM-SLS Sales Executive | 5 | belum (belum dipetakan ke D1) | 3 | Sama dengan Field Agent untuk Daily KPI |
+| DIR-GEN General Director | 3 | ada (katalog D4) | belum | Direktur hanya membaca; Competency Gap tidak bisa dihitung |
+
+- Level kompetensi (D3) baru ada untuk 7 dari 39 pegawai aktif: DIR-FAT, DIR-GEN, FAT-ACC-MGR, FAT-BIL-001, FAT-TRS-MGR, dan dua HR Manager. Pegawai lain tampil "belum tercatat" di Competency Gap.
+- Garis atasan (`d3_employee_reporting`) baru 3 baris. D4 tidak membatasi Manager ke timnya, jadi ini tidak memengaruhi skenario D4.
+- **Belum bisa direplikasi di production:** menutup requirement dengan "Gap closed: Meets requirement" sampai berhasil tersimpan. Tidak ada requirement Competency Gap yang masih terbuka untuk pegawai yang levelnya sudah memenuhi. Yang bisa diuji adalah penolakannya beserta alasannya.
+
 ## 3. Hak akses per halaman (UI)
 
 Kelima menu tampil untuk semua peran (`modules/d4/web/ui/AppShell.tsx`). Tombol tulis hanya muncul jika `canWrite` bernilai benar, yaitu untuk HR atau MANAGER (`modules/d4/web/data/selectors.ts:12`).
