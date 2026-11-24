@@ -86,10 +86,10 @@ function PeopleDashboard() {
       period={<PeriodFilter label={t("Period")} testId="latest-period" emptyOption={false} value={shown} onChange={set("period")} options={periods.map((item) => ({ value: item, label: formatPeriod(item, language) }))} />}>
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label={t("Departments")} testId="all-departments" value={department} onChange={set("department")} options={snapshot.reference.departments.map((item) => ({ value: item.id, label: item.name }))} />}
       {/* FR-D4-004 B: performance category (1–100 scorecards only); the Katalon id keeps the old "categories" name. */}
-      {snapshot.role !== "EMPLOYEE" && <SelectFilter label={t("Performance")} testId="all-categories" value={band} onChange={set("band")} options={BANDS.map((item) => ({ value: item, label: item }))} />}
+      {snapshot.role !== "EMPLOYEE" && <SelectFilter label={t("Performance")} testId="all-categories" value={band} onChange={set("band")} options={BANDS.map((item) => ({ value: item, label: t(item) }))} />}
       {snapshot.role !== "EMPLOYEE" && <SelectFilter label={t("Positions")} testId="all-positions" value={position} onChange={set("position")} options={snapshot.reference.positions.map((item) => ({ value: item.id, label: item.title }))} />}
-      {snapshot.role !== "EMPLOYEE" && <SelectFilter label={t("Competency status")} testId="all-competency-status" value={competency} onChange={set("competency")} options={COMPETENCY_ORDER.map((item) => ({ value: item, label: item }))} />}
-      {snapshot.role !== "EMPLOYEE" && <SelectFilter label={t("Training status")} testId="all-training-status" value={training} onChange={set("training")} options={["Planned", "In Progress", "Completed", "Cancelled"].map((item) => ({ value: item, label: statusLabel(item) }))} />}
+      {snapshot.role !== "EMPLOYEE" && <SelectFilter label={t("Competency status")} testId="all-competency-status" value={competency} onChange={set("competency")} options={COMPETENCY_ORDER.map((item) => ({ value: item, label: t(item) }))} />}
+      {snapshot.role !== "EMPLOYEE" && <SelectFilter label={t("Training status")} testId="all-training-status" value={training} onChange={set("training")} options={["Planned", "In Progress", "Completed", "Cancelled"].map((item) => ({ value: item, label: t(statusLabel(item)) }))} />}
     </FilterBar>
     <SummaryTiles snapshot={snapshot} rows={rows} period={shown} noKpi={noKpi} />
     {snapshot.role !== "EMPLOYEE" && rows.length > 0 && <>
@@ -150,12 +150,12 @@ function Donut({ name, slices, colors, center, centerLabel }: { name: string; sl
   const { t } = useLanguage();
   return <div className="flex flex-wrap items-center gap-6">
     <div className="relative size-36 shrink-0">
-      <svg viewBox="0 0 100 100" className="size-full -rotate-90" role="img" aria-label={`${name}: ${drawn.map((slice) => `${slice.label} ${slice.count}`).join(", ") || t("belum ada data")}`}>
+      <svg viewBox="0 0 100 100" className="size-full -rotate-90" role="img" aria-label={`${name}: ${drawn.map((slice) => `${t(slice.label)} ${slice.count}`).join(", ") || t("belum ada data")}`}>
         {!arcs.length && <circle cx="50" cy="50" r={RING_R} fill="none" stroke="var(--color-line)" strokeWidth="12" />}
         {arcs.map(({ slice, start, length }) => {
           const dash = arcs.length > 1 ? Math.max(length - SLICE_GAP, 0.5) : length;
           return <circle key={slice.key} data-testid={`slice-${slice.key}`} cx="50" cy="50" r={RING_R} fill="none" stroke={colorOf(slice.key)} strokeWidth="12" strokeDasharray={`${dash} ${RING - dash}`} strokeDashoffset={-start}>
-            <title>{`${slice.label}: ${slice.count} (${share(slice.count)}%)`}</title>
+            <title>{`${t(slice.label)}: ${slice.count} (${share(slice.count)}%)`}</title>
           </circle>;
         })}
       </svg>
@@ -167,7 +167,7 @@ function Donut({ name, slices, colors, center, centerLabel }: { name: string; sl
     <ul className="min-w-0 space-y-2 text-sm">
       {slices.map((slice) => <li key={slice.key} data-testid={`legend-${slice.key}`} className="flex items-center gap-2">
         <span aria-hidden="true" className="size-3 shrink-0 rounded-sm" style={{ background: colorOf(slice.key) }} />
-        <span className="text-ink-2">{slice.label}</span>
+        <span className="text-ink-2">{t(slice.label)}</span>
         <span className="font-semibold tabular-nums text-ink">{slice.count}</span>
         <span className="text-xs text-ink-3">({share(slice.count)}%)</span>
       </li>)}
@@ -370,7 +370,7 @@ export function EmployeeProfilePage({ employeeId, initialPeriod = "", own = fals
           const linked = employeeTraining.filter((item) => item.developmentNeedId === need.needId);
           return <li key={need.needId} className="rounded-xl border border-line p-3">
             <div className="flex flex-wrap items-center justify-between gap-2"><Link href={`/development/${need.needId}`} data-testid={`dev-need-${need.needId}`} className="text-sm font-semibold hover:text-primary-600 hover:underline">{need.objective}</Link><StatusBadge status={need.status} /></div>
-            <p className="mt-1.5 text-xs text-ink-3">{linked.length ? linked.map((item) => `${item.activity} (${statusLabel(item.status)}, ${formatDate(item.date, language)})`).join(" · ") : t("Belum ada training")}</p>
+            <p className="mt-1.5 text-xs text-ink-3">{linked.length ? linked.map((item) => `${item.activity} (${t(statusLabel(item.status))}, ${formatDate(item.date, language)})`).join(" · ") : t("Belum ada training")}</p>
           </li>;
         })}</ul> : <p className="text-sm text-ink-3">{t("Belum ada development requirement.")}</p>}
       </Card>

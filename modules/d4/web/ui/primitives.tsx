@@ -57,8 +57,8 @@ const statusTone: Record<string, Tone> = {
   "Data Belum Cukup": "neutral", "Bukti Belum Cukup": "neutral", "Not Evaluated": "neutral", "Belum Ada Persyaratan": "neutral", "Belum Ada Posisi": "neutral",
 };
 
-// Display labels for stored values. Workflow statuses are already English; competency statuses come from D3 in
-// Indonesian and are translated here only for display.
+// English display labels for stored values, also the keys the filters compare. Workflow statuses are already English;
+// competency statuses come from D3 in Indonesian. The shown text goes through t(), so it follows the EN/ID toggle.
 const STATUS_LABELS: Record<string, string> = {
   Terpenuhi: "Met", "Data Belum Cukup": "Insufficient Data", "Bukti Belum Cukup": "Insufficient Data",
   // No requirement or no position means nothing can be concluded, so it reads as Insufficient Data (3 competency statuses).
@@ -68,9 +68,10 @@ const STATUS_LABELS: Record<string, string> = {
 export const statusLabel = (status: string) => STATUS_LABELS[status] ?? status;
 
 export function StatusBadge({ status }: { status: string }) {
+  const { t } = useLanguage();
   const tone = statusTone[status] ?? "neutral";
   return <span data-testid="status-badge" className={cx("inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-semibold leading-none", toneStyles[tone])}>
-    <span aria-hidden="true" className="size-1.5 rounded-full bg-current" />{statusLabel(status)}
+    <span aria-hidden="true" className="size-1.5 rounded-full bg-current" />{t(statusLabel(status))}
   </span>;
 }
 
