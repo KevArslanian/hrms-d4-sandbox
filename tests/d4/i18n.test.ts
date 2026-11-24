@@ -45,6 +45,13 @@ describe("D4 language dictionary", () => {
     expect(plainText.language).toBeNull();
   });
 
+  // Lecturer (24 Nov 2026): statuses and results did not follow the toggle. The stored value stays the key.
+  it("translates status words in Indonesian and keeps them in English", () => {
+    const id = translator("id"), en = translator("en");
+    expect(["Completed", "In Progress", "Planned", "Not Passed", "Met", "Insufficient Data"].map((word) => id(word))).toEqual(["Selesai", "Berjalan", "Direncanakan", "Tidak Lulus", "Terpenuhi", "Data Belum Cukup"]);
+    expect(en("Completed")).toBe("Completed");
+  });
+
   it("uses the English singular for a count of one", () => {
     const en = translator("en");
     expect(en("{count} pegawai belum punya kategori.", { count: 1 })).toBe("1 employee has no category yet.");

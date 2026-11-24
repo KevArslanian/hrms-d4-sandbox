@@ -132,7 +132,7 @@ export function BulkTrainingModal({ needs, choices, initial, title = "Add Traini
         <DateField label={t("Date")} testId="bulk-training-date" required min={status === "Planned" ? today() : undefined} value={date} onChange={(event) => setDate(event.target.value)} error={touched && !date ? t("Tanggal wajib diisi.") : undefined} />
         <SelectField label={t("Status")} testId="bulk-training-status" required value={status} onChange={(event) => setStatus(event.target.value as TrainingStatus)}
           helper={t("Completed dicatat per training lewat Update Progress, karena hasil dan keputusannya per orang.")}>
-          {(["Planned", "In Progress"] as const).map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}
+          {(["Planned", "In Progress"] as const).map((item) => <option key={item} value={item}>{t(statusLabel(item))}</option>)}
         </SelectField>
       </div>
       <TextAreaField label={t("Notes")} testId="bulk-training-notes" maxLength={NOTES_MAX} value={notes} onChange={(event) => setNotes(event.target.value)} helper={`${notes.length}/${NOTES_MAX}`} />
@@ -210,14 +210,14 @@ export function BulkProgressModal({ trainings, onClose, onDone }: { trainings: r
       <TargetList items={trainings} noun={msg("{count} dari {total} training dipilih")} picked={picked} onChange={setPicked} issues={issues} />
       {issues.size > 0 && <div data-testid="bulk-issues"><Notice tone="warning">{t("{count} training tidak memenuhi syarat untuk pilihan ini dan tidak ikut disimpan. Alasannya ada di daftar; hapus centangnya atau ubah pilihan.", { count: issues.size })}</Notice></div>}
       <SelectField label={t("Status")} testId="bulk-progress-status" required value={status} onChange={(event) => { setStatus(event.target.value as BulkProgress["status"]); setError(""); }}>
-        {(["In Progress", "Completed"] as const).map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}
+        {(["In Progress", "Completed"] as const).map((item) => <option key={item} value={item}>{t(statusLabel(item))}</option>)}
       </SelectField>
       {skipped > 0 && <Notice>{targets.length ? t("{count} training sudah In Progress dan tidak diubah.", { count: skipped }) : t("Semua training yang dipilih sudah In Progress.")}</Notice>}
       {completing && <>
         <SelectField label={t("Result")} testId="bulk-progress-result" required value={result} onChange={(event) => { setResult(event.target.value); setDecision(""); setError(""); }}
           error={touched && !result ? t("Result wajib dipilih.") : undefined} helper={t("Hasil yang sama untuk semua training yang dipilih. Detail per orang ditulis di Notes training masing-masing.")}>
           <option value="">{t("Select result")}</option>
-          {TRAINING_RESULTS.map((item) => <option key={item} value={item}>{item}</option>)}
+          {TRAINING_RESULTS.map((item) => <option key={item} value={item}>{t(item)}</option>)}
         </SelectField>
         {result && <RadioField label={result === "Passed" ? t("Competency after training") : t("Follow-up")} testId={result === "Passed" ? "bulk-reassessment" : "bulk-follow-up"} required value={decision}
           helper={result === "Passed" ? t(PASSED_HELPER) : undefined}

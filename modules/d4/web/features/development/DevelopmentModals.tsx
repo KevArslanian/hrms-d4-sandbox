@@ -57,7 +57,7 @@ function PicField({ value, onChange, current, error }: { value: string; onChange
 function PrioritySelect({ value, onChange }: { value: DevelopmentPriority; onChange: (value: DevelopmentPriority) => void }) {
   const { t } = useLanguage();
   return <SelectField label={t("Priority")} testId="priority" value={value} onChange={(event) => onChange(event.target.value as DevelopmentPriority)}>
-    {(["High", "Medium", "Low"] as const).map((item) => <option key={item} value={item}>{statusLabel(item)}</option>)}
+    {(["High", "Medium", "Low"] as const).map((item) => <option key={item} value={item}>{t(statusLabel(item))}</option>)}
   </SelectField>;
 }
 
@@ -203,7 +203,7 @@ export function DevelopmentEditModal({ needId, onClose, onSaved }: { needId: str
       <FormError message={error} />
       <div className="grid gap-4 sm:grid-cols-2">
         <PrioritySelect value={priority} onChange={setPriority} />
-        <ReadOnlyField label={t("Status")} testId="status" value={statusLabel(current.status)} />
+        <ReadOnlyField label={t("Status")} testId="status" value={t(statusLabel(current.status))} />
         <MethodField value={method} onChange={setMethod} />
         <PicField value={pic} onChange={setPic} current={current.pic} />
       </div>

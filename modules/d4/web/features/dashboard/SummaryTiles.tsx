@@ -173,7 +173,7 @@ function NeedList({ snapshot, rows, onAction }: { snapshot: Snapshot; rows: read
               <Link href={`/development/${need.needId}`} className={cx("text-sm text-ink", textLink)}>{need.objective}</Link>
               <span className="mt-1 flex flex-wrap items-center gap-2 text-xs text-ink-3">
                 {/* A Completed training shows its result, so a Not Passed one does not read as done (Q16). */}
-                {training ? <><StatusBadge status={training.status} />{training.status === "Completed" && training.result && <span className={cx("font-semibold", training.result === "Not Passed" ? "text-warning" : "text-success")}>{training.result}</span>}<Link href={`/training/${training.trainingId}`} className={cx("min-w-0 truncate", textLink)}>{training.activity}</Link></>
+                {training ? <><StatusBadge status={training.status} />{training.status === "Completed" && training.result && <span className={cx("font-semibold", training.result === "Not Passed" ? "text-warning" : "text-success")}>{t(training.result)}</span>}<Link href={`/training/${training.trainingId}`} className={cx("min-w-0 truncate", textLink)}>{training.activity}</Link></>
                   : <span className="font-semibold text-warning">{t("Belum punya training")}</span>}
               </span>
             </Item>;
