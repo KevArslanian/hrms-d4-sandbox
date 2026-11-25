@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { AlertTriangle, ArrowLeft, ChevronRight, Inbox, Lock, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, CheckCircle2, ChevronRight, Inbox, Lock, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useD4 } from "../data/D4DataProvider";
 import { useLanguage } from "../i18n/LanguageProvider";
@@ -145,15 +145,17 @@ export function Toasts() {
   // Bottom right, so a toast never covers the header bell or its panel (PST 2).
   return <div aria-live="polite" className="pointer-events-none fixed bottom-4 right-4 z-[80] flex w-[min(451px,calc(100vw-2rem))] flex-col gap-2">
     {/* Design System PISD 6410:132 (Normal state). The error toast follows the same shape in the System/business error red.
-        Solid instead of the 70% fill: a toast floats over tables, and their text would show through. */}
+        Solid instead of the 70% fill: a toast floats over tables, and their text would show through. Success is white with
+        a green check and label: the class agreed on a white success indicator (recording 21 Nov 2026, mas Bram item 6). */}
     {toasts.map((toast) => <div key={toast.id} role={toast.tone === "error" ? "alert" : "status"} data-testid={`toast-${toast.tone}`}
-      className={cx("pointer-events-auto flex items-start gap-3 rounded-xl border px-4 py-3 font-display shadow-card", toast.tone === "success" ? "border-[#a7f3d0] bg-[#ecfdf5]" : "border-[#f5b8c2] bg-danger-bg")}>
+      className={cx("pointer-events-auto flex items-start gap-3 rounded-xl border px-4 py-3 font-display shadow-card", toast.tone === "success" ? "border-line bg-surface" : "border-[#f5b8c2] bg-danger-bg")}>
+      {toast.tone === "success" && <CheckCircle2 aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-success" />}
       <div className="min-w-0 flex-1">
-        <p className={cx("text-xs font-bold leading-4", toast.tone === "success" ? "text-[#064e3b]" : "text-[#8f1c2d]")}>{toast.tone === "success" ? t("SUCCEED") : t("FAILED")}</p>
-        <p className={cx("mt-0.5 text-sm leading-5", toast.tone === "success" ? "text-[#047857]" : "text-[#b42335]")}>{toast.text}</p>
+        <p className={cx("text-xs font-bold leading-4", toast.tone === "success" ? "text-success" : "text-[#8f1c2d]")}>{toast.tone === "success" ? t("SUCCEED") : t("FAILED")}</p>
+        <p className={cx("mt-0.5 text-sm leading-5", toast.tone === "success" ? "text-ink" : "text-[#b42335]")}>{toast.text}</p>
       </div>
       <button type="button" data-testid="btn-toast-close" aria-label={t("Dismiss notification")} onClick={() => dismissToast(toast.id)}
-        className={cx("-mr-1 rounded p-1", toast.tone === "success" ? "text-[#047857] hover:bg-[#a7f3d0]/40" : "text-[#b42335] hover:bg-[#f5b8c2]/40")}><X className="size-4" /></button>
+        className={cx("-mr-1 rounded p-1", toast.tone === "success" ? "text-ink-2 hover:bg-muted" : "text-[#b42335] hover:bg-[#f5b8c2]/40")}><X className="size-4" /></button>
     </div>)}
   </div>;
 }

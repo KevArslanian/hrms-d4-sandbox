@@ -693,12 +693,12 @@ describe("training completion in one save", () => {
 
   it("Retraining after the reassessment writes a competency snapshot, the requirement, then the next training", async () => {
     passed(true);
-    const res = await complete({ result: "Passed", decision: "Retraining", notes: "Level belum naik", activity: "Coretax Reporting Clinic", date: "2026-11-24" });
+    const res = await complete({ result: "Passed", decision: "Retraining", notes: "Level belum naik", activity: "Coretax Reporting Clinic", date: "2030-01-15" });
     expect(res).toMatchObject({ status: 201, body: { data: { trainingId: RUNNING, decision: "Retraining" } } });
     // The saved Passed result is not written again.
     expect(writes.map((item) => item.method)).toEqual(["saveCompetency", "updateDevelopment", "createTraining"]);
     expect(writes[1].args[1]).toMatchObject({ status: "Planned", reassessment: "Retraining" });
-    expect(writes[2].args[0]).toMatchObject({ developmentNeedId: "FIX-D4-DEV-002", status: "Planned", activity: "Coretax Reporting Clinic", date: "2026-11-24" });
+    expect(writes[2].args[0]).toMatchObject({ developmentNeedId: "FIX-D4-DEV-002", status: "Planned", activity: "Coretax Reporting Clinic", date: "2030-01-15" });
   });
 
   it.each([
@@ -706,7 +706,7 @@ describe("training completion in one save", () => {
     ["before an assessment saved after the result", false, /Belum ada penilaian ulang/],
   ])("refuses Retraining %s, before any write", async (_name, reassessed, message) => {
     if (reassessed !== null) passed(reassessed);
-    const res = await complete({ result: "Passed", decision: "Retraining", notes: "", activity: "Coretax Reporting Clinic", date: "2026-11-24" });
+    const res = await complete({ result: "Passed", decision: "Retraining", notes: "", activity: "Coretax Reporting Clinic", date: "2030-01-15" });
     expect(res.status).toBe(422);
     expect(res.body.error?.message).toMatch(message);
     expect(writes).toHaveLength(0);
@@ -720,7 +720,7 @@ describe("training completion in one save", () => {
   });
 
   it("Not Passed writes one version that carries the follow-up", async () => {
-    const res = await complete({ result: "Not Passed", decision: "Retraining", notes: "", activity: "Coretax Reporting Clinic", date: "2026-11-24" });
+    const res = await complete({ result: "Not Passed", decision: "Retraining", notes: "", activity: "Coretax Reporting Clinic", date: "2030-01-15" });
     expect(res.status).toBe(201);
     expect(writes.map((item) => item.method)).toEqual(["recordTrainingFollowUp"]);
   });

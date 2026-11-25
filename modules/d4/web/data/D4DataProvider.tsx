@@ -30,6 +30,8 @@ type D4Data = {
   run: <T>(operation: (source: D4DataSource) => Promise<T>, success: string | ((value: T) => string), options?: { refreshInBackground?: boolean }) => Promise<Result<T>>;
   toasts: ToastMessage[];
   dismissToast: (id: number) => void;
+  /** A toast for an action outside the D4 data, such as a password change, which has no snapshot to reload. */
+  notify: (tone: ToastMessage["tone"], text: string) => void;
 };
 
 const Context = createContext<D4Data | null>(null);
@@ -132,10 +134,10 @@ export function D4DataProvider({ children, mode }: { children: ReactNode; mode: 
   }, [source, pushToast, t]);
 
   const value = useMemo<D4Data>(() => ({
-    mode, status, error, snapshot, catalog, busy, run, toasts,
+    mode, status, error, snapshot, catalog, busy, run, toasts, notify: pushToast,
     reload: () => { setStatus("loading"); setAttempt((count) => count + 1); },
     dismissToast: (id) => setToasts((items) => items.filter((item) => item.id !== id)),
-  }), [mode, status, error, snapshot, catalog, busy, run, toasts]);
+  }), [mode, status, error, snapshot, catalog, busy, run, toasts, pushToast]);
 
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }

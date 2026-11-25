@@ -36,7 +36,7 @@ const EMPLOYEE_MENU = [
 const menuFor = (role: string | undefined): readonly { href: string; label: string }[] => !role ? [] : role === "EMPLOYEE" ? EMPLOYEE_MENU : D4_MENU;
 
 // HR and Manager read the same in both languages (the Indonesian copy says "manager").
-const roleLabel: Record<string, string> = { HR: "HR", MANAGER: "Manager", MANAGEMENT: msg("Management"), EMPLOYEE: msg("Employee") };
+export const roleLabel: Record<string, string> = { HR: "HR", MANAGER: "Manager", MANAGEMENT: msg("Management"), EMPLOYEE: msg("Employee") };
 
 // Sidebar follows the revised sidebar in the PISD design system page (node 5429:830, 16 Nov 2026): ANDIMA wordmark without
 // the logo, a Dashboard link above the HRMS group (POS, CRM and MID left out, they were never clickable from D4), and the
@@ -115,10 +115,11 @@ function Sidebar({ onNavigate, onClose }: { onNavigate: () => void; onClose: () 
     {/* On a phone the header badge is hidden, so the sidebar is where the preview says it shows sample data. */}
     {mode === "fixture" && <p className="mt-4 rounded-lg border border-[#d9e2fc]/20 px-3 py-1.5 text-center text-[11px] text-[#d9e2fc]/80">{t("Mode pratinjau · data contoh")}</p>}
     {/* Shown in the preview as well, where it ends the preview sign-in (preview-session.ts) without contacting a server.
-        The text is a lighter shade of the #d9364f border, which reaches only 3.4:1 on the dark sidebar; this one clears 4.5:1 also on hover.
-        */}
+        The text is a lighter shade of the #d9364f border, which reaches only 3.4:1 on the dark sidebar; this one clears 4.5:1.
+        Hover fills the button with the border red: the 10% tint it had read as no feedback at all (Gebi, 24 Nov 2026). The
+        design system shows no hover for Logout; white on #d9364f is 4.57:1. */}
     <button type="button" data-testid="btn-logout" onClick={() => void signOut()} disabled={signingOut} aria-live="polite"
-      className="mt-4 h-10 w-full rounded-[20px] border-[3px] border-[#d9364f] font-display text-xl font-semibold text-[#e3697b] transition hover:bg-[#d9364f]/10 disabled:cursor-wait">
+      className="mt-4 h-10 w-full rounded-[20px] border-[3px] border-[#d9364f] font-display text-xl font-semibold text-[#e3697b] transition-colors hover:bg-[#d9364f] hover:text-white focus-visible:bg-[#d9364f] focus-visible:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:cursor-wait disabled:bg-[#d9364f] disabled:text-white">
       {signingOut ? t("Logging out...") : "Logout"}
     </button>
   </div>;
@@ -230,7 +231,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const current = !snapshot ? undefined : snapshot.role === "EMPLOYEE" ? EMPLOYEE_MENU.find(matches) ?? EMPLOYEE_MENU[0] : D4_MENU.find(matches);
   const actor = snapshot?.reference.employees.find((item) => item.id === snapshot.actorEmployeeId);
   const name = actor?.fullName ?? "-";
-  const section = current ? t(current.label) : t("Performance & Training");
+  // /profile belongs to no menu; without this an employee's title would fall back to My Performance.
+  const section = pathname.startsWith("/profile") ? t("My Profile") : current ? t(current.label) : t("Performance & Training");
 
   // One title per section (WCAG 2.4.2), set only once the role is known so an employee never sees an HR menu name.
   useEffect(() => {
@@ -288,10 +290,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         <LanguageToggle />
         <NotificationBell />
         <span aria-hidden="true" className="h-8 w-px bg-line" />
-        <div className="flex items-center gap-2.5">
+        {/* The avatar opens the account profile, where everyone changes their own password (mas Bram, 25 Nov 2026). */}
+        <Link href="/profile" data-testid="header-profile-link" aria-label={t("My Profile")} className="-mr-2 flex items-center gap-2.5 rounded-lg px-2 py-1 transition-colors hover:bg-muted">
           <span aria-hidden="true" className="flex size-9 items-center justify-center rounded-full bg-avatar-me-bg text-xs font-semibold text-avatar-me">{name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("")}</span>
           <span className="hidden sm:block"><strong data-testid="header-user-name" className="block text-sm font-semibold leading-5 text-ink">{name}</strong><span data-testid="header-user-role" className="block text-xs text-ink-2">{t(roleLabel[snapshot?.role ?? ""] ?? "-")}</span></span>
-        </div>
+        </Link>
       </header>
       <main id="main" className="mx-auto w-full max-w-[1600px] space-y-6 px-4 py-8 sm:px-8">{children}</main>
     </div>
