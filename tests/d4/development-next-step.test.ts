@@ -58,7 +58,7 @@ describe("Next step of a requirement", () => {
     const source = await hrSource();
     let snapshot = await source.loadSnapshot();
     expect(step(snapshot, ENA)).toMatchObject({ kind: "decide", decision: "follow-up", training: { trainingId: "FIX-D4-TRN-003" } });
-    const retrainingId = await source.completeTraining("FIX-D4-TRN-003", { result: "Not Passed", decision: "Retraining", notes: "", activity: "Records Retention Workshop (ulang)", date: "2026-11-27" });
+    const retrainingId = await source.completeTraining("FIX-D4-TRN-003", { result: "Not Passed", decision: "Retraining", notes: "", activity: "Records Retention Workshop (ulang)", date: "2030-01-15" });
     snapshot = await source.loadSnapshot();
     expect(step(snapshot, ENA)).toMatchObject({ kind: "running", retraining: true, training: { trainingId: retrainingId, status: "Planned" } });
   });
@@ -68,7 +68,7 @@ describe("Next step of a requirement", () => {
     await passThenReassess(source, "FIX-D4-TRN-002");
     let snapshot = await source.loadSnapshot();
     expect(step(snapshot, "FIX-D4-DEV-002")).toMatchObject({ kind: "decide", decision: "reassessment", training: { trainingId: "FIX-D4-TRN-002" } });
-    const retrainingId = await source.completeTraining("FIX-D4-TRN-002", { result: "Passed", decision: "Retraining", notes: "", activity: "Coretax Reporting Clinic", date: "2026-11-24" });
+    const retrainingId = await source.completeTraining("FIX-D4-TRN-002", { result: "Passed", decision: "Retraining", notes: "", activity: "Coretax Reporting Clinic", date: "2030-01-15" });
     snapshot = await source.loadSnapshot();
     expect(needOf(snapshot, "FIX-D4-DEV-002")).toMatchObject({ status: "Planned", reassessment: "Retraining" });
     expect(step(snapshot, "FIX-D4-DEV-002")).toMatchObject({ kind: "running", retraining: true, training: { trainingId: retrainingId } });
@@ -77,7 +77,7 @@ describe("Next step of a requirement", () => {
   it("asks to create the retraining when Retraining reopened the requirement but its training is gone", async () => {
     const source = await hrSource();
     await passThenReassess(source, "FIX-D4-TRN-002");
-    const retrainingId = await source.completeTraining("FIX-D4-TRN-002", { result: "Passed", decision: "Retraining", notes: "", activity: "Coretax Reporting Clinic", date: "2026-11-24" });
+    const retrainingId = await source.completeTraining("FIX-D4-TRN-002", { result: "Passed", decision: "Retraining", notes: "", activity: "Coretax Reporting Clinic", date: "2030-01-15" });
     await source.updateTraining(retrainingId!, "Cancelled", "", "Jadwal batal");
     expect(step(await source.loadSnapshot(), "FIX-D4-DEV-002")).toEqual({ kind: "create", retraining: true });
   });
