@@ -661,7 +661,7 @@ PO mengizinkan migrasi `20261120120000` dan `20261124150000`. Sampai migrasi itu
 - **Aturan password baru sama dengan `/register`:** minimal 10 karakter, berisi huruf, angka, dan karakter khusus. Password baru juga harus berbeda dari yang lama, dan konfirmasinya harus sama.
 - **Cara mengubahnya di live:** halaman login ulang dengan password saat ini untuk membuktikannya, lalu memanggil `auth.updateUser`. Password saat ini yang salah ditandai di field-nya. Di mode pratinjau tidak ada yang diubah; toast menyebutnya.
 - **Tidak dikerjakan:** tombol IT "reset ke password default". D4 tidak punya peran IT, reset butuh service role di server, dan akun auth dipakai semua squad, jadi fitur ini milik HRMS/MID/IT. Pindah database ke Neon + Prisma juga belum (dikecualikan).
-- **Test tanggal diperbaiki.** Tanggal Retraining di 3 file test (`api`, `training-completion`, `development-next-step`) adalah 24–27 Nov. Sejak aturan "Planned tidak boleh sebelum hari ini" (PR #86), test itu gagal begitu tanggal tersebut lewat. Tanggalnya kini 15 Jan 2030.
+- **Test tanggal diperbaiki.** Tanggal Retraining di 3 file test (`api`, `training-completion`, `development-next-step`) adalah 24–27 Nov. Sejak aturan "Planned tidak boleh sebelum hari ini" (PR #86), test itu gagal begitu tanggal tersebut lewat. Tanggalnya kini 15 Jan 2030, begitu juga tanggal Planned 30 Nov dan 1 Des di test simpan massal (`api`, `bulk-progress-check`) yang akan gagal minggu depan.
 - **Bukti:**
   - `tests/d4/profile-password.test.ts`.
   - Dicek di pratinjau lokal (1024 px dan 375 px): hover Logout berwarna `rgb(217,54,79)` dengan teks putih; validasi field; toast sukses putih.
