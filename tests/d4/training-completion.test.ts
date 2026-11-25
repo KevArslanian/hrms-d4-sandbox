@@ -46,7 +46,7 @@ describe("Passed: the reassessment is recorded with the result", () => {
 
   it("refuses Retraining in the save that records Passed, before any write", async () => {
     const source = await hrSource();
-    await expect(source.completeTraining(TRAINING, { result: "Passed", decision: "Retraining", notes: "", activity: "Coretax Reporting Clinic", date: "2026-11-24" })).rejects.toThrow(/Retraining dipilih saat reassessment/);
+    await expect(source.completeTraining(TRAINING, { result: "Passed", decision: "Retraining", notes: "", activity: "Coretax Reporting Clinic", date: "2030-01-15" })).rejects.toThrow(/Retraining dipilih saat reassessment/);
     expect(training(await source.loadSnapshot()).status).toBe("In Progress");
   });
 
@@ -55,17 +55,17 @@ describe("Passed: the reassessment is recorded with the result", () => {
     const assessed = (snapshot: Snapshot) => snapshot.competency.filter((item) => item.employeeId === DIAN).length;
     const start = assessed(await source.loadSnapshot());
     await passThenReassess(source, TRAINING);
-    const id = await source.completeTraining(TRAINING, { result: "Passed", decision: "Retraining", notes: "Level belum naik", activity: "Coretax Reporting Clinic", date: "2026-11-24" });
+    const id = await source.completeTraining(TRAINING, { result: "Passed", decision: "Retraining", notes: "Level belum naik", activity: "Coretax Reporting Clinic", date: "2030-01-15" });
     const after = await source.loadSnapshot();
     expect(training(after)).toMatchObject({ status: "Completed", result: "Passed" });
     expect(need(after)).toMatchObject({ status: "Planned", reassessment: "Retraining", notes: "Level belum naik" });
-    expect(latestTraining(after).find((item) => item.trainingId === id)).toMatchObject({ developmentNeedId: NEED, status: "Planned", activity: "Coretax Reporting Clinic", date: "2026-11-24" });
+    expect(latestTraining(after).find((item) => item.trainingId === id)).toMatchObject({ developmentNeedId: NEED, status: "Planned", activity: "Coretax Reporting Clinic", date: "2030-01-15" });
     expect(latestTraining(after).find((item) => item.trainingId === id)?.notes).toMatch(/^Retraining setelah "Coretax Reporting Briefing" \(2026-10-01\) Passed, tetapi gap belum tertutup\.\nLevel belum naik$/);
     // HR's reassessment, then the snapshot saved with the decision.
     expect(assessed(after)).toBe(start + 2);
     expect(trainingDecision(after, training(after))).toBeNull();
     expect(reassessmentFor(after, NEED)).toBe("Retraining");
-    await expect(source.completeTraining(TRAINING, { result: "Passed", decision: "Retraining", notes: "", activity: "X", date: "2026-11-25" })).rejects.toThrow(/sudah dicatat/);
+    await expect(source.completeTraining(TRAINING, { result: "Passed", decision: "Retraining", notes: "", activity: "X", date: "2030-01-15" })).rejects.toThrow(/sudah dicatat/);
   });
 
   it("Decide later: the result is saved and the Next step stays until the decision", async () => {
@@ -75,12 +75,12 @@ describe("Passed: the reassessment is recorded with the result", () => {
     expect(trainingDecision(later, training(later))).toBe("reassessment");
     expect(need(later).status).toBe("In Progress");
     // The level before the training proves nothing: Retraining waits for an assessment saved after the result.
-    await expect(source.completeTraining(TRAINING, { result: "Passed", decision: "Retraining", notes: "", activity: "Coretax Reporting Clinic", date: "2026-11-24" })).rejects.toThrow(/Belum ada penilaian ulang/);
+    await expect(source.completeTraining(TRAINING, { result: "Passed", decision: "Retraining", notes: "", activity: "Coretax Reporting Clinic", date: "2030-01-15" })).rejects.toThrow(/Belum ada penilaian ulang/);
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(Date.now() + 60_000);
     await source.saveCompetency({ employeeId: DIAN, positionId: later.reference.employees.find((item) => item.id === DIAN)!.positionId!, effectiveDate: "2026-11-23" });
     vi.setSystemTime(Date.now() + 60_000);
-    await source.completeTraining(TRAINING, { result: "Passed", decision: "Retraining", notes: "", activity: "Coretax Reporting Clinic", date: "2026-11-24" });
+    await source.completeTraining(TRAINING, { result: "Passed", decision: "Retraining", notes: "", activity: "Coretax Reporting Clinic", date: "2030-01-15" });
     const after = await source.loadSnapshot();
     // The saved result is not written again.
     expect(after.trainingVersions.filter((item) => item.trainingId === TRAINING).map((item) => item.revision).sort()).toEqual([1, 2]);

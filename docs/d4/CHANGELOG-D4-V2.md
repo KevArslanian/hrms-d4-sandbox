@@ -650,3 +650,19 @@ PO mengizinkan migrasi `20261120120000` dan `20261124150000`. Sampai migrasi itu
 - **Yang tidak berubah:** nilai di database dan API, nilai filter, parameter URL, dan `data-testid`. `statusLabel` tetap mengembalikan kunci bahasa Inggris yang dipakai filter; teks tampilnya diterjemahkan lewat `t()`.
 - **Dampak ke Katalon:** bahasa default adalah ID, jadi skrip yang memeriksa teks badge (mis. "Completed") sekarang membaca "Selesai". Skrip yang memakai `data-testid` atau nilai `<option value>` tidak terpengaruh.
 - **Bukti:** `tests/d4/i18n.test.ts` (terjemahan status ID dan EN). Dicek di pratinjau lokal mode ID: dashboard, lima halaman list, detail training, dan detail development tidak lagi menampilkan kata status bahasa Inggris.
+
+## Revisi dari grup WA: Logout, toast sukses, profil · 25 Nov 2026
+
+- **Hover Logout terlihat jelas.** Saat hover atau fokus keyboard, tombol terisi `#d9364f` dan teksnya putih (4,57:1). Sebelumnya hanya muncul tint merah 10% yang terlalu tipis (Gebi, 24 Nov). Design System kelas (node `2053:802`) hanya menggambar Logout outline merah tanpa varian hover. `AppShell.tsx`
+- **Toast sukses putih.** Latarnya putih dengan garis tipis, ikon centang, dan label SUCCEED/BERHASIL hijau; isi pesan berwarna teks biasa. Dasarnya daftar revisi mas Bram 21 Nov no. 6 dan polling kelas di rekaman 21 Nov ("desain sistemnya warna putih"). Toast hijau dari DS node `6410:132` (16–17 Nov) tidak dipakai lagi; node itu sudah tidak ada di file DS. Toast gagal tetap merah. `layout.tsx`
+- **Halaman My Profile (`/profile`).** Dibuka dari avatar di kanan header. Isinya:
+  - nama, peran, Employee ID, email akun, posisi, dan departemen, semuanya hanya baca (data diri diubah HR);
+  - form ubah password: password saat ini, password baru, konfirmasi.
+- **Aturan password baru sama dengan `/register`:** minimal 10 karakter, berisi huruf, angka, dan karakter khusus. Password baru juga harus berbeda dari yang lama, dan konfirmasinya harus sama.
+- **Cara mengubahnya di live:** halaman login ulang dengan password saat ini untuk membuktikannya, lalu memanggil `auth.updateUser`. Password saat ini yang salah ditandai di field-nya. Di mode pratinjau tidak ada yang diubah; toast menyebutnya.
+- **Tidak dikerjakan:** tombol IT "reset ke password default". D4 tidak punya peran IT, reset butuh service role di server, dan akun auth dipakai semua squad, jadi fitur ini milik HRMS/MID/IT. Pindah database ke Neon + Prisma juga belum (dikecualikan).
+- **Test tanggal diperbaiki.** Tanggal Retraining di 3 file test (`api`, `training-completion`, `development-next-step`) adalah 24–27 Nov. Sejak aturan "Planned tidak boleh sebelum hari ini" (PR #86), test itu gagal begitu tanggal tersebut lewat. Tanggalnya kini 15 Jan 2030, begitu juga tanggal Planned 30 Nov dan 1 Des di test simpan massal (`api`, `bulk-progress-check`) yang akan gagal minggu depan.
+- **Bukti:**
+  - `tests/d4/profile-password.test.ts`.
+  - Dicek di pratinjau lokal (1024 px dan 375 px): hover Logout berwarna `rgb(217,54,79)` dengan teks putih; validasi field; toast sukses putih.
+  - Jalur live (login ulang + updateUser) belum dicoba dengan akun asli.
