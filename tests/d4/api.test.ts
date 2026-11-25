@@ -583,7 +583,7 @@ describe("POST /training-records/bulk", () => {
 
   it("checks create and version rows of one employee against the same snapshot", async () => {
     const res = await bulk([
-      { op: "create", employeeId: ALFA, developmentNeedId: NEED, activity: "Uji", date: "2026-12-01", status: "Planned", result: "", notes: "" },
+      { op: "create", employeeId: ALFA, developmentNeedId: NEED, activity: "Uji", date: "2030-01-15", status: "Planned", result: "", notes: "" },
       { op: "version", trainingId: TRAINING, status: "In Progress", result: "", notes: "" },
     ]);
     expect(res.body.data).toEqual({ results: [{ ok: true }, { ok: true }] });
@@ -601,8 +601,8 @@ describe("POST /training-records/bulk", () => {
 
   it("refuses a row for the signed-in employee without stopping the batch", async () => {
     const res = await bulk([
-      { op: "create", employeeId: MERCURY, developmentNeedId: NEED, activity: "Uji", date: "2026-12-01", status: "Planned", result: "", notes: "" },
-      { op: "create", employeeId: ALFA, developmentNeedId: NEED, activity: "Uji", date: "2026-12-01", status: "Planned", result: "", notes: "" },
+      { op: "create", employeeId: MERCURY, developmentNeedId: NEED, activity: "Uji", date: "2030-01-15", status: "Planned", result: "", notes: "" },
+      { op: "create", employeeId: ALFA, developmentNeedId: NEED, activity: "Uji", date: "2030-01-15", status: "Planned", result: "", notes: "" },
     ]);
     expect(res.body.data).toEqual({ results: [{ ok: false, message: expect.stringMatching(/diri sendiri/) }, { ok: true }] });
   });

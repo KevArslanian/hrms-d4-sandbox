@@ -11,7 +11,7 @@ describe("bulk Update Progress check before saving", () => {
 
   const changes: BulkProgress[] = [
     { status: "Completed", result: "Passed", decision: "Meets requirement", notes: "Uji" },
-    { status: "Completed", result: "Passed", decision: "Retraining", notes: "Uji", activity: "Ulang", date: "2026-11-30" },
+    { status: "Completed", result: "Passed", decision: "Retraining", notes: "Uji", activity: "Ulang", date: "2030-01-15" },
     { status: "Completed", result: "Not Passed", decision: "Other follow-up", notes: "Uji" },
     { status: "In Progress", notes: "" },
   ];
